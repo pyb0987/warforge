@@ -7,7 +7,7 @@ import random  # noqa: F401 — used in type hints
 from .types import CardTemplate, UnitStack
 from . import units
 
-UNIT_CAP_PER_CARD = 50
+UNIT_CAP_PER_CARD = 60
 
 
 class CardInstance:
