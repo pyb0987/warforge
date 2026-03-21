@@ -184,12 +184,12 @@ _CARDS_S2 = [
         max_act=2,
         tags=frozenset({"스팀펑크", "강화"})),
 
-    # 3. 증기 대장간 ★2: #기갑+#증기 대상, 3/R
+    # 3. 증기 대장간 ★2: #기갑+#증기 대상, ATK+7.5%, 2/R 유지
     _ct("sp_forge_s2", "증기 대장간★2", 2, "steampunk",
         comp=(("sp_crab", 1), ("sp_sawblade", 1)),
         trigger=_ON_EVENT(l2=Layer2.UPGRADE),
-        effects=(_ENHANCE("event_target", "기갑,증기", 0.05),),
-        max_act=3,
+        effects=(_ENHANCE("event_target", "기갑,증기", 0.075),),
+        max_act=2,
         tags=frozenset({"스팀펑크", "강화"})),
 
     # 4. 조립 라인 ★2: 2기씩, 4/R

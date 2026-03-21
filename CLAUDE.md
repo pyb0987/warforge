@@ -14,24 +14,23 @@ python3 sim/simulate.py -n 50 --seed 42    # batch 50 runs
 
 ```
 DESIGN.md                  ← 마스터 문서 (확정 사항 + 목차)
-docs/design/               ← 상세 설계 11편 (정규 문서)
-  architecture.md           유닛/카드 2층 구조
-  themes.md                 4테마+중립, 키워드 Layer 구조
-  growth-chain.md           성장 체인 이벤트 시스템
-  cards-steampunk.md        스팀펑크 카드 풀 9장
-  cards-example.md          초기 예시 10장 (임시)
+docs/design/               ← 상세 설계 (정규 문서)
+  architecture.md           유닛/카드 2층 구조, ★2/★3 지침, 카드 효과 설계 원칙 7조
+  themes.md                 4테마 메카니즘 프레임워크, 키워드 Layer 구조
+  growth-chain.md           성장 체인 이벤트 시스템, 트리거 표현 규칙
+  cards-steampunk.md        스팀펑크 카드 풀 9장 (★1/★2/★3 전부)
+  cards-neutral.md          중립 카드 풀 6장
+  units-*.md                유닛 풀 (테마별 10종 × 4 + 중립 10종)
   design-space.md           카드 설계 공간 (트리거/효과/대상)
   game-loop.md              런 구조, 보스 보상
-  combat.md                 전투, 적 파워 곡선
+  combat.md                 전투, 전투력(CP) 공식, 적 파워 곡선
   upgrade.md                업그레이드, 경제, 상점
   replay.md                 커맨더, 부적, 난이도
   backlog.md                미결정 항목
 docs/episodes/             ← 의사결정 에피소드 (변경 사유 기록)
-docs/growth-chain-math.md  ← 수학 검증 (참고용)
-docs/balance-methodology.md← 밸런스 방법론 (참고용)
 sim/                       ← 시뮬레이션 코드
   engine/                    types, units, cards, chain, combat, game
-  data/                      unit_pool(20종), card_pool(14장), enemies
+  data/                      unit_pool(20종), card_pool(14장+★2), enemies
   simulate.py                CLI 엔트리포인트
 ```
 

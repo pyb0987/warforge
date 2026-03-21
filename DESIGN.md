@@ -27,8 +27,8 @@
 | 트리거 해결 순서 | **배치 순서 (왼→오)** | 인접 위치 시스템과 일관 |
 | 세션 길이 | 28~35분 | 15 라운드 |
 | 유닛 스탯 스케일 | **SC1 스타일** (ATK 1~20, HP 20~500, AS/Range/MS) | DEF 기본 0, 업그레이드로 부여 |
-| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/충군/군대 + 중립(14장). 테마별 고유 키워드 |
-| 카드 풀 | **50장** | 중립14 / 스팀펑크9 / 드루이드9 / 충군9 / 군대9 |
+| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/포식종/군대 + 중립(14장). 테마별 고유 키워드 |
+| 카드 풀 | **50장** | 중립14 / 스팀펑크9 / 드루이드9 / 포식종9 / 군대9 |
 | 메타 진행 | 풍부 (로그라이트) | 영구 업그레이드, 컬렉션, 스토리 |
 
 ---
@@ -39,8 +39,13 @@
 |------|------|
 | [themes.md](docs/design/themes.md) | 테마 & 카드 풀 구성, 키워드 Layer 구조, 빌드 아키타입 |
 | [architecture.md](docs/design/architecture.md) | 2층 유닛/카드 아키텍처, 유닛 풀, 태그 체계, 카드 구성 요소 |
-| [cards-steampunk.md](docs/design/cards-steampunk.md) | **스팀펑크 카드 풀 9장** (% 기반 강화, 설계 공간 다양 활용) |
-| [cards-example.md](docs/design/cards-example.md) | 초기 예시 카드 10장 (임시, 참고용) |
+| [units-steampunk.md](docs/design/units-steampunk.md) | 스팀펑크 유닛 풀 10종 (#기계, 균형) |
+| [units-druid.md](docs/design/units-druid.md) | 드루이드 유닛 풀 10종 (#생체, 소수 정예) |
+| [units-predator.md](docs/design/units-predator.md) | 포식종 유닛 풀 10종 (#생체, 물량) |
+| [units-military.md](docs/design/units-military.md) | 군대 유닛 풀 10종 (#생체+#기계 혼합, 미래전) |
+| [units-neutral.md](docs/design/units-neutral.md) | 중립 유닛 풀 10종 (#기계/#생체 50:50, 방랑자/야생) |
+| [cards-steampunk.md](docs/design/cards-steampunk.md) | 스팀펑크 카드 풀 9장 |
+| [cards-neutral.md](docs/design/cards-neutral.md) | 중립 카드 풀 6장 (1차 검증용) |
 | [design-space.md](docs/design/design-space.md) | 카드 설계 공간: 트리거/효과/대상 풀, 발라트로식 효과, 시스템 간 강도 |
 | [game-loop.md](docs/design/game-loop.md) | 핵심 게임 루프, 런 구조, 보스 보상 유형별 설계 원칙 |
 | [growth-chain.md](docs/design/growth-chain.md) | 성장 체인 시스템, 이벤트 2층 구조, 발동 모델, 이벤트 흐름 규칙 |
@@ -49,10 +54,14 @@
 | [replay.md](docs/design/replay.md) | 리플레이 시스템: 커맨더 7종, 부적 12종, 난이도 8단계, 해금 |
 | [backlog.md](docs/design/backlog.md) | 미결정 항목 |
 
-### 참고 문서
+### 기술 문서
 
 | 문서 | 내용 |
 |------|------|
-| [docs/growth-chain-math.md](docs/growth-chain-math.md) | 성장 체인 수학 검증 (구 카드 기준, 참고용) |
-| [docs/balance-methodology.md](docs/balance-methodology.md) | 밸런스 방법론 (구 경제 기준, 참고용) |
+| [docs/tech/rendering.md](docs/tech/rendering.md) | 렌더링 & 전투 엔진 기술 설계, 최적화 전략 |
+
+### 의사결정 기록
+
+| 문서 | 내용 |
+|------|------|
 | [docs/episodes/](docs/episodes/) | 설계 의사결정 에피소드 기록 |
