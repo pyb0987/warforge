@@ -52,6 +52,7 @@
 | [combat.md](docs/design/combat.md) | 전투 시스템, 적 파워 곡선, 적 프리셋 프레임워크, 보스 설계 |
 | [upgrade.md](docs/design/upgrade.md) | 업그레이드 시스템, 경제 시스템, 상점, ★합성, 2화폐 구조 |
 | [replay.md](docs/design/replay.md) | 리플레이 시스템: 커맨더 7종, 부적 12종, 난이도 8단계, 해금 |
+| [card-design-method.md](docs/design/card-design-method.md) | 카드 설계 접근법, 안티패턴 |
 | [backlog.md](docs/design/backlog.md) | 미결정 항목 |
 
 ### 기술 문서
