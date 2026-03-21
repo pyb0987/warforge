@@ -7,6 +7,8 @@ import random  # noqa: F401 — used in type hints
 from .types import CardTemplate, UnitStack
 from . import units
 
+UNIT_CAP_PER_CARD = 50
+
 
 class CardInstance:
     def __init__(self, template: CardTemplate):
@@ -31,13 +33,17 @@ class CardInstance:
     def total_hp(self) -> float:
         return sum(s.count * s.eff_hp for s in self.stacks)
 
-    def spawn_random(self, rng: random.Random) -> None:
-        """Add 1 unit (random type weighted by current count)."""
-        if not self.stacks:
-            return
+    def spawn_random(self, rng: random.Random) -> bool:
+        """Add 1 unit (random type weighted by current count).
+
+        Returns False if card is at unit cap.
+        """
+        if not self.stacks or self.total_units >= UNIT_CAP_PER_CARD:
+            return False
         weights = [max(s.count, 1) for s in self.stacks]
         chosen = rng.choices(self.stacks, weights=weights, k=1)[0]
         chosen.count += 1
+        return True
 
     def enhance(self, tag_filter: str | None,
                 atk_pct: float, hp_pct: float) -> int:
