@@ -71,16 +71,31 @@ def run_game(board: list[CardInstance], rng: random.Random,
              chain_only: bool = False,
              combat_only: bool = False,
              schedule: dict | None = None,
+             evolve_schedule: dict | None = None,
              ) -> GameState:
     """Run a full game (R1-R15).
 
-    schedule: optional {round: [CardInstance]} to add cards mid-game.
+    schedule: {round: [CardInstance]} to add cards mid-game.
+    evolve_schedule: {round: [(board_index, new_template)]} for ★ evolution.
     """
     state = GameState(board=board, rng=rng)
 
     for rnd in range(1, TOTAL_ROUNDS + 1):
         if state.player_hp <= 0:
             break
+        # ★ Evolution for this round
+        if evolve_schedule and rnd in evolve_schedule:
+            for card_id, new_template in evolve_schedule[rnd]:
+                for card in state.board:
+                    if card.template.id == card_id:
+                        card.evolve(new_template)
+                        # ★2 무료 레어 업그레이드 (해당 카드만 ×1.30)
+                        card.multiply_stats(0.30, 0.30)
+                        if verbose:
+                            print(f"    ★★ R{rnd}: {new_template.name} 진화! "
+                                  f"(해당 카드 ×1.30)")
+                        break
+
         # Add scheduled cards for this round
         if schedule and rnd in schedule:
             for card in schedule[rnd]:

@@ -165,11 +165,141 @@ _CARDS = [
         tags=frozenset({"중립", "고대"})),
 ]
 
+# ── ★2 templates ─────────────────────────────────────────────────
+# Same composition, evolved trigger/effects.
+
+_CARDS_S2 = [
+    # 1. 증기 조립소 ★2: 양쪽 인접 제조
+    _ct("sp_assembly_s2", "증기 조립소★2", 1, "steampunk",
+        comp=(("sp_spider", 2), ("sp_rat", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(_SPAWN("both_adj"),),
+        tags=frozenset({"스팀펑크", "생산"})),
+
+    # 2. 태엽 공방 ★2: #태엽+#전기 대상, 개량 7.5%, 2/R 유지
+    _ct("sp_workshop_s2", "태엽 공방★2", 1, "steampunk",
+        comp=(("sp_spider", 2), ("sp_sawblade", 1)),
+        trigger=_ON_EVENT(l2=Layer2.MANUFACTURE),
+        effects=(_ENHANCE("event_target", "태엽,전기", 0.075),),
+        max_act=2,
+        tags=frozenset({"스팀펑크", "강화"})),
+
+    # 3. 증기 대장간 ★2: #기갑+#증기 대상, 3/R
+    _ct("sp_forge_s2", "증기 대장간★2", 2, "steampunk",
+        comp=(("sp_crab", 1), ("sp_sawblade", 1)),
+        trigger=_ON_EVENT(l2=Layer2.UPGRADE),
+        effects=(_ENHANCE("event_target", "기갑,증기", 0.05),),
+        max_act=3,
+        tags=frozenset({"스팀펑크", "강화"})),
+
+    # 4. 조립 라인 ★2: 2기씩, 4/R
+    _ct("sp_line_s2", "조립 라인★2", 3, "steampunk",
+        comp=(("sp_sawblade", 2), ("sp_spider", 1)),
+        trigger=_ON_EVENT(l2=Layer2.MANUFACTURE, other=True),
+        effects=(_SPAWN("self", 2), _SPAWN("right_adj", 2)),
+        max_act=4,
+        tags=frozenset({"스팀펑크", "생산"})),
+
+    # 5. 시한 보일러 ★2: 개량 + 인접 1기 제조
+    _ct("sp_boiler_s2", "시한 보일러★2", 3, "steampunk",
+        comp=(("sp_scorpion", 1), ("sp_rat", 2)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START, require_tenure=3),
+        effects=(
+            _ENHANCE("self", "증기", 0.08, 0.08),
+            _SPAWN("right_adj"),
+        ),
+        tags=frozenset({"스팀펑크", "시간"})),
+
+    # 6. 전쟁 기계 ★2: ATK+25% (관통은 sim 미구현, 수치로 대체)
+    _ct("sp_warmachine_s2", "전쟁 기계★2", 4, "steampunk",
+        comp=(("sp_turret", 1), ("sp_cannon", 1), ("sp_drone", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ON_COMBAT_ATTACK),
+        effects=(EffectSpec(
+            action="buff_pct", target="self",
+            buff_atk_pct=0.25, unit_tag_filter="화기"),),
+        tags=frozenset({"스팀펑크", "전투"})),
+
+    # 7. 과부하 코일 ★2: 양쪽 인접 추가 발동
+    _ct("sp_overload_s2", "과부하 코일★2", 4, "steampunk",
+        comp=(("sp_drone", 2),),
+        trigger=TriggerSpec(
+            timing=TriggerTiming.ROUND_START, is_non_combatant=True),
+        effects=(EffectSpec(action="retrigger", target="both_adj"),),
+        tags=frozenset({"스팀펑크", "과부하"})),
+
+    # 8. 제국 공장 ★2: 전체 2기씩
+    _ct("sp_factory_s2", "제국 공장★2", 5, "steampunk",
+        comp=(("sp_titan", 1), ("sp_scorpion", 1), ("sp_crab", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(_SPAWN("all_allies", 2),),
+        tags=frozenset({"스팀펑크", "생산"})),
+
+    # 9. 떠돌이 무리 ★2: 자신 유닛 2기 추가, 2/R 유지
+    _ct("ne_wanderers_s2", "떠돌이 무리★2", 1, "neutral",
+        comp=(("ne_merc", 1), ("ne_scrap", 2)),
+        trigger=_ON_EVENT(l1=Layer1.UNIT_ADDED, other=True),
+        effects=(_SPAWN_NEUTRAL("self", 2),),
+        max_act=2,
+        tags=frozenset({"중립", "범용"})),
+
+    # 10. 방랑 상인 ★2: 3골드
+    _ct("ne_merchant_s2", "방랑 상인★2", 1, "neutral",
+        comp=(("ne_archer", 1), ("ne_scrap", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.POST_COMBAT_DEFEAT),
+        effects=(EffectSpec(action="grant_gold", target="self", gold_amount=3),),
+        max_act=1,
+        tags=frozenset({"중립", "경제"})),
+
+    # 11. 야생의 힘 ★2: ATK+15%
+    _ct("ne_wildforce_s2", "야생의 힘★2", 2, "neutral",
+        comp=(("ne_beast", 1), ("ne_chimera", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.BATTLE_START),
+        effects=(EffectSpec(
+            action="buff_pct", target="self", buff_atk_pct=0.15),),
+        tags=frozenset({"중립", "전투"})),
+
+    # 12. 고대의 잔해 ★2: 3골드, 양쪽 인접 유닛 추가
+    _ct("ne_ruins_s2", "고대의 잔해★2", 2, "neutral",
+        comp=(("ne_golem", 1), ("ne_spirit", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START, require_tenure=2),
+        effects=(
+            EffectSpec(action="grant_gold", target="self", gold_amount=3),
+            _SPAWN_NEUTRAL("both_adj"),
+        ),
+        tags=frozenset({"중립", "시간"})),
+
+    # 13. 키메라의 울부짖음 ★2: 3기
+    _ct("ne_chimera_cry_s2", "키메라의 울부짖음★2", 3, "neutral",
+        comp=(("ne_chimera", 1), ("ne_mutant", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.POST_COMBAT_DEFEAT),
+        effects=(_SPAWN_NEUTRAL("self", 3),),
+        max_act=1,
+        tags=frozenset({"중립", "역전"})),
+
+    # 14. 고대의 각성 ★2: 2기씩, 방어막 30%
+    _ct("ne_awakening_s2", "고대의 각성★2", 4, "neutral",
+        comp=(("ne_sentinel", 1), ("ne_golem", 1)),
+        trigger=TriggerSpec(
+            timing=TriggerTiming.ROUND_START,
+            require_tenure=5, is_threshold=True),
+        effects=(
+            _SPAWN_NEUTRAL("all_allies", 2),
+            EffectSpec(action="shield_pct", target="all_allies",
+                       shield_hp_pct=0.30),
+        ),
+        tags=frozenset({"중립", "고대"})),
+]
+
 
 def register_all() -> None:
-    for c in _CARDS:
+    for c in _CARDS + _CARDS_S2:
         CARD_TEMPLATES[c.id] = c
 
 
 def get_template(card_id: str) -> CardTemplate:
     return CARD_TEMPLATES[card_id]
+
+
+def get_s2_id(card_id: str) -> str:
+    """Get ★2 template ID for a ★1 card."""
+    return card_id + "_s2"

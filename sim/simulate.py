@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from data.unit_pool import register_all as register_units
-from data.card_pool import register_all as register_cards, get_template
+from data.card_pool import register_all as register_cards, get_template, get_s2_id
 from data.enemies import generate_enemy, BOSS_ROUNDS
 from engine.cards import CardInstance
 from engine.game import run_game, GameState, TOTAL_ROUNDS
@@ -97,36 +97,81 @@ PRESETS = {
     },
     "weak": {
         "name": "점진적 (약한 빌드)",
-        # 시너지 늦게 확보, 비효율적 구매 순서, 체인 카드 부족.
         "schedule": {
-            1: ["ne_merchant", "ne_wanderers"],         # 상인+떠돌이 (체인 없음)
-            3: ["sp_assembly"],                         # 조립소 (늦은 체인 시작)
-            4: ["ne_wildforce"],                        # 야생의 힘
-            5: ["sp_workshop"],                         # 공방 (늦은 연결)
-            7: ["ne_ruins"],                            # 고대의 잔해
-            9: ["ne_chimera_cry"],                      # 키메라 울부짖음 (패배 보상)
+            1: ["ne_merchant", "ne_wanderers"],
+            3: ["sp_assembly"],
+            4: ["ne_wildforce"],
+            5: ["sp_workshop"],
+            7: ["ne_ruins"],
+            9: ["ne_chimera_cry"],
+        },
+    },
+
+    # ── ★2 progressive presets ───────────────────────────────────
+
+    "strong_s2": {
+        "name": "점진적 ★2 (좋은 빌드)",
+        "schedule": {
+            1: ["sp_assembly", "ne_wanderers"],
+            2: ["sp_workshop"],
+            3: ["ne_wildforce"],
+            4: ["sp_line"],
+            6: ["ne_ruins"],
+            8: ["sp_warmachine"],
+        },
+        # ★2 진화: R6 조립소, R7 공방, R8 조립라인 (핵심 체인 카드 우선)
+        "evolve": {
+            6: ["sp_assembly"],
+            7: ["sp_workshop"],
+            8: ["sp_line"],
+        },
+    },
+    "weak_s2": {
+        "name": "점진적 ★2 (약한 빌드)",
+        "schedule": {
+            1: ["ne_merchant", "ne_wanderers"],
+            3: ["sp_assembly"],
+            4: ["ne_wildforce"],
+            5: ["sp_workshop"],
+            7: ["ne_ruins"],
+            9: ["ne_chimera_cry"],
+        },
+        # ★2 진화: R8 조립소, R10 떠돌이 (늦고 비핵심)
+        "evolve": {
+            8: ["sp_assembly"],
+            10: ["ne_wanderers"],
         },
     },
 }
 
 
 def make_board_and_schedule(preset_id: str):
-    """Returns (initial_board, schedule_dict_or_None)."""
+    """Returns (initial_board, card_schedule, evolve_schedule)."""
     preset = PRESETS[preset_id]
+
+    # Card schedule
+    card_sched = None
     if "schedule" in preset:
-        # Progressive: R1 cards become initial board, rest is schedule
         sched = preset["schedule"]
         initial = [CardInstance(get_template(cid)) for cid in sched.get(1, [])]
-        later = {}
+        card_sched = {}
         for rnd, cids in sched.items():
             if rnd == 1:
                 continue
-            later[rnd] = [CardInstance(get_template(cid)) for cid in cids]
-        return initial, later
+            card_sched[rnd] = [CardInstance(get_template(cid)) for cid in cids]
     else:
-        # Fixed: all cards from R1
-        board = [CardInstance(get_template(cid)) for cid in preset["cards"]]
-        return board, None
+        initial = [CardInstance(get_template(cid)) for cid in preset["cards"]]
+
+    # Evolve schedule: {round: [(card_id, new_template)]}
+    evolve_sched = None
+    if "evolve" in preset:
+        evolve_sched = {}
+        for rnd, card_ids in preset["evolve"].items():
+            evolve_sched[rnd] = [
+                (cid, get_template(get_s2_id(cid))) for cid in card_ids
+            ]
+
+    return initial, card_sched, evolve_sched
 
 
 # ── Batch runner ─────────────────────────────────────────────────
@@ -140,25 +185,28 @@ def run_batch(preset_id: str, num_runs: int, base_seed: int | None,
     for i in range(num_runs):
         seed = (base_seed + i) if base_seed is not None else None
         rng = random.Random(seed)
-        board, schedule = make_board_and_schedule(preset_id)
+        board, card_sched, evolve_sched = make_board_and_schedule(preset_id)
 
         show = verbose and (i == num_runs - 1)
         if show:
             print(f"\n{'=' * 70}")
             print(f"  Preset: \"{preset['name']}\"")
-            if schedule:
-                for rnd in sorted(list((schedule or {}).keys()) + [1]):
+            if "schedule" in preset:
+                for rnd in sorted(list(preset["schedule"].keys())):
                     cards = preset["schedule"].get(rnd, [])
-                    names = ", ".join(
-                        get_template(c).name for c in cards)
-                    print(f"    R{rnd}: +[{names}]")
+                    names = ", ".join(get_template(c).name for c in cards)
+                    evos = preset.get("evolve", {}).get(rnd, [])
+                    evo_str = " | ★2: " + ", ".join(evos) if evos else ""
+                    print(f"    R{rnd}: +[{names}]{evo_str}")
             else:
                 names = " → ".join(c.template.name for c in board)
                 print(f"  Board:  [{names}]")
             print(f"{'=' * 70}")
 
         state = run_game(board, rng, generate_enemy, show,
-                         chain_only, combat_only, schedule=schedule)
+                         chain_only, combat_only,
+                         schedule=card_sched,
+                         evolve_schedule=evolve_sched)
         all_states.append(state)
 
     print_summary(preset, all_states, num_runs, chain_only, combat_only)

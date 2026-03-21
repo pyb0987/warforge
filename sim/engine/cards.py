@@ -49,12 +49,15 @@ class CardInstance:
                 atk_pct: float, hp_pct: float) -> int:
         """Enhance matching units by % of base stats.
 
+        tag_filter: None (all), "태엽" (single), "태엽,전기" (any match).
         Returns number of stacks enhanced.
         """
         count = 0
         for s in self.stacks:
-            if tag_filter is not None and tag_filter not in s.unit_type.tags:
-                continue
+            if tag_filter is not None:
+                tags = tag_filter.split(",") if "," in tag_filter else [tag_filter]
+                if not any(t in s.unit_type.tags for t in tags):
+                    continue
             if atk_pct:
                 s.bonus_atk += s.unit_type.atk * atk_pct
             if hp_pct:
@@ -78,6 +81,10 @@ class CardInstance:
     def clear_temp_buffs(self) -> None:
         for s in self.stacks:
             s.temp_atk = 0.0
+
+    def evolve(self, new_template: CardTemplate) -> None:
+        """Evolve to ★2/★3. Keeps units and bonuses."""
+        self.template = new_template
 
     def reset_round(self) -> None:
         self.activations_used = 0
