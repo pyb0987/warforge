@@ -1,0 +1,47 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/upgrade_visual.gd" id="1"]
+
+[node name="UpgradeVisual" type="Panel"]
+custom_minimum_size = Vector2(140, 160)
+offset_right = 140.0
+offset_bottom = 160.0
+script = ExtResource("1")
+
+[node name="RarityLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 136.0
+offset_bottom = 20.0
+text = "COMMON"
+
+[node name="NameLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 4.0
+offset_top = 22.0
+offset_right = 136.0
+offset_bottom = 44.0
+text = "Upgrade Name"
+
+[node name="DescLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 4.0
+offset_top = 48.0
+offset_right = 136.0
+offset_bottom = 130.0
+text = "Effect description"
+autowrap_mode = 2
+
+[node name="CostLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 4.0
+offset_top = 134.0
+offset_right = 136.0
+offset_bottom = 154.0
+text = "4T"
+horizontal_alignment = 1

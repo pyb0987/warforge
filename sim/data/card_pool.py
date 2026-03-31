@@ -1,4 +1,4 @@
-"""Card pool: steampunk 9 + neutral 6 (증기 이자기 excluded)."""
+"""Card pool: steampunk 10 + neutral 6 + druid 10."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ _ON_EVENT = lambda l1=None, l2=None, other=False: TriggerSpec(
 
 
 _CARDS = [
-    # ── Steampunk (8 active, 증기 이자기 제외) ───────────────────
+    # ── Steampunk (10) ──────────────────────────────────────────
 
     # 1. 증기 조립소 — chain starter (제조)
     _ct("sp_assembly", "증기 조립소", 1, "steampunk",
@@ -60,30 +60,55 @@ _CARDS = [
         max_act=2,
         tags=frozenset({"스팀펑크", "강화"})),
 
-    # 3. 증기 대장간 — 개량 증폭
-    _ct("sp_forge", "증기 대장간", 2, "steampunk",
+    # 3. 증기 용광로 — 집중 체인 시작 (자기 제조+성장)
+    _ct("sp_furnace", "증기 용광로", 1, "steampunk",
+        comp=(("sp_crab", 1), ("sp_sawblade", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(
+            _SPAWN("self"),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.03,
+                       output_layer1=None, output_layer2=None),
+        ),
+        tags=frozenset({"스팀펑크", "집중"})),
+
+    # 4. 증기 순환기 — 개량→스폰 피드백
+    _ct("sp_circulator", "증기 순환기", 2, "steampunk",
         comp=(("sp_crab", 1), ("sp_sawblade", 1)),
         trigger=_ON_EVENT(l2=Layer2.UPGRADE),
-        effects=(_ENHANCE("event_target", "기갑", 0.05),),
-        max_act=2,
-        tags=frozenset({"스팀펑크", "강화"})),
+        effects=(_SPAWN("event_target"),),
+        max_act=1,
+        tags=frozenset({"스팀펑크", "순환"})),
 
-    # 4. 조립 라인 — 제조 증폭 (다른 카드 제조 시)
+    # 5. 증기 이자기 — 경제 카드 (자기 제조+성장, 이벤트 방출)
+    _ct("sp_interest", "증기 이자기", 2, "steampunk",
+        comp=(("sp_scout", 2), ("sp_rat", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(
+            _SPAWN("self", 2),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.06,
+                       output_layer1=None, output_layer2=None),
+        ),
+        tags=frozenset({"스팀펑크", "경제"})),
+
+    # 6. 조립 라인 — 제조 증폭 (다른 카드 제조 시, 양쪽 인접)
     _ct("sp_line", "조립 라인", 3, "steampunk",
         comp=(("sp_sawblade", 2), ("sp_spider", 1)),
         trigger=_ON_EVENT(l2=Layer2.MANUFACTURE, other=True),
-        effects=(_SPAWN("self"), _SPAWN("right_adj")),
+        effects=(_SPAWN("both_adj"),),
         max_act=3,
         tags=frozenset({"스팀펑크", "생산"})),
 
-    # 5. 시한 보일러 — 3R 체류 인내 보상 (개량)
-    _ct("sp_boiler", "시한 보일러", 3, "steampunk",
+    # 7. 증기 방벽 — 전투 시작 방어막
+    _ct("sp_barrier", "증기 방벽", 3, "steampunk",
         comp=(("sp_scorpion", 1), ("sp_rat", 2)),
-        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START, require_tenure=3),
-        effects=(_ENHANCE("self", "증기", 0.08, 0.08),),
-        tags=frozenset({"스팀펑크", "시간"})),
+        trigger=TriggerSpec(timing=TriggerTiming.BATTLE_START),
+        effects=(EffectSpec(action="shield_pct", target="self",
+                            shield_hp_pct=0.20),),
+        tags=frozenset({"스팀펑크", "방어"})),
 
-    # 6. 전쟁 기계 — 전투 중 버프 (pre-combat in sim)
+    # 8. 전쟁 기계 — 전투 중 버프 (pre-combat in sim)
     _ct("sp_warmachine", "전쟁 기계", 4, "steampunk",
         comp=(("sp_turret", 1), ("sp_cannon", 1), ("sp_drone", 1)),
         trigger=TriggerSpec(timing=TriggerTiming.ON_COMBAT_ATTACK),
@@ -92,19 +117,26 @@ _CARDS = [
             buff_atk_pct=0.15, unit_tag_filter="화기"),),
         tags=frozenset({"스팀펑크", "전투"})),
 
-    # 7. 과부하 코일 — 비전투원, 인접 추가 발동
-    _ct("sp_overload", "과부하 코일", 4, "steampunk",
+    # 9. 태엽 과급기 — 제조 반응 집중 성장
+    _ct("sp_charger", "태엽 과급기", 4, "steampunk",
         comp=(("sp_drone", 2),),
-        trigger=TriggerSpec(
-            timing=TriggerTiming.ROUND_START, is_non_combatant=True),
-        effects=(EffectSpec(action="retrigger", target="right_adj"),),
-        tags=frozenset({"스팀펑크", "과부하"})),
+        trigger=_ON_EVENT(l2=Layer2.MANUFACTURE),
+        effects=(EffectSpec(action="enhance_pct", target="self",
+                            enhance_atk_pct=0.015,
+                            output_layer1=None, output_layer2=None),),
+        max_act=99,
+        tags=frozenset({"스팀펑크", "집중"})),
 
-    # 8. 제국 공장 — capstone, 전체 제조
-    _ct("sp_factory", "제국 공장", 5, "steampunk",
+    # 10. 제국 병기창 — capstone, 자기 제조+성장
+    _ct("sp_arsenal", "제국 병기창", 5, "steampunk",
         comp=(("sp_titan", 1), ("sp_scorpion", 1), ("sp_crab", 1)),
         trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
-        effects=(_SPAWN("all_allies"),),
+        effects=(
+            _SPAWN("self", 2),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.03,
+                       output_layer1=None, output_layer2=None),
+        ),
         tags=frozenset({"스팀펑크", "생산"})),
 
     # ── Neutral (6) ──────────────────────────────────────────────
@@ -184,33 +216,55 @@ _CARDS_S2 = [
         max_act=2,
         tags=frozenset({"스팀펑크", "강화"})),
 
-    # 3. 증기 대장간 ★2: #기갑+#증기 대상, ATK+7.5%, 2/R 유지
-    _ct("sp_forge_s2", "증기 대장간★2", 2, "steampunk",
+    # 3. 증기 용광로 ★2: 2기 + ATK+5%
+    _ct("sp_furnace_s2", "증기 용광로★2", 1, "steampunk",
+        comp=(("sp_crab", 1), ("sp_sawblade", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(
+            _SPAWN("self", 2),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.05,
+                       output_layer1=None, output_layer2=None),
+        ),
+        tags=frozenset({"스팀펑크", "집중"})),
+
+    # 4. 증기 순환기 ★2: 2/R
+    _ct("sp_circulator_s2", "증기 순환기★2", 2, "steampunk",
         comp=(("sp_crab", 1), ("sp_sawblade", 1)),
         trigger=_ON_EVENT(l2=Layer2.UPGRADE),
-        effects=(_ENHANCE("event_target", "기갑,증기", 0.075),),
+        effects=(_SPAWN("event_target"),),
         max_act=2,
-        tags=frozenset({"스팀펑크", "강화"})),
+        tags=frozenset({"스팀펑크", "순환"})),
 
-    # 4. 조립 라인 ★2: 2기씩, 4/R
+    # 5. 증기 이자기 ★2: 3기 + ATK+10%
+    _ct("sp_interest_s2", "증기 이자기★2", 2, "steampunk",
+        comp=(("sp_scout", 2), ("sp_rat", 1)),
+        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
+        effects=(
+            _SPAWN("self", 3),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.10,
+                       output_layer1=None, output_layer2=None),
+        ),
+        tags=frozenset({"스팀펑크", "경제"})),
+
+    # 6. 조립 라인 ★2: 양쪽 인접 2기씩, 4/R (self spawn 제거)
     _ct("sp_line_s2", "조립 라인★2", 3, "steampunk",
         comp=(("sp_sawblade", 2), ("sp_spider", 1)),
         trigger=_ON_EVENT(l2=Layer2.MANUFACTURE, other=True),
-        effects=(_SPAWN("self", 2), _SPAWN("right_adj", 2)),
+        effects=(_SPAWN("both_adj", 2),),
         max_act=4,
         tags=frozenset({"스팀펑크", "생산"})),
 
-    # 5. 시한 보일러 ★2: 개량 + 인접 1기 제조
-    _ct("sp_boiler_s2", "시한 보일러★2", 3, "steampunk",
+    # 7. 증기 방벽 ★2: 방어막 40%
+    _ct("sp_barrier_s2", "증기 방벽★2", 3, "steampunk",
         comp=(("sp_scorpion", 1), ("sp_rat", 2)),
-        trigger=TriggerSpec(timing=TriggerTiming.ROUND_START, require_tenure=3),
-        effects=(
-            _ENHANCE("self", "증기", 0.08, 0.08),
-            _SPAWN("right_adj"),
-        ),
-        tags=frozenset({"스팀펑크", "시간"})),
+        trigger=TriggerSpec(timing=TriggerTiming.BATTLE_START),
+        effects=(EffectSpec(action="shield_pct", target="self",
+                            shield_hp_pct=0.40),),
+        tags=frozenset({"스팀펑크", "방어"})),
 
-    # 6. 전쟁 기계 ★2: ATK+25% (관통은 sim 미구현, 수치로 대체)
+    # 8. 전쟁 기계 ★2: ATK+25%
     _ct("sp_warmachine_s2", "전쟁 기계★2", 4, "steampunk",
         comp=(("sp_turret", 1), ("sp_cannon", 1), ("sp_drone", 1)),
         trigger=TriggerSpec(timing=TriggerTiming.ON_COMBAT_ATTACK),
@@ -219,19 +273,26 @@ _CARDS_S2 = [
             buff_atk_pct=0.25, unit_tag_filter="화기"),),
         tags=frozenset({"스팀펑크", "전투"})),
 
-    # 7. 과부하 코일 ★2: 양쪽 인접 추가 발동
-    _ct("sp_overload_s2", "과부하 코일★2", 4, "steampunk",
+    # 9. 태엽 과급기 ★2: ATK+2.5%
+    _ct("sp_charger_s2", "태엽 과급기★2", 4, "steampunk",
         comp=(("sp_drone", 2),),
-        trigger=TriggerSpec(
-            timing=TriggerTiming.ROUND_START, is_non_combatant=True),
-        effects=(EffectSpec(action="retrigger", target="both_adj"),),
-        tags=frozenset({"스팀펑크", "과부하"})),
+        trigger=_ON_EVENT(l2=Layer2.MANUFACTURE),
+        effects=(EffectSpec(action="enhance_pct", target="self",
+                            enhance_atk_pct=0.025,
+                            output_layer1=None, output_layer2=None),),
+        max_act=99,
+        tags=frozenset({"스팀펑크", "집중"})),
 
-    # 8. 제국 공장 ★2: 전체 2기씩
-    _ct("sp_factory_s2", "제국 공장★2", 5, "steampunk",
+    # 10. 제국 병기창 ★2: 3기 + ATK+5%
+    _ct("sp_arsenal_s2", "제국 병기창★2", 5, "steampunk",
         comp=(("sp_titan", 1), ("sp_scorpion", 1), ("sp_crab", 1)),
         trigger=TriggerSpec(timing=TriggerTiming.ROUND_START),
-        effects=(_SPAWN("all_allies", 2),),
+        effects=(
+            _SPAWN("self", 3),
+            EffectSpec(action="enhance_pct", target="self",
+                       enhance_atk_pct=0.05,
+                       output_layer1=None, output_layer2=None),
+        ),
         tags=frozenset({"스팀펑크", "생산"})),
 
     # 9. 떠돌이 무리 ★2: 자신 유닛 2기 추가, 2/R 유지
@@ -291,8 +352,99 @@ _CARDS_S2 = [
 ]
 
 
+_RS = TriggerSpec(timing=TriggerTiming.ROUND_START)
+_BS = TriggerSpec(timing=TriggerTiming.BATTLE_START)
+
+_DRUID_CARDS = [
+    # ── Druid (9) ───────────────────────────────────────────────
+    _ct("dr_cradle", "숲의 요람", 1, "druid",
+        comp=(("dr_treant", 1), ("dr_wolf", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "생성"})),
+    _ct("dr_lifebeat", "생명의 맥동", 1, "druid",
+        comp=(("dr_boar", 1), ("dr_wolf", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "수호"})),
+    _ct("dr_origin", "오래된 근원", 2, "druid",
+        comp=(("dr_turtle", 1), ("dr_vine", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "번식"})),
+    _ct("dr_grace", "숲의 은혜", 2, "druid",
+        comp=(("dr_spore", 1), ("dr_wolf", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "경제"})),
+    _ct("dr_earth", "대지의 축복", 2, "druid",
+        comp=(("dr_turtle", 1), ("dr_wolf", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "대지"})),
+    _ct("dr_deep", "뿌리깊은 자", 3, "druid",
+        comp=(("dr_ancient", 1), ("dr_root", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "시간"})),
+    _ct("dr_spore_cloud", "포자 구름", 3, "druid",
+        comp=(("dr_spore", 1), ("dr_toad", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "전투"})),
+    _ct("dr_wrath", "태고의 분노", 4, "druid",
+        comp=(("dr_spore", 1), ("dr_boar", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "전투"})),
+    _ct("dr_wt_root", "세계수의 뿌리", 4, "druid",
+        comp=(("dr_ancient", 1), ("dr_turtle", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "고대"})),
+    _ct("dr_world", "세계수", 5, "druid",
+        comp=(("dr_ancient", 1), ("dr_turtle", 1), ("dr_spirit", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "세계수"})),
+]
+
+_DRUID_S2 = [
+    _ct("dr_cradle_s2", "숲의 요람★2", 1, "druid",
+        comp=(("dr_treant", 1), ("dr_wolf", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "생성"})),
+    _ct("dr_lifebeat_s2", "생명의 맥동★2", 1, "druid",
+        comp=(("dr_boar", 1), ("dr_wolf", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "수호"})),
+    _ct("dr_origin_s2", "오래된 근원★2", 2, "druid",
+        comp=(("dr_turtle", 1), ("dr_vine", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "번식"})),
+    _ct("dr_grace_s2", "숲의 은혜★2", 2, "druid",
+        comp=(("dr_spore", 1), ("dr_wolf", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "경제"})),
+    _ct("dr_earth_s2", "대지의 축복★2", 2, "druid",
+        comp=(("dr_turtle", 1), ("dr_wolf", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "대지"})),
+    _ct("dr_deep_s2", "뿌리깊은 자★2", 3, "druid",
+        comp=(("dr_ancient", 1), ("dr_root", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "시간"})),
+    _ct("dr_spore_cloud_s2", "포자 구름★2", 3, "druid",
+        comp=(("dr_spore", 1), ("dr_toad", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "전투"})),
+    _ct("dr_wrath_s2", "태고의 분노★2", 4, "druid",
+        comp=(("dr_spore", 1), ("dr_boar", 1)),
+        trigger=_BS, effects=(),
+        tags=frozenset({"드루이드", "전투"})),
+    _ct("dr_wt_root_s2", "세계수의 뿌리★2", 4, "druid",
+        comp=(("dr_ancient", 1), ("dr_turtle", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "고대"})),
+    _ct("dr_world_s2", "세계수★2", 5, "druid",
+        comp=(("dr_ancient", 1), ("dr_turtle", 1), ("dr_spirit", 1)),
+        trigger=_RS, effects=(),
+        tags=frozenset({"드루이드", "세계수"})),
+]
+
+
 def register_all() -> None:
-    for c in _CARDS + _CARDS_S2:
+    for c in _CARDS + _CARDS_S2 + _DRUID_CARDS + _DRUID_S2:
         CARD_TEMPLATES[c.id] = c
 
 

@@ -8,6 +8,9 @@ import random
 from .types import TriggerTiming
 from .cards import CardInstance
 from .chain import run_growth_chain
+from .druid import (
+    process_druid_round, apply_druid_precombat, apply_druid_postcombat,
+)
 from .combat import (
     materialize_army, run_combat, make_diverse_enemy_army,
     CombatResult, ALLY_START_X,
@@ -44,18 +47,22 @@ class GameState:
     player_hp: int = PLAYER_HP
     gold: int = 0
     round_records: list[RoundRecord] = field(default_factory=list)
+    druid_state: dict = field(default_factory=dict)
 
 
 def combat_power_board(board: list[CardInstance]) -> float:
     """Compute player combat power: sum(count * DPS * HP).
 
     DPS = ATK / AS. This weights fast attackers higher than raw ATK × HP.
+    Uses 3-layer multiplicative stat formula via CardInstance.
     """
     cp = 0.0
     for card in board:
         for s in card.stacks:
-            dps = s.eff_atk / s.unit_type.attack_speed
-            cp += s.count * dps * s.eff_hp
+            atk = card.eff_atk_for(s)
+            hp = card.eff_hp_for(s)
+            dps = atk / s.unit_type.attack_speed
+            cp += s.count * dps * hp
     return cp
 
 
@@ -72,17 +79,42 @@ def run_game(board: list[CardInstance], rng: random.Random,
              combat_only: bool = False,
              schedule: dict | None = None,
              evolve_schedule: dict | None = None,
+             sell_schedule: dict | None = None,
              ) -> GameState:
     """Run a full game (R1-R15).
 
     schedule: {round: [CardInstance]} to add cards mid-game.
     evolve_schedule: {round: [(board_index, new_template)]} for ★ evolution.
+    sell_schedule: {round: [card_id]} to sell cards mid-game.
     """
     state = GameState(board=board, rng=rng)
 
     for rnd in range(1, TOTAL_ROUNDS + 1):
         if state.player_hp <= 0:
             break
+        # Sell scheduled cards
+        if sell_schedule and rnd in sell_schedule:
+            for card_id in sell_schedule[rnd]:
+                for j, card in enumerate(state.board):
+                    if card.template.id == card_id:
+                        # Druid: distribute saplings on sell
+                        if card.template.theme == "druid" and card.saplings > 0:
+                            druid_cards = [
+                                c for c in state.board
+                                if c != card and c.template.theme == "druid"
+                            ]
+                            if druid_cards:
+                                per_card = card.saplings // len(druid_cards)
+                                remainder = card.saplings % len(druid_cards)
+                                for dc in druid_cards:
+                                    dc.saplings += per_card
+                                for k in range(remainder):
+                                    druid_cards[k].saplings += 1
+                        state.board.pop(j)
+                        if verbose:
+                            print(f"    --- R{rnd}: {card.template.name} sold")
+                        break
+
         # ★ Evolution for this round
         if evolve_schedule and rnd in evolve_schedule:
             for card_id, new_template in evolve_schedule[rnd]:
@@ -136,6 +168,13 @@ def _run_round(state: GameState, rnd: int,
         for card in board:
             card.reset_round()
 
+    # 1.5 Druid phase
+    if not combat_only:
+        druid_chains, druid_gold = process_druid_round(
+            board, state.druid_state, rng, verbose)
+        chain_count += druid_chains
+        gold_from_chain += druid_gold
+
     state.gold += gold_from_chain
 
     # Snapshot post-chain stats
@@ -153,16 +192,25 @@ def _run_round(state: GameState, rnd: int,
         # Pre-combat: apply all temp buffs before materializing
         _apply_battle_start(board)
         _apply_combat_attack_buffs(board)
+        # Druid pre-combat (shield, debuff, mult, buff)
+        enemy_as_debuff = apply_druid_precombat(board, state.druid_state)
 
-        # Gather ally units (exclude non-combatant cards)
-        ally_stacks = []
+        # Gather ally units with computed stats (exclude non-combatant cards)
+        ally_stacks_with_stats = []
         for card in board:
             if card.template.trigger.is_non_combatant:
                 continue
-            ally_stacks.extend(card.stacks)
-        allies = materialize_army(ally_stacks, ALLY_START_X, is_ally=True)
+            for s in card.stacks:
+                ally_stacks_with_stats.append(
+                    (s, card.eff_atk_for(s), card.eff_hp_for(s)))
+        allies = materialize_army(ally_stacks_with_stats, ALLY_START_X,
+                                  is_ally=True)
 
         enemies = make_diverse_enemy_army(eu, enemy_cp)
+        # Apply druid spore AS debuff to enemies
+        if enemy_as_debuff > 0:
+            for e in enemies:
+                e.attack_speed *= 1.0 / (1.0 - enemy_as_debuff)
         combat_result = run_combat(allies, enemies, rng)
 
         # Clear temporary combat buffs
@@ -171,9 +219,18 @@ def _run_round(state: GameState, rnd: int,
 
         # Post-combat
         if not combat_result.won:
-            dmg = max(1, combat_result.enemy_survivors)
-            state.player_hp -= dmg
+            if rnd == 15:
+                # R15 보스 패배 = 즉사 (HP 남아도 게임 패배)
+                state.player_hp = 0
+            else:
+                dmg = max(1, combat_result.enemy_survivors)
+                state.player_hp -= dmg
             _apply_post_combat_defeat(board, state, rng)
+
+        # Druid post-combat (grace gold)
+        druid_post_gold = apply_druid_postcombat(
+            board, combat_result.won if combat_result else True)
+        state.gold += druid_post_gold
 
     # 4. Income
     state.gold += BASE_INCOME
@@ -233,7 +290,7 @@ def _find_insert_position(board: list[CardInstance],
 
 
 def _apply_battle_start(board: list[CardInstance]) -> None:
-    """Apply BATTLE_START effects as temporary buffs."""
+    """Apply BATTLE_START effects as temporary buffs / shields."""
     for card in board:
         t = card.template.trigger
         if t.timing != TriggerTiming.BATTLE_START:
@@ -241,6 +298,8 @@ def _apply_battle_start(board: list[CardInstance]) -> None:
         for eff in card.template.effects:
             if eff.action == "buff_pct":
                 card.temp_buff(eff.unit_tag_filter, eff.buff_atk_pct)
+            elif eff.action == "shield_pct":
+                card.shield_hp_pct += eff.shield_hp_pct
 
 
 def _apply_combat_attack_buffs(board: list[CardInstance]) -> None:

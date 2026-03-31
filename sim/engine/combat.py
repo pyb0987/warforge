@@ -45,15 +45,19 @@ class CombatResult:
     time_seconds: float
 
 
-def materialize_army(stacks: list[UnitStack], start_x: float,
+def materialize_army(stacks_with_stats: list[tuple[UnitStack, float, float]],
+                     start_x: float,
                      is_ally: bool) -> list[CombatUnit]:
-    """Convert unit stacks to individual CombatUnit objects."""
+    """Convert unit stacks to individual CombatUnit objects.
+
+    stacks_with_stats: list of (stack, eff_atk, eff_hp) tuples.
+    CardInstance computes eff values via 3-layer formula.
+    """
     army: list[CombatUnit] = []
-    for s in stacks:
+    for s, atk, hp in stacks_with_stats:
         for _ in range(s.count):
-            hp = s.eff_hp
             army.append(CombatUnit(
-                atk=s.eff_atk,
+                atk=atk,
                 hp=hp,
                 max_hp=hp,
                 attack_speed=s.unit_type.attack_speed,

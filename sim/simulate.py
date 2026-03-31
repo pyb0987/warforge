@@ -39,36 +39,36 @@ PRESETS = {
             "ne_merchant",   # 방랑 상인
         ],
     },
-    "overload": {
-        "name": "과부하 코일",
+    "charger": {
+        "name": "태엽 과급기",
         "cards": [
-            "sp_overload",   # 과부하 코일
+            "sp_furnace",    # 증기 용광로
             "sp_assembly",   # 증기 조립소
             "sp_workshop",   # 태엽 공방
             "sp_line",       # 조립 라인
-            "sp_boiler",     # 시한 보일러
+            "sp_charger",    # 태엽 과급기
             "ne_wanderers",  # 떠돌이 무리
             "ne_wildforce",  # 야생의 힘
         ],
     },
-    "factory": {
-        "name": "제국 공장",
+    "arsenal": {
+        "name": "제국 병기창",
         "cards": [
-            "sp_factory",    # 제국 공장
+            "sp_arsenal",    # 제국 병기창
             "sp_assembly",   # 증기 조립소
             "sp_line",       # 조립 라인
             "sp_workshop",   # 태엽 공방
-            "sp_forge",      # 증기 대장간
+            "sp_circulator", # 증기 순환기
             "ne_wanderers",  # 떠돌이 무리
             "sp_warmachine", # 전쟁 기계
         ],
     },
-    "endurance": {
-        "name": "인내형",
+    "economy": {
+        "name": "경제형",
         "cards": [
             "sp_assembly",   # 증기 조립소
             "sp_workshop",   # 태엽 공방
-            "sp_boiler",     # 시한 보일러
+            "sp_interest",   # 증기 이자기
             "sp_line",       # 조립 라인
             "ne_ruins",      # 고대의 잔해
             "ne_wanderers",  # 떠돌이 무리
@@ -142,11 +142,126 @@ PRESETS = {
             10: ["ne_wanderers"],
         },
     },
+
+    # ── Druid presets ───────────────────────────────────────────
+
+    "druid_strong": {
+        "name": "드루이드 (좋은 빌드)",
+        "schedule": {
+            1: ["dr_cradle", "dr_lifebeat"],
+            3: ["dr_origin"],
+            5: ["dr_deep"],
+            7: ["dr_spore_cloud"],
+            8: ["dr_wt_root"],
+            10: ["dr_world"],
+        },
+    },
+    "druid_weak": {
+        "name": "드루이드 (약한 빌드)",
+        "schedule": {
+            1: ["dr_lifebeat", "ne_wanderers"],
+            3: ["dr_cradle"],
+            5: ["dr_grace"],
+            7: ["dr_origin"],
+            9: ["dr_deep"],
+        },
+    },
+    # ── Druid ablation (요소 분리 테스트) ──────────────────────
+    "druid_no_deep": {
+        "name": "드루이드 weak - 뿌리깊은자",
+        "schedule": {
+            1: ["dr_lifebeat", "ne_wanderers"],
+            3: ["dr_cradle"],
+            5: ["dr_grace"],
+            7: ["dr_origin"],
+        },
+    },
+    "druid_no_lifebeat": {
+        "name": "드루이드 weak - 맥동",
+        "schedule": {
+            1: ["dr_cradle", "ne_wanderers"],
+            3: ["dr_grace"],
+            5: ["dr_origin"],
+            7: ["dr_deep"],
+        },
+    },
+    "druid_no_origin": {
+        "name": "드루이드 weak - 근원",
+        "schedule": {
+            1: ["dr_lifebeat", "ne_wanderers"],
+            3: ["dr_cradle"],
+            5: ["dr_grace"],
+            7: ["dr_deep"],
+        },
+    },
+    "druid_minimal": {
+        "name": "드루이드 최소 (요람+은혜+뿌리만)",
+        "schedule": {
+            1: ["dr_cradle", "ne_wanderers"],
+            5: ["dr_grace"],
+            7: ["dr_deep"],
+        },
+    },
+
+    # ── v4 Steampunk presets (확산/집중) ──────────────────────────
+
+    "spread": {
+        "name": "스팀펑크 확산 빌드",
+        "schedule": {
+            1: ["sp_assembly", "sp_workshop"],       # 조립소+공방 (체인 시작)
+            3: ["sp_interest"],                       # 이자기 (경제)
+            5: ["sp_line"],                            # 조립라인 (확산 증폭)
+            7: ["sp_barrier"],                         # 방벽 (방어)
+            9: ["sp_warmachine"],                      # 전쟁기계 (화력)
+        },
+        "evolve": {
+            5: ["sp_assembly"],                        # 조립소 ★2
+            8: ["sp_line"],                            # 조립라인 ★2
+            10: ["sp_workshop"],                       # 공방 ★2
+            12: ["sp_warmachine"],                     # 전쟁기계 ★2 (페이오프 강화)
+            14: ["sp_interest"],                       # 이자기 ★2
+        },
+    },
+    "focus": {
+        "name": "스팀펑크 집중 빌드",
+        "schedule": {
+            1: ["sp_furnace", "sp_workshop"],         # 용광로+공방 (집중 시작)
+            3: ["sp_circulator"],                      # 순환기 (피드백)
+            5: ["sp_interest"],                        # 이자기 (경제)
+            7: ["sp_barrier"],                         # 방벽 (방어)
+            9: ["sp_charger"],                         # 과급기 (집중 페이오프)
+            11: ["sp_arsenal"],                        # 병기창 (T5 캡스톤)
+        },
+        "evolve": {
+            5: ["sp_furnace"],                         # 용광로 ★2
+            8: ["sp_circulator"],                      # 순환기 ★2
+            10: ["sp_workshop"],                       # 공방 ★2
+            12: ["sp_charger"],                        # 과급기 ★2 (경제+성장 강화)
+            14: ["sp_interest"],                       # 이자기 ★2
+        },
+    },
+
+    "druid_strong_s2": {
+        "name": "드루이드 ★2 (좋은 빌드)",
+        "schedule": {
+            1: ["dr_cradle", "dr_lifebeat"],
+            3: ["dr_origin"],
+            5: ["dr_deep"],
+            7: ["dr_spore_cloud"],
+            8: ["dr_wt_root"],
+            10: ["dr_world"],
+        },
+        "evolve": {
+            6: ["dr_cradle"],
+            8: ["dr_origin"],
+            10: ["dr_deep"],
+        },
+    },
 }
 
 
 def make_board_and_schedule(preset_id: str):
-    """Returns (initial_board, card_schedule, evolve_schedule)."""
+    """Returns (initial_board, card_schedule, evolve_schedule, sell_schedule)."""
     preset = PRESETS[preset_id]
 
     # Card schedule
@@ -171,7 +286,12 @@ def make_board_and_schedule(preset_id: str):
                 (cid, get_template(get_s2_id(cid))) for cid in card_ids
             ]
 
-    return initial, card_sched, evolve_sched
+    # Sell schedule
+    sell_sched = None
+    if "sell" in preset:
+        sell_sched = preset["sell"]
+
+    return initial, card_sched, evolve_sched, sell_sched
 
 
 # ── Batch runner ─────────────────────────────────────────────────
@@ -185,7 +305,7 @@ def run_batch(preset_id: str, num_runs: int, base_seed: int | None,
     for i in range(num_runs):
         seed = (base_seed + i) if base_seed is not None else None
         rng = random.Random(seed)
-        board, card_sched, evolve_sched = make_board_and_schedule(preset_id)
+        board, card_sched, evolve_sched, sell_sched = make_board_and_schedule(preset_id)
 
         show = verbose and (i == num_runs - 1)
         if show:
@@ -206,7 +326,8 @@ def run_batch(preset_id: str, num_runs: int, base_seed: int | None,
         state = run_game(board, rng, generate_enemy, show,
                          chain_only, combat_only,
                          schedule=card_sched,
-                         evolve_schedule=evolve_sched)
+                         evolve_schedule=evolve_sched,
+                         sell_schedule=sell_sched)
         all_states.append(state)
 
     print_summary(preset, all_states, num_runs, chain_only, combat_only)

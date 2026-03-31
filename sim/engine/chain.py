@@ -12,6 +12,7 @@ from .cards import CardInstance
 
 
 MAX_EVENTS = 100  # safety cap
+MAX_RETRIGGER_DEPTH = 3  # retrigger 재귀 깊이 상한
 
 
 def run_growth_chain(board: list[CardInstance], rng: random.Random,
@@ -33,6 +34,8 @@ def run_growth_chain(board: list[CardInstance], rng: random.Random,
         t = card.template.trigger
         if t.timing != TriggerTiming.ROUND_START:
             continue
+        if card.template.theme == "druid":
+            continue
         if t.require_tenure > 0 and card.tenure < t.require_tenure:
             continue
         if t.is_threshold and card.threshold_fired:
@@ -40,7 +43,7 @@ def run_growth_chain(board: list[CardInstance], rng: random.Random,
         if t.is_threshold:
             card.threshold_fired = True
 
-        events, gold = _execute_effects(card, i, board, rng, None)
+        events, gold = _execute_effects(card, i, board, rng, None, _depth=0)
         queue.extend(events)
         gold_earned += gold
         chain_count += 1
@@ -66,7 +69,8 @@ def run_growth_chain(board: list[CardInstance], rng: random.Random,
                 card.activations_used += 1
 
             events, gold = _execute_effects(card, i, board, rng,
-                                            event.target_card_idx)
+                                            event.target_card_idx,
+                                            _depth=0)
             queue.extend(events)
             gold_earned += gold
             chain_count += 1
@@ -119,6 +123,7 @@ def _resolve_targets(target: str, card_idx: int,
 def _execute_effects(card: CardInstance, card_idx: int,
                      board: list[CardInstance], rng: random.Random,
                      event_target_idx: int | None,
+                     _depth: int = 0,
                      ) -> tuple[list[ChainEvent], int]:
     """Run card's effects. Returns (new_events, gold_earned)."""
     events: list[ChainEvent] = []
@@ -147,10 +152,12 @@ def _execute_effects(card: CardInstance, card_idx: int,
                         card_idx, ti))
 
             elif eff.action == "retrigger":
-                sub_events, sub_gold = _execute_effects(
-                    board[ti], ti, board, rng, event_target_idx=None)
-                events.extend(sub_events)
-                gold += sub_gold
+                if _depth < MAX_RETRIGGER_DEPTH:
+                    sub_events, sub_gold = _execute_effects(
+                        board[ti], ti, board, rng,
+                        event_target_idx=None, _depth=_depth + 1)
+                    events.extend(sub_events)
+                    gold += sub_gold
 
             elif eff.action == "grant_gold":
                 gold += eff.gold_amount
@@ -162,9 +169,8 @@ def _execute_effects(card: CardInstance, card_idx: int,
 
 
 def _apply_shield(card: CardInstance, hp_pct: float) -> None:
-    """Add shield as bonus HP (% of base HP)."""
-    for s in card.stacks:
-        s.bonus_hp += s.unit_type.hp * hp_pct
+    """Add shield as bonus HP (% of base HP). Card-level accumulation."""
+    card.shield_hp_pct += hp_pct
 
 
 def _log(msg: str) -> None:

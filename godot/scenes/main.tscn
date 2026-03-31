@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://bs3qdllr0x0a7"]
+
+[ext_resource type="Script" uid="uid://dgivlldyyd5vo" path="res://scripts/game/game_manager.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/build/build_phase.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/chain/chain_visual.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/battle/battle_phase.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_popup.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle_result_popup.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/card_tooltip.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/upgrade_choice_popup.tscn" id="8"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1")
+
+[node name="BuildPhase" parent="." instance=ExtResource("2")]
+
+[node name="ChainVisual" parent="." instance=ExtResource("3")]
+
+[node name="BattlePhase" parent="." instance=ExtResource("4")]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="BattleResultPopup" parent="UILayer" instance=ExtResource("6")]
+
+[node name="GameOverPopup" parent="UILayer" instance=ExtResource("5")]
+
+[node name="UpgradeChoicePopup" parent="UILayer" instance=ExtResource("8")]
+
+[node name="CardTooltip" parent="UILayer" instance=ExtResource("7")]
+groups = ["card_tooltip"]

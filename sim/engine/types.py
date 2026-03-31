@@ -55,17 +55,10 @@ class UnitType:
 class UnitStack:
     unit_type: UnitType
     count: int
-    bonus_atk: float = 0.0
-    bonus_hp: float = 0.0
-    temp_atk: float = 0.0  # cleared after each combat
-
-    @property
-    def eff_atk(self) -> float:
-        return self.unit_type.atk + self.bonus_atk + self.temp_atk
-
-    @property
-    def eff_hp(self) -> float:
-        return self.unit_type.hp + self.bonus_hp
+    upgrade_atk_mult: float = 1.0   # Layer 2: 업그레이드 (곱연산 누적)
+    upgrade_hp_mult: float = 1.0
+    temp_atk: float = 0.0           # combat buff (cleared after each combat)
+    temp_atk_mult: float = 1.0      # multiplicative combat buff (cleared)
 
 
 # ── Trigger / Effect specs (declarative card definition) ─────────
@@ -111,6 +104,14 @@ class CardTemplate:
     effects: tuple[EffectSpec, ...]
     max_activations: int | None = None  # None = unlimited
     card_tags: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        if (self.trigger.timing == TriggerTiming.ON_EVENT
+                and self.max_activations is None):
+            raise ValueError(
+                f"CardTemplate '{self.id}': ON_EVENT 카드는 "
+                f"max_activations 필수 (핑퐁 루프 방지)"
+            )
 
 
 # ── Chain event (BFS queue item) ─────────────────────────────────
