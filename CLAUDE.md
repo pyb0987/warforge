@@ -3,12 +3,6 @@
 ## Build
 
 ```bash
-python3 sim/simulate.py -v                  # verbose 1 run (basic preset)
-python3 sim/simulate.py -p factory -v       # factory preset
-python3 sim/simulate.py --chain-only -v     # chain only (no combat)
-python3 sim/simulate.py --combat-only -v    # combat only (no chain)
-python3 sim/simulate.py -n 50 --seed 42    # batch 50 runs
-
 # GDScript 단위 테스트 (GUT v9.6.0)
 godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/ -glog=1 -gexit
 ```
@@ -16,22 +10,9 @@ godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/ -g
 ## Architecture
 
 DESIGN.md = 마스터 문서 (확정 사항 + 상세 문서 목차). 최상위 진실 소스.
-
-### Godot 프로젝트 (godot/)
-```
-godot/core/types/enums.gd    — 글로벌 enum/상수 (Autoload)
-godot/core/data/card_db.gd   — 54장 카드 템플릿 (Autoload)
-godot/core/data/unit_db.gd   — 유닛 DB (Autoload)
-godot/core/chain_engine.gd   — BFS 체인 엔진
-godot/core/combat_engine.gd  — 전투 시뮬레이션
-godot/scripts/                — UI/씬 스크립트
-```
+Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS), combat_engine.
 
 ## Conventions
-
-### 백프레셔 (자기 검증)
-- 수치/카드 변경 후: `python3 sim/simulate.py -v` 로 시뮬 검증 필수
-- 밸런스 관련 변경 후: `python3 sim/simulate.py -n 50 --seed 42` 배치 확인
 
 ### 밸런싱 원칙
 - **1차 기준: 전투 시뮬 승률**. 빌드 간 밸런스는 승률로 판단.
@@ -40,13 +21,13 @@ godot/scripts/                — UI/씬 스크립트
 
 ### 완료 기준 (Sprint Contract)
 작업 유형별 "완료"의 정의. 이 조건을 모두 통과해야 완료 선언 가능:
-- **카드/수치 변경**: sim -v 에러 없음 + sim -n 50 --seed 42 배치 정상 = 완료
+- **카드/수치 변경**: GUT 테스트 전체 통과 = 완료
 - **신규 카드 설계**: card-pool-review-criteria.md Evaluator 서브에이전트 체크 통과 = 완료
 - **★2/★3 설계**: feedback_star2_design.md Evaluator 서브에이전트 체크 전항 통과 = 완료
 - **문서 변경**: DESIGN.md 변경 영향 맵에서 해당 영역 확인 → 명시된 문서 전부 업데이트 완료 = 완료
-- **시뮬레이터 코드 변경**: 4개 프리셋 모두 에러 없음 = 완료
-  - `sim -v` + `sim -p factory -v` + `sim --chain-only -v` + `sim --combat-only -v`
 - **Godot 카드 데이터 변경**: 변경 카드의 설계 문서 대조 필수 (timing, effects, 수치, output_layer)
+- **신규 구현 (기본값 TDD)**: Plan → Test (RED) → Implement (GREEN) → Refactor
+  - 인터페이스 불명확 시: Plan → Spike(버림) → Test → Implement
 
 ### 문서 수정 규칙
 
@@ -82,19 +63,21 @@ godot/scripts/                — UI/씬 스크립트
 - 기존 확정 사항을 뒤집는 결정 시 `docs/episodes/YYYY-MM-DD-{topic}.md` 작성
 - 변경 사유와 대안 비교 포함
 
-## Agent Team
+## Harness (자율 피드백 루프)
+- **Hooks**:
+  - git commit guard (PreToolUse, **차단형** exit 1) — 카드 파일 커밋 시 Sprint Contract 미완료면 차단
+  - .gd edit warning (PostToolUse, **경고형**) — 설계 문서 대조 리마인더. 프로그래밍적 검증 불가이므로 soft reminder
+  - **Tier 0 protect-files** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 1) — `godot/sim/{autoresearch.py, baseline.json, batch_runner.gd, program.md}` 수정 차단. 추가로 chmod 444가 걸려 Bash redirection도 막힘 (defense in depth). 정당한 사유로 수정해야 한다면 사용자 승인 후 `chmod +w`로 명시적 잠금 해제. agent-writable 탐색 로그는 `godot/sim/rejection_history.md` 사용.
+- **Skills**: `card-designer` (도메인 스킬), `btw` (유틸리티)
+- **Trace Filesystem**: `.claude/traces/` — 진화(evolution/), 실패(failures/), 실험(experiments/)
+- **변경 전략**: Additive first → Subtractive → Structural (한 번에 하나, 교란 변수 격리)
+- **규칙 진화**: 실패 반복 시 harness-engineer로 진단 → 규칙/훅 추가
+- **Failure escalation 루프**: `traces/failures/*.md`의 `resolved: true` 는 다음 중 하나가 충족돼야 함 — (a) `escalated_to` 가 비어있지 않음(CLAUDE.md / hook / 도구 등으로 흡수), (b) 동일 패턴의 active search-set 회귀 검증이 존재. 둘 다 부재하면 resolved 로 못 박지 않는다.
 
-크로스 도메인 작업(설계+시뮬+엔진 2개+ 동시 변경) 시 에이전트 팀으로 실행.
-단일 도메인 작업에는 직접 수행.
-
-- **팀 구성**: `.claude/agents/` (designer, balancer, engineer, qa)
-- **오케스트레이션**: `.claude/skills/warforge-orchestrator/SKILL.md`
-- **아키텍처**: Fan-out/Fan-in (병렬 구현) + Producer-Reviewer (카드 설계)
-- **작업 위임**: `.claude/agents/delegation-protocol.md` — 판단은 자신이, 실행·검증은 경량 모델에 위임
-- **모델 배정**: designer/balancer=opus, engineer/qa=sonnet, 실행·대조·체크리스트=haiku 위임
-- **검증 강도**: Tier 1(체크리스트) → Tier 2(Evaluator 서브에이전트) → Tier 3(/multi-review)
-- **규칙 진화**: qa 에이전트가 실패 분류(정보 부족/제약 미비/도구 부재) → 2회+ 반복 시 규칙화
-- **드리프트 방지**: qa 에이전트가 코드-문서 괴리 감지 → 불필요 규칙 제거 제안
+### Tier 0 Evaluator 설계 규칙
+- 모든 평가 축은 **gradient 연속성** 필수. cliff function (특정 구간에서 gradient = 0) 금지. Gaussian / sigmoid / smooth piecewise 사용.
+- 근거: failures/002-evaluator-win-rate-band-dead-zone.md — cliff clamp 가 optimizer 의 dead zone exploit 을 유발.
+- 회귀 검증: search-set SS-002.
 
 ## Domain
 
