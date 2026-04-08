@@ -1,0 +1,171 @@
+{
+  "enemy_cp_curve": [
+    1.72,
+    2.036,
+    2.24,
+    2.517,
+    3.02,
+    3.887,
+    4.227,
+    4.791,
+    4.791,
+    4.791,
+    4.791,
+    5.138,
+    5.471,
+    8.0,
+    8.0
+  ],
+  "economy": {
+    "base_income": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "reroll_cost": 1,
+    "interest_per_5g": 1,
+    "max_interest": 4,
+    "terazin_win": 2,
+    "terazin_lose": 1,
+    "levelup_cost": {
+      "2": 2,
+      "3": 7,
+      "4": 10,
+      "5": 11,
+      "6": 16
+    }
+  },
+  "activation_caps": {
+    "ml_conscript": 2,
+    "ml_assault": 1,
+    "ml_special_ops": 2
+  },
+  "shop_tier_weights": {
+    "1": [
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    "2": [
+      71,
+      22,
+      2,
+      3,
+      2
+    ],
+    "3": [
+      33,
+      52,
+      15,
+      0,
+      0
+    ],
+    "4": [
+      12,
+      17,
+      51,
+      12,
+      8
+    ],
+    "5": [
+      7,
+      0,
+      28,
+      51,
+      14
+    ],
+    "6": [
+      0,
+      2,
+      0,
+      35,
+      63
+    ]
+  },
+  "enemy_composition": {
+    "swarm": {
+      "swarm_base": 8,
+      "swarm_per_r": 2.8,
+      "ranged_base": 1,
+      "ranged_per_r": 0.5
+    },
+    "heavy": {
+      "heavy_base": 5,
+      "heavy_per_r": 0.6,
+      "melee_base": 2,
+      "melee_per_r": 1.0,
+      "ranged_base": 2,
+      "ranged_per_r": 0.5
+    },
+    "sniper": {
+      "sniper_base": 3,
+      "sniper_per_r": 0.5,
+      "melee_base": 7,
+      "melee_per_r": 1.1
+    },
+    "balanced": {
+      "melee_base": 4,
+      "melee_per_r": 1.0,
+      "ranged_base": 3,
+      "ranged_per_r": 0.7,
+      "swarm_base": 5,
+      "swarm_per_r": 0.5
+    }
+  },
+  "enemy_stats": {
+    "swarm": {
+      "atk": 2.2,
+      "hp": 9.9,
+      "as": 0.7
+    },
+    "melee": {
+      "atk": 4.0,
+      "hp": 36.7,
+      "as": 1.0
+    },
+    "ranged": {
+      "atk": 3.5,
+      "hp": 15.9,
+      "as": 1.5
+    },
+    "heavy": {
+      "atk": 4.9,
+      "hp": 68.8,
+      "as": 1.9
+    },
+    "sniper": {
+      "atk": 6.3,
+      "hp": 7.8,
+      "as": 2.4
+    }
+  },
+  "boss_scaling": {
+    "atk_mult": 1.3,
+    "hp_mult": 1.3
+  },
+  "starting_resources": {
+    "gold": 10,
+    "terazin": 2
+  },
+  "card_effects": {
+    "dr_deep_rate": 0.008,
+    "pr_swarm_sense_buff": 0.0944,
+    "sp_charger_enhance_atk": 0.05,
+    "pr_carapace_growth": 0.05,
+    "pr_transcend_death_atk": 0.0297
+  }
+}

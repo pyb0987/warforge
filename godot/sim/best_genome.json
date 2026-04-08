@@ -1,0 +1,159 @@
+{
+  "enemy_cp_curve": [
+    2.129,
+    2.129,
+    2.129,
+    2.129,
+    2.129,
+    2.594,
+    2.594,
+    2.641,
+    3.51,
+    3.86,
+    3.86,
+    8.0,
+    8.0,
+    8.0,
+    8.0
+  ],
+  "economy": {
+    "base_income": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      8,
+      8,
+      8,
+      8,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "reroll_cost": 1,
+    "interest_per_5g": 1,
+    "max_interest": 2,
+    "terazin_win": 2,
+    "terazin_lose": 1,
+    "levelup_cost": {
+      "2": 5,
+      "3": 9,
+      "4": 10,
+      "5": 11,
+      "6": 14
+    }
+  },
+  "activation_caps": {
+    "sp_interest": 7,
+    "ml_conscript": 2
+  },
+  "shop_tier_weights": {
+    "1": [
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    "2": [
+      70,
+      28,
+      2,
+      0,
+      0
+    ],
+    "3": [
+      35,
+      45,
+      18,
+      2,
+      0
+    ],
+    "4": [
+      10,
+      25,
+      42,
+      20,
+      3
+    ],
+    "5": [
+      0,
+      10,
+      25,
+      45,
+      20
+    ],
+    "6": [
+      0,
+      0,
+      10,
+      40,
+      50
+    ]
+  },
+  "enemy_composition": {
+    "swarm": {
+      "swarm_base": 8,
+      "swarm_per_r": 2.5,
+      "ranged_base": 2,
+      "ranged_per_r": 0.5
+    },
+    "heavy": {
+      "heavy_base": 3,
+      "heavy_per_r": 0.8,
+      "melee_base": 4,
+      "melee_per_r": 1.0,
+      "ranged_base": 2,
+      "ranged_per_r": 0.5
+    },
+    "sniper": {
+      "sniper_base": 3,
+      "sniper_per_r": 0.6,
+      "melee_base": 5,
+      "melee_per_r": 1.2
+    },
+    "balanced": {
+      "melee_base": 4,
+      "melee_per_r": 1.0,
+      "ranged_base": 3,
+      "ranged_per_r": 0.7,
+      "swarm_base": 3,
+      "swarm_per_r": 0.5
+    }
+  },
+  "enemy_stats": {
+    "swarm": {
+      "atk": 2.0,
+      "hp": 12.0,
+      "as": 0.8
+    },
+    "melee": {
+      "atk": 4.0,
+      "hp": 30.0,
+      "as": 1.2
+    },
+    "ranged": {
+      "atk": 3.0,
+      "hp": 15.0,
+      "as": 1.5
+    },
+    "heavy": {
+      "atk": 5.0,
+      "hp": 60.0,
+      "as": 2.0
+    },
+    "sniper": {
+      "atk": 6.0,
+      "hp": 10.0,
+      "as": 2.0
+    }
+  },
+  "boss_scaling": {
+    "atk_mult": 1.28,
+    "hp_mult": 1.46
+  }
+}

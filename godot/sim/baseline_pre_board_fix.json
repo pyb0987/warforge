@@ -1,0 +1,81 @@
+{
+  "activation_utilization": 0.90852490421456,
+  "axis_delta": {
+    "activation_utilization": -0.0583923510516419,
+    "board_utilization": 0.00491054908641109,
+    "card_coverage": 0.00142857142857128,
+    "dominance_moment": 0.00588274275507672,
+    "emotional_arc": 0.0470928860217678,
+    "theme_ratio_variance": -0.00173104956268255,
+    "tipping_point_quality": 0.00544217687074855,
+    "weighted_score": 0.00838111188025903,
+    "win_rate_band": 0.0296183174800863
+  },
+  "board_utilization": 0.615485528110533,
+  "card_coverage": 0.134285714285714,
+  "dominance_moment": 0.857794802034295,
+  "emotional_arc": 0.749831237602977,
+  "metadata": {
+    "base_seed": 42,
+    "genome_path": "res://sim/candidate_genome.json",
+    "runs_per_ai": 10,
+    "strategies": [
+      "steampunk_focused",
+      "druid_focused",
+      "predator_focused",
+      "military_focused",
+      "hybrid",
+      "economy",
+      "aggressive"
+    ],
+    "total_runs": 70
+  },
+  "strategy_stats": {
+    "aggressive": {
+      "avg_hp": -10.9,
+      "total": 10,
+      "win_rate": 0.0,
+      "wins": 0
+    },
+    "druid_focused": {
+      "avg_hp": -13.1,
+      "total": 10,
+      "win_rate": 0.0,
+      "wins": 0
+    },
+    "economy": {
+      "avg_hp": -4.7,
+      "total": 10,
+      "win_rate": 0.1,
+      "wins": 1
+    },
+    "hybrid": {
+      "avg_hp": -6.0,
+      "total": 10,
+      "win_rate": 0.0,
+      "wins": 0
+    },
+    "military_focused": {
+      "avg_hp": -7.0,
+      "total": 10,
+      "win_rate": 0.3,
+      "wins": 3
+    },
+    "predator_focused": {
+      "avg_hp": -10.1,
+      "total": 10,
+      "win_rate": 0.1,
+      "wins": 1
+    },
+    "steampunk_focused": {
+      "avg_hp": -14.9,
+      "total": 10,
+      "win_rate": 0.0,
+      "wins": 0
+    }
+  },
+  "theme_ratio_variance": 0.29459236313573,
+  "tipping_point_quality": 0.728571428571429,
+  "weighted_score": 0.602367434082503,
+  "win_rate_band": 0.49872611533964
+}

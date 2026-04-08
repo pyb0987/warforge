@@ -1,0 +1,71 @@
+{
+  "activation_utilization": 0.95105755894591,
+  "board_utilization": 0.607656374450725,
+  "card_coverage": 0.132142857142857,
+  "dominance_moment": 0.953308207560954,
+  "emotional_arc": 0.639176964802069,
+  "loss_resilience": 0.335,
+  "metadata": {
+    "base_seed": 42,
+    "genome_path": "res://sim/best_genome.json",
+    "runs_per_ai": 20,
+    "strategies": [
+      "steampunk_focused",
+      "druid_focused",
+      "predator_focused",
+      "military_focused",
+      "hybrid",
+      "economy",
+      "aggressive"
+    ],
+    "total_runs": 140
+  },
+  "strategy_stats": {
+    "aggressive": {
+      "avg_hp": -14.45,
+      "total": 20,
+      "win_rate": 0.1,
+      "wins": 2
+    },
+    "druid_focused": {
+      "avg_hp": -11.0,
+      "total": 20,
+      "win_rate": 0.0,
+      "wins": 0
+    },
+    "economy": {
+      "avg_hp": -9.55,
+      "total": 20,
+      "win_rate": 0.05,
+      "wins": 1
+    },
+    "hybrid": {
+      "avg_hp": -7.95,
+      "total": 20,
+      "win_rate": 0.1,
+      "wins": 2
+    },
+    "military_focused": {
+      "avg_hp": -3.5,
+      "total": 20,
+      "win_rate": 0.3,
+      "wins": 6
+    },
+    "predator_focused": {
+      "avg_hp": -10.7,
+      "total": 20,
+      "win_rate": 0.05,
+      "wins": 1
+    },
+    "steampunk_focused": {
+      "avg_hp": -12.55,
+      "total": 20,
+      "win_rate": 0.0,
+      "wins": 0
+    }
+  },
+  "theme_ratio_variance": 0.252965277777778,
+  "tipping_point_quality": 0.592857142857143,
+  "weighted_score": 0.54225652619346,
+  "win_rate_band": 0.511629517578241
+}
