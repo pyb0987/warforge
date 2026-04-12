@@ -24,12 +24,12 @@
 | HP 구조 | **플레이어 HP만** (30) | 패배 시 적 생존 유닛 수 = 플레이어 데미지 |
 | 적 구조 | 프리셋 풀 + 랜덤 업그레이드 | 라운드당 3~4개 프리셋 중 선택. 특성 보스. |
 | 필드 제한 | **시작 6장** → 최대 8장 | 커맨더/부적/보스 보상으로만 증가 |
-| 경제 | **오토배틀러식 2화폐** | 골드(카드) + 테라진(업그레이드). 판매 전액환급 |
+| 경제 | **오토배틀러식 2화폐** | 골드(카드) + 테라진(업그레이드). ★1 전액환급, ★2/★3 총 투자액-1g |
 | 트리거 해결 순서 | **배치 순서 (왼→오)** | 인접 위치 시스템과 일관 |
 | 세션 길이 | 28~35분 | 15 라운드 |
 | 유닛 스탯 스케일 | **SC1 스타일** (ATK 1~20, HP 20~500, AS/Range/MS) | DEF 기본 0, 업그레이드로 부여 |
-| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/포식종/군대 + 중립(14장). 테마별 고유 키워드 |
-| 카드 풀 | **54장** | 중립14 / 스팀펑크10 / 드루이드10 / 포식종10 / 군대10 |
+| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/포식종/군대 + 중립(15장). 테마별 고유 키워드 |
+| 카드 풀 | **55장, 고갈 메커니즘** | 중립15 / 스팀펑크10 / 드루이드10 / 포식종10 / 군대10. 복사본: T1=22/T2=18/T3=15/T4=13/T5=11. 구매 시 소모, 판매/리롤 시 반환 |
 | 메타 진행 | 풍부 (로그라이트) | 영구 업그레이드, 컬렉션, 스토리 |
 
 ---
@@ -56,7 +56,11 @@
 | [upgrade.md](docs/design/upgrade.md) | 업그레이드 시스템, 경제 시스템, 상점, ★합성, 2화폐 구조 |
 | [upgrades-items.md](docs/design/upgrades-items.md) | 업그레이드 아이템 풀 26종 (커먼11/레어9/에픽6) |
 | [replay.md](docs/design/replay.md) | 리플레이 시스템: 커맨더 7종, 부적 12종, 난이도 8단계, 해금 |
+| [talismans.md](docs/design/talismans.md) | 부적 12종 상세: 효과, 시너지, 밸런스 파라미터, 해금 |
 | [card-design-method.md](docs/design/card-design-method.md) | 카드 설계 접근법, 안티패턴 |
+| [card-codegen-schema.md](docs/design/card-codegen-schema.md) | YAML → GDScript 코드젠 파이프라인, 카드 DSL, 테마별 효과, codegen 설계 |
+| [card-pool-review-criteria.md](docs/design/card-pool-review-criteria.md) | 테마 카드 풀 multi-review 평가 기준 (4개 축) |
+| [boss-rewards.md](docs/design/boss-rewards.md) | 보스 보상 풀 27종 (R4/R8/R12, 유형별 설계 원칙) |
 | [backlog.md](docs/design/backlog.md) | 미결정 항목 |
 
 ### 기술 문서
@@ -66,6 +70,15 @@
 | [docs/tech/rendering.md](docs/tech/rendering.md) | 렌더링 & 전투 엔진 기술 설계, 최적화 전략 |
 
 **엔진**: Godot 4 (GDScript). 사유: [에피소드 기록](docs/episodes/2026-03-26-tech-stack-godot.md)
+
+**Godot Autoloads**: `Enums`, `CardDB` (55장), `UnitDB`, `UpgradeDB`
+
+**CardDB API** (주요 메서드):
+- `get_template(id)` → 기본 ★1 템플릿 dict 반환
+- `get_star_template(base_id, star_level)` → base + star_overrides 병합된 ★N 템플릿 반환
+- `get_theme_effects(card_id, star_level)` → theme_system 카드의 per-star DSL effect 배열 반환 (`{theme}_system.gd`에서 소비)
+- `get_all_ids()` → 전체 card_id 배열
+- `get_ids_by_theme(theme)` → 테마별 card_id 배열
 
 ### 의사결정 기록
 
@@ -89,7 +102,8 @@ Sprint Contract "문서 변경" 완료 기준: **이 표에 명시된 문서가 
 | 성장 체인 (이벤트/Layer 구조/발동 모델) | docs/design/growth-chain.md |
 | 전투 시스템 (스탯 스케일/적/보스/HP) | docs/design/combat.md |
 | 게임 루프 (라운드/필드 슬롯/세션 길이) | docs/design/game-loop.md |
-| 리플레이 (커맨더/부적/난이도) | docs/design/replay.md |
+| 리플레이 (커맨더/부적/난이도) | docs/design/replay.md, docs/design/talismans.md |
 | 카드 설계 방법론 | docs/design/card-design-method.md |
+| 카드 수치/효과 변경 (YAML DSL) | data/cards/*.yaml → card_db.gd (자동생성), {theme}_system.gd |
 
 > 새 상세 문서 추가 시 이 표에 등록 필수.

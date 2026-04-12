@@ -1,0 +1,262 @@
+# data/cards/steampunk.yaml
+# Source of truth for Steampunk cards.
+# Generated YAML — edit here, run codegen to update card_db.gd.
+
+cards:
+  sp_assembly:
+    name: 증기 조립소
+    tier: 1
+    theme: steampunk
+    timing: RS
+    comp:
+      - {unit: sp_spider, n: 2}
+      - {unit: sp_rat, n: 1}
+    tags: [steampunk, production]
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - spawn: {target: right_adj, ol2: MF}
+      2:
+        max_act: -1
+        effects:
+          - spawn: {target: both_adj, ol2: MF}
+      3:
+        max_act: -1
+        effects:
+          - spawn: {target: both_adj, count: 2, ol2: MF}
+          - enhance: {target: both_adj, atk_pct: 0.05, ol2: UP}
+
+  sp_furnace:
+    name: 증기 용광로
+    tier: 1
+    theme: steampunk
+    timing: RS
+    comp:
+      - {unit: sp_crab, n: 1}
+      - {unit: sp_sawblade, n: 1}
+    tags: [steampunk, focus]
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - spawn: {target: self, ol2: MF}
+          - enhance: {target: self, atk_pct: 0.03}
+      2:
+        max_act: -1
+        effects:
+          - spawn: {target: self, count: 2, ol2: MF}
+          - enhance: {target: self, atk_pct: 0.05}
+      3:
+        max_act: -1
+        effects:
+          - spawn: {target: self, count: 2, ol2: MF}
+          - enhance: {target: self, atk_pct: 0.05}
+        conditional:
+          - when: {unit_count_gte: 8}
+            effects:
+              - enhance: {target: self, atk_pct: 0.03}
+
+  sp_workshop:
+    name: 태엽 공방
+    tier: 1
+    theme: steampunk
+    timing: OE
+    listen: {l1: UA, l2: MF}
+    comp:
+      - {unit: sp_spider, n: 2}
+      - {unit: sp_sawblade, n: 1}
+    tags: [steampunk, enhance]
+    stars:
+      1:
+        max_act: 2
+        effects:
+          - enhance: {target: event_target, atk_pct: 0.05, tag: gear, ol2: UP}
+      2:
+        max_act: 2
+        effects:
+          - enhance: {target: event_target, atk_pct: 0.075, tag: "gear,electric", ol2: UP}
+      3:
+        max_act: 4
+        effects:
+          - enhance: {target: event_target, atk_pct: 0.075, tag: "gear,electric", ol2: UP}
+          - spawn: {target: both_adj, ol2: MF}
+
+  sp_circulator:
+    name: 증기 순환기
+    tier: 2
+    theme: steampunk
+    timing: OE
+    listen: {l2: UP}
+    comp:
+      - {unit: sp_sawblade, n: 1}
+      - {unit: sp_scout, n: 1}
+    tags: [steampunk, cycle]
+    stars:
+      1:
+        max_act: 1
+        effects:
+          - spawn: {target: event_target, ol2: MF}
+      2:
+        max_act: 2
+        effects:
+          - spawn: {target: event_target, ol2: MF}
+      3:
+        max_act: 3
+        effects:
+          - spawn: {target: event_target, ol2: MF, strongest: true}
+
+  sp_interest:
+    name: 증기 이자기
+    tier: 2
+    theme: steampunk
+    timing: REROLL
+    comp:
+      - {unit: sp_scout, n: 2}
+      - {unit: sp_rat, n: 1}
+    tags: [steampunk, economy]
+    stars:
+      1:
+        max_act: 3
+        effects:
+          - spawn: {target: self, ol1: null}
+          - enhance: {target: self, atk_pct: 0.03, ol1: null}
+      2:
+        max_act: 3
+        effects:
+          - spawn: {target: self, count: 2, ol1: null}
+          - enhance: {target: self, atk_pct: 0.05, ol1: null}
+      3:
+        max_act: 3
+        effects:
+          - spawn: {target: self, count: 2, ol1: null}
+          - spawn: {target: both_adj, ol1: null}
+          - enhance: {target: self, atk_pct: 0.05, ol1: null}
+
+  sp_line:
+    name: 조립 라인
+    tier: 3
+    theme: steampunk
+    timing: OE
+    listen: {l1: UA, l2: MF}
+    comp:
+      - {unit: sp_sawblade, n: 2}
+      - {unit: sp_spider, n: 1}
+    tags: [steampunk, production]
+    require_other: true
+    stars:
+      1:
+        max_act: 3
+        effects:
+          - spawn: {target: both_adj, ol2: MF}
+      2:
+        max_act: 4
+        effects:
+          - spawn: {target: both_adj, count: 2, ol2: MF}
+      3:
+        max_act: 4
+        effects:
+          - spawn: {target: both_adj, count: 2, ol2: MF, strongest: true}
+
+  sp_barrier:
+    name: 증기 방벽
+    tier: 3
+    theme: steampunk
+    timing: BS
+    comp:
+      - {unit: sp_titan, n: 1}
+      - {unit: sp_crab, n: 1}
+    tags: [steampunk, defense]
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - shield: {target: self, hp_pct: 0.20}
+      2:
+        max_act: -1
+        effects:
+          - shield: {target: self, hp_pct: 0.40}
+      3:
+        max_act: -1
+        effects:
+          - shield: {target: all_allies, hp_pct: 0.40}
+
+  sp_warmachine:
+    name: 전쟁 기계
+    tier: 4
+    theme: steampunk
+    timing: PERSISTENT
+    comp:
+      - {unit: sp_turret, n: 1}
+      - {unit: sp_cannon, n: 1}
+      - {unit: sp_drone, n: 2}
+    tags: [steampunk, combat]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - range_bonus: {tag: firearm, unit_thresh: 8}
+      2:
+        max_act: -1
+        effects:
+          - range_bonus: {tag: firearm, unit_thresh: 6, atk_buff_pct: 0.30}
+      3:
+        max_act: -1
+        effects:
+          - range_bonus: {tag: firearm, unit_thresh: 4, atk_buff_pct: 0.30, attack_stack_pct: 0.12}
+
+  sp_charger:
+    name: 태엽 과급기
+    tier: 4
+    theme: steampunk
+    timing: OE
+    listen: {l1: UA, l2: MF}
+    comp:
+      - {unit: sp_titan, n: 1}
+      - {unit: sp_turret, n: 1}
+    tags: [steampunk, power]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
+      2:
+        max_act: -1
+        effects:
+          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
+          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
+      3:
+        max_act: -1
+        effects:
+          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
+          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
+          - total_counter: {per_manufacture: 10, reward_terazin: 1}
+          # ★3 합성 시 1회: 무료 에픽 업그레이드 + 3 테라진 (on_merge 훅, theme_system 내부)
+          # - on_merge: {epic_upgrade: 1, terazin: 3}
+
+  sp_arsenal:
+    name: 제국 병기창
+    tier: 5
+    theme: steampunk
+    timing: SELL
+    impl: theme_system
+    comp:
+      - {unit: sp_titan, n: 1}
+      - {unit: sp_scorpion, n: 1}
+      - {unit: sp_crab, n: 1}
+    tags: [steampunk, arsenal]
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - absorb: {target: self, count: 3}
+      2:
+        max_act: -1
+        effects:
+          - absorb: {target: self, count: 5, transfer_upgrades: true}
+      3:
+        max_act: -1
+        effects:
+          - absorb: {target: self, count: 7, majority_atk_bonus: 0.30}

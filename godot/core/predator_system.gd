@@ -1,5 +1,5 @@
 class_name PredatorSystem
-extends RefCounted
+extends "res://core/theme_system.gd"
 ## Predator theme system: hatch (add blade larvae) + metamorphosis (consume weak → add strong).
 ## RS cards (nest, farm, queen, transcend) produce hatch events;
 ## OE cards (molt, harvest, carapace, apex_hunt) react to hatch/meta events.
@@ -17,7 +17,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 		"pr_farm": return _farm(card, idx)
 		"pr_queen": return _queen(card, idx, board)
 		"pr_transcend": return _transcend(card, idx, board)
-	return _empty()
+	return Enums.empty_result()
 
 
 func process_event_card(card: CardInstance, idx: int, board: Array,
@@ -27,7 +27,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 		"pr_harvest": return _harvest(card, idx, board, event)
 		"pr_carapace": return _carapace(card, idx, board)
 		"pr_apex_hunt": return _apex_hunt(card, idx)
-	return _empty()
+	return Enums.empty_result()
 
 
 # --- External hooks (combat engine) ---
@@ -36,7 +36,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 func apply_battle_start(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	if card.get_base_id() == "pr_swarm_sense":
 		return _swarm_sense_battle(card, board)
-	return _empty()
+	return Enums.empty_result()
 
 
 func apply_post_combat(card: CardInstance, idx: int, _board: Array,
@@ -44,26 +44,40 @@ func apply_post_combat(card: CardInstance, idx: int, _board: Array,
 	match card.get_base_id():
 		"pr_parasite": return _parasite_post(card, idx, won)
 		"pr_farm": return _farm_post(card, won)
-	return _empty()
+	return Enums.empty_result()
 
 
 ## Persistent combat: pr_transcend death/kill tracking stored for combat engine.
 func apply_persistent(card: CardInstance) -> void:
 	if card.get_base_id() != "pr_transcend":
 		return
-	var death_atk := 0.03
-	match card.star_level:
-		2: death_atk = 0.05
-		3: death_atk = 0.05
-	card.theme_state["death_atk_bonus"] = death_atk
-	card.theme_state["kill_hp_recover"] = 0.10 if card.star_level < 2 else 0.15
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var p := _find_eff(effs, "persistent")
+	var base_death_atk: float = card_effects.get("pr_transcend_death_atk", p.get("death_atk_bonus", 0.03))
+	card.theme_state["death_atk_bonus"] = base_death_atk
+	card.theme_state["kill_hp_recover"] = p.get("kill_hp_recover", 0.10)
+
+
+# --- Helpers ---
+
+
+func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
+	for e in effs:
+		if e.get("action") == action:
+			if target == "" or e.get("target", "") == target:
+				return e
+	return {}
 
 
 # --- Hatch / Meta helpers ---
 
 
 func _hatch(target: CardInstance, count: int) -> int:
-	return target.add_specific_unit(LARVA_ID, count)
+	var added := target.add_specific_unit(LARVA_ID, count)
+	var bonus := CardInstance.roll_bonus_count(added, bonus_spawn_chance, bonus_rng)
+	if bonus > 0:
+		target.add_specific_unit(LARVA_ID, bonus)
+	return added
 
 
 func _hatch_evt(src: int, tgt: int) -> Dictionary:
@@ -102,17 +116,14 @@ func _predator_indices(board: Array) -> Array[int]:
 
 func _nest(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	# ★1: hatch 2 self, 1 right  |  ★2: 4 self, 2 right  |  ★3: 4 self, 2 both
-	var self_n := 2
-	var adj_n := 1
-	var both := false
-	match card.star_level:
-		2:
-			self_n = 4
-			adj_n = 2
-		3:
-			self_n = 4
-			adj_n = 2
-			both = true
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var self_eff := _find_eff(effs, "hatch", "self")
+	var adj_eff_right := _find_eff(effs, "hatch", "right_adj")
+	var adj_eff_both := _find_eff(effs, "hatch", "both_adj")
+
+	var self_n: int = self_eff.get("count", 2)
+	var both := not adj_eff_both.is_empty()
+	var adj_n: int = adj_eff_both.get("count", adj_eff_right.get("count", 1)) if both else adj_eff_right.get("count", 1)
 
 	var events: Array = []
 	_hatch(card, self_n)
@@ -134,27 +145,23 @@ func _nest(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 func _farm(card: CardInstance, idx: int) -> Dictionary:
 	# RS part only: hatch 1 (★3: hatch 2). Post-combat gold is separate hook.
-	var count := 1
-	if card.star_level >= 3:
-		count = 2
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var hatch_eff := _find_eff(effs, "hatch", "self")
+	var count: int = hatch_eff.get("count", 1)
 	_hatch(card, count)
 	return {"events": [_hatch_evt(idx, idx)], "gold": 0, "terazin": 0}
 
 
 func _queen(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	# ★1: hatch 3 self, 1 right  |  ★2: 4 self, 2 both  |  ★3: 5 self, 3 both
-	var self_n := 3
-	var adj_n := 1
-	var both := false
-	match card.star_level:
-		2:
-			self_n = 4
-			adj_n = 2
-			both = true
-		3:
-			self_n = 5
-			adj_n = 3
-			both = true
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var self_eff := _find_eff(effs, "hatch", "self")
+	var adj_eff_right := _find_eff(effs, "hatch", "right_adj")
+	var adj_eff_both := _find_eff(effs, "hatch", "both_adj")
+
+	var self_n: int = self_eff.get("count", 3)
+	var both := not adj_eff_both.is_empty()
+	var adj_n: int = adj_eff_both.get("count", adj_eff_right.get("count", 1)) if both else adj_eff_right.get("count", 1)
 
 	var events: Array = []
 	_hatch(card, self_n)
@@ -176,15 +183,12 @@ func _queen(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	# ★1: hatch 3 self, 1 each predator  |  ★2: 4 self, 2 each  |  ★3: +auto meta 1
-	var self_n := 3
-	var all_n := 1
-	match card.star_level:
-		2:
-			self_n = 4
-			all_n = 2
-		3:
-			self_n = 4
-			all_n = 2
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var self_eff := _find_eff(effs, "hatch", "self")
+	var all_eff := _find_eff(effs, "hatch", "all_predator")
+
+	var self_n: int = self_eff.get("count", 3)
+	var all_n: int = all_eff.get("count", 1)
 
 	var events: Array = []
 	_hatch(card, self_n)
@@ -196,9 +200,11 @@ func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
 			events.append(_hatch_evt(idx, pi))
 
 	# ★3: auto metamorphosis 1/round + ATK+5% permanent
-	if card.star_level >= 3:
-		if card.metamorphosis(1):
-			card.enhance(null, 0.05, 0.0)
+	var meta_eff := _find_eff(effs, "meta_consume")
+	var enhance_eff := _find_eff(effs, "enhance", "self")
+	if not meta_eff.is_empty():
+		if card.metamorphosis(meta_eff.get("consume", 1)):
+			card.enhance(null, enhance_eff.get("atk_pct", 0.05), 0.0)
 			events.append(_meta_evt(idx, idx))
 
 	return {"events": events, "gold": 0, "terazin": 0}
@@ -209,16 +215,16 @@ func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 func _molt(card: CardInstance, idx: int) -> Dictionary:
 	# ★1: meta 3  |  ★2: meta 2  |  ★3: meta 2 + ATK+5% growth
-	var consume := 3
-	match card.star_level:
-		2: consume = 2
-		3: consume = 2
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var meta_eff := _find_eff(effs, "meta_consume")
+	var consume: int = meta_eff.get("consume", 3)
 
 	var events: Array = []
 	if card.metamorphosis(consume):
 		events.append(_meta_evt(idx, idx))
-		if card.star_level >= 3:
-			card.enhance(null, 0.05, 0.0)
+		var enhance_eff := _find_eff(effs, "enhance", "self")
+		if not enhance_eff.is_empty():
+			card.enhance(null, enhance_eff.get("atk_pct", 0.05), 0.0)
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
@@ -226,25 +232,29 @@ func _molt(card: CardInstance, idx: int) -> Dictionary:
 func _harvest(card: CardInstance, idx: int, board: Array,
 		event: Dictionary) -> Dictionary:
 	# ★1: 1 terazin, hatch 1  |  ★2: +meta unit ATK+5%  |  ★3: hatch 2, all pred +3%
-	var terazin := 1
-	var hatch_n := 1
-	if card.star_level >= 3:
-		hatch_n = 2
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var terazin_eff := _find_eff(effs, "terazin")
+	var hatch_eff := _find_eff(effs, "hatch", "self")
+
+	var terazin: int = terazin_eff.get("value", 1)
+	var hatch_n: int = hatch_eff.get("count", 1)
 
 	var events: Array = []
 	_hatch(card, hatch_n)
 	events.append(_hatch_evt(idx, idx))
 
 	# ★2: growth for the card that metamorphosed
-	if card.star_level >= 2:
+	var enhance_event_eff := _find_eff(effs, "enhance", "event_source")
+	if not enhance_event_eff.is_empty():
 		var target_idx: int = event.get("target_idx", -1)
 		if target_idx >= 0 and target_idx < board.size():
-			(board[target_idx] as CardInstance).enhance(null, 0.05, 0.0)
+			(board[target_idx] as CardInstance).enhance(null, enhance_event_eff.get("atk_pct", 0.05), 0.0)
 
 	# ★3: all predator ATK+3%
-	if card.star_level >= 3:
+	var enhance_all_eff := _find_eff(effs, "enhance", "all_predator")
+	if not enhance_all_eff.is_empty():
 		for pi in _predator_indices(board):
-			(board[pi] as CardInstance).enhance(null, 0.03, 0.0)
+			(board[pi] as CardInstance).enhance(null, enhance_all_eff.get("atk_pct", 0.03), 0.0)
 
 	return {"events": events, "gold": 0, "terazin": terazin}
 
@@ -252,59 +262,77 @@ func _harvest(card: CardInstance, idx: int, board: Array,
 func _carapace(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	# ★1: #carapace cards ATK+HP 5% growth, right adj hatch 1
 	# ★2: 7% growth, adj hatch 1  |  ★3: all pred 7%, both adj hatch 1 + shield
-	var growth := 0.05
-	match card.star_level:
-		2: growth = 0.07
-		3: growth = 0.07
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var enhance_carapace_eff := _find_eff(effs, "enhance", "tag:carapace")
+	var enhance_all_eff := _find_eff(effs, "enhance", "all_predator")
+	var shield_eff := _find_eff(effs, "shield", "event_source")
 
-	# Apply growth to predator cards that have #carapace units
-	if card.star_level >= 3:
+	# Apply growth — override with card_effects if present
+	var base_growth: float = card_effects.get("pr_carapace_growth", 0.05)
+	if not enhance_all_eff.is_empty():
 		# ★3: all predator cards
+		var growth: float = card_effects.get("pr_carapace_growth",
+				enhance_all_eff.get("atk_pct", base_growth))
 		for pi in _predator_indices(board):
 			(board[pi] as CardInstance).enhance(null, growth, growth)
-	else:
+	elif not enhance_carapace_eff.is_empty():
 		# ★1/★2: only cards with #carapace units
+		var growth: float = card_effects.get("pr_carapace_growth",
+				enhance_carapace_eff.get("atk_pct", base_growth))
 		for pi in _predator_indices(board):
 			var pc: CardInstance = board[pi]
 			if _has_carapace_unit(pc):
 				pc.enhance(null, growth, growth)
 
 	# Adjacent hatch
+	var hatch_right_eff := _find_eff(effs, "hatch", "right_adj")
+	var hatch_both_eff := _find_eff(effs, "hatch", "both_adj")
 	var events: Array = []
-	var hatch_both := card.star_level >= 3
+	var hatch_both := not hatch_both_eff.is_empty()
+	var hatch_count: int = hatch_both_eff.get("count", hatch_right_eff.get("count", 1)) if hatch_both else hatch_right_eff.get("count", 1)
+
 	if hatch_both:
 		for di in [-1, 1]:
 			var ni: int = idx + di
 			if ni >= 0 and ni < board.size():
-				_hatch(board[ni], 1)
+				_hatch(board[ni], hatch_count)
 				events.append(_hatch_evt(idx, ni))
 	else:
 		if idx + 1 < board.size():
-			_hatch(board[idx + 1], 1)
+			_hatch(board[idx + 1], hatch_count)
 			events.append(_hatch_evt(idx, idx + 1))
 
 	# ★3: shield on original meta card
-	if card.star_level >= 3:
-		card.shield_hp_pct += 0.20
+	if not shield_eff.is_empty():
+		card.shield_hp_pct += shield_eff.get("hp_pct", 0.20)
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
 func _apex_hunt(card: CardInstance, idx: int) -> Dictionary:
 	# ★1: meta 2, ≤5u ATK+30%  |  ★2: meta 2, +50%  |  ★3: meta 1, ATK×2 mult
-	var consume := 2
-	if card.star_level >= 3:
-		consume = 1
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var meta_eff := _find_eff(effs, "meta_consume")
+	var cond_eff := _find_eff(effs, "conditional")
+
+	var consume: int = meta_eff.get("consume", 2)
 
 	var events: Array = []
 	if card.metamorphosis(consume):
 		events.append(_meta_evt(idx, idx))
 
-	if card.get_total_units() <= 5:
-		match card.star_level:
-			1: card.temp_buff(null, 0.30)
-			2: card.temp_buff(null, 0.50)
-			3: card.temp_mult_buff(2.0)
+	if not cond_eff.is_empty() and card.get_total_units() <= cond_eff.get("threshold", 5):
+		var inner_effs: Array = cond_eff.get("effects", [])
+		var buff_eff: Dictionary = {}
+		for e in inner_effs:
+			if e.get("action") == "buff":
+				buff_eff = e
+				break
+		if not buff_eff.is_empty():
+			if buff_eff.has("atk_mult"):
+				card.temp_mult_buff(buff_eff.get("atk_mult", 2.0))
+			else:
+				card.temp_buff(null, buff_eff.get("atk_pct", 0.3))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
@@ -314,35 +342,30 @@ func _apex_hunt(card: CardInstance, idx: int) -> Dictionary:
 
 func _swarm_sense_battle(card: CardInstance, board: Array) -> Dictionary:
 	# ★1: per 3 units ATK+10%  |  ★2: 3u→12%  |  ★3: 2u→12%
-	var per_n := 3
-	var buff := 0.10
-	match card.star_level:
-		2: buff = 0.12
-		3:
-			per_n = 2
-			buff = 0.12
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var swarm_eff := _find_eff(effs, "swarm_buff")
+
+	var per_n: int = swarm_eff.get("per_n", 3)
+	var buff: float = card_effects.get("pr_swarm_sense_buff", swarm_eff.get("atk_per_unit", 0.10))
 
 	for pi in _predator_indices(board):
 		var pc: CardInstance = board[pi]
 		var stacks_n := pc.get_total_units() / per_n
 		if stacks_n > 0:
 			pc.temp_buff(null, buff * stacks_n)
-	return _empty()
+	return Enums.empty_result()
 
 
 func _parasite_post(card: CardInstance, idx: int, won: bool) -> Dictionary:
 	# ★1: per surviving unit hatch 1 (max 3), victory meta 2
 	# ★2: hatch 2 (max 5), victory meta 2 + HP 15%
 	# ★3: hatch 2 (max 5), any meta 2 + HP 20%, shield 30%
-	var hatch_per := 1
-	var max_hatch := 3
-	match card.star_level:
-		2:
-			hatch_per = 2
-			max_hatch = 5
-		3:
-			hatch_per = 2
-			max_hatch = 5
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var hatch_scaled_eff := _find_eff(effs, "hatch_scaled")
+	var combat_result_eff := _find_eff(effs, "on_combat_result")
+
+	var hatch_per: int = hatch_scaled_eff.get("per_units", 1)
+	var max_hatch: int = hatch_scaled_eff.get("cap", 3)
 
 	var events: Array = []
 	var total_hatch := mini(card.get_total_units() * hatch_per, max_hatch)
@@ -350,28 +373,37 @@ func _parasite_post(card: CardInstance, idx: int, won: bool) -> Dictionary:
 		_hatch(card, total_hatch)
 		events.append(_hatch_evt(idx, idx))
 
-	var do_meta := won or card.star_level >= 3
-	if do_meta and card.metamorphosis(2):
-		events.append(_meta_evt(idx, idx))
-		if card.star_level >= 3:
-			card.shield_hp_pct += 0.30
+	var condition: String = combat_result_eff.get("condition", "victory")
+	var do_meta := won or condition == "always"
+	if do_meta:
+		var inner_effs: Array = combat_result_eff.get("effects", [])
+		var meta_eff: Dictionary = {}
+		var shield_eff: Dictionary = {}
+		for e in inner_effs:
+			if e.get("action") == "meta_consume":
+				meta_eff = e
+			elif e.get("action") == "shield":
+				shield_eff = e
+		if not meta_eff.is_empty() and card.metamorphosis(meta_eff.get("consume", 2)):
+			events.append(_meta_evt(idx, idx))
+			if not shield_eff.is_empty():
+				card.shield_hp_pct += shield_eff.get("hp_pct", 0.30)
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
 func _farm_post(card: CardInstance, won: bool) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var econ_eff := _find_eff(effs, "economy")
+
 	var units := card.get_total_units()
+	var gold_per: float = econ_eff.get("gold_per", 0.2)
+	var max_gold: int = econ_eff.get("max_gold", 3)
+	var halve_on_loss: bool = econ_eff.get("halve_on_loss", false)
 	var gold := units / 5
-	var max_gold := 3
-	match card.star_level:
-		2: max_gold = 5
-		3: max_gold = 7
 	gold = mini(gold, max_gold)
-	if not won and card.star_level < 2:
+	if not won and halve_on_loss:
 		gold /= 2
-	var terazin := 1 if card.star_level >= 3 else 0
+	var terazin_dict = econ_eff.get("terazin", null)
+	var terazin := 1 if terazin_dict != null else 0
 	return {"events": [], "gold": gold, "terazin": terazin}
-
-
-func _empty() -> Dictionary:
-	return {"events": [], "gold": 0, "terazin": 0}

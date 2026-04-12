@@ -1,0 +1,304 @@
+# data/cards/predator.yaml
+# Source of truth for Predator cards.
+# Generated YAML — edit here, run codegen to update card_db.gd.
+
+cards:
+  pr_nest:
+    name: 유충 둥지
+    tier: 1
+    theme: predator
+    timing: RS
+    comp:
+      - {unit: pr_larva, n: 3}
+      - {unit: pr_worker, n: 1}
+    tags: [predator, hatch]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 2}
+          - hatch: {target: right_adj, count: 1}
+      2:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 4}
+          - hatch: {target: right_adj, count: 2}
+      3:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 4}
+          - hatch: {target: both_adj, count: 2}
+
+  pr_farm:
+    name: 독 양식장
+    tier: 1
+    theme: predator
+    timing: RS
+    comp:
+      - {unit: pr_sniper, n: 1}
+      - {unit: pr_spider, n: 1}
+    tags: [predator, economy]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 1}
+          - economy: {gold_base: 0, gold_per: 0.2, gold_per_unit: units, halve_on_loss: true, max_gold: 3}
+      2:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 1}
+          - economy: {gold_base: 0, gold_per: 0.2, gold_per_unit: units, halve_on_loss: false, max_gold: 5}
+      3:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 2}
+          - economy: {gold_base: 0, gold_per: 0.2, gold_per_unit: units, halve_on_loss: false, max_gold: 7, terazin: {condition: always, amount: 1}}
+
+  pr_molt:
+    name: 탈피의 방
+    tier: 2
+    theme: predator
+    timing: OE
+    listen: {l2: HA}
+    comp:
+      - {unit: pr_larva, n: 2}
+      - {unit: pr_guardian, n: 1}
+    tags: [predator, metamorphosis]
+    impl: theme_system
+    stars:
+      1:
+        max_act: 2
+        effects:
+          - meta_consume: {consume: 3}
+      2:
+        max_act: 2
+        effects:
+          - meta_consume: {consume: 2}
+      3:
+        max_act: 2
+        effects:
+          - meta_consume: {consume: 2}
+          - enhance: {target: self, atk_pct: 0.05, ol1: null}
+
+  pr_swarm_sense:
+    name: 군체 감각
+    tier: 2
+    theme: predator
+    timing: BS
+    comp:
+      - {unit: pr_spider, n: 2}
+      - {unit: pr_larva, n: 1}
+    tags: [predator, combat]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - swarm_buff: {target: all_predator, atk_per_unit: 0.10, per_n: 3}
+      2:
+        max_act: -1
+        effects:
+          - swarm_buff: {target: all_predator, atk_per_unit: 0.12, per_n: 3}
+      3:
+        max_act: -1
+        effects:
+          - swarm_buff: {target: all_predator, atk_per_unit: 0.12, per_n: 2}
+
+  pr_harvest:
+    name: 변태 수확
+    tier: 2
+    theme: predator
+    timing: OE
+    listen: {l2: MT}
+    comp:
+      - {unit: pr_spider, n: 1}
+      - {unit: pr_sniper, n: 1}
+    tags: [predator, economy]
+    impl: theme_system
+    stars:
+      # max_act from card_db.gd: 1. ★2/★3 no star_overrides registered → same.
+      # design doc says ★2 max 2/R — discrepancy resolved by code-primary rule.
+      1:
+        max_act: 1
+        effects:
+          - terazin: 1
+          - hatch: {target: self, count: 1}
+      2:
+        max_act: 1
+        effects:
+          - terazin: 1
+          - hatch: {target: self, count: 1}
+          - enhance: {target: event_source, atk_pct: 0.05, ol1: null}
+      3:
+        max_act: 1
+        effects:
+          - terazin: 1
+          - hatch: {target: self, count: 2}
+          - enhance: {target: all_predator, atk_pct: 0.03, ol1: null}
+
+  pr_queen:
+    name: 여왕의 산란
+    tier: 3
+    theme: predator
+    timing: RS
+    comp:
+      - {unit: pr_queen, n: 1}
+      - {unit: pr_worker, n: 2}
+      - {unit: pr_larva, n: 2}
+    tags: [predator, hatch]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 3}
+          - hatch: {target: right_adj, count: 1}
+      2:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 4}
+          - hatch: {target: both_adj, count: 2}
+      3:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 5}
+          - hatch: {target: both_adj, count: 3}
+
+  pr_carapace:
+    name: 적응 갑각
+    tier: 3
+    theme: predator
+    timing: OE
+    listen: {l2: MT}
+    comp:
+      - {unit: pr_charger, n: 1}
+      - {unit: pr_warrior, n: 1}
+      - {unit: pr_worker, n: 1}
+    tags: [predator, enhance]
+    impl: theme_system
+    stars:
+      1:
+        max_act: 2
+        effects:
+          - enhance: {target: tag:carapace, atk_pct: 0.05, hp_pct: 0.05, ol1: null}
+          - hatch: {target: right_adj, count: 1}
+      2:
+        max_act: 2
+        effects:
+          - enhance: {target: tag:carapace, atk_pct: 0.07, hp_pct: 0.07, ol1: null}
+          - hatch: {target: right_adj, count: 1}
+      3:
+        max_act: 2
+        effects:
+          - enhance: {target: all_predator, atk_pct: 0.07, hp_pct: 0.07, ol1: null}
+          - hatch: {target: both_adj, count: 1}
+          - shield: {target: event_source, hp_pct: 0.20}
+
+  pr_parasite:
+    name: 기생 진화
+    tier: 4
+    theme: predator
+    timing: PC
+    comp:
+      - {unit: pr_flyer, n: 2}
+      - {unit: pr_sniper, n: 1}
+    tags: [predator, combat]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - hatch_scaled: {target: self, per_units: 1, cap: 3}
+          - on_combat_result: {condition: victory, effects: [{meta_consume: {consume: 2}}]}
+      2:
+        max_act: -1
+        effects:
+          - hatch_scaled: {target: self, per_units: 2, cap: 5}
+          - on_combat_result:
+              condition: victory
+              effects:
+                - meta_consume: {consume: 2}
+                - enhance: {target: self, hp_pct: 0.15, ol1: null}
+      3:
+        max_act: -1
+        effects:
+          - hatch_scaled: {target: self, per_units: 2, cap: 5}
+          - on_combat_result:
+              condition: always
+              effects:
+                - meta_consume: {consume: 2}
+                - enhance: {target: self, hp_pct: 0.20, ol1: null}
+                - shield: {target: self, hp_pct: 0.30}
+
+  pr_apex_hunt:
+    name: 포식자의 사냥
+    tier: 4
+    theme: predator
+    timing: OE
+    listen: {l2: MT}
+    comp:
+      - {unit: pr_apex, n: 1}
+      - {unit: pr_charger, n: 1}
+    tags: [predator, predation]
+    impl: theme_system
+    stars:
+      1:
+        max_act: 1
+        effects:
+          - meta_consume: {consume: 2}
+        conditional:
+          - when: {unit_count_lte: 5}
+            effects:
+              - buff: {target: self, atk_pct: 0.30}
+      2:
+        max_act: 2
+        effects:
+          - meta_consume: {consume: 2}
+        conditional:
+          - when: {unit_count_lte: 5}
+            effects:
+              - buff: {target: self, atk_pct: 0.50}
+      3:
+        max_act: 2
+        effects:
+          - meta_consume: {consume: 1}
+        conditional:
+          - when: {unit_count_lte: 5}
+            effects:
+              - buff: {target: self, atk_mult: 2.0}
+
+  pr_transcend:
+    name: 군체 초월
+    tier: 5
+    theme: predator
+    timing: RS
+    comp:
+      - {unit: pr_apex, n: 1}
+      - {unit: pr_queen, n: 1}
+      - {unit: pr_guardian, n: 1}
+    tags: [predator, swarm]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 3}
+          - hatch: {target: all_predator, count: 1}
+          - persistent: {death_atk_bonus: 0.03, kill_hp_recover: 0.10}
+      2:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 4}
+          - hatch: {target: all_predator, count: 2}
+          - persistent: {death_atk_bonus: 0.05, kill_hp_recover: 0.15}
+      3:
+        max_act: -1
+        effects:
+          - hatch: {target: self, count: 4}
+          - hatch: {target: all_predator, count: 2}
+          - meta_consume: {consume: 1}
+          - enhance: {target: self, atk_pct: 0.05, ol1: null}
+          - persistent: {death_atk_bonus: 0.05, kill_hp_recover: 0.15}

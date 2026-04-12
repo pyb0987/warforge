@@ -1,5 +1,5 @@
 class_name SteampunkSystem
-extends RefCounted
+extends "res://core/theme_system.gd"
 ## Steampunk theme system.
 ## Growth chain: sp_charger (manufacture counter → terazin + enhance).
 ## Combat/sell: sp_warmachine (persistent range), sp_arsenal (on_sell absorb).
@@ -11,7 +11,7 @@ extends RefCounted
 func process_rs_card(_card: CardInstance, _idx: int, _board: Array,
 		_rng: RandomNumberGenerator) -> Dictionary:
 	# Steampunk T1-T3 RS cards use generic effects. No RS delegation needed.
-	return _empty()
+	return Enums.empty_result()
 
 
 func process_event_card(card: CardInstance, idx: int, _board: Array,
@@ -19,7 +19,7 @@ func process_event_card(card: CardInstance, idx: int, _board: Array,
 	match card.get_base_id():
 		"sp_charger":
 			return _charger(card, idx)
-	return _empty()
+	return Enums.empty_result()
 
 
 # --- External hooks (called by combat/game systems) ---
@@ -29,18 +29,23 @@ func process_event_card(card: CardInstance, idx: int, _board: Array,
 func apply_persistent(card: CardInstance) -> void:
 	if card.get_base_id() != "sp_warmachine":
 		return
-	var threshold := 8
-	match card.star_level:
-		2: threshold = 6
-		3: threshold = 4
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var rb := _find_eff(effs, "range_bonus")
+	var threshold: int = rb.get("unit_thresh", 8)
+	var atk_buff_pct: float = rb.get("atk_buff_pct", 0.0)
+	var attack_stack_pct: float = rb.get("attack_stack_pct", 0.0)
+
 	var firearm_count := 0
 	for s in card.stacks:
 		if "firearm" in s["unit_type"].get("tags", PackedStringArray()):
 			firearm_count += s["count"]
 	card.theme_state["range_bonus"] = firearm_count / threshold
-	# ★2+: #firearm ATK +30% combat buff
-	if card.star_level >= 2:
-		card.temp_buff("firearm", 0.30)
+	# ★2+: #firearm ATK buff (combat buff)
+	if atk_buff_pct > 0.0:
+		card.temp_buff("firearm", atk_buff_pct)
+	# ★3: #firearm 유닛 공격 시마다 ATK stack (combat engine에서 처리)
+	if attack_stack_pct > 0.0:
+		card.theme_state["attack_stack_pct"] = attack_stack_pct
 
 
 ## Handle sell event for sp_arsenal (absorb strongest units from sold card).
@@ -50,18 +55,30 @@ func on_sell_trigger(arsenal: CardInstance, sold_card: CardInstance) -> void:
 	# Sold card must be steampunk (design: "업그레이드가 있는 스팀펑크 카드를 판매할 때")
 	if sold_card.template.get("theme", -1) != Enums.CardTheme.STEAMPUNK:
 		return
-	# TODO: 업그레이드 보유 여부 체크 (Sprint 12 업그레이드 시스템 구현 후 추가)
+	if sold_card.upgrades.is_empty():
+		return
 
-	var absorb := 3
-	match arsenal.star_level:
-		2: absorb = 5
-		3: absorb = 7
+	var effs := CardDB.get_theme_effects("sp_arsenal", arsenal.star_level)
+	var abs_eff := _find_eff(effs, "absorb")
+	var absorb: int = abs_eff.get("count", 3)
+
 	var best_id := _strongest_unit_id(sold_card)
 	if best_id != "":
-		arsenal.add_specific_unit(best_id, absorb)
+		var added := arsenal.add_specific_unit(best_id, absorb)
+		var bonus := CardInstance.roll_bonus_count(added, bonus_spawn_chance, bonus_rng)
+		if bonus > 0:
+			arsenal.add_specific_unit(best_id, bonus)
 
-	# ★3: 최다 유닛 타입 ATK +30%
-	if arsenal.star_level >= 3:
+	# 업그레이드 이전 (transfer_upgrades: true인 star에서만)
+	if abs_eff.get("transfer_upgrades", false):
+		for upg in sold_card.upgrades:
+			var uid: String = upg.get("id", "")
+			if uid != "" and arsenal.can_attach_upgrade():
+				arsenal.attach_upgrade(uid)
+
+	# 최다 유닛 타입 ATK 보너스 (majority_atk_bonus가 있는 star에서만)
+	var majority_bonus: float = abs_eff.get("majority_atk_bonus", 0.0)
+	if majority_bonus > 0.0:
 		var most_id := ""
 		var most_count := 0
 		for s in arsenal.stacks:
@@ -69,43 +86,65 @@ func on_sell_trigger(arsenal: CardInstance, sold_card: CardInstance) -> void:
 				most_count = s["count"]
 				most_id = s["unit_type"].get("id", "")
 		if most_id != "":
-			# Find the tag for majority unit and apply buff
 			for s in arsenal.stacks:
 				if s["unit_type"].get("id", "") == most_id:
-					s["upgrade_atk_mult"] *= 1.30
+					s["upgrade_atk_mult"] *= 1.0 + majority_bonus
 					break
 
 
 # --- Internal ---
 
 
+func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
+	for e in effs:
+		if e.get("action") == action:
+			if target == "" or e.get("target", "") == target:
+				return e
+	return {}
+
+
 func _charger(card: CardInstance, idx: int) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var cp := _find_eff(effs, "counter_produce")
+	var threshold: int = cp.get("threshold", 10)
+	var rewards: Dictionary = cp.get("rewards", {})
+	var terazin_reward: int = rewards.get("terazin", 1)
+	var enhance_atk: float = card_effects.get("sp_charger_enhance_atk",
+			rewards.get("enhance_atk_pct", 0.05))
+
 	var events: Array = []
 	var terazin := 0
+
+	# Base counter: threshold → terazin + enhance (all star levels)
 	var counter: int = card.theme_state.get("manufacture_counter", 0)
 	counter += 1
-
-	var threshold := 10
-	var enhance_atk := 0.05
-	match card.star_level:
-		2:
-			threshold = 20
-			# ★2: 20+ → remove 20, rare upgrade 3-choice (UI system)
-		3:
-			threshold = 10
-			# ★3: auto 1 terazin per 10 manufactures
-
 	if counter >= threshold:
 		counter -= threshold
-		terazin += 1
+		terazin += terazin_reward
 		card.enhance(null, enhance_atk, 0.0)
 		events.append({
 			"layer1": Enums.Layer1.ENHANCED,
 			"layer2": Enums.Layer2.UPGRADE,
 			"source_idx": idx, "target_idx": idx,
 		})
-
 	card.theme_state["manufacture_counter"] = counter
+
+	# ★2+: separate rare counter — 20 → pending rare upgrade 3-choice (UI)
+	if card.star_level >= 2:
+		var rare_counter: int = card.theme_state.get("rare_counter", 0)
+		rare_counter += 1
+		if rare_counter >= 20:
+			rare_counter -= 20
+			card.theme_state["pending_rare_upgrade"] = true
+		card.theme_state["rare_counter"] = rare_counter
+
+	# ★3 영구: 제조 10회마다 +1 테라진 자동 획득 (기본 카운터와 별도 추적)
+	if card.star_level >= 3:
+		var total_mfg: int = card.theme_state.get("total_manufacture_count", 0) + 1
+		card.theme_state["total_manufacture_count"] = total_mfg
+		if total_mfg % 10 == 0:
+			terazin += 1
+
 	return {"events": events, "gold": 0, "terazin": terazin}
 
 
@@ -120,7 +159,3 @@ func _strongest_unit_id(card: CardInstance) -> String:
 			best_cp = cp
 			best_id = ut.get("id", "")
 	return best_id
-
-
-func _empty() -> Dictionary:
-	return {"events": [], "gold": 0, "terazin": 0}

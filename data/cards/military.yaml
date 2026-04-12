@@ -1,0 +1,311 @@
+# data/cards/military.yaml
+# Source of truth for Military cards.
+# Generated YAML — edit here, run codegen to update card_db.gd.
+
+cards:
+  ml_barracks:
+    name: 신병 훈련소
+    tier: 1
+    theme: military
+    timing: RS
+    comp:
+      - {unit: ml_recruit, n: 2}
+      - {unit: ml_infantry, n: 1}
+    tags: [military, training]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 1}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 3, unit: ml_infantry, count: 1}
+                - {rank: 5, unit: ml_plasma, count: 1}
+                - {rank: 8, unit: ml_walker, count: 1}
+      2:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 2}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 3, unit: ml_infantry, count: 1}
+                - {rank: 5, unit: ml_plasma, count: 1}
+                - {rank: 8, unit: ml_walker, count: 1}
+      3:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 2}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 3, unit: ml_infantry, count: 1}
+                - {rank: 5, unit: ml_plasma, count: 1}
+                - {rank: 8, unit: ml_walker, count: 1}
+          # ★3 계급 15 도달 시 전체 유닛 ATK ×1.3 곱연산 (theme_system 내부 처리)
+
+  ml_outpost:
+    name: 전진 기지
+    tier: 1
+    theme: military
+    timing: RS
+    comp:
+      - {unit: ml_recruit, n: 3}
+      - {unit: ml_drone, n: 1}
+    tags: [military, frontline]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - conscript: {target: self, count: 2}
+      2:
+        max_act: -1
+        effects:
+          - conscript: {target: self, count: 2}
+          - conscript: {target: right_adj, count: 1}
+      3:
+        max_act: -1
+        effects:
+          - conscript: {target: self, count: 3}
+          - conscript: {target: both_adj, count: 1}
+
+  ml_academy:
+    name: 군사 학교
+    tier: 2
+    theme: military
+    timing: OE
+    listen: {l2: TR}
+    comp:
+      - {unit: ml_commander, n: 1}
+      - {unit: ml_infantry, n: 1}
+    tags: [military, training]
+    impl: theme_system
+    stars:
+      1:
+        max_act: 2
+        effects:
+          - train: {target: event_target, amount: 1}
+      2:
+        max_act: 2
+        effects:
+          - train: {target: event_target, amount: 1}
+          - enhance: {target: event_target, atk_pct: 0.02, ol1: null}
+      3:
+        max_act: 3
+        effects:
+          - train: {target: event_target, amount: 2}
+          - enhance: {target: event_target, atk_pct: 0.03, ol1: null}
+
+  ml_conscript:
+    name: 징병국
+    tier: 2
+    theme: military
+    timing: OE
+    listen: {l2: CO}
+    comp:
+      - {unit: ml_recruit, n: 2}
+      - {unit: ml_shield, n: 1}
+    tags: [military, conscript]
+    impl: theme_system
+    stars:
+      1:
+        max_act: 2
+        effects:
+          - conscript: {target: event_target, count: 1}
+      2:
+        max_act: 3
+        effects:
+          - conscript: {target: event_target, count: 2}
+      3:
+        max_act: 3
+        effects:
+          - conscript: {target: event_target, count: 2}
+
+  ml_supply:
+    name: 보급 부대
+    tier: 2
+    theme: military
+    timing: PC
+    comp:
+      - {unit: ml_drone, n: 1}
+      - {unit: ml_biker, n: 1}
+    tags: [military, supply]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - economy:
+              gold_base: 1
+              gold_per: 0.5
+              gold_per_unit: cards
+              halve_on_loss: true
+      2:
+        max_act: -1
+        effects:
+          - economy:
+              gold_base: 2
+              gold_per: 1.0
+              gold_per_unit: cards
+              halve_on_loss: false
+      3:
+        max_act: -1
+        effects:
+          - economy:
+              gold_base: 2
+              gold_per: 1.0
+              gold_per_unit: cards
+              halve_on_loss: false
+              terazin:
+                condition: rank_gte
+                thresh: 5
+                amount: 1
+
+  ml_tactical:
+    name: 전술 사령부
+    tier: 3
+    theme: military
+    timing: BS
+    comp:
+      - {unit: ml_commander, n: 1}
+      - {unit: ml_plasma, n: 1}
+    tags: [military, command]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - rank_buff: {target: all_military, shield_per_rank: 0.02, atk_per_unit: 0.005}
+      2:
+        max_act: -1
+        effects:
+          - rank_buff: {target: all_military, shield_per_rank: 0.03, atk_per_unit: 0.008}
+      3:
+        max_act: -1
+        effects:
+          - rank_buff: {target: all_military, shield_per_rank: 0.04, atk_per_unit: 0.01}
+
+  ml_assault:
+    name: 돌격 편대
+    tier: 3
+    theme: military
+    timing: BS
+    comp:
+      - {unit: ml_biker, n: 2}
+      - {unit: ml_recruit, n: 1}
+    tags: [military, assault]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - swarm_buff:
+              target: all_military
+              atk_per_unit: 0.01
+              ms_bonus: {unit_thresh: 15, bonus: 1}
+      2:
+        max_act: -1
+        effects:
+          - swarm_buff:
+              target: all_military
+              atk_per_unit: 0.015
+              ms_bonus: {unit_thresh: 12, bonus: 1}
+      3:
+        max_act: -1
+        effects:
+          - swarm_buff:
+              target: all_military
+              atk_per_unit: 0.02
+              ms_bonus: {unit_thresh: 10, bonus: 1}
+
+  ml_special_ops:
+    name: 특수 작전대
+    tier: 4
+    theme: military
+    timing: RS
+    comp:
+      - {unit: ml_sniper, n: 1}
+      - {unit: ml_walker, n: 1}
+    tags: [military, elite]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 1}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 8, unit: ml_commander, count: 1}
+      2:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 1}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 6, unit: ml_commander, count: 1}
+      3:
+        max_act: -1
+        effects:
+          - train: {target: self, amount: 1}
+          - train: {target: both_adj, amount: 1}
+          - rank_threshold:
+              tiers:
+                - {rank: 5, unit: ml_commander, count: 2}
+
+  ml_factory:
+    name: 군수 공장
+    tier: 4
+    theme: military
+    timing: OE
+    listen: {l2: CO}
+    comp:
+      - {unit: ml_artillery, n: 1}
+      - {unit: ml_sniper, n: 1}
+    tags: [military, supply]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - counter_produce: {event: CO, threshold: 10, rewards: {terazin: 1}}
+      2:
+        max_act: -1
+        effects:
+          - counter_produce: {event: CO, threshold: 8, rewards: {terazin: 1, enhance_atk_pct: 0.03}}
+      3:
+        max_act: -1
+        effects:
+          - counter_produce: {event: CO, threshold: 6, rewards: {terazin: 2, enhance_atk_pct: 0.05}}
+
+  ml_command:
+    name: 통합 사령부
+    tier: 5
+    theme: military
+    timing: RS
+    comp:
+      - {unit: ml_commander, n: 1}
+      - {unit: ml_walker, n: 1}
+      - {unit: ml_artillery, n: 1}
+    tags: [military, headquarters]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - train: {target: all_military, amount: 1}
+          - revive: {target: enhanced_units, hp_pct: 0.50, limit_per_combat: 1}
+      2:
+        max_act: -1
+        effects:
+          - train: {target: all_military, amount: 1}
+          - revive: {target: enhanced_units, hp_pct: 0.75, limit_per_combat: 1}
+      3:
+        max_act: -1
+        effects:
+          - train: {target: all_military, amount: 2}
+          - revive: {target: enhanced_units, hp_pct: 1.0, limit_per_combat: 3}

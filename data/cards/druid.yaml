@@ -1,0 +1,392 @@
+# data/cards/druid.yaml
+# Source of truth for Druid cards.
+# Generated YAML — edit here, run codegen to update card_db.gd.
+
+cards:
+  dr_cradle:
+    name: 숲의 요람
+    tier: 1
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_treant_y, n: 1}
+      - {unit: dr_wolf, n: 1}
+    tags: [druid, creation]
+    impl: theme_system
+    stars:
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_add: {target: right_adj, count: 1}
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_add: {target: both_adj, count: 1}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 3}
+          - tree_add: {target: both_adj, count: 2}
+
+  dr_lifebeat:
+    name: 생명의 맥동
+    tier: 1
+    theme: druid
+    timing: BS
+    comp:
+      - {unit: dr_boar, n: 1}
+      - {unit: dr_wolf, n: 1}
+    tags: [druid, guardian]
+    impl: theme_system
+    stars:
+      # tree_add 수: ★1/★2=+1, ★3=+2
+      # tree_shield: base_pct + trees×tree_scale_pct; low_unit 조건 충족 시 ×1.5
+      # 대상: self + both_adj (방어막 전달)
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_shield:
+              target: self_and_both_adj
+              base_pct: 0.05
+              tree_scale_pct: 0.03
+              low_unit: {thresh: 3, mult: 1.5}
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_shield:
+              target: self_and_both_adj
+              base_pct: 0.08
+              tree_scale_pct: 0.04
+              low_unit: {thresh: 4, mult: 1.5}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_shield:
+              target: self_and_both_adj
+              base_pct: 0.08
+              tree_scale_pct: 0.05
+              low_unit: {thresh: 5, mult: 1.5}
+          # TODO: hp_regen 미구현 — combat_engine 확장 필요
+          # - hp_regen: {target: all_druid, pct_per_sec: 0.03}
+
+  dr_origin:
+    name: 오래된 근원
+    tier: 2
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_turtle, n: 1}
+      - {unit: dr_vine, n: 1}
+    tags: [druid, breed]
+    impl: theme_system
+    stars:
+      # tree_add self, tree_absorb from adj_druids, then tree_breed if threshold met
+      # breed target: adj (fallback self); ★3: both_adj
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_absorb: {target: adj_druids, count: 1}
+          - tree_breed: {target: adj_or_self, count: 1, tree_thresh: 6, penalty_pct: 0.04}
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_absorb: {target: adj_druids, count: 2}
+          - tree_breed: {target: adj_or_self, count: 2, tree_thresh: 5, penalty_pct: 0.03}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_absorb: {target: adj_druids, count: 2}
+          - tree_breed: {target: both_adj_or_self, count: 2, tree_thresh: 5, penalty_pct: 0.0}
+
+  dr_grace:
+    name: 숲의 은혜
+    tier: 2
+    theme: druid
+    timing: PC
+    comp:
+      - {unit: dr_spore, n: 1}
+      - {unit: dr_wolf, n: 1}
+    tags: [druid, economy]
+    impl: theme_system
+    stars:
+      # gold = base_gold + floor(trees/3); win 조건 미충족 시 ★1 gold ÷2
+      # ★1: base_gold=1, trees≥10→terazin+1; win_required: true (패배시 절반)
+      # ★2/★3: base_gold=2, trees≥8→terazin+1; win_required: false
+      1:
+        max_act: -1
+        effects:
+          - tree_gold: {base_gold: 1, tree_divisor: 3, win_half: true, terazin_thresh: 10, terazin: 1}
+      2:
+        max_act: -1
+        effects:
+          - tree_gold: {base_gold: 2, tree_divisor: 3, win_half: false, terazin_thresh: 8, terazin: 1}
+      3:
+        max_act: -1
+        effects:
+          - tree_gold: {base_gold: 2, tree_divisor: 3, win_half: false, terazin_thresh: 8, terazin: 1}
+
+  dr_earth:
+    name: 대지의 축복
+    tier: 2
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_turtle, n: 1}
+      - {unit: dr_wolf, n: 1}
+    tags: [druid, earth]
+    impl: theme_system
+    stars:
+      # tree_add: ★1/★2=+1, ★3=+2
+      # druid_unit_enhance: 전체 드루이드 유닛 수 ÷ divisor % ATK+HP 성장 (all_druid)
+      # ★2+: bonus tiers — units≥12→+3%, units≥8→+2%
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - druid_unit_enhance:
+              target: all_druid
+              divisor: 5
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - druid_unit_enhance:
+              target: all_druid
+              divisor: 4
+              bonus_tiers:
+                - {unit_gte: 8, bonus_pct: 0.02}
+                - {unit_gte: 12, bonus_pct: 0.03}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - druid_unit_enhance:
+              target: all_druid
+              divisor: 3
+              bonus_tiers:
+                - {unit_gte: 8, bonus_pct: 0.02}
+                - {unit_gte: 12, bonus_pct: 0.03}
+
+  dr_deep:
+    name: 뿌리깊은 자
+    tier: 3
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_treant_a, n: 1}
+      - {unit: dr_rootguard, n: 1}
+    tags: [druid, time]
+    impl: theme_system
+    stars:
+      # tree_add: ★1/★2=+1, ★3=+2
+      # tree_enhance: base_rate=0.008; low_unit(≤thresh)→rate×1.5; tree_thresh→×mult
+      # ★1: base=0.008, low(≤3)=0.012, tree_thresh=10, mult=1.3
+      # ★2: base=0.012, low(≤3)=0.018, tree_thresh=8, mult=1.3
+      # ★3: base=0.012, low(≤3)=0.018, tree_thresh=8, mult=1.5
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_enhance:
+              target: self
+              base_pct: 0.008
+              low_unit: {thresh: 3, pct: 0.012}
+              tree_bonus: {thresh: 10, mult: 1.3}
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_enhance:
+              target: self
+              base_pct: 0.012
+              low_unit: {thresh: 3, pct: 0.018}
+              tree_bonus: {thresh: 8, mult: 1.3}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_enhance:
+              target: self
+              base_pct: 0.012
+              low_unit: {thresh: 3, pct: 0.018}
+              tree_bonus: {thresh: 8, mult: 1.5}
+
+  dr_spore_cloud:
+    name: 포자 구름
+    tier: 3
+    theme: druid
+    timing: BS
+    comp:
+      - {unit: dr_spore, n: 1}
+      - {unit: dr_toad, n: 1}
+    tags: [druid, combat]
+    impl: theme_system
+    stars:
+      # debuff_store: AS debuff = min(base + trees×scale, 0.50)
+      # ★2+: ATK debuff 추가 = min(base + trees×scale, 0.50)
+      1:
+        max_act: -1
+        effects:
+          - debuff_store: {stat: as, base_pct: 0.15, tree_scale_pct: 0.015, cap: 0.50}
+      2:
+        max_act: -1
+        effects:
+          - debuff_store: {stat: as, base_pct: 0.20, tree_scale_pct: 0.02, cap: 0.50}
+          - debuff_store: {stat: atk, base_pct: 0.20, tree_scale_pct: 0.02, cap: 0.50}
+      3:
+        max_act: -1
+        effects:
+          - debuff_store: {stat: as, base_pct: 0.30, tree_scale_pct: 0.025, cap: 0.50}
+          - debuff_store: {stat: atk, base_pct: 0.30, tree_scale_pct: 0.02, cap: 0.50}
+
+  dr_wrath:
+    name: 태고의 분노
+    tier: 4
+    theme: druid
+    timing: PERSISTENT
+    comp:
+      - {unit: dr_spore, n: 1}
+      - {unit: dr_boar, n: 1}
+    tags: [druid, combat]
+    impl: theme_system
+    stars:
+      # unit_cap: ★1=5, ★2=6, ★3=7 (초과 시 미발동)
+      # ★1: temp_buff ATK+(80% + trees×5%)
+      # ★2: temp_buff ATK+(120% + trees×8%), HP+60%
+      # ★3: temp_mult ATK×1.5, HP×1.3, 처치 HP회복 (combat engine)
+      1:
+        max_act: -1
+        effects:
+          - tree_temp_buff:
+              target: self
+              unit_cap: 5
+              atk_base_pct: 0.80
+              atk_tree_pct: 0.05
+      2:
+        max_act: -1
+        effects:
+          - tree_temp_buff:
+              target: self
+              unit_cap: 6
+              atk_base_pct: 1.20
+              atk_tree_pct: 0.08
+              hp_pct: 0.60
+      3:
+        max_act: -1
+        effects:
+          - tree_temp_buff:
+              target: self
+              unit_cap: 7
+              atk_mult: 1.5
+              hp_mult: 1.3
+              kill_hp_recover: true
+
+  dr_wt_root:
+    name: 세계수의 뿌리
+    tier: 4
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_treant_a, n: 1}
+      - {unit: dr_turtle, n: 1}
+    tags: [druid, ancient]
+    impl: theme_system
+    stars:
+      # tree_add: ★1/★2=+1, ★3=+2
+      # tree_distribute: 임계점별 all_other_druid에 분배
+      # ★1: thresh_low=4→dist+1, thresh_high=8→dist+2
+      # ★2/★3: thresh_low=3→+1, thresh_high=6→+2
+      # ★3 추가: trees≥8 시 epic shop (UI, theme_system 내부)
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_distribute:
+              target: all_other_druid
+              tiers:
+                - {tree_gte: 4, amount: 1}
+                - {tree_gte: 8, amount: 2}
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 1}
+          - tree_distribute:
+              target: all_other_druid
+              tiers:
+                - {tree_gte: 3, amount: 1}
+                - {tree_gte: 6, amount: 2}
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_distribute:
+              target: all_other_druid
+              tiers:
+                - {tree_gte: 3, amount: 1}
+                - {tree_gte: 6, amount: 2}
+          - epic_shop_unlock: {tree_thresh: 8}
+
+  dr_world:
+    name: 세계수
+    tier: 5
+    theme: druid
+    timing: RS
+    comp:
+      - {unit: dr_treant_a, n: 1}
+      - {unit: dr_turtle, n: 1}
+      - {unit: dr_spirit, n: 1}
+    tags: [druid, worldtree]
+    impl: theme_system
+    stars:
+      # tree_add self, then all other druid +n
+      # multiply_stats: unit_cap 초과 시 미적용
+      # ★1: +2 self, +1 all_other. ATK×(1.10 + floor(trees/30)×0.1), HP×(1.05 + floor(trees/30)×0.05). AS stored. unit_cap=20
+      # ★2: +3 self, +2 all_other. ATK×(1.15 + floor(trees/20)×0.1). unit_cap=40
+      # ★3: +3 self, +2 all_other. ATK×(1.30 + floor(trees/10)×0.1). unit_cap=200
+      1:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 2}
+          - tree_add: {target: all_other_druid, count: 1}
+          - multiply_stats:
+              target: self
+              atk_base: 1.10
+              atk_per_tree: 0.1
+              atk_tree_step: 30
+              hp_base: 1.05
+              hp_per_tree: 0.05
+              hp_tree_step: 30
+              as_base: 1.05
+              as_per_tree: 0.05
+              as_tree_step: 30
+              unit_cap: 20
+      2:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 3}
+          - tree_add: {target: all_other_druid, count: 2}
+          - multiply_stats:
+              target: self
+              atk_base: 1.15
+              atk_per_tree: 0.1
+              atk_tree_step: 20
+              unit_cap: 40
+      3:
+        max_act: -1
+        effects:
+          - tree_add: {target: self, count: 3}
+          - tree_add: {target: all_other_druid, count: 2}
+          - multiply_stats:
+              target: self
+              atk_base: 1.30
+              atk_per_tree: 0.1
+              atk_tree_step: 10
+              unit_cap: 200

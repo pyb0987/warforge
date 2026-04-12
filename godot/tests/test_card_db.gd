@@ -2,7 +2,7 @@ extends GutTest
 ## CardDB 데이터 정합성 테스트
 ## 참조: docs/design/cards-*.md, DESIGN.md
 ##
-## 54장 기본 카드(★1)와 ★2/★3 변형이 설계 기준대로 등록됐는지 검증.
+## 54장 기본 카드(★1)와 star_overrides 기반 ★2/★3가 설계 기준대로 등록됐는지 검증.
 ## composition의 unit_id가 UnitDB에 실제 존재하는지 교차 검증.
 
 
@@ -10,45 +10,35 @@ extends GutTest
 # 등록 수
 # ================================================================
 
-func test_base_card_total_54() -> void:
-	## ★1 기본 카드 합계 = 54 (중립14 + 테마별10×4)
-	var base_ids := _get_base_ids()
-	assert_eq(base_ids.size(), 54, "기본 카드 54장")
-
-
-func test_total_including_stars_82() -> void:
-	## ★1+★2+★3 포함 전체 = 82
-	assert_eq(CardDB.get_all_ids().size(), 82, "전체(별 포함) 82장")
+func test_total_card_count_55() -> void:
+	## 기본 카드 = 55장 (스팀10 + 중립15 + 드루10 + 포식10 + 군대10).
+	## 중립 15장: ne_scrapyard(폐품 상회, 2026-04-09 추가) 포함.
+	assert_eq(CardDB.get_all_ids().size(), 55, "기본 카드 55장")
 
 
 func test_steampunk_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.STEAMPUNK)
-	var base := ids.filter(func(id): return _is_base(id))
-	assert_eq(base.size(), 10, "스팀펑크 기본 10장")
+	assert_eq(ids.size(), 10, "스팀펑크 기본 10장")
 
 
 func test_neutral_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.NEUTRAL)
-	var base := ids.filter(func(id): return _is_base(id))
-	assert_eq(base.size(), 14, "중립 기본 14장")
+	assert_eq(ids.size(), 15, "중립 기본 15장 (폐품 상회 포함)")
 
 
 func test_druid_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.DRUID)
-	var base := ids.filter(func(id): return _is_base(id))
-	assert_eq(base.size(), 10, "드루이드 기본 10장")
+	assert_eq(ids.size(), 10, "드루이드 기본 10장")
 
 
 func test_predator_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.PREDATOR)
-	var base := ids.filter(func(id): return _is_base(id))
-	assert_eq(base.size(), 10, "포식종 기본 10장")
+	assert_eq(ids.size(), 10, "포식종 기본 10장")
 
 
 func test_military_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.MILITARY)
-	var base := ids.filter(func(id): return _is_base(id))
-	assert_eq(base.size(), 10, "군대 기본 10장")
+	assert_eq(ids.size(), 10, "군대 기본 10장")
 
 
 # ================================================================
@@ -119,7 +109,7 @@ func test_all_composition_counts_positive() -> void:
 func test_tier_cost_mapping() -> void:
 	## 설계: T1=2, T2=3, T3=4, T4=5, T5=6
 	var expected_cost := {1: 2, 2: 3, 3: 4, 4: 5, 5: 6}
-	for cid in _get_base_ids():
+	for cid in CardDB.get_all_ids():
 		var t: Dictionary = CardDB.get_template(cid)
 		var tier: int = t["tier"]
 		var cost: int = t["cost"]
@@ -129,7 +119,7 @@ func test_tier_cost_mapping() -> void:
 
 func test_all_base_cards_tier_in_range() -> void:
 	## 기본 카드는 T1~T5
-	for cid in _get_base_ids():
+	for cid in CardDB.get_all_ids():
 		var t: Dictionary = CardDB.get_template(cid)
 		var tier: int = t["tier"]
 		assert_true(tier >= 1 and tier <= 5,
@@ -154,8 +144,8 @@ func test_all_cards_max_activations_valid() -> void:
 # ================================================================
 
 func test_all_cards_trigger_timing_valid_enum() -> void:
-	## TriggerTiming 최댓값: PERSISTENT(10)
-	var max_timing := 10
+	## TriggerTiming 최댓값: PERSISTENT(11) — ON_COMBAT_DEATH(10) 추가로 밀림
+	var max_timing := Enums.TriggerTiming.PERSISTENT
 	for cid in CardDB.get_all_ids():
 		var t: Dictionary = CardDB.get_template(cid)
 		var timing: int = t["trigger_timing"]
@@ -164,34 +154,108 @@ func test_all_cards_trigger_timing_valid_enum() -> void:
 
 
 # ================================================================
-# ★2/★3 매핑 API
+# get_star_template API
 # ================================================================
 
-func test_get_s2_id_returns_correct_suffix() -> void:
-	assert_eq(CardDB.get_s2_id("sp_assembly"), "sp_assembly_s2")
-	assert_eq(CardDB.get_s2_id("dr_cradle"), "dr_cradle_s2")
-	assert_eq(CardDB.get_s2_id("ne_earth_echo"), "ne_earth_echo_s2")
+func test_get_star_template_star1_returns_base() -> void:
+	## star_level=1이면 기본 템플릿과 동일
+	var base: Dictionary = CardDB.get_template("sp_warmachine")
+	var star1: Dictionary = CardDB.get_star_template("sp_warmachine", 1)
+	assert_eq(star1["name"], base["name"], "★1은 기본 템플릿")
 
 
-func test_get_s3_id_from_s2_key() -> void:
-	assert_eq(CardDB.get_s3_id("sp_assembly_s2"), "sp_assembly_s3")
-	assert_eq(CardDB.get_s3_id("dr_cradle_s2"), "dr_cradle_s3")
+func test_get_star_template_star2_returns_override() -> void:
+	var star2: Dictionary = CardDB.get_star_template("sp_warmachine", 2)
+	assert_eq(star2["name"], "전쟁 기계 ★2", "★2 이름 오버라이드")
 
 
-func test_get_s2_id_unknown_returns_empty_string() -> void:
-	assert_eq(CardDB.get_s2_id("nonexistent_card"), "",
-		"미등록 카드는 빈 문자열 반환")
+func test_get_star_template_star3_returns_override() -> void:
+	var star3: Dictionary = CardDB.get_star_template("sp_warmachine", 3)
+	assert_eq(star3["name"], "전쟁 기계 ★3", "★3 이름 오버라이드")
 
 
-func test_registered_star_cards_have_required_fields() -> void:
-	## 실제 등록된 ★2/★3 카드는 일반 카드와 동일한 필드를 가져야 함
-	var star_ids := CardDB.get_all_ids().filter(
-		func(id): return id.ends_with("_s2") or id.ends_with("_s3"))
-	var required := ["id", "name", "tier", "theme", "composition", "cost"]
-	for cid in star_ids:
-		var t: Dictionary = CardDB.get_template(cid)
-		for field in required:
-			assert_true(t.has(field), "★카드 %s: '%s' 필드 누락" % [cid, field])
+func test_get_star_template_always_has_star_name() -> void:
+	## 모든 카드는 star_overrides에 ★N 이름 포함
+	var star2: Dictionary = CardDB.get_star_template("dr_cradle", 2)
+	assert_eq(star2["name"], "숲의 요람 ★2", "★2 이름 오버라이드")
+
+
+func test_get_star_template_unknown_returns_empty() -> void:
+	var result: Dictionary = CardDB.get_star_template("nonexistent", 2)
+	assert_true(result.is_empty(), "미등록 카드는 빈 딕셔너리")
+
+
+func test_star_override_preserves_base_fields() -> void:
+	## tier, theme, cost는 ★ 레벨과 무관하게 동일
+	var base: Dictionary = CardDB.get_template("sp_warmachine")
+	var star2: Dictionary = CardDB.get_star_template("sp_warmachine", 2)
+	var star3: Dictionary = CardDB.get_star_template("sp_warmachine", 3)
+	assert_eq(star2["tier"], base["tier"], "★2 tier 보존")
+	assert_eq(star2["theme"], base["theme"], "★2 theme 보존")
+	assert_eq(star2["cost"], base["cost"], "★2 cost 보존")
+	assert_eq(star3["tier"], base["tier"], "★3 tier 보존")
+	assert_eq(star3["theme"], base["theme"], "★3 theme 보존")
+	assert_eq(star3["cost"], base["cost"], "★3 cost 보존")
+
+
+func test_star_override_has_required_fields() -> void:
+	## star_overrides 전수 검사
+	var star_cards := [
+		"sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator",
+		"sp_interest", "sp_line", "sp_barrier",
+		"sp_warmachine", "sp_charger", "sp_arsenal",
+		"ne_earth_echo", "ne_wild_pulse", "ne_ruin_resonance",
+		"ne_wanderers", "ne_mutant_adapt",
+		"ne_mana_crystal", "ne_ancient_catalyst",
+		"ne_wildforce", "ne_chimera_cry", "ne_ruins",
+		"ne_merchant", "ne_scrapyard",
+		"ne_spirit_blessing", "ne_dim_merchant", "ne_awakening",
+		"dr_wrath", "dr_wt_root", "dr_world",
+		"pr_parasite", "pr_apex_hunt", "pr_transcend",
+		"ml_special_ops", "ml_factory", "ml_command",
+	]
+	var required := ["name", "composition", "trigger_timing",
+		"max_activations", "effects", "card_tags"]
+	for base_id in star_cards:
+		for star in [2, 3]:
+			var t: Dictionary = CardDB.get_star_template(base_id, star)
+			assert_false(t.is_empty(),
+				"%s ★%d 템플릿 존재" % [base_id, star])
+			for field in required:
+				assert_true(t.has(field),
+					"%s ★%d: '%s' 필드 누락" % [base_id, star, field])
+
+
+func test_star_override_composition_units_exist() -> void:
+	## star_overrides의 composition도 UnitDB 교차 검증
+	var star_cards := [
+		"sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator",
+		"sp_interest", "sp_line", "sp_barrier",
+		"sp_warmachine", "sp_charger", "sp_arsenal",
+		"ne_earth_echo", "ne_wild_pulse", "ne_ruin_resonance",
+		"ne_wanderers", "ne_mutant_adapt",
+		"ne_mana_crystal", "ne_ancient_catalyst",
+		"ne_wildforce", "ne_chimera_cry", "ne_ruins",
+		"ne_merchant", "ne_scrapyard",
+		"ne_spirit_blessing", "ne_dim_merchant", "ne_awakening",
+		"dr_wrath", "dr_wt_root", "dr_world",
+		"pr_parasite", "pr_apex_hunt", "pr_transcend",
+		"ml_special_ops", "ml_factory", "ml_command",
+	]
+	for base_id in star_cards:
+		for star in [2, 3]:
+			var t: Dictionary = CardDB.get_star_template(base_id, star)
+			for comp in t.get("composition", []):
+				var uid: String = comp["unit_id"]
+				assert_false(UnitDB.get_unit(uid).is_empty(),
+					"%s ★%d → unit '%s' UnitDB에 없음" % [base_id, star, uid])
+
+
+func test_get_all_ids_no_star_suffixes() -> void:
+	## get_all_ids()에 _s2/_s3 접미사 없음
+	for cid in CardDB.get_all_ids():
+		assert_false(cid.ends_with("_s2"), "_s2 없어야 함: %s" % cid)
+		assert_false(cid.ends_with("_s3"), "_s3 없어야 함: %s" % cid)
 
 
 # ================================================================
@@ -244,15 +308,3 @@ func test_sp_warmachine_is_persistent() -> void:
 	var t: Dictionary = CardDB.get_template("sp_warmachine")
 	assert_eq(t["trigger_timing"], Enums.TriggerTiming.PERSISTENT)
 	assert_eq(t["effects"].size(), 0, "PERSISTENT 효과는 테마 시스템에서 처리")
-
-
-# ================================================================
-# Helper
-# ================================================================
-
-func _is_base(id: String) -> bool:
-	return not id.ends_with("_s2") and not id.ends_with("_s3")
-
-
-func _get_base_ids() -> Array:
-	return CardDB.get_all_ids().filter(func(id): return _is_base(id))
