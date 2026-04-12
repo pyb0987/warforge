@@ -411,11 +411,17 @@ theme_system 카드도 YAML로 완전 선언한다. 테마 메카닉의 **행동
     atk_buff_pct: float  # 기본 0.0 — 태그 유닛 ATK 버프
     attack_stack_pct: float  # 기본 0.0 — 공격당 ATK 스택 (★3)
 
-# 희귀 업그레이드 카운터 (sp_charger ★2/★3)
+# 희귀 업그레이드 카운터 (sp_charger ★2)
 # 누적 MF 횟수가 threshold에 도달하면 pending_rare_upgrade 보상
 - rare_counter:
     threshold: int       # 누적 이벤트 수 (회차 누적, 리셋 없음)
     reward: string       # pending_rare_upgrade
+
+# 에픽 업그레이드 카운터 (sp_charger ★3)
+# 누적 MF 횟수가 threshold에 도달하면 pending_epic_upgrade 보상 (레어→에픽 승격)
+- epic_counter:
+    threshold: int       # 누적 이벤트 수 (회차 누적, 리셋 없음)
+    reward: string       # pending_epic_upgrade
 
 # 총 누적 카운터 기반 보상 (sp_charger ★3)
 # 라운드 리셋 없이 누적 — threshold마다 테라진 지급
@@ -855,7 +861,7 @@ cards:
         max_act: -1
         effects:
           - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
+          - epic_counter: {threshold: 15, reward: pending_epic_upgrade}
           - total_counter: {per_manufacture: 10, reward_terazin: 1}
           # ★3 합성 시 1회: 무료 에픽 업그레이드 + 3 테라진 (on_merge 훅, theme_system 내부)
           # - on_merge: {epic_upgrade: 1, terazin: 3}

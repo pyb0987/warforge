@@ -30,9 +30,9 @@ func process_event_card(_card: CardInstance, _idx: int, _board: Array,
 
 
 ## Battle start: dr_lifebeat, dr_spore_cloud.
-func apply_battle_start(card: CardInstance, _idx: int, board: Array) -> Dictionary:
+func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	match card.get_base_id():
-		"dr_lifebeat": return _lifebeat_battle(card)
+		"dr_lifebeat": return _lifebeat_battle(card, idx, board)
 		"dr_spore_cloud": return _spore_cloud_battle(card)
 	return Enums.empty_result()
 
@@ -378,7 +378,7 @@ func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 # --- Battle hooks ---
 
 
-func _lifebeat_battle(card: CardInstance) -> Dictionary:
+func _lifebeat_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects("dr_lifebeat", card.star_level)
 	var add_eff := _find_eff(effs, "tree_add", "self")
 	var shield_eff := _find_eff(effs, "tree_shield")
@@ -395,7 +395,21 @@ func _lifebeat_battle(card: CardInstance) -> Dictionary:
 	var shield := base_pct + trees * tree_pct
 	if card.get_total_units() <= unit_thresh:
 		shield *= low_mult
-	card.shield_hp_pct += shield
+
+	var target: String = shield_eff.get("target", "self_and_both_adj")
+	match target:
+		"all_druid":
+			for c in board:
+				if c != null and c.template.get("theme", -1) == Enums.CardTheme.DRUID:
+					c.shield_hp_pct += shield
+		"self_and_both_adj":
+			card.shield_hp_pct += shield
+			if idx > 0 and board[idx - 1] != null:
+				board[idx - 1].shield_hp_pct += shield
+			if idx + 1 < board.size() and board[idx + 1] != null:
+				board[idx + 1].shield_hp_pct += shield
+		_:
+			card.shield_hp_pct += shield
 	return Enums.empty_result()
 
 

@@ -264,7 +264,7 @@ func _register_steampunk() -> void:
 		],
 		3: [
 			{"action": "counter_produce", "event": "MF", "threshold": 10, "rewards": {"terazin": 1, "enhance_atk_pct": 0.05}},
-			{"action": "rare_counter", "threshold": 20, "reward": "pending_rare_upgrade"},
+			{"action": "epic_counter", "threshold": 15, "reward": "pending_epic_upgrade"},
 			{"action": "total_counter", "per_manufacture": 10, "reward_terazin": 1},
 		],
 	}
@@ -594,7 +594,7 @@ func _register_druid() -> void:
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
-			{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 5, "mult": 1.5}},
+			{"action": "tree_shield", "target": "all_druid", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 5, "mult": 1.5}},
 		],
 	}
 

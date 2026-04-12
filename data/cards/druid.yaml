@@ -43,7 +43,7 @@ cards:
     stars:
       # tree_add 수: ★1/★2=+1, ★3=+2
       # tree_shield: base_pct + trees×tree_scale_pct; low_unit 조건 충족 시 ×1.5
-      # 대상: self + both_adj (방어막 전달)
+      # 대상: ★1/★2 self+both_adj, ★3 all_druid (전체 드루이드 카드)
       1:
         max_act: -1
         effects:
@@ -67,12 +67,10 @@ cards:
         effects:
           - tree_add: {target: self, count: 2}
           - tree_shield:
-              target: self_and_both_adj
+              target: all_druid
               base_pct: 0.08
               tree_scale_pct: 0.05
               low_unit: {thresh: 5, mult: 1.5}
-          # TODO: hp_regen 미구현 — combat_engine 확장 필요
-          # - hp_regen: {target: all_druid, pct_per_sec: 0.03}
 
   dr_origin:
     name: 오래된 근원

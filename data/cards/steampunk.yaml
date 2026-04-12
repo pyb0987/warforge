@@ -231,10 +231,8 @@ cards:
         max_act: -1
         effects:
           - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
+          - epic_counter: {threshold: 15, reward: pending_epic_upgrade}
           - total_counter: {per_manufacture: 10, reward_terazin: 1}
-          # ★3 합성 시 1회: 무료 에픽 업그레이드 + 3 테라진 (on_merge 훅, theme_system 내부)
-          # - on_merge: {epic_upgrade: 1, terazin: 3}
 
   sp_arsenal:
     name: 제국 병기창

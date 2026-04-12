@@ -129,14 +129,25 @@ func _charger(card: CardInstance, idx: int) -> Dictionary:
 		})
 	card.theme_state["manufacture_counter"] = counter
 
-	# ★2+: separate rare counter — 20 → pending rare upgrade 3-choice (UI)
-	if card.star_level >= 2:
-		var rare_counter: int = card.theme_state.get("rare_counter", 0)
-		rare_counter += 1
-		if rare_counter >= 20:
-			rare_counter -= 20
+	# ★2: separate rare counter — 20 → pending rare upgrade 3-choice (UI)
+	if card.star_level == 2:
+		var rc := _find_eff(effs, "rare_counter")
+		var rc_thresh: int = rc.get("threshold", 20)
+		var rare_cnt: int = card.theme_state.get("rare_counter", 0) + 1
+		if rare_cnt >= rc_thresh:
+			rare_cnt -= rc_thresh
 			card.theme_state["pending_rare_upgrade"] = true
-		card.theme_state["rare_counter"] = rare_counter
+		card.theme_state["rare_counter"] = rare_cnt
+
+	# ★3: epic counter — 15 → pending epic upgrade 3-choice (UI)
+	if card.star_level >= 3:
+		var ec := _find_eff(effs, "epic_counter")
+		var ec_thresh: int = ec.get("threshold", 15)
+		var epic_cnt: int = card.theme_state.get("epic_counter", 0) + 1
+		if epic_cnt >= ec_thresh:
+			epic_cnt -= ec_thresh
+			card.theme_state["pending_epic_upgrade"] = true
+		card.theme_state["epic_counter"] = epic_cnt
 
 	# ★3 영구: 제조 10회마다 +1 테라진 자동 획득 (기본 카운터와 별도 추적)
 	if card.star_level >= 3:

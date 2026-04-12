@@ -301,7 +301,7 @@ THEME_EFFECTS = {
     "counter_produce", "range_bonus", "economy",
     # Additional theme effect types used by sub-agents
     "tree_gold", "druid_unit_enhance", "tree_temp_buff", "epic_shop_unlock",
-    "persistent", "revive", "rare_counter", "total_counter", "on_merge",
+    "persistent", "revive", "rare_counter", "epic_counter", "total_counter", "on_merge",
 }
 
 
