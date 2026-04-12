@@ -914,19 +914,28 @@ def main():
             sys.exit(1)
         current = OUTPUT.read_text()
         if current == generated:
-            print(f"OK: card_db.gd matches YAML ({total} cards)")
+            print(f"✅ card_db.gd matches YAML ({total} cards)")
             sys.exit(0)
         else:
-            print(f"MISMATCH: card_db.gd differs from YAML ({total} cards)")
-            # Show first diff line
-            cur_lines = current.splitlines()
-            gen_lines = generated.splitlines()
-            for i, (c, g) in enumerate(zip(cur_lines, gen_lines)):
-                if c != g:
-                    print(f"  First diff at line {i + 1}:")
-                    print(f"    current:   {c}")
-                    print(f"    generated: {g}")
-                    break
+            import difflib
+            print(f"❌ MISMATCH: card_db.gd differs from YAML ({total} cards)")
+            print(f"   card_db.gd is a generated file — edit YAML, then run:")
+            print(f"   python3 scripts/codegen_card_db.py")
+            print()
+            cur_lines = current.splitlines(keepends=True)
+            gen_lines = generated.splitlines(keepends=True)
+            diff = difflib.unified_diff(
+                cur_lines, gen_lines,
+                fromfile="card_db.gd (current)",
+                tofile="card_db.gd (from YAML)",
+                n=2,
+            )
+            diff_lines = list(diff)
+            MAX_DIFF_LINES = 60
+            for line in diff_lines[:MAX_DIFF_LINES]:
+                print(line, end="")
+            if len(diff_lines) > MAX_DIFF_LINES:
+                print(f"\n  ... ({len(diff_lines) - MAX_DIFF_LINES} more diff lines)")
             sys.exit(1)
     else:
         OUTPUT.write_text(generated)
