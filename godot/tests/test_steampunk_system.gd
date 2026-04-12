@@ -78,6 +78,7 @@ func test_warmachine_range_bonus_calculation() -> void:
 func test_arsenal_absorbs_3_strongest_units() -> void:
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
 	var before: int = arsenal.get_total_units()
 	_sys.on_sell_trigger(arsenal, sold)
 	assert_eq(arsenal.get_total_units(), before + 3, "3기 흡수")
@@ -95,6 +96,7 @@ func test_arsenal_absorbed_unit_is_highest_cp() -> void:
 	## sp_assembly 최강: sp_spider(CP=80) vs sp_rat(CP=60)
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
 	_sys.on_sell_trigger(arsenal, sold)
 	var found := false
 	for s in arsenal.stacks:
@@ -287,29 +289,54 @@ func test_warmachine_s3_threshold_4() -> void:
 # ★2/★3 태엽 과급기 (OE counter threshold)
 # ================================================================
 
-func test_charger_s2_threshold_20() -> void:
-	## ★2: counter 20에서 발동 (★1은 10)
-	var card := _make_star("sp_charger", 2)
-	card.theme_state["manufacture_counter"] = 19
-	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "★2 counter 19→20 → terazin=1")
-	assert_eq(card.theme_state.get("manufacture_counter", -1), 0, "counter reset")
-
-
-func test_charger_s2_no_fire_at_10() -> void:
-	## ★2: counter 10에서는 미발동 (threshold=20)
+func test_charger_s2_base_fires_at_10() -> void:
+	## ★2: 기본 10-threshold 정상 발동 (★1과 동일)
 	var card := _make_star("sp_charger", 2)
 	card.theme_state["manufacture_counter"] = 9
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 0, "★2 counter 10 < 20 → terazin=0")
+	assert_eq(result["terazin"], 1, "★2 counter 9→10 → terazin=1")
+	assert_eq(card.theme_state.get("manufacture_counter", -1), 0, "counter reset")
 
 
-func test_charger_s3_threshold_10() -> void:
-	## ★3: counter 10에서 발동 (★1과 동일 threshold, 하지만 ★3)
+func test_charger_s2_rare_counter_increments() -> void:
+	## ★2: rare_counter 별도 누적
+	var card := _make_star("sp_charger", 2)
+	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
+	assert_eq(card.theme_state.get("rare_counter", 0), 1, "rare_counter 0→1")
+
+
+func test_charger_s2_rare_at_20() -> void:
+	## ★2: rare_counter 20 → pending_rare_upgrade
+	var card := _make_star("sp_charger", 2)
+	card.theme_state["rare_counter"] = 19
+	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
+	assert_true(card.theme_state.get("pending_rare_upgrade", false), "★2 rare 20 → pending")
+	assert_eq(card.theme_state.get("rare_counter", -1), 0, "rare_counter reset")
+
+
+func test_charger_s1_no_rare_counter() -> void:
+	## ★1: rare_counter 없음
+	var card := _make_star("sp_charger", 1)
+	card.theme_state["manufacture_counter"] = 9
+	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
+	assert_false(card.theme_state.has("rare_counter"), "★1 → rare_counter 없음")
+
+
+func test_charger_s3_base_fires_at_10() -> void:
+	## ★3: 기본 10-threshold 정상 발동
 	var card := _make_star("sp_charger", 3)
 	card.theme_state["manufacture_counter"] = 9
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
 	assert_eq(result["terazin"], 1, "★3 counter 9→10 → terazin=1")
+
+
+func test_charger_s3_has_epic_counter() -> void:
+	## ★3: epic_counter 15 → pending_epic_upgrade (rare→epic 승격)
+	var card := _make_star("sp_charger", 3)
+	card.theme_state["epic_counter"] = 14
+	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
+	assert_true(card.theme_state.get("pending_epic_upgrade", false), "★3 epic 15 → pending")
+	assert_eq(card.theme_state.get("epic_counter", -1), 0, "epic_counter reset")
 
 
 # ================================================================
@@ -320,15 +347,37 @@ func test_arsenal_s2_absorbs_5() -> void:
 	## ★2: 5기 흡수 (★1은 3기)
 	var arsenal := _make_star("sp_arsenal", 2)
 	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
 	var before: int = arsenal.get_total_units()
 	_sys.on_sell_trigger(arsenal, sold)
 	assert_eq(arsenal.get_total_units(), before + 5, "★2 5기 흡수")
+
+
+func test_arsenal_s2_transfers_upgrades() -> void:
+	## ★2: 판매 카드의 업그레이드를 병기창에 이전
+	var arsenal := _make_star("sp_arsenal", 2)
+	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
+	sold.attach_upgrade("R1")
+	var upg_before: int = arsenal.upgrades.size()
+	_sys.on_sell_trigger(arsenal, sold)
+	assert_eq(arsenal.upgrades.size(), upg_before + 2, "★2 업그레이드 2개 이전")
+
+
+func test_arsenal_no_trigger_without_upgrade() -> void:
+	## 업그레이드 없는 카드 판매 시 미발동
+	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
+	var sold: CardInstance = CardInstance.create("sp_assembly")
+	var before: int = arsenal.get_total_units()
+	_sys.on_sell_trigger(arsenal, sold)
+	assert_eq(arsenal.get_total_units(), before, "업그레이드 없으면 미발동")
 
 
 func test_arsenal_s3_absorbs_7() -> void:
 	## ★3: 7기 흡수
 	var arsenal := _make_star("sp_arsenal", 3)
 	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
 	var before: int = arsenal.get_total_units()
 	_sys.on_sell_trigger(arsenal, sold)
 	assert_eq(arsenal.get_total_units(), before + 7, "★3 7기 흡수")
@@ -338,6 +387,62 @@ func test_arsenal_s3_majority_atk_bonus() -> void:
 	## ★3: 최다유닛 타입 ATK +30%
 	var arsenal := _make_star("sp_arsenal", 3)
 	var sold: CardInstance = CardInstance.create("sp_assembly")
+	sold.attach_upgrade("C1")
 	var atk_before: float = arsenal.get_total_atk()
 	_sys.on_sell_trigger(arsenal, sold)
 	assert_gt(arsenal.get_total_atk(), atk_before, "★3 → majority ATK +30%")
+
+
+# ================================================================
+# ON_REROLL: sp_interest (chain_engine.process_reroll_triggers)
+# ================================================================
+
+func test_interest_spawns_on_reroll() -> void:
+	## sp_interest: 리롤 시 self spawn 1
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var board: Array = [CardInstance.create("sp_interest")]
+	var units_before: int = board[0].get_total_units()
+	engine.process_reroll_triggers(board)
+	assert_eq(board[0].get_total_units(), units_before + 1, "리롤 → self +1 유닛")
+
+
+func test_interest_enhances_on_reroll() -> void:
+	## sp_interest: 리롤 시 self enhance 3%
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var board: Array = [CardInstance.create("sp_interest")]
+	var atk_before: float = board[0].get_total_atk()
+	engine.process_reroll_triggers(board)
+	assert_gt(board[0].get_total_atk(), atk_before, "리롤 → self ATK +3%")
+
+
+func test_interest_max_3_activations() -> void:
+	## max_act=3 → 3회까지만 발동
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var board: Array = [CardInstance.create("sp_interest")]
+	for _i in 3:
+		engine.process_reroll_triggers(board)
+	var units_after_3: int = board[0].get_total_units()
+	engine.process_reroll_triggers(board)  # 4회째
+	assert_eq(board[0].get_total_units(), units_after_3, "max_act=3 → 4회째 미발동")
+
+
+func test_interest_no_event_emission() -> void:
+	## output_layer=-1 → 이벤트 미방출 (체인 격리)
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var board: Array = [CardInstance.create("sp_interest")]
+	var result: Dictionary = engine.process_reroll_triggers(board)
+	assert_eq(result["events"].size(), 0, "output_layer=-1 → 이벤트 없음")
+
+
+func test_interest_ignores_non_reroll_cards() -> void:
+	## RS 카드는 process_reroll_triggers에서 무시
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var board: Array = [CardInstance.create("sp_assembly"), CardInstance.create("sp_interest")]
+	var assembly_units: int = board[0].get_total_units()
+	engine.process_reroll_triggers(board)
+	assert_eq(board[0].get_total_units(), assembly_units, "RS 카드 미발동")
