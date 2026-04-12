@@ -65,9 +65,11 @@ Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS
 
 ## Harness (자율 피드백 루프)
 - **Hooks**:
-  - git commit guard (PreToolUse, **차단형** exit 1) — 카드 파일 커밋 시 Sprint Contract 미완료면 차단
+  - git commit guard (PreToolUse, **차단형** exit 2) — 카드 파일 커밋 시 Sprint Contract 미완료면 차단
   - .gd edit warning (PostToolUse, **경고형**) — 설계 문서 대조 리마인더. 프로그래밍적 검증 불가이므로 soft reminder
-  - **Tier 0 protect-files** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 1) — `godot/sim/{autoresearch.py, baseline.json, batch_runner.gd, program.md}` 수정 차단. 추가로 chmod 444가 걸려 Bash redirection도 막힘 (defense in depth). 정당한 사유로 수정해야 한다면 사용자 승인 후 `chmod +w`로 명시적 잠금 해제. agent-writable 탐색 로그는 `godot/sim/rejection_history.md` 사용.
+  - **Tier 0 protect-files** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 2) — `godot/sim/{autoresearch.py, baseline.json, batch_runner.gd, program.md}` 수정 차단. 추가로 chmod 444가 걸려 Bash redirection도 막힘 (defense in depth). 정당한 사유로 수정해야 한다면 사용자 승인 후 `chmod +w`로 명시적 잠금 해제. agent-writable 탐색 로그는 `godot/sim/rejection_history.md` 사용.
+  - **codegen protect** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 2) — `card_db.gd` 직접 수정 차단. YAML 수정 → codegen 실행이 유일한 경로.
+  - **YAML→codegen drift** (PostToolUse Edit/Write, **경고형**) — `data/cards/*.yaml` 수정 후 `codegen --check` 자동 실행. 불일치 시 codegen 실행 안내.
 - **Skills**: `card-designer` (도메인 스킬), `btw` (유틸리티)
 - **Trace Filesystem**: `.claude/traces/` — 진화(evolution/), 실패(failures/), 실험(experiments/)
 - **변경 전략**: Additive first → Subtractive → Structural (한 번에 하나, 교란 변수 격리)
@@ -84,8 +86,9 @@ Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS
 확정된 핵심 제약 (변경 시 사용자 확인 필수):
 - 성장 체인이 주력, 전투 체인은 보조
 - 2층 이벤트 구조 (Layer1 결과범주 + Layer2 테마키워드)
-- 54장 카드 풀 (중립14 / 테마별10). 테마: 스팀펑크/드루이드/포식종/군대
+- 55장 카드 풀 (중립15 / 테마별10). 테마: 스팀펑크/드루이드/포식종/군대
 - SC1 스타일 스탯 (ATK 1~20, HP 20~500, AS/Range/MS)
-- 2화폐 (골드+테라진), 판매 전액환급
+- 2화폐 (골드+테라진). 판매: ★1 전액환급, ★2/★3 총 투자액-1골드 (합성 비용 회수 방지)
+- 무료 리롤은 모두 이번 라운드 한정 (pending_free_rerolls)
 - 배치 순서(왼→오) = 트리거 해결 순서
 - 부대별 발동 횟수 상한으로 루프 방지
