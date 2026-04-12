@@ -149,12 +149,15 @@ func _charger(card: CardInstance, idx: int) -> Dictionary:
 			card.theme_state["pending_epic_upgrade"] = true
 		card.theme_state["epic_counter"] = epic_cnt
 
-	# ★3 영구: 제조 10회마다 +1 테라진 자동 획득 (기본 카운터와 별도 추적)
+	# ★3 영구: 제조 N회마다 +1 테라진 자동 획득 (기본 카운터와 별도 추적)
 	if card.star_level >= 3:
+		var tc := _find_eff(effs, "total_counter")
+		var tc_interval: int = tc.get("per_manufacture", 10)
+		var tc_reward: int = tc.get("reward_terazin", 1)
 		var total_mfg: int = card.theme_state.get("total_manufacture_count", 0) + 1
 		card.theme_state["total_manufacture_count"] = total_mfg
-		if total_mfg % 10 == 0:
-			terazin += 1
+		if total_mfg % tc_interval == 0:
+			terazin += tc_reward
 
 	return {"events": events, "gold": 0, "terazin": terazin}
 

@@ -938,7 +938,15 @@ def main():
                 print(f"\n  ... ({len(diff_lines) - MAX_DIFF_LINES} more diff lines)")
             sys.exit(1)
     else:
+        import os, stat
+        # Unlock if read-only (chmod 444 defense-in-depth)
+        if OUTPUT.exists():
+            current_mode = os.stat(OUTPUT).st_mode
+            if not (current_mode & stat.S_IWUSR):
+                os.chmod(OUTPUT, current_mode | stat.S_IWUSR)
         OUTPUT.write_text(generated)
+        # Lock to read-only (defense-in-depth vs Bash bypass)
+        os.chmod(OUTPUT, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # 444
         print(f"Generated {OUTPUT} ({total} cards)")
 
 

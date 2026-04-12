@@ -68,7 +68,7 @@ Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS
   - git commit guard (PreToolUse, **차단형** exit 2) — 카드 파일 커밋 시 Sprint Contract 미완료면 차단
   - .gd edit warning (PostToolUse, **경고형**) — 설계 문서 대조 리마인더. 프로그래밍적 검증 불가이므로 soft reminder
   - **Tier 0 protect-files** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 2) — `godot/sim/{autoresearch.py, baseline.json, batch_runner.gd, program.md}` 수정 차단. 추가로 chmod 444가 걸려 Bash redirection도 막힘 (defense in depth). 정당한 사유로 수정해야 한다면 사용자 승인 후 `chmod +w`로 명시적 잠금 해제. agent-writable 탐색 로그는 `godot/sim/rejection_history.md` 사용.
-  - **codegen protect** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 2) — `card_db.gd` 직접 수정 차단. YAML 수정 → codegen 실행이 유일한 경로.
+  - **codegen protect** (PreToolUse Edit/Write/MultiEdit + Bash, **차단형** exit 2) — `card_db.gd` 직접 수정 차단 (Edit/Write + sed/cp/mv 등 Bash 명령 모두). chmod 444 defense-in-depth. codegen 실행이 유일한 쓰기 경로.
   - **YAML→codegen drift** (PostToolUse Edit/Write, **경고형**) — `data/cards/*.yaml` 수정 후 `codegen --check` 자동 실행. 불일치 시 codegen 실행 안내.
 - **Skills**: `card-designer` (도메인 스킬), `btw` (유틸리티)
 - **Trace Filesystem**: `.claude/traces/` — 진화(evolution/), 실패(failures/), 실험(experiments/)
