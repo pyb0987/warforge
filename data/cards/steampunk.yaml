@@ -257,4 +257,4 @@ cards:
       3:
         max_act: -1
         effects:
-          - absorb: {target: self, count: 7, majority_atk_bonus: 0.30}
+          - absorb: {target: self, count: 7, transfer_upgrades: true, majority_atk_bonus: 0.30}

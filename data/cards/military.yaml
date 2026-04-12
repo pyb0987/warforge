@@ -65,7 +65,7 @@ cards:
         max_act: -1
         effects:
           - conscript: {target: self, count: 2}
-          - conscript: {target: right_adj, count: 1}
+          - conscript: {target: both_adj, count: 1}
       3:
         max_act: -1
         effects:

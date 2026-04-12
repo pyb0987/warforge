@@ -284,7 +284,7 @@ func _register_steampunk() -> void:
 			{"action": "absorb", "target": "self", "count": 5, "transfer_upgrades": true},
 		],
 		3: [
-			{"action": "absorb", "target": "self", "count": 7, "majority_atk_bonus": 0.3},
+			{"action": "absorb", "target": "self", "count": 7, "transfer_upgrades": true, "majority_atk_bonus": 0.3},
 		],
 	}
 
@@ -781,12 +781,12 @@ func _register_druid() -> void:
 		2: [
 			{"action": "tree_add", "target": "self", "count": 3},
 			{"action": "tree_add", "target": "all_other_druid", "count": 2},
-			{"action": "multiply_stats", "target": "self", "atk_base": 1.15, "atk_per_tree": 0.1, "atk_tree_step": 20, "unit_cap": 40},
+			{"action": "multiply_stats", "target": "self", "atk_base": 1.15, "atk_per_tree": 0.1, "atk_tree_step": 20, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 40},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 3},
 			{"action": "tree_add", "target": "all_other_druid", "count": 2},
-			{"action": "multiply_stats", "target": "self", "atk_base": 1.3, "atk_per_tree": 0.1, "atk_tree_step": 10, "unit_cap": 200},
+			{"action": "multiply_stats", "target": "self", "atk_base": 1.3, "atk_per_tree": 0.1, "atk_tree_step": 10, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 200},
 		],
 	}
 
@@ -1093,7 +1093,7 @@ func _register_military() -> void:
 		1: [{"action": "conscript", "target": "self", "count": 2}],
 		2: [
 			{"action": "conscript", "target": "self", "count": 2},
-			{"action": "conscript", "target": "right_adj", "count": 1},
+			{"action": "conscript", "target": "both_adj", "count": 1},
 		],
 		3: [
 			{"action": "conscript", "target": "self", "count": 3},

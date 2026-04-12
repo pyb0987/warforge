@@ -347,8 +347,8 @@ cards:
       # tree_add self, then all other druid +n
       # multiply_stats: unit_cap 초과 시 미적용
       # ★1: +2 self, +1 all_other. ATK×(1.10 + floor(trees/30)×0.1), HP×(1.05 + floor(trees/30)×0.05). AS stored. unit_cap=20
-      # ★2: +3 self, +2 all_other. ATK×(1.15 + floor(trees/20)×0.1). unit_cap=40
-      # ★3: +3 self, +2 all_other. ATK×(1.30 + floor(trees/10)×0.1). unit_cap=200
+      # ★2: +3 self, +2 all_other. ATK×(1.15 + floor(trees/20)×0.1), HP×(1.05 + floor(trees/30)×0.05), AS×(1.05 + floor(trees/30)×0.05). unit_cap=40
+      # ★3: +3 self, +2 all_other. ATK×(1.30 + floor(trees/10)×0.1), HP×(1.05 + floor(trees/30)×0.05), AS×(1.05 + floor(trees/30)×0.05). unit_cap=200
       1:
         max_act: -1
         effects:
@@ -376,6 +376,12 @@ cards:
               atk_base: 1.15
               atk_per_tree: 0.1
               atk_tree_step: 20
+              hp_base: 1.05
+              hp_per_tree: 0.05
+              hp_tree_step: 30
+              as_base: 1.05
+              as_per_tree: 0.05
+              as_tree_step: 30
               unit_cap: 40
       3:
         max_act: -1
@@ -387,4 +393,10 @@ cards:
               atk_base: 1.30
               atk_per_tree: 0.1
               atk_tree_step: 10
+              hp_base: 1.05
+              hp_per_tree: 0.05
+              hp_tree_step: 30
+              as_base: 1.05
+              as_per_tree: 0.05
+              as_tree_step: 30
               unit_cap: 200
