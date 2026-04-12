@@ -395,7 +395,6 @@ cards:
         max_act: -1
         effects:
           - spawn: {target: all_allies, count: 3}
-          - enhance: {target: all_allies, atk_pct: 0.15}
           - shield: {target: all_allies, hp_pct: 0.30}
         post_threshold:
           - spawn: {target: all_allies}

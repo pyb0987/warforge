@@ -530,7 +530,6 @@ func _register_neutral() -> void:
 				"composition": awa_comp,
 				"trigger_timing": RS, "max_activations": -1,
 				"effects": [_spawn("all_allies", 3),
-					 _enhance("all_allies", 0.15),
 					 _shield("all_allies", 0.3)],
 				"card_tags": awa_tags,
 				"trigger_layer1": -1, "trigger_layer2": -1,
