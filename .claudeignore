@@ -1,0 +1,25 @@
+# Godot editor cache & generated files
+.godot/
+godot/.godot/
+*.uid
+*.res
+*.import
+
+# Godot addons (GUT etc. — read only when needed)
+godot/addons/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / Editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
