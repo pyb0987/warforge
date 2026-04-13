@@ -1,0 +1,80 @@
+extends Node
+## Keyword glossary. Autoloaded as "KeywordGlossary".
+## 카드 효과 텍스트의 도메인 키워드 정의.
+
+var _keywords := {
+	"부화": {
+		"theme": "포식종",
+		"definition": "칼날 유충 유닛을 카드에 추가",
+	},
+	"변태": {
+		"theme": "포식종",
+		"definition": "카드 내 최약 유닛을 소모하여 최강 유닛 1기 추가",
+	},
+	"제조": {
+		"theme": "스팀펑크",
+		"definition": "유닛 구성에서 유닛을 추가 생산",
+	},
+	"개량": {
+		"theme": "스팀펑크",
+		"definition": "카드의 ATK를 영구 증가 (% 기반)",
+	},
+	"강화": {
+		"theme": "공통",
+		"definition": "카드의 ATK(+HP)를 영구 증가 (% 기반)",
+	},
+	"성장": {
+		"theme": "드루이드",
+		"definition": "기본 스탯 대비 ATK/HP 영구 % 증가",
+	},
+	"번식": {
+		"theme": "드루이드",
+		"definition": "드루이드 카드에 유닛 추가 (성장 페널티 동반 가능)",
+	},
+	"계급": {
+		"theme": "군대",
+		"definition": "카드에 축적되는 카운터. 임계점(3/5/8)에서 유닛 배치 + (강화) 변환",
+	},
+	"훈련": {
+		"theme": "군대",
+		"definition": "카드의 계급을 +1 증가",
+	},
+	"징집": {
+		"theme": "군대",
+		"definition": "징집 풀에서 군대 유닛을 카드에 추가 (기수 차등)",
+	},
+	"(강화)": {
+		"theme": "군대",
+		"definition": "강화된 군대 유닛. 기존 유닛의 상위 스탯 버전",
+	},
+	"방어막": {
+		"theme": "공통",
+		"definition": "전투 시작 시 부여되는 추가 HP (전투 종료 시 소멸)",
+	},
+	"🌳": {
+		"theme": "드루이드",
+		"definition": "나무 카운터. 드루이드 효과의 배율/조건에 사용. 숲의 깊이 = 전체 드루이드 🌳 합계",
+	},
+}
+
+
+func get_definition(keyword: String) -> String:
+	if _keywords.has(keyword):
+		return _keywords[keyword]["definition"]
+	return ""
+
+
+func get_theme(keyword: String) -> String:
+	if _keywords.has(keyword):
+		return _keywords[keyword]["theme"]
+	return ""
+
+
+func get_all_keywords() -> Array[String]:
+	var keys: Array[String] = []
+	keys.assign(_keywords.keys())
+	return keys
+
+
+func has_keyword(keyword: String) -> bool:
+	return _keywords.has(keyword)

@@ -22,6 +22,7 @@ func start_battle(ally_data: Array, enemy_data: Array) -> void:
 	_engine = CombatEngineScript.new()
 	_engine.setup(ally_data, enemy_data)
 	_engine.combat_finished.connect(_on_combat_finished)
+	_engine.unit_attacked.connect(_on_unit_attacked)
 
 	_setup_visuals()
 	_running = true
@@ -95,8 +96,17 @@ func _on_combat_finished(result: Dictionary) -> void:
 	battle_finished.emit(result)
 
 
+func _on_unit_attacked(attacker_idx: int, _defender_idx: int) -> void:
+	if attacker_idx >= 0 and attacker_idx < _visuals.size():
+		_visuals[attacker_idx].call("flash")
+
+
 func set_speed(mult: float) -> void:
 	_speed_mult = mult
+
+
+func get_engine():
+	return _engine
 
 
 func stop() -> void:

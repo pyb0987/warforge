@@ -30,6 +30,9 @@ func run_game(args: Dictionary) -> void:
 	state.commander_type = Enums.CommanderType.NONE
 	state.talisman_type = Enums.TalismanType.NONE
 	state.levelup_current_cost = genome.get_levelup_cost(2)
+	# 카드 풀 고갈 (OBS-049)
+	state.card_pool = CardPool.new()
+	state.card_pool.init_pool(genome.pool_sizes if genome else {})
 	Talisman.init_run_state(state)
 
 	var chain_engine := ChainEngine.new()

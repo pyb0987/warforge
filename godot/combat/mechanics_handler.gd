@@ -115,6 +115,9 @@ func resolve_attack(attacker: int, defender: int) -> void:
 	# --- Attacker on-hit effects ---
 	_apply_attacker_on_hit(attacker, defender, dmg)
 
+	# --- Emit attack event for combat chain ---
+	_e.unit_attacked.emit(attacker, defender)
+
 	# --- Death check ---
 	if _e.hp[defender] <= 0.0:
 		_on_kill(attacker, defender)
@@ -183,6 +186,12 @@ func _apply_defender_mechanics(defender: int, _attacker: int, dmg: float) -> flo
 		_e.retreat_timer[defender] = 60.0  # reusing retreat_timer for invuln duration
 		return 0.0
 
+	# 💀 금간 해골: 첫 치사 HP1 생존 (유닛당 1회)
+	if dmg >= _e.hp[defender] and _e.undying[defender] == 1:
+		_e.undying[defender] = 0
+		_e.hp[defender] = 1.0
+		return 0.0
+
 	return dmg
 
 
@@ -239,6 +248,11 @@ func _apply_attacker_on_hit(attacker: int, defender: int, dmg: float) -> void:
 	var chain_exp: Dictionary = _e._get_mechanic(attacker, "chain_explosion")
 	if not chain_exp.is_empty():
 		_apply_splash(attacker, defender, chain_exp.get("splash_pct", 0.0), _e.RANGE_SCALE)
+
+	# Attack stack: ATK +X% per attack (warmachine ★3)
+	var atk_stack: Dictionary = _e._get_mechanic(attacker, "attack_stack")
+	if not atk_stack.is_empty():
+		_e.soul_atk_bonus[attacker] += atk_stack.get("atk_pct", 0.0)
 
 
 func _apply_splash(attacker: int, center_unit: int, splash_pct: float, aoe_range: float) -> void:

@@ -178,6 +178,42 @@ func test_metamorphosis_fails_if_not_enough() -> void:
 
 
 # ================================================================
+# remove_weakest (폐품 상회 등)
+# ================================================================
+
+func test_remove_weakest_removes_lowest_cp_first() -> void:
+	## sp_assembly: spider×2 (ATK2), rat×1 (ATK1) — rat이 최약
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	var before: int = card.get_total_units()
+	var removed: int = card.remove_weakest(1)
+	assert_eq(removed, 1, "1기 제거")
+	assert_eq(card.get_total_units(), before - 1, "총 유닛 -1")
+
+
+func test_remove_weakest_zero_count_noop() -> void:
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	var before: int = card.get_total_units()
+	var removed: int = card.remove_weakest(0)
+	assert_eq(removed, 0, "0 → noop")
+	assert_eq(card.get_total_units(), before, "변화 없음")
+
+
+func test_remove_weakest_more_than_total_caps() -> void:
+	## 3기에서 10기 제거 요청 → 실제 3기만 제거됨
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	var removed: int = card.remove_weakest(10)
+	assert_eq(removed, 3, "최대 보유 수까지만")
+	assert_eq(card.get_total_units(), 0, "0기로 비워짐")
+
+
+func test_remove_weakest_empty_card_returns_zero() -> void:
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	card.remove_weakest(99)  # 비우기
+	var removed: int = card.remove_weakest(1)
+	assert_eq(removed, 0, "빈 카드 → 0")
+
+
+# ================================================================
 # 활성화 제한
 # ================================================================
 
@@ -234,3 +270,67 @@ func test_evolve_star_capped_at_3() -> void:
 	card.evolve_star()
 	card.evolve_star()
 	assert_eq(card.star_level, 3, "4번 호출해도 ★3")
+
+
+func test_evolve_star_template_id_stays_base() -> void:
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.evolve_star()
+	assert_eq(card.template_id, "sp_warmachine", "evolve 후 template_id 불변")
+	card.evolve_star()
+	assert_eq(card.template_id, "sp_warmachine", "★3에서도 template_id 불변")
+
+
+func test_evolve_star_swaps_to_star2_template() -> void:
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.evolve_star()
+	assert_eq(card.template["name"], "전쟁 기계 ★2", "★2 이름 반영")
+
+
+func test_evolve_star_swaps_to_star3_template() -> void:
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.evolve_star()
+	card.evolve_star()
+	assert_eq(card.template["name"], "전쟁 기계 ★3", "★3 이름 반영")
+
+
+func test_get_base_id_equals_template_id() -> void:
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.evolve_star()
+	assert_eq(card.get_base_id(), card.template_id, "get_base_id == template_id")
+
+
+# ================================================================
+# roll_bonus_count (정적 유틸리티)
+# ================================================================
+
+func test_roll_bonus_count_zero_chance_returns_0() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	assert_eq(CardInstance.roll_bonus_count(5, 0.0, rng), 0, "확률 0 → 보너스 0")
+
+
+func test_roll_bonus_count_zero_added_returns_0() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	assert_eq(CardInstance.roll_bonus_count(0, 0.5, rng), 0, "추가 0 → 보너스 0")
+
+
+func test_roll_bonus_count_null_rng_returns_0() -> void:
+	assert_eq(CardInstance.roll_bonus_count(5, 0.5, null), 0, "rng null → 보너스 0")
+
+
+func test_roll_bonus_count_full_chance_returns_all() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	assert_eq(CardInstance.roll_bonus_count(7, 1.0, rng), 7, "확률 100% → 전부 보너스")
+
+
+func test_roll_bonus_count_distribution_reasonable() -> void:
+	## 50% 확률, 100회 × 10개 = 1000롤 → 400~600 범위
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var total := 0
+	for _i in 100:
+		total += CardInstance.roll_bonus_count(10, 0.5, rng)
+	assert_gt(total, 350, "50% 확률 1000롤 → 350 초과")
+	assert_lt(total, 650, "50% 확률 1000롤 → 650 미만")

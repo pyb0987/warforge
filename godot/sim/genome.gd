@@ -33,8 +33,15 @@ var boss_scaling: Dictionary = {}
 ## Starting resources. Format: {"gold": 10, "terazin": 2}
 var starting_resources: Dictionary = {}
 
+## 카드 풀 크기 오버라이드 (OBS-049). Format: {1: 22, 2: 18, 3: 15, 4: 13, 5: 11}
+var pool_sizes: Dictionary = {}
+
 ## Card effect overrides (Tier A). Format: {"dr_deep_rate": 0.008, ...}
 var card_effects: Dictionary = {}
+
+## AI agent decision parameters (Tier 1 — autoresearch tunable).
+## These control *how* the AI plays, separate from game balance (genome proper).
+var ai_params: Dictionary = {}
 
 
 # ============================================================
@@ -84,6 +91,57 @@ const CARD_EFFECTS_RANGE := {
 	"sp_charger_enhance_atk": [0.02, 0.12],
 	"pr_carapace_growth": [0.02, 0.15],
 	"pr_transcend_death_atk": [0.01, 0.10],
+}
+
+## AI decision parameters — Tier 1 "Big Knobs" for autoresearch Phase 2.
+## These control AI agent behavior, not game balance.
+const DEFAULT_AI_PARAMS := {
+	# --- Card valuation ---
+	"theme_match_bonus": 15.0,       # Purchase score: on-theme card
+	"off_theme_penalty": 20.0,       # Purchase score: off-theme card
+	"merge_imminent_bonus": 30.0,    # Purchase score: 3rd copy → ★2
+	"merge_progress_bonus": 8.0,     # Purchase score: 2nd copy
+	"core_card_bonus": 12.0,         # Purchase score: strategy core card
+	"critical_path_bonus": 8.0,      # Purchase score: theme critical path card
+	"synergy_pair_bonus": 6.0,       # Purchase score: per chain/theme synergy
+	"late_tier_bonus": 6.0,          # Purchase score: T4+ after R10
+
+	# --- Leveling ---
+	"slow_roll_min_round": 5,        # Don't slow-roll before this round
+	"slow_roll_board_cp_ratio": 1.5, # Slow-roll if avg card CP > enemy CP × this
+
+	# --- Economy ---
+	"interest_all_start": 4,         # Round to start interest banking (all strategies)
+	"aggro_transition_round": 10,    # Round to stop banking and go all-in
+
+	# --- Reroll ---
+	"chain_pair_reroll_bonus": 3,    # Extra rerolls when key chain pair incomplete
+	"foundation_urgency_rerolls": 5, # Extra rerolls in R1-4 without foundation
+	"capstone_urgency_rerolls": 3,   # Extra rerolls for capstone when ShopLv4+
+
+	# --- Sell ---
+	"bench_sell_threshold": 12.0,    # Bench cleanup: sell below this value
+	"arsenal_fuel_bonus": 15.0,      # Sell bonus for SP cards when arsenal on board
+}
+
+const AI_PARAMS_RANGE := {
+	"theme_match_bonus": [5.0, 30.0],
+	"off_theme_penalty": [5.0, 35.0],
+	"merge_imminent_bonus": [15.0, 50.0],
+	"merge_progress_bonus": [2.0, 20.0],
+	"core_card_bonus": [4.0, 25.0],
+	"critical_path_bonus": [2.0, 20.0],
+	"synergy_pair_bonus": [2.0, 15.0],
+	"late_tier_bonus": [2.0, 15.0],
+	"slow_roll_min_round": [3, 8],
+	"slow_roll_board_cp_ratio": [0.8, 3.0],
+	"interest_all_start": [2, 8],
+	"aggro_transition_round": [7, 14],
+	"chain_pair_reroll_bonus": [0, 8],
+	"foundation_urgency_rerolls": [0, 10],
+	"capstone_urgency_rerolls": [0, 8],
+	"bench_sell_threshold": [5.0, 25.0],
+	"arsenal_fuel_bonus": [5.0, 30.0],
 }
 
 const DEFAULT_LEVELUP_COST := {2: 5, 3: 7, 4: 8, 5: 11, 6: 13}
@@ -141,6 +199,7 @@ static func create_default() -> Genome:
 	g.boss_scaling = DEFAULT_BOSS_SCALING.duplicate()
 	g.starting_resources = DEFAULT_STARTING_RESOURCES.duplicate()
 	g.card_effects = DEFAULT_CARD_EFFECTS.duplicate()
+	g.ai_params = DEFAULT_AI_PARAMS.duplicate()
 	return g
 
 
@@ -200,6 +259,18 @@ static func _from_dict(data: Dictionary) -> Genome:
 	for k in raw_ce:
 		if g.card_effects.has(k):
 			g.card_effects[k] = float(raw_ce[k])
+
+	# --- AI params (Tier 1 — default if absent) ---
+	var raw_ap: Dictionary = data.get("ai_params", {})
+	g.ai_params = DEFAULT_AI_PARAMS.duplicate()
+	for k in raw_ap:
+		if g.ai_params.has(k):
+			g.ai_params[k] = float(raw_ap[k])
+
+	# --- Pool sizes (OBS-049, default empty = use CardPool defaults) ---
+	var raw_ps: Dictionary = data.get("pool_sizes", {})
+	for k in raw_ps:
+		g.pool_sizes[int(k)] = int(raw_ps[k])
 
 	# --- Validation ---
 	var err: String = g.validate()
@@ -275,6 +346,11 @@ func get_starting_gold() -> int:
 ## Get starting terazin.
 func get_starting_terazin() -> int:
 	return starting_resources.get("terazin", 2)
+
+
+## Get AI decision parameter (Tier 1).
+func get_ai_param(key: String) -> float:
+	return ai_params.get(key, DEFAULT_AI_PARAMS.get(key, 0.0))
 
 
 # ============================================================
@@ -365,6 +441,15 @@ func validate() -> String:
 		var r: Array = CARD_EFFECTS_RANGE[k]
 		if v < r[0] or v > r[1]:
 			return "card_effects[%s] = %.4f out of range [%.4f, %.4f]" % [k, v, r[0], r[1]]
+
+	# 8a. AI params: each value within allowed range
+	for k in ai_params:
+		if not AI_PARAMS_RANGE.has(k):
+			return "ai_params: unknown key '%s'" % k
+		var v: float = ai_params[k]
+		var r: Array = AI_PARAMS_RANGE[k]
+		if v < r[0] or v > r[1]:
+			return "ai_params[%s] = %.4f out of range [%.4f, %.4f]" % [k, v, r[0], r[1]]
 
 	# 8. Enemy stats: heavy must have highest HP
 	if not enemy_stats.is_empty():

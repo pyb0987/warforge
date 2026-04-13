@@ -101,6 +101,26 @@ func test_sell_card_tier1_refunds_2_gold() -> void:
 	assert_eq(_gs.gold, 2, "골드 잔액 2")
 
 
+func test_sell_star2_card_loses_1_gold() -> void:
+	## ★2: refund = cost×3 - 1 = 2×3 - 1 = 5
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	card.star_level = 2
+	_gs.board[0] = card
+	_gs.gold = 0
+	var refund: int = _gs.sell_card("board", 0)
+	assert_eq(refund, 5, "★2 환급 = cost×3 - 1 = 5")
+
+
+func test_sell_star3_card_loses_1_gold() -> void:
+	## ★3: refund = cost×9 - 1 = 2×9 - 1 = 17
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	card.star_level = 3
+	_gs.board[0] = card
+	_gs.gold = 0
+	var refund: int = _gs.sell_card("board", 0)
+	assert_eq(refund, 17, "★3 환급 = cost×9 - 1 = 17")
+
+
 # ================================================================
 # move_card
 # ================================================================
@@ -137,9 +157,10 @@ func test_move_card_null_source_returns_false() -> void:
 func test_try_merge_3_copies_star1_to_star2() -> void:
 	for i in 3:
 		_gs.board[i] = CardInstance.create("sp_assembly")
-	var result: Dictionary = _gs.try_merge("sp_assembly")
-	assert_eq(result.get("old_star", -1), 1, "이전 ★1")
-	assert_eq(result.get("new_star", -1), 2, "합성 후 ★2")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 1, "단일 머지")
+	assert_eq(steps[0].get("old_star", -1), 1, "이전 ★1")
+	assert_eq(steps[0].get("new_star", -1), 2, "합성 후 ★2")
 
 
 func test_try_merge_removes_2_copies_from_board() -> void:
@@ -159,8 +180,8 @@ func test_try_merge_applies_130_stat_boost() -> void:
 	var base_units: int = base_card.get_total_units()
 	for i in 3:
 		_gs.board[i] = CardInstance.create("sp_assembly")
-	var result: Dictionary = _gs.try_merge("sp_assembly")
-	var merged: CardInstance = result["card"]
+	var steps: Array = _gs.try_merge("sp_assembly")
+	var merged: CardInstance = steps[0]["card"]
 	# 유닛 3배 흡수 (3장 × 3기 = 9기) + ×1.30 스탯
 	assert_eq(merged.get_total_units(), base_units * 3, "유닛 3배 흡수")
 	assert_gt(merged.get_total_atk(), base_atk * 3.0 * 1.29, "ATK > base×3×1.29")
@@ -169,8 +190,8 @@ func test_try_merge_applies_130_stat_boost() -> void:
 func test_try_merge_below_3_returns_empty() -> void:
 	_gs.board[0] = CardInstance.create("sp_assembly")
 	_gs.board[1] = CardInstance.create("sp_assembly")
-	var result: Dictionary = _gs.try_merge("sp_assembly")
-	assert_true(result.is_empty(), "2장 → 합성 불가")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 0, "2장 → 합성 불가")
 
 
 func test_try_merge_star2_to_star3() -> void:
@@ -179,9 +200,10 @@ func test_try_merge_star2_to_star3() -> void:
 		var card: CardInstance = CardInstance.create("sp_assembly")
 		card.evolve_star()  # ★1→★2, template_id 그대로 "sp_assembly"
 		_gs.board[i] = card
-	var result: Dictionary = _gs.try_merge("sp_assembly")
-	assert_eq(result.get("old_star", -1), 2, "이전 ★2")
-	assert_eq(result.get("new_star", -1), 3, "합성 후 ★3")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 1, "단일 머지")
+	assert_eq(steps[0].get("old_star", -1), 2, "이전 ★2")
+	assert_eq(steps[0].get("new_star", -1), 3, "합성 후 ★3")
 
 
 func test_try_merge_mixed_stars_no_merge() -> void:
@@ -191,5 +213,34 @@ func test_try_merge_mixed_stars_no_merge() -> void:
 	var star2: CardInstance = CardInstance.create("sp_assembly")
 	star2.evolve_star()
 	_gs.board[2] = star2
-	var result: Dictionary = _gs.try_merge("sp_assembly")
-	assert_true(result.is_empty(), "혼합 ★ → 합성 불가")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 0, "혼합 ★ → 합성 불가")
+
+
+func test_try_merge_star2_on_board_ignores_star1_bench_bug() -> void:
+	## 회귀: 보드에 ★2 1장 + 벤치에 ★1 3장이면
+	## ★1 3장끼리 먼저 합성되어야 한다. (과거 버그: 보드의 ★2가 target_star
+	## 로 잡혀서 ★1 그룹이 무시되어 영원히 merge 안 됨)
+	var star2: CardInstance = CardInstance.create("sp_assembly")
+	star2.evolve_star()
+	_gs.board[0] = star2
+	for i in 3:
+		_gs.bench[i] = CardInstance.create("sp_assembly")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_true(steps.size() >= 1, "최소 1 step")
+	assert_eq(steps[0].get("old_star", -1), 1, "★1 그룹이 합성되어야 함")
+	assert_eq(steps[0].get("new_star", -1), 2, "★1 → ★2")
+
+
+func test_try_merge_cascade_star1_to_star3() -> void:
+	## 보드에 ★2 2장 + 벤치에 ★1 3장 → ★1 3장이 합쳐져 ★2가 되면
+	## 총 ★2 3장이 되고 다시 ★3으로 cascade.
+	for i in 2:
+		var s2: CardInstance = CardInstance.create("sp_assembly")
+		s2.evolve_star()
+		_gs.board[i] = s2
+	for i in 3:
+		_gs.bench[i] = CardInstance.create("sp_assembly")
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 2, "캐스케이드 → 2 steps")
+	assert_eq(steps.back().get("new_star", -1), 3, "cascade로 ★3 도달")

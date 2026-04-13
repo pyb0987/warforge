@@ -126,12 +126,14 @@ cards:
         effects:
           - spawn: {target: self, count: 2, ol1: null}
           - enhance: {target: self, atk_pct: 0.05, ol1: null}
+          - battle_buff: {target: self, atk_per_reroll: 0.05, cap: 5}  # 리롤 횟수 비례 ATK 전투 버프
       3:
         max_act: 3
         effects:
           - spawn: {target: self, count: 2, ol1: null}
           - spawn: {target: both_adj, ol1: null}
           - enhance: {target: self, atk_pct: 0.05, ol1: null}
+          - battle_buff: {target: self, atk_per_reroll: 0.08, cap: 5}  # 리롤 횟수 비례 ATK 전투 버프 강화
 
   sp_line:
     name: 조립 라인
@@ -157,6 +159,7 @@ cards:
         max_act: 4
         effects:
           - spawn: {target: both_adj, count: 2, ol2: MF, strongest: true}
+          - persistent: {all_spawn_strongest: true}  # [지속] 모든 스팀펑크 제조가 가장 강한 유닛
 
   sp_barrier:
     name: 증기 방벽

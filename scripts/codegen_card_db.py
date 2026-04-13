@@ -17,6 +17,7 @@ from typing import Any, Optional
 ROOT = Path(__file__).resolve().parent.parent
 CARDS_DIR = ROOT / "data" / "cards"
 OUTPUT = ROOT / "godot" / "core" / "data" / "card_db.gd"
+OUTPUT_DESCS = ROOT / "godot" / "core" / "data" / "card_descs.gd"
 
 # ═══════════════════════════════════════════════════════════════════
 # Enum mappings: YAML string → GDScript expression
@@ -302,6 +303,7 @@ THEME_EFFECTS = {
     # Additional theme effect types used by sub-agents
     "tree_gold", "druid_unit_enhance", "tree_temp_buff", "epic_shop_unlock",
     "persistent", "revive", "rare_counter", "epic_counter", "total_counter", "on_merge",
+    "upgrade_discount", "hatch_enhance", "battle_buff", "free_reroll", "revive_override",
 }
 
 
@@ -897,6 +899,93 @@ def generate(all_cards: dict[str, dict]) -> str:
     return "\n".join(parts)
 
 
+def _check_file(output_path: Path, generated: str, label: str) -> bool:
+    """Check if generated content matches current file. Returns True if OK."""
+    if not output_path.exists():
+        print(f"ERROR: {output_path} does not exist")
+        return False
+    current = output_path.read_text()
+    if current == generated:
+        return True
+    import difflib
+    print(f"❌ MISMATCH: {label} differs from YAML")
+    print(f"   {label} is a generated file — edit YAML, then run:")
+    print(f"   python3 scripts/codegen_card_db.py")
+    print()
+    cur_lines = current.splitlines(keepends=True)
+    gen_lines = generated.splitlines(keepends=True)
+    diff = difflib.unified_diff(
+        cur_lines, gen_lines,
+        fromfile=f"{label} (current)",
+        tofile=f"{label} (from YAML)",
+        n=2,
+    )
+    diff_lines = list(diff)
+    MAX_DIFF_LINES = 60
+    for line in diff_lines[:MAX_DIFF_LINES]:
+        print(line, end="")
+    if len(diff_lines) > MAX_DIFF_LINES:
+        print(f"\n  ... ({len(diff_lines) - MAX_DIFF_LINES} more diff lines)")
+    return False
+
+
+def _write_file(output_path: Path, generated: str):
+    """Write generated content with chmod 444 protection."""
+    import os, stat as stat_mod
+    if output_path.exists():
+        current_mode = os.stat(output_path).st_mode
+        if not (current_mode & stat_mod.S_IWUSR):
+            os.chmod(output_path, current_mode | stat_mod.S_IWUSR)
+    output_path.write_text(generated)
+    os.chmod(output_path,
+             stat_mod.S_IRUSR | stat_mod.S_IRGRP | stat_mod.S_IROTH)
+
+
+def generate_descs_gd(
+    all_cards: dict[str, dict[str, dict]],
+    descs: dict[str, dict[int, str]],
+) -> str:
+    """Generate card_descs.gd file content."""
+    theme_label = {
+        "neutral": "NEUTRAL", "steampunk": "STEAMPUNK",
+        "druid": "DRUID", "predator": "PREDATOR", "military": "MILITARY",
+    }
+    lines = [
+        "# AUTO-GENERATED from data/cards/*.yaml — DO NOT EDIT",
+        "# Run: python3 scripts/codegen_card_db.py",
+        "extends Node",
+        "## 카드 효과 한 줄 설명. 툴팁에서 ★별 독립적 설명 제공.",
+        "",
+        "var _descs := {",
+    ]
+    for theme in THEME_ORDER:
+        cards = all_cards.get(theme, {})
+        if not cards:
+            continue
+        label = theme_label.get(theme, theme.upper())
+        lines.append(
+            f"\t# ═══════════════════════ {label} ({len(cards)}) "
+            f"═══════════════════════")
+        for card_id in cards:
+            d = descs.get(card_id, {})
+            lines.append(f'\t"{card_id}": {{')
+            for star in (1, 2, 3):
+                if star in d:
+                    text = d[star].replace('"', '\\"')
+                    lines.append(f'\t\t{star}: "{text}",')
+            lines.append("\t},")
+    lines.append("}")
+    lines.append("")
+    lines.append("")
+    lines.append("func get_desc(card_id: String, star: int = 1) -> String:")
+    lines.append('\tif not _descs.has(card_id):\n\t\treturn ""')
+    lines.append("\tvar per_star: Dictionary = _descs[card_id]")
+    lines.append("\tif per_star.has(star):\n\t\treturn per_star[star]")
+    lines.append('\treturn per_star.get(1, "")')
+    lines.append("")
+    return "\n".join(lines)
+
+
 def main():
     check_mode = "--check" in sys.argv
 
@@ -906,48 +995,27 @@ def main():
         sys.exit(1)
 
     total = sum(len(c) for c in all_cards.values())
-    generated = generate(all_cards)
+    generated_db = generate(all_cards)
+
+    # Generate card descriptions
+    from card_desc_gen import generate_all_descs
+    descs = generate_all_descs(all_cards)
+    generated_descs = generate_descs_gd(all_cards, descs)
 
     if check_mode:
-        if not OUTPUT.exists():
-            print(f"ERROR: {OUTPUT} does not exist")
-            sys.exit(1)
-        current = OUTPUT.read_text()
-        if current == generated:
-            print(f"✅ card_db.gd matches YAML ({total} cards)")
+        ok_db = _check_file(OUTPUT, generated_db, "card_db.gd")
+        ok_descs = _check_file(OUTPUT_DESCS, generated_descs, "card_descs.gd")
+        if ok_db and ok_descs:
+            print(f"✅ card_db.gd + card_descs.gd match YAML ({total} cards)")
             sys.exit(0)
         else:
-            import difflib
-            print(f"❌ MISMATCH: card_db.gd differs from YAML ({total} cards)")
-            print(f"   card_db.gd is a generated file — edit YAML, then run:")
-            print(f"   python3 scripts/codegen_card_db.py")
-            print()
-            cur_lines = current.splitlines(keepends=True)
-            gen_lines = generated.splitlines(keepends=True)
-            diff = difflib.unified_diff(
-                cur_lines, gen_lines,
-                fromfile="card_db.gd (current)",
-                tofile="card_db.gd (from YAML)",
-                n=2,
-            )
-            diff_lines = list(diff)
-            MAX_DIFF_LINES = 60
-            for line in diff_lines[:MAX_DIFF_LINES]:
-                print(line, end="")
-            if len(diff_lines) > MAX_DIFF_LINES:
-                print(f"\n  ... ({len(diff_lines) - MAX_DIFF_LINES} more diff lines)")
             sys.exit(1)
     else:
-        import os, stat
-        # Unlock if read-only (chmod 444 defense-in-depth)
-        if OUTPUT.exists():
-            current_mode = os.stat(OUTPUT).st_mode
-            if not (current_mode & stat.S_IWUSR):
-                os.chmod(OUTPUT, current_mode | stat.S_IWUSR)
-        OUTPUT.write_text(generated)
-        # Lock to read-only (defense-in-depth vs Bash bypass)
-        os.chmod(OUTPUT, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # 444
+        _write_file(OUTPUT, generated_db)
+        _write_file(OUTPUT_DESCS, generated_descs)
         print(f"Generated {OUTPUT} ({total} cards)")
+        print(f"Generated {OUTPUT_DESCS} ({total} cards, "
+              f"{sum(len(d) for d in descs.values())} descs)")
 
 
 if __name__ == "__main__":

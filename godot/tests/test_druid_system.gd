@@ -230,7 +230,7 @@ func test_spore_cloud_sets_enemy_as_debuff() -> void:
 
 
 # ================================================================
-# dr_wrath (PERSISTENT): ≤5기 ATK 버프
+# dr_wrath (PERSISTENT): 유닛 상한 ★1=5, ★2=6, ★3=7. 상한 이내일 때 ATK 버프.
 # ================================================================
 
 func test_wrath_persistent_buffs_when_few_units() -> void:
@@ -274,13 +274,14 @@ func test_wrath_s3_uses_mult_buff() -> void:
 	assert_gt(card.get_total_atk(), atk_before, "★3 → ATK ×1.5")
 
 
-func test_wrath_s3_skips_if_over_5_units() -> void:
-	## ★3도 >5기이면 미적용
+func test_wrath_s3_skips_if_over_unit_cap() -> void:
+	## ★3 유닛 상한은 7기(★1=5, ★2=6, ★3=7). >7기이면 미적용.
+	## 기존 2기 + 6기 = 8기 > 7 → 버프 비적용.
 	var card := _make_star("dr_wrath", 3)
-	card.add_specific_unit("dr_boar", 5)  # 기존 2 + 5 = 7 > 5
+	card.add_specific_unit("dr_boar", 6)
 	var atk_before: float = card.get_total_atk()
 	_sys.apply_persistent(card)
-	assert_eq(card.get_total_atk(), atk_before, "7기 → 미적용")
+	assert_eq(card.get_total_atk(), atk_before, "8기 → 미적용")
 
 
 # ================================================================
@@ -334,25 +335,57 @@ func test_world_s2_higher_atk_mult() -> void:
 	assert_gt(card.get_total_atk(), atk_before, "★2 ATK×1.15 적용")
 
 
-func test_world_s3_unit_cap_30() -> void:
-	## ★3: unit_cap=30 (★1/★2는 20)
+func test_world_s3_unit_cap_200() -> void:
+	## ★3: unit_cap=200 (OBS-048). 33기(S5-R14 재현)에서도 성장 실행
 	var card := _make_star("dr_world", 3)
-	# 유닛 21기 추가 → ★2는 20상한 초과로 skip, ★3은 30이하로 실행
-	for _i in 18:
+	for _i in 30:
 		card.spawn_random(_rng)
-	# total 3(base) + 18 = 21
 	var atk_before: float = card.get_total_atk()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(card.get_total_atk(), atk_before, "★3 21기 < 30 → 성장 실행")
+	assert_gt(card.get_total_atk(), atk_before, "★3 33기 < 200 → 성장 실행")
+
+
+func test_world_s2_unit_cap_40() -> void:
+	## ★2: unit_cap=40 (OBS-048). 21기에서 성장 실행
+	var card := _make_star("dr_world", 2)
+	for _i in 18:
+		card.spawn_random(_rng)
+	# total ~21
+	var atk_before: float = card.get_total_atk()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_gt(card.get_total_atk(), atk_before, "★2 21기 < 40 → 성장 실행")
 
 
 func test_world_s1_over_20_stops_growth() -> void:
-	## ★1: 20기 초과 시 성장 중단
+	## ★1: 20기 초과 시 성장 중단 (cap=20 유지)
 	var card: CardInstance = CardInstance.create("dr_world")
 	for _i in 20:
 		card.spawn_random(_rng)
 	# total 3(base) + 20 = 23 > 20
 	var atk_before: float = card.get_total_atk()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	# trees는 증가하지만 multiply_stats는 미적용 (unit_cap 초과)
 	assert_eq(card.get_total_atk(), atk_before, "★1 23기 > 20 → 성장 중단")
+
+
+func test_world_s1_at_20_full_growth() -> void:
+	## ★1: 정확히 20기 → 성장 실행
+	var card: CardInstance = CardInstance.create("dr_world")
+	for _i in 17:
+		card.spawn_random(_rng)
+	# total 3 + 17 = 20 = cap
+	var atk_before: float = card.get_total_atk()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.10, 0.1, "20기 = cap → ×1.10")
+
+
+func test_world_uses_all_druid_units_not_card_only() -> void:
+	## 세계수 조건은 전체 드루이드 유닛 수 기준 (코드/문서 정합성 수정)
+	var world: CardInstance = CardInstance.create("dr_world")  # 3유닛
+	var other: CardInstance = CardInstance.create("dr_cradle")  # 2유닛
+	for _i in 16:
+		other.spawn_random(_rng)
+	# other: 2+16=18, world: 3 → total druid = 21 > cap 20
+	var atk_before: float = world.get_total_atk()
+	_sys.process_rs_card(world, 0, [world, other], _rng)
+	# ★1 cap=20, 전체 21기 → 초과 → 성장 중단
+	assert_eq(world.get_total_atk(), atk_before, "전체 드루이드 21기 > 20 → 성장 중단")

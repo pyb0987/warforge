@@ -12,6 +12,35 @@ var slot_idx: int = -1
 @onready var stats_label: Label = $StatsLabel
 @onready var tier_label: Label = $TierLabel
 
+
+func _ready() -> void:
+	# Ensure Labels don't intercept mouse — Panel must receive hover events.
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	for child in [name_label, stats_label, tier_label]:
+		if child:
+			child.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Use high-level signals (more reliable than NOTIFICATION_MOUSE_ENTER).
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+
+
+func _star_glyph(star: int) -> String:
+	return "★%d" % star
+
+
+func _on_mouse_entered() -> void:
+	if card_instance == null:
+		return
+	var tooltip_node = get_tree().get_first_node_in_group("card_tooltip")
+	if tooltip_node and tooltip_node.has_method("show_card"):
+		tooltip_node.show_card(card_instance, global_position + Vector2(size.x, 0))
+
+
+func _on_mouse_exited() -> void:
+	var tooltip_node = get_tree().get_first_node_in_group("card_tooltip")
+	if tooltip_node and tooltip_node.has_method("hide_tooltip"):
+		tooltip_node.hide_tooltip()
+
 var _theme_colors := {
 	Enums.CardTheme.NEUTRAL: Color(0.5, 0.5, 0.5),
 	Enums.CardTheme.STEAMPUNK: Color(0.9, 0.6, 0.2),
@@ -34,22 +63,48 @@ func setup(card: CardInstance, z: String, idx: int) -> void:
 
 
 func refresh() -> void:
+	visible = true
 	if card_instance == null:
-		visible = false
+		name_label.text = ""
+		tier_label.text = ""
+		stats_label.text = ""
+		var empty_style := StyleBoxFlat.new()
+		empty_style.bg_color = Color(0.15, 0.15, 0.15, 0.5)
+		empty_style.corner_radius_top_left = 4
+		empty_style.corner_radius_top_right = 4
+		empty_style.corner_radius_bottom_left = 4
+		empty_style.corner_radius_bottom_right = 4
+		empty_style.border_width_left = 1
+		empty_style.border_width_right = 1
+		empty_style.border_width_top = 1
+		empty_style.border_width_bottom = 1
+		empty_style.border_color = Color(0.3, 0.3, 0.3, 0.5)
+		add_theme_stylebox_override("panel", empty_style)
 		return
 
-	visible = true
 	var tmpl := card_instance.template
 	name_label.text = tmpl.get("name", "???")
-	tier_label.text = "T%d" % tmpl.get("tier", 0)
+	# Format: "T2 ★1"  (shop adds cost: "T2 ★1 · 3g")
+	var tier_text := "T%d %s" % [tmpl.get("tier", 0), _star_glyph(card_instance.star_level)]
+	if zone == "shop":
+		var cost: int = tmpl.get("cost", 0)
+		tier_text += " · %dg" % cost
+
+	# Theme color
+	var theme: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
+
+	# Theme state display on card face
+	if theme == Enums.CardTheme.MILITARY and card_instance.theme_state.has("rank"):
+		tier_text += " R%d" % card_instance.theme_state["rank"]
+	elif theme == Enums.CardTheme.DRUID and card_instance.theme_state.has("trees"):
+		tier_text += " 🌳%d" % card_instance.theme_state["trees"]
+
+	tier_label.text = tier_text
 
 	var units := card_instance.get_total_units()
 	var atk := card_instance.get_total_atk()
 	var hp := card_instance.get_total_hp()
 	stats_label.text = "%du A%.0f H%.0f" % [units, atk, hp]
-
-	# Theme color
-	var theme: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
 	var base_color: Color = _theme_colors.get(theme, Color.GRAY)
 
 	var style := StyleBoxFlat.new()
@@ -115,12 +170,3 @@ func _gui_input(event: InputEvent) -> void:
 				parent = parent.get_parent()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_ENTER and card_instance != null:
-		var tooltip_node = get_tree().get_first_node_in_group("card_tooltip")
-		if tooltip_node and tooltip_node.has_method("show_card"):
-			tooltip_node.show_card(card_instance, global_position + Vector2(size.x, 0))
-	elif what == NOTIFICATION_MOUSE_EXIT:
-		var tooltip_node = get_tree().get_first_node_in_group("card_tooltip")
-		if tooltip_node and tooltip_node.has_method("hide_tooltip"):
-			tooltip_node.hide_tooltip()

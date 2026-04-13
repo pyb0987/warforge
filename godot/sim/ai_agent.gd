@@ -87,88 +87,14 @@ var _position_solver = _AIPositionScript.new()
 
 const MAX_ACTIONS := 30
 
-# ================================================================
-# Chain synergy map (Layer1 event chains: RS → OE listeners)
-# ================================================================
-
-const _CHAIN_PAIRS := {
-	"sp_assembly":  ["sp_workshop", "sp_line", "sp_charger"],
-	"sp_furnace":   ["sp_workshop", "sp_charger"],
-	"sp_workshop":  ["sp_circulator"],
-	"sp_circulator": ["sp_workshop", "sp_line", "sp_charger"],
-	"sp_line":      ["sp_workshop", "sp_line", "sp_charger"],
-	"ne_earth_echo":     ["ne_wanderers", "ne_mana_crystal"],
-	"ne_wild_pulse":     ["ne_mutant_adapt", "ne_ancient_catalyst"],
-	"ne_ruin_resonance": ["ne_wanderers", "ne_mana_crystal", "ne_mutant_adapt", "ne_ancient_catalyst"],
-	"ne_wanderers":      ["ne_mutant_adapt", "ne_ancient_catalyst"],
-	"ne_mutant_adapt":   ["ne_wanderers", "ne_mana_crystal"],
-	"ne_mana_crystal":   ["ne_wanderers"],
-	"ne_ancient_catalyst": ["ne_mutant_adapt"],
-}
-
-# Theme-internal synergy (Layer2 systems)
-const _THEME_SYNERGY := {
-	"dr_cradle":     ["dr_origin", "dr_deep", "dr_wt_root", "dr_earth"],
-	"dr_origin":     ["dr_cradle", "dr_deep", "dr_wt_root"],
-	"dr_earth":      ["dr_cradle", "dr_origin", "dr_deep"],
-	"dr_deep":       ["dr_cradle", "dr_origin", "dr_wt_root", "dr_world"],
-	"dr_wt_root":    ["dr_cradle", "dr_origin", "dr_deep", "dr_world"],
-	"dr_world":      ["dr_deep", "dr_wt_root", "dr_earth"],
-	"dr_lifebeat":   ["dr_cradle", "dr_origin"],
-	"dr_spore_cloud": ["dr_cradle", "dr_origin", "dr_deep"],
-	"dr_grace":      ["dr_cradle", "dr_origin"],
-	"pr_nest":       ["pr_molt", "pr_queen", "pr_carapace", "pr_harvest"],
-	"pr_farm":       ["pr_molt", "pr_harvest"],
-	"pr_queen":      ["pr_molt", "pr_carapace", "pr_harvest", "pr_apex_hunt"],
-	"pr_molt":       ["pr_harvest", "pr_carapace", "pr_apex_hunt"],
-	"pr_harvest":    ["pr_nest", "pr_queen", "pr_carapace"],
-	"pr_carapace":   ["pr_molt", "pr_harvest", "pr_apex_hunt"],
-	"pr_apex_hunt":  ["pr_molt", "pr_carapace"],
-	"pr_transcend":  ["pr_molt", "pr_harvest", "pr_apex_hunt", "pr_swarm_sense"],
-	"pr_swarm_sense": ["pr_nest", "pr_queen", "pr_transcend"],
-	"pr_parasite":   ["pr_swarm_sense", "pr_nest", "pr_queen"],
-	"ml_barracks":   ["ml_academy", "ml_conscript", "ml_tactical"],
-	"ml_outpost":    ["ml_conscript", "ml_factory"],
-	"ml_academy":    ["ml_barracks", "ml_special_ops", "ml_command"],
-	"ml_conscript":  ["ml_outpost", "ml_factory"],
-	"ml_command":    ["ml_academy", "ml_barracks", "ml_special_ops"],
-	"ml_special_ops": ["ml_academy", "ml_tactical"],
-	"ml_factory":    ["ml_outpost", "ml_conscript"],
-	"ml_tactical":   ["ml_barracks", "ml_command", "ml_assault"],
-	"ml_assault":    ["ml_barracks", "ml_outpost", "ml_command"],
-	"ml_supply":     ["ml_barracks", "ml_outpost"],
-}
-
-# Critical path cards per theme — essential infrastructure
-const _THEME_CRITICAL := {
-	Enums.CardTheme.STEAMPUNK: ["sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator", "sp_charger"],
-	Enums.CardTheme.DRUID: ["dr_cradle", "dr_origin", "dr_deep", "dr_wt_root"],
-	Enums.CardTheme.PREDATOR: ["pr_nest", "pr_farm", "pr_queen", "pr_molt"],
-	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_outpost", "ml_academy", "ml_conscript"],
-}
-
-const _POSITION_PRIORITY := {
-	"sp_assembly": 10, "sp_furnace": 10,
-	"sp_workshop": 30, "sp_circulator": 40, "sp_line": 50,
-	"sp_interest": 60, "sp_barrier": 70, "sp_warmachine": 80, "sp_charger": 35,
-	"sp_arsenal": 90,
-	"ne_earth_echo": 10, "ne_wild_pulse": 10, "ne_ruin_resonance": 15,
-	"ne_wanderers": 30, "ne_mutant_adapt": 40,
-	"ne_mana_crystal": 35, "ne_ancient_catalyst": 45,
-	"ne_merchant": 80, "ne_ruins": 20, "ne_awakening": 25,
-	"ne_wildforce": 70, "ne_chimera_cry": 85, "ne_spirit_blessing": 75,
-	"ne_dim_merchant": 15,
-	"dr_cradle": 10, "dr_origin": 11, "dr_earth": 20,
-	"dr_deep": 25, "dr_wt_root": 30, "dr_world": 35,
-	"dr_lifebeat": 50, "dr_spore_cloud": 55, "dr_grace": 60, "dr_wrath": 45,
-	"pr_nest": 10, "pr_farm": 15, "pr_queen": 12, "pr_transcend": 5,
-	"pr_molt": 30, "pr_harvest": 35, "pr_carapace": 40,
-	"pr_swarm_sense": 50, "pr_apex_hunt": 45, "pr_parasite": 55,
-	"ml_barracks": 10, "ml_outpost": 15, "ml_command": 5,
-	"ml_academy": 30, "ml_conscript": 35,
-	"ml_special_ops": 20, "ml_factory": 40,
-	"ml_tactical": 50, "ml_assault": 55, "ml_supply": 60,
-}
+# Synergy data extracted to ai_synergy_data.gd for file size management.
+const _Syn = preload("res://sim/ai_synergy_data.gd")
+var _CHAIN_PAIRS: Dictionary:
+	get: return _Syn.CHAIN_PAIRS
+var _THEME_SYNERGY: Dictionary:
+	get: return _Syn.THEME_SYNERGY
+var _THEME_CRITICAL: Dictionary:
+	get: return _Syn.THEME_CRITICAL
 
 
 func _init(strat: String = "hybrid", rng: RandomNumberGenerator = null, genome: Genome = null) -> void:
@@ -214,6 +140,9 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 			_:
 				_play_hybrid(state, shop)
 
+	# M6: Arsenal fuel sell (before cleanup, so absorbed units arrive)
+	_try_arsenal_fuel_sell(state)
+
 	_cleanup_bench(state)
 	_promote_bench(state)
 
@@ -251,6 +180,76 @@ func _get_interest_floor() -> int:
 	var max_i: int = _genome.economy.get("max_interest", 2)
 	# Floor = gold needed for max interest
 	return max_i / maxi(per_5, 1) * 5
+
+
+## M1: Interest-aware gold floor for ALL strategies (not just economy).
+## Returns 0 if round is before banking start or after aggro transition.
+func _get_universal_interest_floor(round_num: int) -> int:
+	var start_r: int = int(_p("interest_all_start", 4))
+	var aggro_r: int = int(_p("aggro_transition_round", 10))
+	if round_num < start_r or round_num >= aggro_r:
+		return 0
+	return _get_interest_floor()
+
+
+## M2: Pool-aware slow-roll — delay levelup when board is strong and pool
+## still has good cards at current tier.
+func _should_delay_levelup(state: GameState) -> bool:
+	var min_r: int = int(_p("slow_roll_min_round", 5))
+	if state.round_num < min_r:
+		return false
+	# Compute average card CP on board
+	var total_cp := 0.0
+	var card_count := 0
+	for card in state.board:
+		if card == null:
+			continue
+		var c := card as CardInstance
+		total_cp += c.get_total_atk() + c.get_total_hp()
+		card_count += 1
+	if card_count == 0:
+		return false
+	var avg_cp: float = total_cp / card_count
+	# Compare to expected enemy CP this round
+	var enemy_cp: float = Genome._original_round_mult(state.round_num)
+	if _genome and not _genome.enemy_cp_curve.is_empty():
+		enemy_cp = _genome.enemy_cp_curve[state.round_num - 1]
+	# Heuristic: enemy CP scale × 100 as rough proxy
+	var enemy_proxy: float = enemy_cp * 100.0
+	var ratio: float = _p("slow_roll_board_cp_ratio", 1.5)
+	return avg_cp > enemy_proxy * ratio
+
+
+## M6: ON_SELL heuristic — when sp_arsenal on board, sell SP bench
+## cards as fuel (they get absorbed).
+func _try_arsenal_fuel_sell(state: GameState) -> void:
+	var has_arsenal := false
+	for card in state.board:
+		if card != null and (card as CardInstance).get_base_id() == "sp_arsenal":
+			has_arsenal = true
+			break
+	if not has_arsenal:
+		return
+	var fuel_bonus: float = _p("arsenal_fuel_bonus", 15.0)
+	for i in state.bench.size():
+		if state.bench[i] == null:
+			continue
+		var c := state.bench[i] as CardInstance
+		if c.template.get("theme", -1) != Enums.CardTheme.STEAMPUNK:
+			continue
+		if c.upgrades.is_empty():
+			continue
+		var val := _card_value(c, state)
+		if val < fuel_bonus:
+			state.sell_card("bench", i)
+			return  # One fuel sell per round
+
+
+## Genome ai_params accessor shorthand.
+func _p(key: String, fallback: float = 0.0) -> float:
+	if _genome:
+		return _genome.get_ai_param(key)
+	return Genome.DEFAULT_AI_PARAMS.get(key, fallback)
 
 
 # ================================================================
@@ -327,7 +326,7 @@ func _play_aggressive(state: GameState, shop: RefCounted) -> void:
 
 
 ## Theme-focused: per-strategy parameterized behavior.
-## v6: Per-strategy levelup schedule, capstone-seeking rerolls, aggressive T3+ access.
+## v7: M1 interest banking, M2 slow-roll, M4 chain urgency, M5 economy transition.
 func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 	var preferred_theme: int = _THEME_MAP.get(strategy, Enums.CardTheme.NEUTRAL)
 	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, _STRATEGY_CONFIG["steampunk_focused"])
@@ -341,17 +340,28 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 		if state.round_num >= round_threshold:
 			target_level = maxi(target_level, schedule[round_threshold])
 
-	var gold_reserve: int = config["gold_reserve"]
+	# M1: Interest-aware gold reserve (replaces flat gold_reserve mid-game)
+	var interest_floor: int = _get_universal_interest_floor(state.round_num)
+	var gold_reserve: int = maxi(config["gold_reserve"], interest_floor)
 	var pressure: float = _get_enemy_pressure(state.round_num)
 	var pressure_excess: float = maxf(pressure - 1.0, 0.0)
-	gold_reserve = maxi(gold_reserve - int(pressure_excess * 2.0), 0)
+	# M5: After aggro transition, drop gold reserve to 0 (all-in)
+	if state.round_num >= int(_p("aggro_transition_round", 10)):
+		gold_reserve = 0
+	else:
+		gold_reserve = maxi(gold_reserve - int(pressure_excess * 2.0), 0)
 
-	# Prioritize levelup over buying — T3+ access is critical
-	while state.shop_level < target_level and state.gold >= state.levelup_current_cost:
-		if not _try_levelup(state):
-			break
+	# M2: Slow-roll — skip scheduled levelup if board is strong at current tier
+	var do_levelup := true
+	if _should_delay_levelup(state) and _has_merge_candidate(state):
+		do_levelup = false
 
-	# Reroll budget: base + late bonus + merge bonus + capstone urgency
+	if do_levelup:
+		while state.shop_level < target_level and state.gold >= state.levelup_current_cost + gold_reserve:
+			if not _try_levelup(state):
+				break
+
+	# Reroll budget: base + late bonus + merge bonus + chain/capstone/foundation urgency
 	var max_rerolls: int = config["max_rerolls_base"]
 	if state.round_num >= 6 and state.shop_level >= 3:
 		max_rerolls = config["max_rerolls_late"]
@@ -359,24 +369,27 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 		max_rerolls = maxi(max_rerolls, config["max_rerolls_late"])
 	max_rerolls += int(pressure_excess * 2.0)
 
-	# Capstone urgency: if ShopLv4+ and no capstone card on board, reroll harder
+	# Capstone urgency
 	var capstone_cards: Array = config.get("capstone_cards", [])
 	if state.shop_level >= 4 and not _has_any_card(state, capstone_cards):
-		max_rerolls += 3
+		max_rerolls += int(_p("capstone_urgency_rerolls", 3))
 
-	# Foundation urgency: in R1-R4, if no foundation cards from build path, reroll harder
+	# M4: Chain pair urgency — if key chain partners are missing, reroll harder
+	var board_ids := _get_board_ids(state)
+	if _has_incomplete_chain_pair(board_ids, preferred_theme):
+		max_rerolls += int(_p("chain_pair_reroll_bonus", 3))
+
+	# Foundation urgency: in R1-R4, if no foundation from build path
 	if state.round_num <= 4:
-		var board_ids := _get_board_ids(state)
 		var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
 		var has_foundation := false
 		if not bp_path.is_empty():
-			var found_cards: Array = bp_path["phases"].get("foundation", [])
-			for cid in found_cards:
+			for cid in bp_path["phases"].get("foundation", []):
 				if cid in board_ids:
 					has_foundation = true
 					break
 		if not has_foundation:
-			max_rerolls += 5
+			max_rerolls += int(_p("foundation_urgency_rerolls", 5))
 
 	var actions := 0
 	var rerolls := 0
@@ -398,10 +411,14 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 
 
 ## Hybrid: buy a mix, commit to dominant theme by mid-game.
+## v7: M1 interest banking, M5 economy transition.
 func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 	_try_cheap_levelup(state)
 
-	if state.gold >= state.levelup_current_cost + 4:
+	# M1: Interest-aware levelup buffer
+	var interest_floor: int = _get_universal_interest_floor(state.round_num)
+	var levelup_buffer: int = maxi(4, interest_floor)
+	if state.gold >= state.levelup_current_cost + levelup_buffer:
 		_try_levelup(state)
 
 	var preferred_theme := -1
@@ -412,7 +429,15 @@ func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 	var max_rerolls := 2
 	if _has_merge_candidate(state):
 		max_rerolls = 4
-	max_rerolls += int(maxf(pressure - 1.0, 0.0) * 2.0)  # +1 at 1.5×, +2 at 2×
+	max_rerolls += int(maxf(pressure - 1.0, 0.0) * 2.0)
+
+	# M1: Gold floor for rerolls respects interest banking
+	# M5: After aggro transition, no floor
+	var reroll_floor: int = 3
+	if state.round_num >= int(_p("aggro_transition_round", 10)):
+		reroll_floor = 1
+	elif interest_floor > 0:
+		reroll_floor = maxi(reroll_floor, interest_floor)
 
 	var actions := 0
 	var rerolls := 0
@@ -420,7 +445,7 @@ func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 		actions += 1
 		var bought := _try_buy_best(state, shop, preferred_theme)
 		if not bought:
-			if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + 3 and shop.reroll():
+			if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + reroll_floor and shop.reroll():
 				rerolls += 1
 				continue
 			break
@@ -475,12 +500,15 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	var round_num: int = state.round_num
 	var timing: int = tmpl.get("trigger_timing", -1)
 
-	# --- Theme match ---
+	# --- Theme match (Tier 1 params) ---
+	var theme_bonus: float = _p("theme_match_bonus", 15.0)
+	var off_penalty: float = _p("off_theme_penalty", 20.0)
+	var crit_bonus: float = _p("critical_path_bonus", 8.0)
 	if preferred_theme >= 0:
 		if theme == preferred_theme:
-			score += 15.0
+			score += theme_bonus
 			if _THEME_CRITICAL.has(preferred_theme) and card_id in _THEME_CRITICAL[preferred_theme]:
-				score += 8.0
+				score += crit_bonus
 		elif theme == Enums.CardTheme.NEUTRAL:
 			if round_num <= 4:
 				score += 3.0
@@ -489,17 +517,16 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 			else:
 				score -= 2.0
 		else:
-			# Stronger off-theme penalty: -20 (merge +30 still nets +10, but theme +15 wins)
-			score -= 20.0
+			score -= off_penalty
 	else:
 		if theme == Enums.CardTheme.NEUTRAL:
 			score += 3.0
 
-	# --- Strategy core card bonus ---
+	# --- Strategy core card bonus (Tier 1) ---
 	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, {})
 	var core_cards: Array = config.get("core_cards", [])
 	if card_id in core_cards:
-		score += 12.0
+		score += _p("core_card_bonus", 12.0)
 
 	# --- Tier value ---
 	score += tier * 2.0
@@ -508,23 +535,24 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	var board_ids := _get_board_ids(state)
 	var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
 
-	# --- Merge potential ---
+	# --- Merge potential (Tier 1) ---
 	var copy_count := _count_copies(state, card_id)
 	if copy_count == 2:
-		score += 30.0  # ★2 imminent
+		score += _p("merge_imminent_bonus", 30.0)
 	elif copy_count == 1:
-		score += 8.0   # ★1 progress
+		score += _p("merge_progress_bonus", 8.0)
 
-	# --- Chain synergy (Layer1 event chains) ---
+	# --- Chain synergy (Layer1 event chains, Tier 1) ---
+	var syn_bonus: float = _p("synergy_pair_bonus", 6.0)
 	var chain_bonus := 0.0
 	if _CHAIN_PAIRS.has(card_id):
 		for partner_id in _CHAIN_PAIRS[card_id]:
 			if partner_id in board_ids:
-				chain_bonus += 6.0
+				chain_bonus += syn_bonus
 				break
 	for owned_id in board_ids:
 		if _CHAIN_PAIRS.has(owned_id) and card_id in _CHAIN_PAIRS[owned_id]:
-			chain_bonus += 6.0
+			chain_bonus += syn_bonus
 			break
 	score += chain_bonus * (1.0 + round_num * 0.05)
 
@@ -536,11 +564,12 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 				synergy_count += 1
 		score += synergy_count * 4.0
 
-	# --- Round-adaptive tier preference ---
+	# --- Round-adaptive tier preference (Tier 1) ---
+	var late_bonus: float = _p("late_tier_bonus", 6.0)
 	if round_num >= 10 and tier >= 4:
-		score += 6.0
+		score += late_bonus
 	elif round_num >= 5 and tier >= 3:
-		score += 3.0
+		score += late_bonus * 0.5
 
 	# --- Timing-aware purchase priority ---
 	if timing >= 0:
@@ -609,7 +638,7 @@ func _cleanup_bench(state: GameState) -> void:
 				worst_val = val
 				worst_idx = i
 
-		if worst_idx >= 0 and worst_val < 12.0:
+		if worst_idx >= 0 and worst_val < _p("bench_sell_threshold", 12.0):
 			state.sell_card("bench", worst_idx)
 			sold += 1
 		else:
@@ -937,3 +966,26 @@ func _count_all_cards(state: GameState) -> int:
 		if card != null:
 			count += 1
 	return count
+
+
+## M4: Check if any owned card has chain partners that are NOT on board.
+## Signals incomplete chain = worth rerolling for.
+func _has_incomplete_chain_pair(board_ids: Dictionary, preferred_theme: int) -> bool:
+	# Only check theme-relevant chain pairs
+	for owned_id in board_ids:
+		if not _CHAIN_PAIRS.has(owned_id):
+			continue
+		# Check card is on-theme (or neutral)
+		var tmpl: Dictionary = CardDB.get_template(owned_id)
+		var ct: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
+		if preferred_theme >= 0 and ct != preferred_theme and ct != Enums.CardTheme.NEUTRAL:
+			continue
+		# Has at least one partner NOT on board?
+		var all_present := true
+		for partner_id in _CHAIN_PAIRS[owned_id]:
+			if partner_id not in board_ids:
+				all_present = false
+				break
+		if not all_present:
+			return true
+	return false

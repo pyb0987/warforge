@@ -74,26 +74,54 @@ func test_barracks_rank_threshold_fires_once_only() -> void:
 # ml_outpost (RS): conscript 2
 # ================================================================
 
-func test_outpost_conscripts_2_units() -> void:
+func test_outpost_defers_self_conscription() -> void:
 	var card: CardInstance = CardInstance.create("ml_outpost")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 2, "징집 +2")
+	# Self-conscription is deferred — units NOT added yet
+	assert_eq(card.get_total_units(), before, "deferred: 유닛 미추가")
+	assert_eq(_sys.pending_conscriptions.size(), 1, "pending 1건")
+	assert_eq(_sys.pending_conscriptions[0]["count"], 2, "count=2")
 
 
-func test_outpost_conscript_ids_in_pool() -> void:
+func test_outpost_pending_has_card_ref() -> void:
 	var card: CardInstance = CardInstance.create("ml_outpost")
-	var before_ids: Array = []
-	for s in card.stacks:
-		before_ids.append(s["unit_type"].get("id", ""))
 	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(_sys.pending_conscriptions[0]["card_ref"], card, "card_ref 일치")
+	assert_eq(_sys.pending_conscriptions[0]["card_idx"], 0, "card_idx=0")
+
+
+func test_outpost_star3_defers_3() -> void:
+	var card: CardInstance = CardInstance.create("ml_outpost")
+	card.star_level = 3
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(_sys.pending_conscriptions[0]["count"], 3, "★3: count=3")
+
+
+func test_pick_conscript_options_returns_3() -> void:
+	var options: Array[String] = _sys.pick_conscript_options(_rng, 3)
+	assert_eq(options.size(), 3, "3개 옵션")
 	var pool_ids: Array = []
 	for entry in MilitarySystem.CONSCRIPT_POOL:
 		pool_ids.append(entry["id"])
-	for s in card.stacks:
-		var uid: String = s["unit_type"].get("id", "")
-		if uid not in before_ids:
-			assert_true(uid in pool_ids, "징집 유닛 '%s'이 CONSCRIPT_POOL에 있어야 함" % uid)
+	for uid in options:
+		assert_true(uid in pool_ids, "옵션 '%s'이 CONSCRIPT_POOL에 있어야 함" % uid)
+
+
+func test_apply_conscript_adds_unit() -> void:
+	var card: CardInstance = CardInstance.create("ml_outpost")
+	var before: int = card.get_total_units()
+	var added: int = _sys.apply_conscript(card, "ml_recruit")
+	assert_eq(added, 1, "1기 추가")
+	assert_eq(card.get_total_units(), before + 1, "총 유닛 +1")
+
+
+func test_clear_pending() -> void:
+	var card: CardInstance = CardInstance.create("ml_outpost")
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_gt(_sys.pending_conscriptions.size(), 0, "pending 있음")
+	_sys.clear_pending()
+	assert_eq(_sys.pending_conscriptions.size(), 0, "clear 후 비어있음")
 
 
 # ================================================================
@@ -320,10 +348,12 @@ func test_factory_s3_threshold_6_terazin_2() -> void:
 	## ★3: counter 6 + terazin 2 + ATK 5%
 	var card := _make_star("ml_factory", 3)
 	card.theme_state["conscript_counter"] = 5
+	var atk_before: float = card.get_total_atk()
 	var conscript_evt := {"layer1": -1, "layer2": Enums.Layer2.CONSCRIPT,
 		"source_idx": 0, "target_idx": 0}
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], conscript_evt, _rng)
 	assert_eq(result["terazin"], 2, "★3 counter 6 → terazin 2")
+	assert_gt(card.get_total_atk(), atk_before, "★3 → ATK +5% enhance")
 
 
 func test_factory_s1_no_enhance_at_10() -> void:

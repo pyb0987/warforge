@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/card_tooltip.gd" id="1"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_name"]
+font_size = 16
 
 [node name="CardTooltip" type="PanelContainer"]
 z_index = 100
@@ -11,21 +14,24 @@ script = ExtResource("1")
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[sub_resource type="LabelSettings" id="LabelSettings_name"]
-font_size = 16
-
 [node name="NameLabel" type="Label" parent="VBox"]
 layout_mode = 2
 text = "Card Name  T1 ★1"
 label_settings = SubResource("LabelSettings_name")
 
+[node name="CostLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Cost: 1g"
+
 [node name="InfoLabel" type="Label" parent="VBox"]
 layout_mode = 2
 text = "Trigger: Round Start"
 
-[node name="EffectLabel" type="Label" parent="VBox"]
+[node name="EffectLabel" type="RichTextLabel" parent="VBox"]
 layout_mode = 2
-autowrap_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
 text = "+1 unit → right_adj"
 
 [node name="UnitsLabel" type="Label" parent="VBox"]

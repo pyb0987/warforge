@@ -1,34 +1,25 @@
 extends HBoxContainer
 ## Shop: offers 6 cards from the pool, tiered probability.
 
-signal card_purchased(template_id: String)
+signal card_purchased(template_id: String, slot_idx: int, cost: int)
 signal card_merged(card: CardInstance, old_star: int, new_star: int)
 
 var _game_state: GameState
 var _rng: RandomNumberGenerator
+var _genome: Genome = null
 var _shop_slots: Array = []  # Array of Panel (card visuals)
 
-## Tier probability by shop level (1-indexed).
-## Level 1: only T1-T2. Level 6: T1-T5.
-## Tier weights from upgrade.md (확정)
-const TIER_WEIGHTS := {
-	1: {1: 100, 2: 0, 3: 0, 4: 0, 5: 0},
-	2: {1: 70, 2: 28, 3: 2, 4: 0, 5: 0},
-	3: {1: 35, 2: 45, 3: 18, 4: 2, 5: 0},
-	4: {1: 10, 2: 25, 3: 42, 4: 20, 5: 3},
-	5: {1: 0, 2: 10, 3: 25, 4: 45, 5: 20},
-	6: {1: 0, 2: 0, 3: 10, 4: 40, 5: 50},
-}
-
-## Shop level increases at these rounds.
-const LEVEL_UP_ROUNDS := {1: 1, 3: 2, 5: 3, 7: 4, 9: 5, 12: 6}
+## Tier probability and card picking are delegated to ShopPicker
+## (core/data/shop_picker.gd) so that play and sim share one source.
 
 var _offered_ids: Array[String] = []
+var _coin_slots: Dictionary = {}  # 🪙 양면 동전: {discount_idx, markup_idx}
 
 
-func setup(state: GameState, rng: RandomNumberGenerator) -> void:
+func setup(state: GameState, rng: RandomNumberGenerator, genome: Genome = null) -> void:
 	_game_state = state
 	_rng = rng
+	_genome = genome
 	_create_slots()
 
 
@@ -43,23 +34,31 @@ func _create_slots() -> void:
 
 
 func refresh_shop() -> void:
-	## Generate 6 new cards based on current shop level.
+	## Generate cards based on current shop level.
+	_return_unsold_to_pool()
 	var level := _get_shop_level()
 	_offered_ids.clear()
 
-	for i in 6:
+	var shop_size := 6 + BossReward.get_shop_size_bonus(_game_state)
+	_ensure_slot_count(shop_size)
+	for i in shop_size:
 		var tier := _roll_tier(level)
 		var card_id := _pick_card_of_tier(tier)
 		_offered_ids.append(card_id)
+
+	# 🪙 양면 동전: 할인/할증 슬롯 결정
+	_coin_slots = Talisman.roll_coin_slots(_game_state, _offered_ids.size(), _rng)
 
 	_update_visuals()
 
 
 func reroll() -> bool:
 	## Spend gold to reroll. Returns false if can't afford.
-	if _game_state.gold < Enums.REROLL_COST:
+	var cost: int = _genome.get_reroll_cost() if _genome else Enums.REROLL_COST
+	if _game_state.gold < cost:
 		return false
-	_game_state.gold -= Enums.REROLL_COST
+	_game_state.gold -= cost
+	_game_state.round_rerolls += 1
 	refresh_shop()
 	_game_state.state_changed.emit()
 	return true
@@ -74,7 +73,8 @@ func try_purchase(slot_idx: int) -> bool:
 		return false  # already purchased
 
 	var tmpl := CardDB.get_template(card_id)
-	var cost: int = tmpl.get("cost", 99)
+	var base_cost: int = tmpl.get("cost", 99)
+	var cost: int = Talisman.apply_coin_price(base_cost, slot_idx, _coin_slots)
 	if _game_state.gold < cost:
 		print("[Shop] Not enough gold (%d < %d)" % [_game_state.gold, cost])
 		return false
@@ -82,6 +82,7 @@ func try_purchase(slot_idx: int) -> bool:
 	var card := CardInstance.create(card_id)
 	if card == null:
 		return false
+	Commander.apply_card_bonuses(_game_state, card)
 
 	var bench_idx := _game_state.add_to_bench(card)
 	if bench_idx < 0:
@@ -91,54 +92,53 @@ func try_purchase(slot_idx: int) -> bool:
 	_game_state.gold -= cost
 	_offered_ids[slot_idx] = ""  # mark as sold
 	print("[Shop] Bought %s for %dg → bench[%d]" % [tmpl.get("name", card_id), cost, bench_idx])
+	card_purchased.emit(card_id, slot_idx, cost)
 
-	# Auto-merge check
-	var merge_result := _game_state.try_merge(card_id)
-	if not merge_result.is_empty():
-		var merged: CardInstance = merge_result["card"]
+	# Auto-merge check (cascade: emit each step so build_phase can grant rewards)
+	var merge_steps := _game_state.try_merge(card_id)
+	for step in merge_steps:
+		var merged: CardInstance = step["card"]
 		print("[Merge] ★ %s evolved! ★%d→★%d (%du)" % [
-			merged.get_name(), merge_result["old_star"], merge_result["new_star"],
+			merged.get_name(), step["old_star"], step["new_star"],
 			merged.get_total_units()])
-		card_merged.emit(merged, merge_result["old_star"], merge_result["new_star"])
+		card_merged.emit(merged, step["old_star"], step["new_star"])
 
 	_update_visuals()
 	_game_state.state_changed.emit()
 	return true
 
 
+func _ensure_slot_count(count: int) -> void:
+	if not is_inside_tree():
+		return
+	while _shop_slots.size() < count:
+		var idx := _shop_slots.size()
+		var slot: Panel = preload("res://scenes/build/card_visual.tscn").instantiate()
+		slot.custom_minimum_size = Vector2(120, 160)
+		add_child(slot)
+		_shop_slots.append(slot)
+		slot.gui_input.connect(_on_slot_input.bind(idx))
+
+
 func _get_shop_level() -> int:
-	var level := 1
-	for r in LEVEL_UP_ROUNDS:
-		if _game_state.round_num >= r:
-			level = LEVEL_UP_ROUNDS[r]
-	return level
+	return _game_state.shop_level
 
 
 func _roll_tier(level: int) -> int:
-	var weights: Dictionary = TIER_WEIGHTS.get(level, TIER_WEIGHTS[1])
-	var total := 0
-	for t in weights:
-		total += weights[t]
-	var roll := _rng.randi_range(0, total - 1)
-	var cumulative := 0
-	for t in weights:
-		cumulative += weights[t]
-		if roll < cumulative:
-			return t
-	return 1
+	return ShopPicker.roll_tier(level, _rng, _genome)
 
 
 func _pick_card_of_tier(tier: int) -> String:
-	## Pick a random card of the given tier from the full pool.
-	var candidates: Array[String] = []
-	for id in CardDB.get_all_ids():
-		var tmpl := CardDB.get_template(id)
-		if tmpl.get("tier", 0) == tier and not id.ends_with("_s2"):
-			candidates.append(id)
-	if candidates.is_empty():
-		# Fallback to any T1
-		return _pick_card_of_tier(1) if tier != 1 else "sp_assembly"
-	return candidates[_rng.randi_range(0, candidates.size() - 1)]
+	return ShopPicker.pick_card(tier, _rng, _game_state, _game_state.card_pool)
+
+
+## 미구매 카드를 풀에 반환 (리롤/리프레시 전 호출).
+func _return_unsold_to_pool() -> void:
+	if _game_state.card_pool == null:
+		return
+	for id in _offered_ids:
+		if id != "":
+			_game_state.card_pool.return_cards(id, 1)
 
 
 func _update_visuals() -> void:
@@ -152,5 +152,6 @@ func _update_visuals() -> void:
 
 
 func _on_slot_input(event: InputEvent, slot_idx: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		try_purchase(slot_idx)
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			try_purchase(slot_idx)

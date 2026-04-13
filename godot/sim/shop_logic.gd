@@ -26,6 +26,7 @@ func setup(state: GameState, rng: RandomNumberGenerator, genome: Genome = null) 
 
 
 func refresh_shop() -> void:
+	_return_unsold_to_pool()
 	var level: int = _game_state.shop_level
 	offered_ids.clear()
 
@@ -44,6 +45,7 @@ func reroll() -> bool:
 	if _game_state.gold < cost:
 		return false
 	_game_state.gold -= cost
+	_game_state.round_rerolls += 1
 	refresh_shop()
 	return true
 
@@ -73,11 +75,11 @@ func try_purchase(slot_idx: int) -> bool:
 	_game_state.gold -= cost
 	offered_ids[slot_idx] = ""
 
-	# Auto-merge check
-	var merge_result := _game_state.try_merge(card_id)
-	if not merge_result.is_empty():
-		var merged: CardInstance = merge_result["card"]
-		card_merged.emit(merged, merge_result["old_star"], merge_result["new_star"])
+	# Auto-merge check (cascade: emit each step)
+	var merge_steps := _game_state.try_merge(card_id)
+	for step in merge_steps:
+		var merged: CardInstance = step["card"]
+		card_merged.emit(merged, step["old_star"], step["new_star"])
 
 	card_purchased.emit(card_id)
 	return true
@@ -88,4 +90,13 @@ func _roll_tier(level: int) -> int:
 
 
 func _pick_card_of_tier(tier: int) -> String:
-	return ShopPicker.pick_card(tier, _rng, _game_state)
+	return ShopPicker.pick_card(tier, _rng, _game_state, _game_state.card_pool)
+
+
+## 미구매 카드를 풀에 반환 (리롤/리프레시 전 호출).
+func _return_unsold_to_pool() -> void:
+	if _game_state.card_pool == null:
+		return
+	for id in offered_ids:
+		if id != "":
+			_game_state.card_pool.return_cards(id, 1)

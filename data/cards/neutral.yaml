@@ -250,15 +250,15 @@ cards:
       1:
         max_act: -1
         effects:
-          - scrap: {target: self, count: 1, reroll_gain: 1, gold_per_unit: 0}
+          - scrap: {target: both_adj, count: 1, reroll_gain: 1, gold_per_unit: 0}
       2:
         max_act: -1
         effects:
-          - scrap: {target: self, count: 2, reroll_gain: 2, gold_per_unit: 0}
+          - scrap: {target: both_adj, count: 2, reroll_gain: 2, gold_per_unit: 0}
       3:
         max_act: -1
         effects:
-          - scrap: {target: self, count: 2, reroll_gain: 2, gold_per_unit: 1}
+          - scrap: {target: both_adj, count: 2, reroll_gain: 2, gold_per_unit: 1}
 
   ne_dim_merchant:
     name: 차원 행상인

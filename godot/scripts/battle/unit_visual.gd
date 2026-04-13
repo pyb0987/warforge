@@ -6,6 +6,8 @@ var team_color: Color = Color.GREEN
 var unit_radius: float = 6.0
 var hp_ratio: float = 1.0
 var is_alive: bool = true
+var _flash_timer: float = 0.0
+const FLASH_DURATION := 0.12
 
 
 func setup(idx: int, color: Color, radius: float) -> void:
@@ -26,11 +28,25 @@ func update_state(pos: Vector2, hp_pct: float, alive: bool) -> void:
 		queue_redraw()
 
 
+func flash() -> void:
+	_flash_timer = FLASH_DURATION
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	if _flash_timer > 0.0:
+		_flash_timer -= delta
+		if _flash_timer <= 0.0:
+			_flash_timer = 0.0
+			queue_redraw()
+
+
 func _draw() -> void:
 	if not is_alive:
 		return
-	# Body circle
-	draw_circle(Vector2.ZERO, unit_radius, team_color)
+	# Body circle (flash white on attack)
+	var color := Color.WHITE if _flash_timer > 0.0 else team_color
+	draw_circle(Vector2.ZERO, unit_radius, color)
 	# HP bar background
 	var bar_w := unit_radius * 2.5
 	var bar_h := 2.0

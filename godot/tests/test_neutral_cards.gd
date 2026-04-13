@@ -66,12 +66,12 @@ func test_wanderers_enhances_event_target_on_unit_added() -> void:
 	## ne_wanderers(OE/UNIT_ADDED): enhance event_target 3%
 	## sp_assembly(RS) spawn right_adj → wanderers에 UNIT_ADDED → wanderers가 event_target(assembly) enhance
 	var board := _make_board(["sp_assembly", "ne_wanderers"])
-	var assembly_atk_before: float = board[0].get_total_atk()
+	var wanderers_atk_before: float = board[1].get_total_atk()
 	var result: Dictionary = _engine.run_growth_chain(board)
 	assert_gte(result["chain_count"], 2, "RS + OE = 최소 2 chain")
 	# wanderers가 event_target(=assembly spawn의 target=wanderers 자신)을 enhance
 	# target_idx는 spawn의 대상(board[1])이므로 wanderers 자신이 enhance됨
-	assert_gt(board[1].get_total_atk(), 0.0, "wanderers event_target enhance 발동")
+	assert_gt(board[1].get_total_atk(), wanderers_atk_before, "wanderers event_target enhance → ATK 증가")
 
 
 func test_wanderers_max_2_activations() -> void:
@@ -245,8 +245,14 @@ func _make_star_board(base_id: String, star: int, extras: Array = []) -> Array:
 func test_awakening_s2_stronger_effects() -> void:
 	## ★2: spawn 3 + enhance 15% + shield 30% (★1은 2/10%/20%)
 	var board := _make_star_board("ne_awakening", 2, ["sp_assembly"])
+	var units_before: int = board[0].get_total_units()
+	var atk_before: float = board[0].get_total_atk()
 	for _i in 4:
 		_engine.run_growth_chain(board)  # R4: threshold 발동
+	# ★2: all_allies spawn 3 → 유닛 증가
+	assert_gt(board[0].get_total_units(), units_before, "★2 spawn 3 → 유닛 증가")
+	# ★2: all_allies enhance 15% → ATK 증가
+	assert_gt(board[0].get_total_atk(), atk_before, "★2 enhance 15% → ATK 증가")
 	# ★2 shield 30% > ★1 shield 20%
 	assert_almost_eq(board[0].shield_hp_pct, 0.30, 0.01, "★2 shield 30%")
 
@@ -259,10 +265,124 @@ func test_awakening_s2_resets_threshold_on_evolve() -> void:
 	assert_false(card.threshold_fired, "evolve → threshold 리셋")
 
 
-func test_dim_merchant_s2_gold_per_theme_not_implemented() -> void:
-	## ★2: gold_per_theme=2이지만 chain_engine이 파라미터를 읽지 않음 (3번 영역)
-	## 현재 동작: ★1과 동일하게 테마수 × 1골드
+func test_dim_merchant_s2_gold_per_theme_2() -> void:
+	## ★2: 2테마 × 2g = 4g
 	var board := _make_star_board("ne_dim_merchant", 2, ["sp_assembly"])
 	var result: Dictionary = _engine.run_growth_chain(board)
-	# 2테마(neutral + steampunk) → chain_engine은 themes_seen.size()만 반환
-	assert_eq(result["gold_earned"], 2, "★2 현재: 테마수×1g (gold_per_theme 미구현)")
+	# 2테마(neutral + steampunk) × gold_per_theme=2 = 4g
+	assert_eq(result["gold_earned"], 4, "★2 2테마×2g = 4g")
+
+
+func test_dim_merchant_s2_3_themes() -> void:
+	## ★2: 3테마 × 2g = 6g
+	var board := _make_star_board("ne_dim_merchant", 2, ["sp_assembly", "dr_cradle"])
+	var result: Dictionary = _engine.run_growth_chain(board)
+	assert_eq(result["gold_earned"], 6, "★2 3테마×2g = 6g")
+
+
+func test_dim_merchant_s3_gold_per_theme_3() -> void:
+	## ★3: 3테마 × 3g = 9g
+	var board := _make_star_board("ne_dim_merchant", 3, ["sp_assembly", "dr_cradle"])
+	var result: Dictionary = _engine.run_growth_chain(board)
+	assert_eq(result["gold_earned"], 9, "★3 3테마×3g = 9g")
+
+
+func test_dim_merchant_s3_terazin_at_3_themes() -> void:
+	## ★3: 3종 이상 → 테마수 × 1 테라진
+	var board := _make_star_board("ne_dim_merchant", 3, ["sp_assembly", "dr_cradle"])
+	var result: Dictionary = _engine.run_growth_chain(board)
+	# 3테마 >= terazin_threshold(3) → 3 × 1 = 3 테라진
+	assert_eq(result["terazin_earned"], 3, "★3 3테마 → 3 테라진")
+
+
+func test_dim_merchant_s3_no_terazin_below_threshold() -> void:
+	## ★3: 2종 < threshold(3) → 테라진 없음
+	var board := _make_star_board("ne_dim_merchant", 3, ["sp_assembly"])
+	var result: Dictionary = _engine.run_growth_chain(board)
+	assert_eq(result.get("terazin_earned", 0), 0, "★3 2테마 < 3 → 테라진 0")
+
+
+func test_dim_merchant_s3_mercenary_spawn() -> void:
+	## ★3: 비중립 카드마다 해당 카드에 유닛 1기 추가
+	## OE 카드(sp_workshop) 사용 — RS 자체 spawn 없어 mercenary_spawn만 격리 검증
+	var board := _make_star_board("ne_dim_merchant", 3, ["sp_workshop", "sp_workshop"])
+	var ws1_before: int = board[1].get_total_units()
+	var ws2_before: int = board[2].get_total_units()
+	_engine.run_growth_chain(board)
+	# 비중립 2장(sp_workshop ×2) → 각각 유닛 +1
+	assert_eq(board[1].get_total_units(), ws1_before + 1, "workshop1 +1 용병 유닛")
+	assert_eq(board[2].get_total_units(), ws2_before + 1, "workshop2 +1 용병 유닛")
+
+
+# ================================================================
+# ON_MERGE: ne_spirit_blessing (chain_engine.process_merge_triggers)
+# ================================================================
+
+func test_spirit_blessing_grants_terazin_on_merge() -> void:
+	## ★1: 합성 시 1 테라진 획득
+	var board := _make_board(["ne_spirit_blessing", "sp_assembly"])
+	var merged_card: CardInstance = board[1]
+	var result: Dictionary = _engine.process_merge_triggers(board, merged_card)
+	assert_eq(result["terazin"], 1, "ON_MERGE → +1 terazin")
+
+
+func test_spirit_blessing_spawns_on_merged_card() -> void:
+	## ★1: 합성된 카드(event_target)에 유닛 2기 추가
+	var board := _make_board(["ne_spirit_blessing", "sp_assembly"])
+	var merged_card: CardInstance = board[1]
+	var units_before: int = merged_card.get_total_units()
+	_engine.process_merge_triggers(board, merged_card)
+	assert_eq(merged_card.get_total_units(), units_before + 2, "합성 카드에 +2 유닛")
+
+
+func test_spirit_blessing_respects_max_activations() -> void:
+	## max_act=1 → 라운드당 1회만 발동
+	var board := _make_board(["ne_spirit_blessing", "sp_assembly"])
+	var merged_card: CardInstance = board[1]
+	_engine.process_merge_triggers(board, merged_card)  # 1회
+	var units_after_1: int = merged_card.get_total_units()
+	_engine.process_merge_triggers(board, merged_card)  # 2회 시도
+	assert_eq(merged_card.get_total_units(), units_after_1, "max_act=1 → 2회째 미발동")
+
+
+func test_spirit_blessing_not_in_growth_chain() -> void:
+	## ON_MERGE 카드는 run_growth_chain에서 발동 안 함
+	var board := _make_board(["ne_spirit_blessing"])
+	var result: Dictionary = _engine.run_growth_chain(board)
+	assert_eq(result["chain_count"], 0, "ON_MERGE → growth chain 0")
+
+
+func test_spirit_blessing_ignores_non_merge_cards() -> void:
+	## ON_MERGE가 아닌 카드는 process_merge_triggers에서 무시
+	var board := _make_board(["sp_assembly", "ne_spirit_blessing"])
+	var merged_card: CardInstance = board[0]
+	var sp_units_before: int = board[0].get_total_units()
+	var result: Dictionary = _engine.process_merge_triggers(board, merged_card)
+	# spirit_blessing만 발동, sp_assembly(RS)는 무시
+	assert_eq(result["terazin"], 1, "spirit_blessing만 발동")
+
+
+func test_spirit_blessing_s2_grants_gold_and_more_units() -> void:
+	## ★2: 1 테라진 + 2 골드, 합성 카드에 유닛 3기
+	var board: Array = [_make_star("ne_spirit_blessing", 2), CardInstance.create("sp_assembly")]
+	var merged_card: CardInstance = board[1]
+	var units_before: int = merged_card.get_total_units()
+	var result: Dictionary = _engine.process_merge_triggers(board, merged_card)
+	assert_eq(result["terazin"], 1, "★2 → +1 terazin")
+	assert_eq(result["gold"], 2, "★2 → +2 gold")
+	assert_eq(merged_card.get_total_units(), units_before + 3, "★2 → 합성 카드 +3 유닛")
+
+
+func test_spirit_blessing_s3_all_allies_spawn() -> void:
+	## ★3: 1 테라진 + 2 골드, 합성 카드 +3, 전체 아군 +1씩
+	var board: Array = [_make_star("ne_spirit_blessing", 3),
+		CardInstance.create("sp_assembly"), CardInstance.create("dr_cradle")]
+	var merged_card: CardInstance = board[1]
+	var spirit_before: int = board[0].get_total_units()
+	var dr_before: int = board[2].get_total_units()
+	var result: Dictionary = _engine.process_merge_triggers(board, merged_card)
+	assert_eq(result["terazin"], 1, "★3 → +1 terazin")
+	assert_eq(result["gold"], 2, "★3 → +2 gold")
+	# 전체 아군: spirit +1, dr_cradle +1
+	assert_eq(board[0].get_total_units(), spirit_before + 1, "★3 → spirit +1 유닛")
+	assert_eq(board[2].get_total_units(), dr_before + 1, "★3 → dr_cradle +1 유닛")

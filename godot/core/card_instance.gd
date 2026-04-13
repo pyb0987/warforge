@@ -5,7 +5,11 @@ extends RefCounted
 ## Stat formula (3-layer multiplicative):
 ##   ATK = base * (1 + growth%) * upgrade_mult * temp_mult + temp_atk
 
-const UNIT_CAP_PER_CARD := 60
+const BASE_UNIT_CAP := 60
+
+# --- Commander bonuses (set at creation time) ---
+var unit_cap_bonus: int = 0
+var upgrade_slot_bonus: int = 0
 
 # --- Template reference ---
 var template_id: String
@@ -48,7 +52,7 @@ signal stats_changed
 static func create(tmpl_id: String) -> CardInstance:
 	var inst := CardInstance.new()
 	inst.template_id = tmpl_id
-	inst.template = CardDB.get_template(tmpl_id)
+	inst.template = CardDB.get_template(tmpl_id).duplicate(true)
 	if inst.template.is_empty():
 		push_error("CardInstance.create: unknown template '%s'" % tmpl_id)
 		return null
@@ -57,14 +61,11 @@ static func create(tmpl_id: String) -> CardInstance:
 
 
 ## Evolve to star 2/3: increment star level, keep stacks/growth/theme_state.
-## If a separate ★2/★3 template exists, swap to it. Otherwise keep current template.
+## star_overrides가 있으면 template을 교체. template_id는 항상 base ID 유지.
 func evolve_star() -> void:
 	star_level = mini(star_level + 1, 3)
-	# Try to find star-specific template
-	var star_id := template_id + "_s%d" % star_level
-	var star_tmpl := CardDB.get_template(star_id)
+	var star_tmpl := CardDB.get_star_template(template_id, star_level)
 	if not star_tmpl.is_empty():
-		template_id = star_id
 		template = star_tmpl
 	# Reset threshold for tenure-based cards (e.g., ne_awakening resets on merge)
 	threshold_fired = false
@@ -84,6 +85,7 @@ func _init_stacks() -> void:
 			"upgrade_hp_mult": 1.0,
 			"temp_atk": 0.0,
 			"temp_atk_mult": 1.0,
+			"temp_hp_mult": 1.0,
 		})
 
 
@@ -121,7 +123,7 @@ func eff_hp_for(stack: Dictionary) -> float:
 	var layer1 := 1.0 + _growth_hp_for(stack)
 	var layer2: float = stack["upgrade_hp_mult"]
 	var shield := base * shield_hp_pct
-	return base * layer1 * layer2 + shield
+	return base * layer1 * layer2 * stack.get("temp_hp_mult", 1.0) + shield
 
 
 func get_total_units() -> int:
@@ -145,11 +147,30 @@ func get_total_hp() -> float:
 	return total
 
 
+## Total Combat Power = Σ(count × ATK/AS × HP) across all stacks.
+func get_total_cp() -> float:
+	var total := 0.0
+	for s in stacks:
+		var as_val: float = maxf(s["unit_type"].get("attack_speed", 1.0), 0.01)
+		total += s["count"] * eff_atk_for(s) / as_val * eff_hp_for(s)
+	return total
+
+
 # --- Actions ---
+
+## 유닛 상한 (기본 60 + 커맨더 보너스).
+func get_unit_cap() -> int:
+	return BASE_UNIT_CAP + unit_cap_bonus
+
+
+## 업그레이드 슬롯 상한 (기본 5 + 커맨더 보너스).
+func get_max_upgrade_slots() -> int:
+	return Enums.MAX_UPGRADE_SLOTS + upgrade_slot_bonus
+
 
 ## Add 1 unit (random type weighted by current count).
 func spawn_random(rng: RandomNumberGenerator) -> bool:
-	if stacks.is_empty() or get_total_units() >= UNIT_CAP_PER_CARD:
+	if stacks.is_empty() or get_total_units() >= get_unit_cap():
 		return false
 	var weights: Array[float] = []
 	for s in stacks:
@@ -158,6 +179,23 @@ func spawn_random(rng: RandomNumberGenerator) -> bool:
 	stacks[chosen_idx]["count"] += 1
 	stats_changed.emit()
 	return true
+
+
+## 양성가 보너스 포함 스폰: 유닛 1기 추가 + bonus_chance 확률로 1기 동시 생성.
+## 보너스 유닛은 이벤트를 방출하지 않음 (무한루프 방지).
+func spawn_random_with_bonus(rng: RandomNumberGenerator, bonus_chance: float) -> bool:
+	if not spawn_random(rng):
+		return false
+	if bonus_chance > 0.0 and rng.randf() < bonus_chance:
+		if get_total_units() < get_unit_cap() and not stacks.is_empty():
+			var weights: Array[float] = []
+			for s in stacks:
+				weights.append(maxf(s["count"], 1.0))
+			var chosen_idx := _weighted_choice(weights, rng)
+			stacks[chosen_idx]["count"] += 1
+	return true
+
+
 
 
 ## Enhance card's growth modifier (Layer 1, card-level).
@@ -213,20 +251,22 @@ func temp_buff(tag_filter, atk_pct: float) -> void:
 
 
 ## Apply temporary multiplicative combat buff.
-func temp_mult_buff(atk_mult: float) -> void:
+func temp_mult_buff(atk_mult: float, hp_mult: float = 1.0) -> void:
 	for s in stacks:
 		s["temp_atk_mult"] *= atk_mult
+		s["temp_hp_mult"] *= hp_mult
 
 
 func clear_temp_buffs() -> void:
 	for s in stacks:
 		s["temp_atk"] = 0.0
 		s["temp_atk_mult"] = 1.0
+		s["temp_hp_mult"] = 1.0
 
 
 ## Add 1 copy of the strongest unit (by CP) in this card.
 func breed_strongest() -> bool:
-	if stacks.is_empty() or get_total_units() >= UNIT_CAP_PER_CARD:
+	if stacks.is_empty() or get_total_units() >= get_unit_cap():
 		return false
 	var best_idx := 0
 	var best_cp := 0.0
@@ -243,19 +283,15 @@ func breed_strongest() -> bool:
 	return true
 
 
-## Get the base template ID (strip ★2/★3 suffix).
+## Get the base template ID. template_id는 항상 base ID.
 func get_base_id() -> String:
-	if template_id.ends_with("_s3"):
-		return template_id.substr(0, template_id.length() - 3)
-	if template_id.ends_with("_s2"):
-		return template_id.substr(0, template_id.length() - 3)
 	return template_id
 
 
 ## Add N units of a specific type. Creates new stack if needed.
 ## Returns actual count added.
 func add_specific_unit(unit_id: String, count: int) -> int:
-	var cap_remain := UNIT_CAP_PER_CARD - get_total_units()
+	var cap_remain := get_unit_cap() - get_total_units()
 	if cap_remain <= 0:
 		return 0
 	var actual := mini(count, cap_remain)
@@ -270,17 +306,17 @@ func add_specific_unit(unit_id: String, count: int) -> int:
 	stacks.append({
 		"unit_type": ut, "count": actual,
 		"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
-		"temp_atk": 0.0, "temp_atk_mult": 1.0,
+		"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0,
 	})
 	stats_changed.emit()
 	return actual
 
 
-## Consume N weakest units (by CP), add 1 of strongest type.
-## Returns true if metamorphosis succeeded.
-func metamorphosis(consume_count: int) -> bool:
-	if get_total_units() < consume_count + 1:
-		return false
+## Remove up to N weakest units (by CP). Does NOT add any replacement.
+## Returns actual number of units removed (can be less than N if card ran dry).
+func remove_weakest(count: int) -> int:
+	if count <= 0 or get_total_units() == 0:
+		return 0
 	var sorted_stacks: Array = []
 	for i in stacks.size():
 		var s: Dictionary = stacks[i]
@@ -289,16 +325,48 @@ func metamorphosis(consume_count: int) -> bool:
 		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
 		sorted_stacks.append({"idx": i, "cp": cp})
 	sorted_stacks.sort_custom(func(a, b): return a["cp"] < b["cp"])
-	var to_remove := consume_count
+	var to_remove := count
+	var removed := 0
 	for entry in sorted_stacks:
 		if to_remove <= 0:
 			break
 		var s: Dictionary = stacks[entry["idx"]]
-		var remove := mini(s["count"], to_remove)
-		s["count"] -= remove
-		to_remove -= remove
-	stacks[sorted_stacks[-1]["idx"]]["count"] += 1
+		var take := mini(s["count"], to_remove)
+		s["count"] -= take
+		to_remove -= take
+		removed += take
 	stacks = stacks.filter(func(s): return s["count"] > 0)
+	if removed > 0:
+		stats_changed.emit()
+	return removed
+
+
+## Consume N weakest units (by CP), add 1 of strongest type.
+## Returns true if metamorphosis succeeded.
+func metamorphosis(consume_count: int) -> bool:
+	if get_total_units() < consume_count + 1:
+		return false
+	# Identify strongest stack BEFORE removal (so we know where to add the result).
+	var strongest_idx := 0
+	var best_cp := -1.0
+	for i in stacks.size():
+		var ut: Dictionary = stacks[i]["unit_type"]
+		var as_val: float = maxf(ut["attack_speed"], 0.01)
+		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		if cp > best_cp:
+			best_cp = cp
+			strongest_idx = i
+	var strongest_unit_type: Dictionary = stacks[strongest_idx]["unit_type"]
+	remove_weakest(consume_count)
+	# Re-find strongest stack post-removal (may have shifted) or add new stack.
+	var found := false
+	for i in stacks.size():
+		if stacks[i]["unit_type"] == strongest_unit_type:
+			stacks[i]["count"] += 1
+			found = true
+			break
+	if not found:
+		stacks.append({"unit_type": strongest_unit_type, "count": 1})
 	stats_changed.emit()
 	return true
 
@@ -308,11 +376,11 @@ func reset_round() -> void:
 	tenure += 1
 
 
-func can_activate() -> bool:
+func can_activate(bonus: int = 0) -> bool:
 	var max_act: int = template.get("max_activations", -1)
 	if max_act == -1:
 		return true
-	return activations_used < max_act
+	return activations_used < max_act + bonus
 
 
 func get_name() -> String:
@@ -331,7 +399,7 @@ func _to_string() -> String:
 
 ## Check if this card can receive another upgrade.
 func can_attach_upgrade() -> bool:
-	return upgrades.size() < Enums.MAX_UPGRADE_SLOTS
+	return upgrades.size() < get_max_upgrade_slots()
 
 
 ## Attach an upgrade by ID. Applies immediate stat mods.
@@ -391,6 +459,19 @@ func _apply_stat_mods(mods: Dictionary) -> void:
 
 
 # --- Utility ---
+
+
+## 양성가 보너스 롤링: added개 유닛 각각 chance 확률로 보너스 1기.
+## 보너스 총 수를 반환. 호출자가 add_specific_unit 등으로 적용.
+static func roll_bonus_count(added: int, chance: float, rng: RandomNumberGenerator) -> int:
+	if chance <= 0.0 or rng == null or added <= 0:
+		return 0
+	var bonus := 0
+	for _i in added:
+		if rng.randf() < chance:
+			bonus += 1
+	return bonus
+
 
 func _weighted_choice(weights: Array[float], rng: RandomNumberGenerator) -> int:
 	var total := 0.0

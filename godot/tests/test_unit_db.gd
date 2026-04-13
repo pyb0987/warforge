@@ -13,28 +13,33 @@ func test_total_unit_count() -> void:
 
 
 func test_steampunk_unit_count() -> void:
-	var sp_ids := UnitDB.get_all_ids().filter(func(id): return id.begins_with("sp_"))
-	assert_eq(sp_ids.size(), 10, "스팀펑크 유닛 10종")
+	assert_eq(UnitDB.get_ids_by_theme("steampunk").size(), 10, "스팀펑크 유닛 10종")
 
 
 func test_neutral_unit_count() -> void:
-	var ne_ids := UnitDB.get_all_ids().filter(func(id): return id.begins_with("ne_"))
-	assert_eq(ne_ids.size(), 10, "중립 유닛 10종")
+	assert_eq(UnitDB.get_ids_by_theme("neutral").size(), 10, "중립 유닛 10종")
 
 
 func test_druid_unit_count() -> void:
-	var dr_ids := UnitDB.get_all_ids().filter(func(id): return id.begins_with("dr_"))
-	assert_eq(dr_ids.size(), 10, "드루이드 유닛 10종")
+	assert_eq(UnitDB.get_ids_by_theme("druid").size(), 10, "드루이드 유닛 10종")
 
 
 func test_predator_unit_count() -> void:
-	var pr_ids := UnitDB.get_all_ids().filter(func(id): return id.begins_with("pr_"))
-	assert_eq(pr_ids.size(), 10, "포식종 유닛 10종")
+	assert_eq(UnitDB.get_ids_by_theme("predator").size(), 10, "포식종 유닛 10종")
 
 
 func test_military_unit_count() -> void:
-	var ml_ids := UnitDB.get_all_ids().filter(func(id): return id.begins_with("ml_"))
-	assert_eq(ml_ids.size(), 10, "군대 유닛 10종")
+	assert_eq(UnitDB.get_ids_by_theme("military").size(), 10, "군대 유닛 10종")
+
+
+func test_get_ids_by_theme_unknown_returns_empty() -> void:
+	assert_eq(UnitDB.get_ids_by_theme("nonexistent").size(), 0, "없는 테마 → 빈 배열")
+
+
+func test_get_ids_by_theme_results_have_correct_tag() -> void:
+	for uid in UnitDB.get_ids_by_theme("steampunk"):
+		var u: Dictionary = UnitDB.get_unit(uid)
+		assert_true("steampunk" in u["tags"], "%s에 steampunk 태그" % uid)
 
 
 # --- 필수 필드 전수 검사 ---

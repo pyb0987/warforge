@@ -19,6 +19,15 @@ func get_all_ids() -> Array[String]:
 	return ids
 
 
+func get_ids_by_theme(theme: String) -> Array[String]:
+	var ids: Array[String] = []
+	for uid in _units:
+		var tags: PackedStringArray = _units[uid]["tags"]
+		if theme in tags:
+			ids.append(uid)
+	return ids
+
+
 func _reg(id: String, uname: String, atk: int, hp: int,
 		attack_speed: float, urange: int, move_speed: int,
 		tags: PackedStringArray) -> void:

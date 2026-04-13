@@ -23,7 +23,13 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 Enums="*res://core/types/enums.gd"
 UnitDB="*res://core/data/unit_db.gd"
 CardDB="*res://core/data/card_db.gd"
+CardDescs="*res://core/data/card_descs.gd"
 UpgradeDB="*res://core/data/upgrade_db.gd"
+Commander="*res://core/commander.gd"
+Talisman="*res://core/talisman.gd"
+BossRewardDB="*res://core/data/boss_reward_db.gd"
+BossReward="*res://core/boss_reward.gd"
+KeywordGlossary="*res://core/data/keyword_glossary.gd"
 
 [display]
 

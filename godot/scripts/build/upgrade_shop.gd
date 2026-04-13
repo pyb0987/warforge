@@ -17,7 +17,8 @@ func setup(state: GameState, rng: RandomNumberGenerator) -> void:
 
 
 func _create_slots() -> void:
-	for i in Enums.UPGRADE_SHOP_SLOTS:
+	var slot_count := Talisman.get_upgrade_shop_slots(_game_state)
+	for i in slot_count:
 		var slot: Panel = preload("res://scenes/build/upgrade_visual.tscn").instantiate()
 		slot.custom_minimum_size = Vector2(140, 160)
 		add_child(slot)
@@ -26,9 +27,10 @@ func _create_slots() -> void:
 
 
 func refresh_upgrades() -> void:
-	## Roll 2 new upgrades (70% common / 30% rare).
+	## Roll upgrades (70% common / 30% rare). Slot count from Talisman.
 	_offered_ids.clear()
-	for i in Enums.UPGRADE_SHOP_SLOTS:
+	var slot_count := Talisman.get_upgrade_shop_slots(_game_state)
+	for i in slot_count:
 		var rarity := _roll_rarity()
 		var uid := _pick_upgrade(rarity)
 		_offered_ids.append(uid)
@@ -62,12 +64,25 @@ func get_upgrade_cost(slot_idx: int) -> int:
 	var uid: String = _offered_ids[slot_idx]
 	if uid == "":
 		return 0
-	return UpgradeDB.get_upgrade(uid).get("cost", 0)
+	var base_cost: int = UpgradeDB.get_upgrade(uid).get("cost", 0)
+	# ⚒️ 단조사: 커먼 업그레이드 비용 -1 테라진
+	var rarity: int = UpgradeDB.get_upgrade(uid).get("rarity", 0)
+	if rarity == Enums.UpgradeRarity.COMMON:
+		base_cost -= Commander.get_common_upgrade_discount(_game_state)
+	return maxi(base_cost, 0)
 
 
 func _roll_rarity() -> int:
-	# 70% common, 30% rare. Epic never appears in shop.
-	if _rng.randi_range(0, 99) < 70:
+	# 70% common, 30% rare. 💰 연금술사: 에픽 10% 추가 (common 60%, rare 30%, epic 10%).
+	var roll := _rng.randi_range(0, 99)
+	if Commander.can_shop_epic(_game_state):
+		if roll < 60:
+			return Enums.UpgradeRarity.COMMON
+		elif roll < 90:
+			return Enums.UpgradeRarity.RARE
+		else:
+			return Enums.UpgradeRarity.EPIC
+	if roll < 70:
 		return Enums.UpgradeRarity.COMMON
 	return Enums.UpgradeRarity.RARE
 

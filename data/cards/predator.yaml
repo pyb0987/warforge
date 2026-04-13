@@ -29,6 +29,7 @@ cards:
         effects:
           - hatch: {target: self, count: 4}
           - hatch: {target: both_adj, count: 2}
+          - hatch_enhance: {target: self, atk_pct: 0.03}  # 부화한 유닛 ATK 성장
 
   pr_farm:
     name: 독 양식장
@@ -74,11 +75,11 @@ cards:
         effects:
           - meta_consume: {consume: 3}
       2:
-        max_act: 2
+        max_act: 3
         effects:
           - meta_consume: {consume: 2}
       3:
-        max_act: 2
+        max_act: 3
         effects:
           - meta_consume: {consume: 2}
           - enhance: {target: self, atk_pct: 0.05, ol1: null}
@@ -102,10 +103,19 @@ cards:
         max_act: -1
         effects:
           - swarm_buff: {target: all_predator, atk_per_unit: 0.12, per_n: 3}
+        conditional:
+          - when: {unit_count_gte: 10}
+            effects:
+              - debuff_store: {stat: as, target: all_enemy, base_pct: 0.15, cap: 0.30}
       3:
         max_act: -1
         effects:
           - swarm_buff: {target: all_predator, atk_per_unit: 0.12, per_n: 2}
+        conditional:
+          - when: {unit_count_gte: 10}
+            effects:
+              - debuff_store: {stat: as, target: all_enemy, base_pct: 0.20, cap: 0.40}
+              - debuff_store: {stat: atk, target: all_enemy, base_pct: 0.15, cap: 0.30}
 
   pr_harvest:
     name: 변태 수확
@@ -119,21 +129,19 @@ cards:
     tags: [predator, economy]
     impl: theme_system
     stars:
-      # max_act from card_db.gd: 1. ★2/★3 no star_overrides registered → same.
-      # design doc says ★2 max 2/R — discrepancy resolved by code-primary rule.
       1:
         max_act: 1
         effects:
           - terazin: 1
           - hatch: {target: self, count: 1}
       2:
-        max_act: 1
+        max_act: 2
         effects:
           - terazin: 1
           - hatch: {target: self, count: 1}
           - enhance: {target: event_source, atk_pct: 0.05, ol1: null}
       3:
-        max_act: 1
+        max_act: 2
         effects:
           - terazin: 1
           - hatch: {target: self, count: 2}
@@ -166,6 +174,7 @@ cards:
         effects:
           - hatch: {target: self, count: 5}
           - hatch: {target: both_adj, count: 3}
+          - enhance: {target: tag:queen, hp_pct: 0.05, ol1: null}  # 여왕 유닛 HP 영구 성장
 
   pr_carapace:
     name: 적응 갑각
@@ -191,7 +200,7 @@ cards:
           - enhance: {target: tag:carapace, atk_pct: 0.07, hp_pct: 0.07, ol1: null}
           - hatch: {target: right_adj, count: 1}
       3:
-        max_act: 2
+        max_act: 3
         effects:
           - enhance: {target: all_predator, atk_pct: 0.07, hp_pct: 0.07, ol1: null}
           - hatch: {target: both_adj, count: 1}
@@ -268,7 +277,7 @@ cards:
         conditional:
           - when: {unit_count_lte: 5}
             effects:
-              - buff: {target: self, atk_mult: 2.0}
+              - buff: {target: self, atk_mult: 2.0, kill_hp_recover: true}
 
   pr_transcend:
     name: 군체 초월

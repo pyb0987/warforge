@@ -36,6 +36,7 @@ enum TriggerTiming {
 	ON_REROLL,
 	ON_MERGE,
 	ON_SELL,
+	ON_COMBAT_DEATH,  ## 전투 중 아군 사망 시 반응
 	PERSISTENT,  ## 지속 효과 — 테마 시스템에서 매 프레임/이벤트 처리
 }
 
@@ -62,10 +63,40 @@ enum UpgradeRarity {
 	EPIC,
 }
 
+# --- 커맨더 ---
+enum CommanderType {
+	NONE,
+	GAMBLER,    # 🎲 도박꾼
+	BREEDER,    # 🌱 양성가
+	SMITH,      # ⚒️ 단조사
+	STRATEGIST, # 📐 전략가
+	COLLECTOR,  # 📚 수집가
+	RAIDER,     # ⚔️ 약탈자
+	ALCHEMIST,  # 💰 연금술사
+}
+
+# --- 부적 ---
+enum TalismanType {
+	NONE,
+	BURST_SACK,       # 터진 자루 — 업그레이드 상점 +1
+	WAR_DRUM,          # 전쟁 북 — 수적 우위 시 적 ATK -10%
+	MERCURY_DROP,      # 수은 방울 — 강화 효과 +25%
+	GLASS_EYE,         # 유리 눈 — 보유 카드 확률 ×1.15
+	TWO_FACED_COIN,    # 양면 동전 — 할인 1장 / 할증 1장
+	GOLDEN_DIE,        # 황금 주사위 — 보스 선택지 +2
+	CRACKED_EGG,       # 깨진 알 — ★2+ 유닛추가 시 +1
+	FLINT,             # 부싯돌 — 첫 성장 효과량 ×2
+	CRACKED_SKULL,     # 금간 해골 — 첫 치사 HP1 생존
+	RUSTY_WRENCH,      # 녹슨 렌치 — 업그레이드 분리 + 50% 환급
+	SOUL_JAR,          # 영혼 항아리 — 첫 판매 유닛 절반 배분
+	COPPER_WIRE,       # 구리 전선 — 풀슬롯 인접 30% 전파
+}
+
 # --- 상수 ---
 const MAX_UPGRADE_SLOTS := 5
 const UPGRADE_REROLL_COST := 1  # 테라진
 const UPGRADE_SHOP_SLOTS := 2
+const STARTING_FIELD_SLOTS := 6
 const MAX_FIELD_SLOTS := 8
 const MAX_BENCH_SLOTS := 8
 const MAX_ROUNDS := 15
@@ -74,3 +105,14 @@ const SELL_REFUND_RATE := 1.0  # 전액 환급
 const INTEREST_PER_5G := 1
 const MAX_INTEREST := 2
 var BOSS_ROUNDS := [4, 8, 12, 15]
+const BOSS_REWARD_CHOICES := 4
+
+## 상점 레벨업 베이스 비용 (upgrade.md 확정)
+## key = 목표 레벨, value = 베이스 골드 비용
+const LEVELUP_BASE_COST := {2: 5, 3: 7, 4: 8, 5: 11, 6: 13}
+const LEVELUP_MAX := 6
+
+
+## 시스템 결과 빈 딕셔너리. 이벤트/보상 없음을 나타냄.
+static func empty_result() -> Dictionary:
+	return {"events": [], "gold": 0, "terazin": 0}

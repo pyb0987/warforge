@@ -5,6 +5,7 @@ extends RefCounted
 
 signal combat_finished(result: Dictionary)
 signal unit_died(idx: int)
+signal unit_attacked(attacker_idx: int, defender_idx: int)
 
 const TICK_RATE := 20.0
 const TICK_DELTA := 1.0 / TICK_RATE
@@ -45,6 +46,7 @@ var invuln: PackedByteArray             # currently invulnerable
 var regen_timer: PackedFloat32Array     # ticks until next regen
 var is_clone: PackedByteArray           # fission clones cannot re-fission
 var slow_factor: PackedFloat32Array     # slow_aura applied MS multiplier
+var undying: PackedByteArray            # 💀 금간 해골: 1=첫 치사 HP1 생존 가능
 
 # --- Fission pre-allocation ---
 var _fission_slots: Dictionary = {}     # original_idx → [clone_idx1, clone_idx2]
@@ -179,6 +181,8 @@ func _init_arrays(n: int) -> void:
 	is_clone.resize(n)
 	slow_factor = PackedFloat32Array()
 	slow_factor.resize(n)
+	undying = PackedByteArray()
+	undying.resize(n)
 
 
 func _set_unit(idx: int, data: Dictionary, is_ally: bool) -> void:
@@ -210,6 +214,7 @@ func _set_unit(idx: int, data: Dictionary, is_ally: bool) -> void:
 	regen_timer[idx] = 0.0
 	is_clone[idx] = 0
 	slow_factor[idx] = 1.0
+	undying[idx] = 0  # 💀 금간 해골: setup() 후 외부에서 설정
 
 
 func _place_units() -> void:
@@ -236,6 +241,9 @@ func _place_units() -> void:
 			pos[i] = Vector2(BATTLEFIELD_W - 80.0 - col * 20.0, 80.0 + row * 20.0)
 			ei += 1
 		prev_pos[i] = pos[i]
+	# 방어적 클램프: 유닛 수가 극단적으로 많을 때 y > BATTLEFIELD_H 방지
+	for i in count:
+		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
 
 
 ## Run one combat tick. Returns true if combat is still ongoing.
@@ -304,15 +312,18 @@ func _update_unit(i: int) -> void:
 		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
 		return
 
-	# Find target
-	var max_search := maxf(attack_range[i], RANGE_SCALE * 4.0)
+	# Find target.
+	# max_search 가 전장보다 작으면 탐색 실패 시 flow field 로 떨어지고,
+	# flow field 는 centroid 기반이라 "평균 위치"로 끌려가며 실제 적을 지나쳐
+	# 반대편까지 행진하는 버그가 발생한다 (traces/failures/unit-escape-bug).
+	# → 배틀필드 전체 대각선 이상으로 반경을 열어, 적이 1기라도 살아있으면 항상 찾도록 한다.
+	const FULL_BATTLEFIELD_SEARCH := BATTLEFIELD_W + BATTLEFIELD_H
+	var max_search := maxf(attack_range[i], FULL_BATTLEFIELD_SEARCH)
 	target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, max_search)
 
 	if target_idx[i] < 0:
-		var flow = _flow_ally if is_ally else _flow_enemy
-		var dir: Vector2 = flow.get_direction(pos[i])
-		pos[i] += dir * eff_ms
-		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
+		# 여기 도달 = 반대편 팀이 0명 → 다음 tick 말에 _finish 호출됨.
+		# 이동시키지 않고 제자리에 두어 이탈 방지.
 		return
 
 	var t := target_idx[i]
@@ -333,7 +344,11 @@ func _update_unit(i: int) -> void:
 func _resolve_collisions() -> void:
 	## Push overlapping units apart using spatial grid neighbors.
 	## Only checks same-cell and adjacent-cell pairs. O(N) average.
-	var checked := {}  # avoid duplicate pair checks
+	## OBS-054: push를 버퍼에 누적 후 MAX_PUSH로 cap하여 적용.
+	## 적-아군 push 유지(OBS-027 겹침 방지) + 누적 관통 차단.
+	var push_accum: PackedVector2Array
+	push_accum.resize(count)
+	push_accum.fill(Vector2.ZERO)
 	for i in count:
 		if alive[i] == 0:
 			continue
@@ -353,17 +368,22 @@ func _resolve_collisions() -> void:
 						var dist := sqrt(dist_sq)
 						var overlap := min_dist - dist
 						var push := diff / dist * (overlap * 0.5)
-						pos[i] += push
-						pos[j] -= push
+						push_accum[i] += push
+						push_accum[j] -= push
 					elif dist_sq <= 0.01:
-						# Exactly overlapping: push in random direction
 						var nudge := Vector2(0.5 - randf(), 0.5 - randf()).normalized()
-						pos[i] += nudge * min_dist * 0.5
-						pos[j] -= nudge * min_dist * 0.5
-	# Clamp all to battlefield
+						push_accum[i] += nudge * min_dist * 0.5
+						push_accum[j] -= nudge * min_dist * 0.5
+	# Apply capped push + clamp to battlefield
+	const MAX_PUSH := SEPARATION_DIST  # 14.0px — 1쌍 분리에 충분, 다중 누적 관통 차단
 	for i in count:
-		if alive[i] == 1:
-			pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
+		if alive[i] == 0:
+			continue
+		var p := push_accum[i]
+		if p.length_squared() > MAX_PUSH * MAX_PUSH:
+			p = p.normalized() * MAX_PUSH
+		pos[i] += p
+		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
 
 
 func _do_attack(attacker: int, defender: int) -> void:

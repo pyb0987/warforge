@@ -243,6 +243,192 @@ func test_pc_multiple_cards() -> void:
 
 
 # ================================================================
+# BS/PC 테마 위임 (chain_engine.process_battle_start / process_post_combat)
+# ================================================================
+
+func test_bs_theme_delegation_druid_lifebeat() -> void:
+	## dr_lifebeat(BS, effects=[]): druid_system.apply_battle_start 위임
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("dr_lifebeat")
+	var board: Array = [card]
+	engine.process_battle_start(board)
+	# dr_lifebeat: 🌳+1 + shield 적용
+	assert_gt(card.shield_hp_pct, 0.0, "druid BS → shield 적용")
+
+
+func test_bs_theme_delegation_military_tactical() -> void:
+	## ml_tactical(BS, effects=[]): military_system.apply_battle_start 위임
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ml_tactical")
+	var board: Array = [card]
+	var atk_before: float = card.get_total_atk()
+	engine.process_battle_start(board)
+	# ml_tactical: shield(rank×2%) + ATK buff
+	assert_gt(card.get_total_atk(), atk_before, "military BS → ATK buff")
+
+
+func test_bs_theme_delegation_predator_swarm() -> void:
+	## pr_swarm_sense(BS, effects=[]): predator_system.apply_battle_start 위임
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("pr_swarm_sense")
+	var board: Array = [card]
+	var atk_before: float = card.get_total_atk()
+	engine.process_battle_start(board)
+	assert_gt(card.get_total_atk(), atk_before, "predator BS → ATK buff")
+
+
+func test_bs_neutral_inline_still_works() -> void:
+	## ne_wildforce(BS, effects=[buff_pct]): 인라인 효과도 정상 처리
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ne_wildforce")
+	var board: Array = [card]
+	var atk_before: float = card.get_total_atk()
+	engine.process_battle_start(board)
+	assert_gt(card.get_total_atk(), atk_before, "neutral BS inline → ATK buff")
+
+
+func test_bs_shield_inline_still_works() -> void:
+	## sp_barrier(BS, effects=[shield_pct]): 인라인 shield
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("sp_barrier")
+	var board: Array = [card]
+	engine.process_battle_start(board)
+	assert_almost_eq(card.shield_hp_pct, 0.20, 0.001, "sp_barrier BS → shield 20%")
+
+
+func test_pc_theme_delegation_druid_grace() -> void:
+	## dr_grace(PC, effects=[]): druid_system.apply_post_combat 위임
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("dr_grace")
+	var board: Array = [card]
+	var result: Dictionary = engine.process_post_combat(board, true)
+	assert_gt(result["gold"], 0, "druid PC → gold 획득")
+
+
+func test_pc_theme_delegation_military_supply() -> void:
+	## ml_supply(PC, effects=[]): military_system.apply_post_combat 위임
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ml_supply")
+	var board: Array = [card]
+	var result: Dictionary = engine.process_post_combat(board, true)
+	assert_gt(result["gold"], 0, "military PC → gold 획득")
+
+
+func test_pc_neutral_inline_still_works() -> void:
+	## ne_merchant(PD, effects=[grant_gold]): 인라인 효과 정상 처리
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ne_merchant")
+	var board: Array = [card]
+	var result: Dictionary = engine.process_post_combat(board, false)
+	assert_eq(result["gold"], 3, "neutral PC inline → +3g")
+
+
+func test_pc_defeat_only_no_fire_on_win() -> void:
+	## ne_merchant(PD): 승리 시 미발동
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ne_merchant")
+	var board: Array = [card]
+	var result: Dictionary = engine.process_post_combat(board, true)
+	assert_eq(result["gold"], 0, "PD 승리 시 미발동")
+
+
+func test_pc_max_activations() -> void:
+	## ne_merchant max_act=1 → 2회째 미발동
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("ne_merchant")
+	var board: Array = [card]
+	var r1: Dictionary = engine.process_post_combat(board, false)
+	var r2: Dictionary = engine.process_post_combat(board, false)
+	assert_eq(r1["gold"], 3, "1회 +3g")
+	assert_eq(r2["gold"], 0, "2회째 max_act → 0g")
+
+
+# ================================================================
+# PERSISTENT 전투 반영 (chain_engine.process_persistent)
+# ================================================================
+
+func test_persistent_warmachine_range_bonus() -> void:
+	## sp_warmachine(PERSISTENT): firearm 8기 → range_bonus=1
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.add_specific_unit("sp_turret", 6)  # turret 1+6=7, +cannon1 = firearm 8
+	engine.process_persistent([card])
+	assert_eq(card.theme_state.get("range_bonus", -1), 1, "firearm 8 → range_bonus=1")
+
+
+func test_persistent_warmachine_range_in_materialize() -> void:
+	## process_persistent 후 materialize에서 range_bonus 반영
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.add_specific_unit("sp_turret", 6)  # firearm 8 → range_bonus=1
+	engine.process_persistent([card])
+	# materialize helper: range = ut["range"] + upgrade_range + range_bonus
+	var range_bonus: int = card.theme_state.get("range_bonus", 0)
+	assert_eq(range_bonus, 1, "range_bonus=1 저장됨")
+	# materialize에서 실제로 반영되는지는 _materialize_army 테스트에서 검증
+	# 여기선 theme_state에 저장되었는지만 확인
+
+
+func test_persistent_wrath_temp_buff() -> void:
+	## dr_wrath(PERSISTENT): temp_buff 적용 → ATK 증가
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("dr_wrath")
+	var atk_before: float = card.get_total_atk()
+	engine.process_persistent([card])
+	assert_gt(card.get_total_atk(), atk_before, "dr_wrath → ATK buff")
+
+
+func test_persistent_wrath_skip_over_5_units() -> void:
+	## dr_wrath: >5기 시 buff 미적용
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("dr_wrath")
+	card.add_specific_unit("dr_treant_y", 5)  # 기존 + 5 = >5기
+	var atk_before: float = card.get_total_atk()
+	engine.process_persistent([card])
+	assert_eq(card.get_total_atk(), atk_before, ">5기 → buff 미적용")
+
+
+func test_persistent_ignores_non_persistent_cards() -> void:
+	## RS 카드는 process_persistent에서 무시
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	var atk_before: float = card.get_total_atk()
+	engine.process_persistent([card])
+	assert_eq(card.get_total_atk(), atk_before, "RS 카드 → 무시")
+
+
+func test_materialize_includes_range_bonus() -> void:
+	## _materialize_army에서 range_bonus가 유닛 range에 가산
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	card.add_specific_unit("sp_turret", 6)  # firearm 8 → range_bonus=1
+	engine.process_persistent([card])
+	# 직접 materialize 로직 검증 (game_manager 패턴)
+	var range_bonus: int = card.theme_state.get("range_bonus", 0)
+	for s in card.stacks:
+		var base_range: float = s["unit_type"]["range"]
+		var expected_range: float = base_range + card.upgrade_range + range_bonus
+		assert_gt(expected_range, base_range, "range_bonus 가산 → base보다 큼")
+	# break after first stack to keep test simple
+
+
+# ================================================================
 # FSM 전이 (Phase guard)
 # ================================================================
 

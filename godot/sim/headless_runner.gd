@@ -43,6 +43,9 @@ func run() -> Dictionary:
 	state.talisman_type = Enums.TalismanType.NONE
 	# Override levelup cost from genome
 	state.levelup_current_cost = _genome.get_levelup_cost(2)
+	# 카드 풀 고갈 (OBS-049) — genome에서 pool_sizes 오버라이드 가능
+	state.card_pool = CardPool.new()
+	state.card_pool.init_pool(_genome.pool_sizes if _genome else {})
 	Talisman.init_run_state(state)
 
 	var chain_engine := ChainEngine.new()
@@ -55,6 +58,11 @@ func run() -> Dictionary:
 
 	# Connect chain events for cross-activation tracking
 	chain_engine.chain_event_fired.connect(_on_chain_event)
+
+	# ON_SELL triggers (e.g., sp_arsenal absorb)
+	state.card_sold.connect(func(sold_card: CardInstance):
+		chain_engine.process_sell_triggers(state.get_active_board(), sold_card)
+	)
 
 	var shop := ShopLogic.new()
 	shop.setup(state, rng, _genome)
@@ -142,6 +150,7 @@ func run() -> Dictionary:
 		_chain_event_count = 0
 		_cross_activations = 0
 		_total_activations = 0
+		state.round_rerolls = 0
 		var active_board := state.get_active_board()
 		var chain_result := chain_engine.run_growth_chain(active_board, false)
 		state.gold += chain_result["gold_earned"]
@@ -379,13 +388,19 @@ func _materialize_army(state: GameState) -> Array:
 	for card in state.get_active_board():
 		var c: CardInstance = card as CardInstance
 		var card_mechanics := c.get_all_mechanics()
+		# 증기 이자기 ★2/★3: 리롤 횟수 × ATK 버프 (최대 5회분)
+		var reroll_buff_mult := 1.0
+		if c.get_base_id() == "sp_interest" and c.star_level >= 2:
+			var rerolls := mini(state.round_rerolls, 5)
+			var buff_pct: float = 0.05 if c.star_level == 2 else 0.08
+			reroll_buff_mult = 1.0 + buff_pct * rerolls
 		for s in c.stacks:
 			var ut: Dictionary = s["unit_type"]
 			var eff_atk := c.eff_atk_for(s)
 			var eff_hp := c.eff_hp_for(s)
 			for _n in s["count"]:
 				units.append({
-					"atk": eff_atk,
+					"atk": eff_atk * reroll_buff_mult,
 					"hp": eff_hp,
 					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),

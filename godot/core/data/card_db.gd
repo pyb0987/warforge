@@ -437,10 +437,10 @@ func _register_neutral() -> void:
 	var scr_tags := PackedStringArray(["neutral", "economy", "scrap"])
 	_c("ne_scrapyard", "폐품 상회", 2, T,
 		scr_comp, RS, -1,
-		[{"action": "scrap_adjacent", "target": "self", "scrap_count": 1, "reroll_gain": 1, "gold_per_unit": 0}],
+		[{"action": "scrap_adjacent", "target": "both_adj", "scrap_count": 1, "reroll_gain": 1, "gold_per_unit": 0}],
 		scr_tags, -1, -1, false, 0, false, {
-			2: _star("폐품 상회 ★2", scr_comp, RS, -1, [{"action": "scrap_adjacent", "target": "self", "scrap_count": 2, "reroll_gain": 2, "gold_per_unit": 0}], scr_tags),
-			3: _star("폐품 상회 ★3", scr_comp, RS, -1, [{"action": "scrap_adjacent", "target": "self", "scrap_count": 2, "reroll_gain": 2, "gold_per_unit": 1}], scr_tags),
+			2: _star("폐품 상회 ★2", scr_comp, RS, -1, [{"action": "scrap_adjacent", "target": "both_adj", "scrap_count": 2, "reroll_gain": 2, "gold_per_unit": 0}], scr_tags),
+			3: _star("폐품 상회 ★3", scr_comp, RS, -1, [{"action": "scrap_adjacent", "target": "both_adj", "scrap_count": 2, "reroll_gain": 2, "gold_per_unit": 1}], scr_tags),
 		})
 
 	var dm_comp := [{"unit_id":"ne_merc","count":1},{"unit_id":"ne_guardian","count":1}]
@@ -642,6 +642,7 @@ func _register_druid() -> void:
 		],
 		3: [
 			{"action": "tree_gold", "base_gold": 2, "tree_divisor": 3, "win_half": false, "terazin_thresh": 8, "terazin": 1},
+			{"action": "free_reroll", "value": 1},
 		],
 	}
 
@@ -666,6 +667,7 @@ func _register_druid() -> void:
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
 			{"action": "druid_unit_enhance", "target": "all_druid", "divisor": 3, "bonus_tiers": [{"unit_gte": 8, "bonus_pct": 0.02}, {"unit_gte": 12, "bonus_pct": 0.03}]},
+			{"action": "tree_shield", "target": "all_druid", "timing_override": "BS", "base_pct": 0.05, "tree_scale_pct": 0.03},
 		],
 	}
 
@@ -681,15 +683,15 @@ func _register_druid() -> void:
 	_theme_effects["dr_deep"] = {
 		1: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 3, "pct": 0.012}, "tree_bonus": {"thresh": 10, "mult": 1.3}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 3, "pct": 0.012}, "tree_bonus": {"thresh": 10, "bonus_growth_pct": 0.12}},
 		],
 		2: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.3}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.12}},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.5}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.18}},
 		],
 	}
 
@@ -713,6 +715,7 @@ func _register_druid() -> void:
 		3: [
 			{"action": "debuff_store", "stat": "as", "base_pct": 0.3, "tree_scale_pct": 0.025, "cap": 0.5},
 			{"action": "debuff_store", "stat": "atk", "base_pct": 0.3, "tree_scale_pct": 0.02, "cap": 0.5},
+			{"action": "tree_shield", "target": "self", "base_pct": 0.1, "tree_scale_pct": 0.02},
 		],
 	}
 
@@ -775,17 +778,17 @@ func _register_druid() -> void:
 		1: [
 			{"action": "tree_add", "target": "self", "count": 2},
 			{"action": "tree_add", "target": "all_other_druid", "count": 1},
-			{"action": "multiply_stats", "target": "self", "atk_base": 1.1, "atk_per_tree": 0.1, "atk_tree_step": 30, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 20},
+			{"action": "multiply_stats", "target": "self", "tree_source": "forest_depth", "atk_base": 1.1, "atk_per_tree": 0.1, "atk_tree_step": 30, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 20},
 		],
 		2: [
 			{"action": "tree_add", "target": "self", "count": 3},
 			{"action": "tree_add", "target": "all_other_druid", "count": 2},
-			{"action": "multiply_stats", "target": "self", "atk_base": 1.15, "atk_per_tree": 0.1, "atk_tree_step": 20, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 40},
+			{"action": "multiply_stats", "target": "self", "tree_source": "forest_depth", "atk_base": 1.15, "atk_per_tree": 0.1, "atk_tree_step": 20, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 40},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 3},
 			{"action": "tree_add", "target": "all_other_druid", "count": 2},
-			{"action": "multiply_stats", "target": "self", "atk_base": 1.3, "atk_per_tree": 0.1, "atk_tree_step": 10, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 200},
+			{"action": "multiply_stats", "target": "self", "tree_source": "forest_depth", "atk_base": 1.3, "atk_per_tree": 0.1, "atk_tree_step": 10, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30, "unit_cap": 200},
 		],
 	}
 
@@ -822,6 +825,7 @@ func _register_predator() -> void:
 		3: [
 			{"action": "hatch", "target": "self", "count": 4},
 			{"action": "hatch", "target": "both_adj", "count": 2},
+			{"action": "hatch_enhance", "target": "self", "atk_pct": 0.03},
 		],
 	}
 
@@ -855,8 +859,8 @@ func _register_predator() -> void:
 		mol_comp, OE, 2,
 		[],
 		mol_tags, -1, HA, false, 0, false, {
-			2: _star("탈피의 방 ★2", mol_comp, OE, 2, [], mol_tags, -1, HA),
-			3: _star("탈피의 방 ★3", mol_comp, OE, 2, [], mol_tags, -1, HA),
+			2: _star("탈피의 방 ★2", mol_comp, OE, 3, [], mol_tags, -1, HA),
+			3: _star("탈피의 방 ★3", mol_comp, OE, 3, [], mol_tags, -1, HA),
 		})
 	_theme_effects["pr_molt"] = {
 		1: [{"action": "meta_consume", "consume": 3}],
@@ -882,9 +886,11 @@ func _register_predator() -> void:
 		],
 		2: [
 			{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.12, "per_n": 3},
+			{"action": "conditional", "condition": "unit_count_gte", "threshold": 10, "effects": [{"action": "debuff_store", "stat": "as", "target": "all_enemy", "base_pct": 0.15, "cap": 0.3}]},
 		],
 		3: [
 			{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.12, "per_n": 2},
+			{"action": "conditional", "condition": "unit_count_gte", "threshold": 10, "effects": [{"action": "debuff_store", "stat": "as", "target": "all_enemy", "base_pct": 0.2, "cap": 0.4}, {"action": "debuff_store", "stat": "atk", "target": "all_enemy", "base_pct": 0.15, "cap": 0.3}]},
 		],
 	}
 
@@ -894,8 +900,8 @@ func _register_predator() -> void:
 		har_comp, OE, 1,
 		[],
 		har_tags, -1, MT, false, 0, false, {
-			2: _star("변태 수확 ★2", har_comp, OE, 1, [], har_tags, -1, MT),
-			3: _star("변태 수확 ★3", har_comp, OE, 1, [], har_tags, -1, MT),
+			2: _star("변태 수확 ★2", har_comp, OE, 2, [], har_tags, -1, MT),
+			3: _star("변태 수확 ★3", har_comp, OE, 2, [], har_tags, -1, MT),
 		})
 	_theme_effects["pr_harvest"] = {
 		1: [
@@ -935,6 +941,7 @@ func _register_predator() -> void:
 		3: [
 			{"action": "hatch", "target": "self", "count": 5},
 			{"action": "hatch", "target": "both_adj", "count": 3},
+			{"action": "enhance", "target": "tag:queen", "hp_pct": 0.05},
 		],
 	}
 
@@ -945,7 +952,7 @@ func _register_predator() -> void:
 		[],
 		car_tags, -1, MT, false, 0, false, {
 			2: _star("적응 갑각 ★2", car_comp, OE, 2, [], car_tags, -1, MT),
-			3: _star("적응 갑각 ★3", car_comp, OE, 2, [], car_tags, -1, MT),
+			3: _star("적응 갑각 ★3", car_comp, OE, 3, [], car_tags, -1, MT),
 		})
 	_theme_effects["pr_carapace"] = {
 		1: [
@@ -1007,7 +1014,7 @@ func _register_predator() -> void:
 		],
 		3: [
 			{"action": "meta_consume", "consume": 1},
-			{"action": "conditional", "condition": "unit_count_lte", "threshold": 5, "effects": [{"action": "buff", "target": "self", "atk_mult": 2.0}]},
+			{"action": "conditional", "condition": "unit_count_lte", "threshold": 5, "effects": [{"action": "buff", "target": "self", "atk_mult": 2.0, "kill_hp_recover": true}]},
 		],
 	}
 
@@ -1075,7 +1082,7 @@ func _register_military() -> void:
 		3: [
 			{"action": "train", "target": "self", "amount": 2},
 			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 3, "unit": "ml_infantry", "count": 1}, {"rank": 5, "unit": "ml_plasma", "count": 1}, {"rank": 8, "unit": "ml_walker", "count": 1}]},
+			{"action": "rank_threshold", "tiers": [{"rank": 3, "unit": "ml_infantry", "count": 1, "atk_bonus": 0.05}, {"rank": 5, "unit": "ml_plasma", "count": 1, "atk_bonus": 0.05}, {"rank": 8, "unit": "ml_walker", "count": 1, "atk_bonus": 0.05}], "high_rank": {"rank": 15, "atk_mult": 1.3}},
 		],
 	}
 
@@ -1097,6 +1104,7 @@ func _register_military() -> void:
 		3: [
 			{"action": "conscript", "target": "self", "count": 3},
 			{"action": "conscript", "target": "both_adj", "count": 1},
+			{"action": "conditional", "condition": "unit_count_gte", "threshold": 12, "effects": [{"action": "buff", "target": "all_military", "atk_pct": 0.1}]},
 		],
 	}
 
@@ -1106,7 +1114,7 @@ func _register_military() -> void:
 		aca_comp, OE, 2,
 		[],
 		aca_tags, -1, TR, false, 0, false, {
-			2: _star("군사 학교 ★2", aca_comp, OE, 2, [], aca_tags, -1, TR),
+			2: _star("군사 학교 ★2", aca_comp, OE, 3, [], aca_tags, -1, TR),
 			3: _star("군사 학교 ★3", aca_comp, OE, 3, [], aca_tags, -1, TR),
 		})
 	_theme_effects["ml_academy"] = {
@@ -1132,8 +1140,12 @@ func _register_military() -> void:
 		})
 	_theme_effects["ml_conscript"] = {
 		1: [{"action": "conscript", "target": "event_target", "count": 1}],
-		2: [{"action": "conscript", "target": "event_target", "count": 2}],
-		3: [{"action": "conscript", "target": "event_target", "count": 2}],
+		2: [
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "partial"},
+		],
+		3: [
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "all"},
+		],
 	}
 
 	var sup_comp := [{"unit_id":"ml_drone","count":1},{"unit_id":"ml_biker","count":1}]
@@ -1168,13 +1180,13 @@ func _register_military() -> void:
 		})
 	_theme_effects["ml_tactical"] = {
 		1: [
-			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.02, "atk_per_unit": 0.005},
+			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.02, "atk_per_unit": 0.005, "enhanced_shield_bonus": 0.03},
 		],
 		2: [
-			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.03, "atk_per_unit": 0.008},
+			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.03, "atk_per_unit": 0.008, "enhanced_shield_bonus": 0.05},
 		],
 		3: [
-			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01},
+			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01, "enhanced_shield_bonus": 0.08, "high_rank": {"rank_gte": 8, "as_bonus": 0.15}},
 		],
 	}
 
@@ -1189,13 +1201,13 @@ func _register_military() -> void:
 		})
 	_theme_effects["ml_assault"] = {
 		1: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.01, "ms_bonus": {"unit_thresh": 15, "bonus": 1}},
+			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.01, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2},
 		],
 		2: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.015, "ms_bonus": {"unit_thresh": 12, "bonus": 1}},
+			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.015, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2},
 		],
 		3: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.02, "ms_bonus": {"unit_thresh": 10, "bonus": 1}},
+			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.02, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2, "high_rank": {"unit_thresh": 20, "as_bonus": 0.1}},
 		],
 	}
 
@@ -1222,7 +1234,7 @@ func _register_military() -> void:
 		3: [
 			{"action": "train", "target": "self", "amount": 1},
 			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 5, "unit": "ml_commander", "count": 2}]},
+			{"action": "rank_threshold", "tiers": [{"rank": 5, "unit": "ml_commander", "count": 2}], "high_rank": {"rank": 10, "leader_spread": "both_adj"}},
 		],
 	}
 
@@ -1241,9 +1253,12 @@ func _register_military() -> void:
 		],
 		2: [
 			{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"terazin": 1, "enhance_atk_pct": 0.03}},
+			{"action": "upgrade_discount", "tier": "rare", "pct": 0.2},
 		],
 		3: [
 			{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"terazin": 2, "enhance_atk_pct": 0.05}},
+			{"action": "upgrade_discount", "tier": "rare", "pct": 0.2},
+			{"action": "upgrade_discount", "tier": "epic", "pct": 0.2},
 		],
 	}
 
@@ -1263,10 +1278,11 @@ func _register_military() -> void:
 		],
 		2: [
 			{"action": "train", "target": "all_military", "amount": 1},
-			{"action": "revive", "target": "enhanced_units", "hp_pct": 0.75, "limit_per_combat": 1},
+			{"action": "revive", "target": "enhanced_units", "hp_pct": 0.75, "limit_per_combat": 1, "on_revive_buff": {"atk_pct": 0.1}},
 		],
 		3: [
 			{"action": "train", "target": "all_military", "amount": 2},
-			{"action": "revive", "target": "enhanced_units", "hp_pct": 1.0, "limit_per_combat": 3},
+			{"action": "revive", "target": "enhanced_units", "hp_pct": 1.0, "limit_per_combat": 3, "shield_pct": 0.2, "on_revive_buff": {"atk_pct": 0.15}},
+			{"action": "conditional", "condition": "rank_gte", "threshold": 8, "effects": [{"action": "revive_override", "target": "all_military"}]},
 		],
 	}
