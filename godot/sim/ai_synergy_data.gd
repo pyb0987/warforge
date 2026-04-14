@@ -83,3 +83,42 @@ const POSITION_PRIORITY := {
 	"ml_special_ops": 20, "ml_factory": 40,
 	"ml_tactical": 50, "ml_assault": 55, "ml_supply": 60,
 }
+
+# Per-strategy behavior parameters.
+# levelup_schedule: {round: target_shop_level}
+# core_cards: highest priority cards (beyond critical path)
+# capstone_cards: T4/T5 game-changers that warrant extra rerolls
+const STRATEGY_CONFIG := {
+	"steampunk_focused": {
+		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
+		"max_rerolls_base": 3,
+		"max_rerolls_late": 6,
+		"gold_reserve": 1,
+		"core_cards": ["sp_charger", "sp_circulator", "sp_workshop"],
+		"capstone_cards": ["sp_charger", "sp_arsenal", "sp_warmachine"],
+	},
+	"druid_focused": {
+		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
+		"max_rerolls_base": 3,
+		"max_rerolls_late": 5,
+		"gold_reserve": 1,
+		"core_cards": ["dr_world", "dr_wt_root", "dr_deep"],
+		"capstone_cards": ["dr_world", "dr_wrath", "dr_grace"],
+	},
+	"predator_focused": {
+		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
+		"max_rerolls_base": 4,
+		"max_rerolls_late": 6,
+		"gold_reserve": 0,
+		"core_cards": ["pr_apex_hunt", "pr_queen", "pr_molt"],
+		"capstone_cards": ["pr_apex_hunt", "pr_transcend"],
+	},
+	"military_focused": {
+		"levelup_schedule": {3: 2, 5: 3, 8: 4, 10: 5},
+		"max_rerolls_base": 2,
+		"max_rerolls_late": 4,
+		"gold_reserve": 2,
+		"core_cards": ["ml_command", "ml_academy", "ml_special_ops"],
+		"capstone_cards": ["ml_command", "ml_assault"],
+	},
+}

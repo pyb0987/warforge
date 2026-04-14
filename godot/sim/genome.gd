@@ -121,6 +121,13 @@ const DEFAULT_AI_PARAMS := {
 
 	# --- Sell ---
 	"bench_sell_threshold": 12.0,    # Bench cleanup: sell below this value
+
+	# --- Theme state scoring ---
+	"tree_value_per": 2.0,           # Druid: value per accumulated tree
+	"rank_value_per": 3.0,           # Military: value per accumulated rank
+	"counter_near_bonus": 10.0,      # Bonus when counter near threshold (mfg/conscript/rank)
+	"unit_cap_penalty": 15.0,        # Penalty when approaching unit caps (druid/predator)
+	"theme_state_weight": 1.0,       # Global multiplier on all theme state bonuses
 	"arsenal_fuel_bonus": 15.0,      # Sell bonus for SP cards when arsenal on board
 }
 
@@ -142,6 +149,12 @@ const AI_PARAMS_RANGE := {
 	"capstone_urgency_rerolls": [0, 8],
 	"bench_sell_threshold": [5.0, 25.0],
 	"arsenal_fuel_bonus": [5.0, 30.0],
+	# Theme state scoring
+	"tree_value_per": [0.5, 6.0],
+	"rank_value_per": [1.0, 8.0],
+	"counter_near_bonus": [3.0, 25.0],
+	"unit_cap_penalty": [5.0, 30.0],
+	"theme_state_weight": [0.3, 3.0],
 }
 
 const DEFAULT_LEVELUP_COST := {2: 5, 3: 7, 4: 8, 5: 11, 6: 13}

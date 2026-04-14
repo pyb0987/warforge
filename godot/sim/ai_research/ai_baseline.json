@@ -1,39 +1,39 @@
 {
-  "activation_utilization": 0.492424242424242,
+  "activation_utilization": 0.894266049370405,
   "ai_quality": {
-    "ai_quality_score": 0.663942782850114,
-    "board_strength_curve": 1.0,
-    "card_diversity": 0.64,
-    "economy_efficiency": 0.622913988543312,
-    "merge_rate": 0.392857142857143
+    "ai_quality_score": 0.685857412995681,
+    "board_strength_curve": 0.995361781076067,
+    "card_diversity": 0.72,
+    "economy_efficiency": 0.700856986552916,
+    "merge_rate": 0.327210884353741
   },
   "axis_delta": {
-    "activation_utilization": 0.0538277511961724,
-    "ai_board_strength_curve": 0.012987012987013,
-    "ai_card_diversity": 0.04,
-    "ai_economy_efficiency": -0.00573168822932013,
-    "ai_merge_rate": 0.0238095238095238,
-    "ai_quality_score": 0.0177662121418037,
-    "board_utilization": 0.00413917991448587,
-    "card_coverage": -4.44089209850063e-16,
-    "dominance_moment": -0.00423455449346399,
-    "emotional_arc": 0.0133928571428572,
-    "loss_resilience": -0.0452380952380955,
-    "theme_ratio_variance": 0.0,
-    "tipping_point_quality": 0.142857142857142,
-    "weighted_score": 0.0247263227652642,
-    "win_rate_band": 3.60822483003176e-16
+    "activation_utilization": 0.0144957550208684,
+    "ai_board_strength_curve": -2.22044604925031e-16,
+    "ai_card_diversity": 0.0399999999999999,
+    "ai_economy_efficiency": 0.0096791507350682,
+    "ai_merge_rate": -0.00714285714285756,
+    "ai_quality_score": 0.0106340733980531,
+    "board_utilization": -0.00186453354595906,
+    "card_coverage": 0.00285714285714313,
+    "dominance_moment": -0.00543899996877883,
+    "emotional_arc": 0.0181481915045008,
+    "loss_resilience": -0.0390476190476192,
+    "theme_ratio_variance": -0.010666666666667,
+    "tipping_point_quality": 0.0285714285714287,
+    "weighted_score": 0.0010420745265548,
+    "win_rate_band": 1.10581353187847e-15
   },
-  "board_utilization": 0.625432347716793,
-  "card_coverage": 0.128571428571429,
-  "dominance_moment": 0.949789439585358,
-  "emotional_arc": 0.638392857142857,
-  "loss_resilience": 0.35952380952381,
+  "board_utilization": 0.611221598807882,
+  "card_coverage": 0.117142857142857,
+  "dominance_moment": 0.933748056316079,
+  "emotional_arc": 0.444684517497349,
+  "loss_resilience": 0.610952380952381,
   "metadata": {
     "base_seed": 42,
     "evaluator": "game_balance + ai_quality",
     "genome_path": "res://sim/ai_research/ai_candidate_genome.json",
-    "runs_per_ai": 1,
+    "runs_per_ai": 5,
     "strategies": [
       "steampunk_focused",
       "druid_focused",
@@ -43,54 +43,54 @@
       "economy",
       "aggressive"
     ],
-    "total_runs": 7
+    "total_runs": 35
   },
   "strategy_stats": {
     "aggressive": {
-      "avg_hp": -12.0,
-      "total": 1,
-      "win_rate": 0.0,
-      "wins": 0
+      "avg_hp": 2.4,
+      "total": 5,
+      "win_rate": 0.2,
+      "wins": 1
     },
     "druid_focused": {
-      "avg_hp": -30.0,
-      "total": 1,
+      "avg_hp": -17.2,
+      "total": 5,
       "win_rate": 0.0,
       "wins": 0
     },
     "economy": {
-      "avg_hp": -18.0,
-      "total": 1,
-      "win_rate": 0.0,
-      "wins": 0
+      "avg_hp": 13.0,
+      "total": 5,
+      "win_rate": 0.6,
+      "wins": 3
     },
     "hybrid": {
-      "avg_hp": -4.0,
-      "total": 1,
-      "win_rate": 0.0,
-      "wins": 0
+      "avg_hp": 8.2,
+      "total": 5,
+      "win_rate": 0.6,
+      "wins": 3
     },
     "military_focused": {
-      "avg_hp": -22.0,
-      "total": 1,
-      "win_rate": 0.0,
-      "wins": 0
+      "avg_hp": 15.0,
+      "total": 5,
+      "win_rate": 0.8,
+      "wins": 4
     },
     "predator_focused": {
-      "avg_hp": -3.0,
-      "total": 1,
-      "win_rate": 0.0,
-      "wins": 0
+      "avg_hp": 13.0,
+      "total": 5,
+      "win_rate": 0.6,
+      "wins": 3
     },
     "steampunk_focused": {
-      "avg_hp": 30.0,
-      "total": 1,
-      "win_rate": 1.0,
-      "wins": 1
+      "avg_hp": 12.2,
+      "total": 5,
+      "win_rate": 0.6,
+      "wins": 3
     }
   },
-  "theme_ratio_variance": 0.0,
-  "tipping_point_quality": 0.571428571428571,
-  "weighted_score": 0.432172537123619,
-  "win_rate_band": 0.199076611106906
+  "theme_ratio_variance": 0.290936507936508,
+  "tipping_point_quality": 0.285714285714286,
+  "weighted_score": 0.438374566852074,
+  "win_rate_band": 1.11447597447847e-15
 }

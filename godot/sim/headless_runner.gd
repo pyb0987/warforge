@@ -201,6 +201,7 @@ func run() -> Dictionary:
 			}
 		else:
 			var engine := CombatEngine.new()
+			engine.headless = true
 			engine.setup(ally_data, enemy_data)
 			while engine.tick():
 				pass

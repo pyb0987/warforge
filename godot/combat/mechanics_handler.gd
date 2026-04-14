@@ -43,28 +43,29 @@ func apply_per_tick() -> void:
 
 func _apply_slow_auras() -> void:
 	## Reset slow factors, then apply auras.
-	for i in _e.count:
+	## Early exit: skip entirely if no alive unit has slow_aura.
+	if not _e._has_any_slow_aura:
+		return
+
+	for i in _e._alive_list:
 		_e.slow_factor[i] = 1.0
 
-	for i in _e.count:
-		if _e.alive[i] == 0:
-			continue
+	for i in _e._alive_list:
 		var m: Dictionary = _e._get_mechanic(i, "slow_aura")
 		if m.is_empty():
 			continue
 		var slow_pct: float = m.get("slow_pct", 0.0)
 		var aura_range: float = _e.attack_range[i]
-		for j in _e.count:
-			if _e.alive[j] == 0 or _e.team[j] == _e.team[i]:
-				continue
-			if _e.pos[i].distance_squared_to(_e.pos[j]) <= aura_range * aura_range:
-				_e.slow_factor[j] = maxf(_e.slow_factor[j] - slow_pct, 0.4)  # min 40% speed
+		# Grid-based query instead of O(N) full scan
+		var targets: PackedInt32Array = _e.find_enemies_in_radius(_e.pos[i], aura_range, _e.team[i])
+		for j in targets:
+			_e.slow_factor[j] = maxf(_e.slow_factor[j] - slow_pct, 0.4)  # min 40% speed
 
 
 func _apply_regen() -> void:
-	for i in _e.count:
-		if _e.alive[i] == 0:
-			continue
+	if not _e._has_any_regen:
+		return
+	for i in _e._alive_list:
 		var m: Dictionary = _e._get_mechanic(i, "regen")
 		if m.is_empty():
 			continue
@@ -79,9 +80,7 @@ func _apply_regen() -> void:
 
 
 func _update_retreat_timers() -> void:
-	for i in _e.count:
-		if _e.alive[i] == 0:
-			continue
+	for i in _e._alive_list:
 		# Tactical retreat timer
 		if _e.retreat_active[i] == 1:
 			_e.retreat_timer[i] -= 1.0
@@ -260,15 +259,12 @@ func _apply_splash(attacker: int, center_unit: int, splash_pct: float, aoe_range
 		return
 	var splash_dmg: float = _e.atk[attacker] * splash_pct
 	var center: Vector2 = _e.pos[center_unit]
-	for j in _e.count:
-		if j == center_unit or _e.alive[j] == 0:
-			continue
-		if _e.team[j] == _e.team[attacker]:
-			continue
-		if center.distance_squared_to(_e.pos[j]) <= aoe_range * aoe_range:
-			_e.hp[j] -= splash_dmg
-			if _e.hp[j] <= 0.0:
-				_e.kill_unit(j)
+	# Grid-based AOE query instead of O(N) full scan
+	var targets: PackedInt32Array = _e.find_enemies_in_radius(center, aoe_range, _e.team[attacker], center_unit)
+	for j in targets:
+		_e.hp[j] -= splash_dmg
+		if _e.hp[j] <= 0.0:
+			_e.kill_unit(j)
 
 
 # =============================================================
@@ -278,36 +274,28 @@ func _apply_splash(attacker: int, center_unit: int, splash_pct: float, aoe_range
 func _on_kill(attacker: int, defender: int) -> void:
 	_e.kill_unit(defender)
 
-	# Chain discharge: AOE on kill
+	# Chain discharge: AOE on kill — grid-based query
 	var cd: Dictionary = _e._get_mechanic(attacker, "chain_discharge")
 	if not cd.is_empty():
 		var chain_dmg: float = _e.atk[attacker] * cd.get("chain_dmg_pct", 0.0)
 		var center: Vector2 = _e.pos[defender]
-		for j in _e.count:
-			if j == defender or _e.alive[j] == 0:
-				continue
-			if _e.team[j] == _e.team[attacker]:
-				continue
-			if center.distance_squared_to(_e.pos[j]) <= _e.RANGE_SCALE * _e.RANGE_SCALE:
-				_e.hp[j] -= chain_dmg
-				if _e.hp[j] <= 0.0:
-					_e.kill_unit(j)
+		var targets: PackedInt32Array = _e.find_enemies_in_radius(center, _e.RANGE_SCALE, _e.team[attacker], defender)
+		for j in targets:
+			_e.hp[j] -= chain_dmg
+			if _e.hp[j] <= 0.0:
+				_e.kill_unit(j)
 
-	# Chain explosion: kill AOE (separate from splash)
+	# Chain explosion: kill AOE (separate from splash) — grid-based query
 	var ce: Dictionary = _e._get_mechanic(attacker, "chain_explosion")
 	if not ce.is_empty():
 		var exp_dmg: float = _e.atk[attacker] * ce.get("splash_pct", 0.5)
 		var exp_range: float = _e.RANGE_SCALE * 2.0  # 2칸 반경
 		var center: Vector2 = _e.pos[defender]
-		for j in _e.count:
-			if j == defender or _e.alive[j] == 0:
-				continue
-			if _e.team[j] == _e.team[attacker]:
-				continue
-			if center.distance_squared_to(_e.pos[j]) <= exp_range * exp_range:
-				_e.hp[j] -= exp_dmg
-				if _e.hp[j] <= 0.0:
-					_e.kill_unit(j)
+		var targets: PackedInt32Array = _e.find_enemies_in_radius(center, exp_range, _e.team[attacker], defender)
+		for j in targets:
+			_e.hp[j] -= exp_dmg
+			if _e.hp[j] <= 0.0:
+				_e.kill_unit(j)
 
 	# Soul harvest: kill → ATK% stack
 	var sh: Dictionary = _e._get_mechanic(attacker, "soul_harvest")
@@ -347,6 +335,12 @@ func trigger_fission(original_idx: int) -> void:
 		_e.target_idx[slot_idx] = -1
 		_e.is_clone[slot_idx] = 1
 		_e.mechanics[slot_idx] = []  # clones cannot re-fission
+		_e._rebuild_mech_cache_single(slot_idx)  # sync cache for clone
 		_e.invuln[slot_idx] = 0
 		_e.berserk_active[slot_idx] = 0
 		_e.retreat_active[slot_idx] = 0
+		# Track alive count for clone spawn
+		if _e.team[slot_idx] == 1:
+			_e._ally_alive += 1
+		else:
+			_e._enemy_alive += 1

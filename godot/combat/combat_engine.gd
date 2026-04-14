@@ -13,6 +13,10 @@ const MAX_TICKS := 1200  # 60 seconds max
 const BATTLEFIELD_W := 1000.0
 const BATTLEFIELD_H := 500.0
 const SEPARATION_DIST := 14.0
+const NEAR_SEARCH_RANGE := 320.0  # 5-cell radius first pass for find_nearest
+
+# --- Performance flags ---
+var headless: bool = false  # skip rendering-only work (prev_pos, etc.)
 
 # --- Unit data arrays (SoA) ---
 var count: int = 0
@@ -62,6 +66,22 @@ var _flow_enemy = null
 var _mech = null  # MechanicsHandler
 var _tick: int = 0
 var _running: bool = false
+
+# --- Mechanic pre-computed cache ---
+var _mech_cache: Array = []  # Array of Dictionary per unit: {type_str: mechanic_dict}
+var _has_any_slow_aura: bool = false
+var _has_any_regen: bool = false
+
+# --- Alive tracking (avoid full-scan win condition check) ---
+var _ally_alive: int = 0
+var _enemy_alive: int = 0
+
+# --- Cached flow fields ---
+var _cached_flow_ally_dir: Vector2 = Vector2.ZERO
+var _cached_flow_enemy_dir: Vector2 = Vector2.ZERO
+
+# --- Alive index list (rebuilt once per tick for efficient iteration) ---
+var _alive_list: PackedInt32Array = []
 
 # --- Pixel scale ---
 const RANGE_SCALE := 32.0   # 1 range unit = 32px
@@ -121,6 +141,10 @@ func setup(ally_units: Array, enemy_units: Array) -> void:
 			_fission_slots[i] = slots
 
 	_place_units()
+	_build_mech_cache()
+	_count_alive()
+	_rebuild_alive_list()
+	_grid.rebuild(pos, alive)  # initial grid for direct resolve_attack calls (tests)
 	_mech.apply_combat_start()
 
 
@@ -254,46 +278,40 @@ func tick() -> bool:
 
 	_tick += 1
 
-	# Save positions for lerp
-	for i in count:
-		prev_pos[i] = pos[i]
+	# Save positions for lerp (rendering only — skip in headless)
+	if not headless:
+		for i in count:
+			prev_pos[i] = pos[i]
+
+	# Rebuild alive list once per tick (used by all subsequent loops)
+	_rebuild_alive_list()
 
 	# Rebuild spatial grid
 	_grid.rebuild(pos, alive)
 
-	# Update flow fields
-	_flow_ally.compute(_get_centroid(false))   # allies move toward enemy centroid
-	_flow_enemy.compute(_get_centroid(true))   # enemies move toward ally centroid
+	# Update flow fields (every 5 ticks in headless — centroids shift slowly)
+	if not headless or _tick % 5 == 1:
+		_cached_flow_ally_dir = _get_centroid_fast(false)
+		_cached_flow_enemy_dir = _get_centroid_fast(true)
+		_flow_ally.compute(_cached_flow_ally_dir)
+		_flow_enemy.compute(_cached_flow_enemy_dir)
 
 	# Apply slow auras and per-tick mechanics
 	_mech.apply_per_tick()
 
-	# Per-unit update
-	for i in count:
-		if alive[i] == 0:
-			continue
-		_update_unit(i)
+	# Per-unit update (iterate only alive units)
+	for idx in _alive_list:
+		_update_unit(idx)
 
-	# Collision separation (push overlapping units apart)
-	_resolve_collisions()
+	# Collision separation (every 3 ticks in headless — visual smoothness not needed)
+	if not headless or _tick % 3 == 0:
+		_resolve_collisions()
 
-	# Check win condition
-	var allies_alive := false
-	var enemies_alive := false
-	for i in count:
-		if alive[i] == 0:
-			continue
-		if team[i] == 1:
-			allies_alive = true
-		else:
-			enemies_alive = true
-		if allies_alive and enemies_alive:
-			break
-
-	if not enemies_alive:
+	# Win condition (tracked incrementally via _ally_alive/_enemy_alive)
+	if _enemy_alive <= 0:
 		_finish(true)
 		return false
-	if not allies_alive:
+	if _ally_alive <= 0:
 		_finish(false)
 		return false
 
@@ -312,14 +330,25 @@ func _update_unit(i: int) -> void:
 		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
 		return
 
-	# Find target.
-	# max_search 가 전장보다 작으면 탐색 실패 시 flow field 로 떨어지고,
-	# flow field 는 centroid 기반이라 "평균 위치"로 끌려가며 실제 적을 지나쳐
-	# 반대편까지 행진하는 버그가 발생한다 (traces/failures/unit-escape-bug).
-	# → 배틀필드 전체 대각선 이상으로 반경을 열어, 적이 1기라도 살아있으면 항상 찾도록 한다.
-	const FULL_BATTLEFIELD_SEARCH := BATTLEFIELD_W + BATTLEFIELD_H
-	var max_search := maxf(attack_range[i], FULL_BATTLEFIELD_SEARCH)
-	target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, max_search)
+	# Target caching: skip find_nearest if current target is alive and in attack range.
+	# Only re-search when target dies or moves out of range.
+	var t_cached := target_idx[i]
+	var need_search := true
+	if t_cached >= 0 and alive[t_cached] == 1:
+		var cached_dist_sq := pos[i].distance_squared_to(pos[t_cached])
+		if cached_dist_sq <= attack_range[i] * attack_range[i]:
+			need_search = false  # attacking current target, no need to re-search
+
+	if need_search:
+		# Two-pass search to avoid 2401-cell grid scan.
+		# Pass 1: moderate radius (NEAR_SEARCH_RANGE = 320px = 5 cells).
+		# Pass 2: full battlefield only if pass 1 misses (rare during active combat).
+		# Full search guarantees no unit-escape-bug (traces/failures/unit-escape-bug).
+		var near_range := maxf(attack_range[i], NEAR_SEARCH_RANGE)
+		target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, near_range)
+		if target_idx[i] < 0:
+			const FULL_BATTLEFIELD_SEARCH := BATTLEFIELD_W + BATTLEFIELD_H
+			target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, FULL_BATTLEFIELD_SEARCH)
 
 	if target_idx[i] < 0:
 		# 여기 도달 = 반대편 팀이 0명 → 다음 tick 말에 _finish 호출됨.
@@ -327,15 +356,17 @@ func _update_unit(i: int) -> void:
 		return
 
 	var t := target_idx[i]
-	var dist := pos[i].distance_to(pos[t])
+	var dist_sq := pos[i].distance_squared_to(pos[t])
+	var range_sq := attack_range[i] * attack_range[i]
 
-	if dist <= attack_range[i]:
+	if dist_sq <= range_sq:
 		cooldown[i] -= 1.0
 		if cooldown[i] <= 0.0:
 			_do_attack(i, t)
 			cooldown[i] = attack_speed[i]
 	else:
-		var dir := (pos[t] - pos[i]).normalized()
+		var dist := sqrt(dist_sq)  # sqrt only for movement (not for in-range units)
+		var dir := (pos[t] - pos[i]) / dist  # manual normalized (reuse dist)
 		var step := minf(eff_ms, dist - attack_range[i] + 2.0)
 		pos[i] += dir * step
 		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
@@ -349,16 +380,13 @@ func _resolve_collisions() -> void:
 	var push_accum: PackedVector2Array
 	push_accum.resize(count)
 	push_accum.fill(Vector2.ZERO)
-	for i in count:
-		if alive[i] == 0:
-			continue
-		var cell := Vector2i(floori(pos[i].x / 64.0), floori(pos[i].y / 64.0))
-		for dx in range(-1, 2):
-			for dy in range(-1, 2):
-				var key := Vector2i(cell.x + dx, cell.y + dy)
-				if not _grid._cells.has(key):
-					continue
-				for j in _grid._cells[key]:
+	for i in _alive_list:
+		var cx := floori(pos[i].x / 64.0)
+		var cy := floori(pos[i].y / 64.0)
+		for dx in range(maxi(cx - 1, 0), mini(cx + 2, _grid._cols)):
+			for dy in range(maxi(cy - 1, 0), mini(cy + 2, _grid._rows)):
+				var cell: Array = _grid._cells[dy * _grid._cols + dx]
+				for j in cell:
 					if j <= i or alive[j] == 0:
 						continue
 					var min_dist := radius[i] + radius[j]
@@ -376,9 +404,7 @@ func _resolve_collisions() -> void:
 						push_accum[j] -= nudge * min_dist * 0.5
 	# Apply capped push + clamp to battlefield
 	const MAX_PUSH := SEPARATION_DIST  # 14.0px — 1쌍 분리에 충분, 다중 누적 관통 차단
-	for i in count:
-		if alive[i] == 0:
-			continue
+	for i in _alive_list:
 		var p := push_accum[i]
 		if p.length_squared() > MAX_PUSH * MAX_PUSH:
 			p = p.normalized() * MAX_PUSH
@@ -390,12 +416,11 @@ func _do_attack(attacker: int, defender: int) -> void:
 	_mech.resolve_attack(attacker, defender)
 
 
-func _get_centroid(ally_side: bool) -> Vector2:
+## Fast centroid using alive_list (avoids dead-unit iteration).
+func _get_centroid_fast(ally_side: bool) -> Vector2:
 	var sum := Vector2.ZERO
 	var n := 0
-	for i in count:
-		if alive[i] == 0:
-			continue
+	for i in _alive_list:
 		if (team[i] == 1) == ally_side:
 			sum += pos[i]
 			n += 1
@@ -404,21 +429,27 @@ func _get_centroid(ally_side: bool) -> Vector2:
 
 func _finish(player_won: bool) -> void:
 	_running = false
-	var ally_survived := 0
-	var enemy_survived := 0
-	for i in count:
-		if alive[i] == 0:
-			continue
-		if team[i] == 1:
-			ally_survived += 1
-		else:
-			enemy_survived += 1
 	combat_finished.emit({
 		"player_won": player_won,
-		"ally_survived": ally_survived,
-		"enemy_survived": enemy_survived,
+		"ally_survived": _ally_alive,
+		"enemy_survived": _enemy_alive,
 		"ticks": _tick,
 	})
+
+
+## Rebuild alive index list. Called once per tick.
+func _rebuild_alive_list() -> void:
+	_alive_list.resize(0)
+	for i in count:
+		if alive[i] == 1:
+			_alive_list.append(i)
+
+
+## Grid-based AOE query: find enemy units within radius of center.
+## Returns PackedInt32Array of unit indices. Used by splash/chain_discharge.
+func find_enemies_in_radius(center: Vector2, aoe_range: float, attacker_team: int,
+		exclude_idx: int = -1) -> PackedInt32Array:
+	return _grid.find_in_radius(center, aoe_range, attacker_team, team, alive, pos, exclude_idx)
 
 
 ## Get lerp alpha for rendering between ticks.
@@ -447,26 +478,78 @@ func kill_unit(i: int) -> void:
 	if alive[i] == 0:
 		return
 	alive[i] = 0
-	unit_died.emit(i)
+	if team[i] == 1:
+		_ally_alive -= 1
+	else:
+		_enemy_alive -= 1
+	if not headless:
+		unit_died.emit(i)
 	# Fission: spawn clones on death
 	if is_clone[i] == 0 and _fission_slots.has(i):
 		_mech.trigger_fission(i)
 
 
-## Check if unit has a specific mechanic type.
+## Check if unit has a specific mechanic type (cached O(1) lookup).
 func _has_mechanic(i: int, mtype: String) -> bool:
-	for m in mechanics[i]:
-		if m.get("type", "") == mtype:
-			return true
-	return false
+	if i >= _mech_cache.size():
+		# Fallback: cache not built yet (e.g. called during setup before _build_mech_cache)
+		for m in mechanics[i]:
+			if m.get("type", "") == mtype:
+				return true
+		return false
+	return _mech_cache[i].has(mtype)
 
 
-## Get mechanic dict for a unit, or {} if not found.
+## Get mechanic dict for a unit, or {} if not found (cached O(1) lookup).
 func _get_mechanic(i: int, mtype: String) -> Dictionary:
+	if i >= _mech_cache.size():
+		# Fallback: cache not built yet
+		for m in mechanics[i]:
+			if m.get("type", "") == mtype:
+				return m
+		return {}
+	return _mech_cache[i].get(mtype, {})
+
+
+## Build mechanic cache from mechanics arrays. Call after all units are set up.
+func _build_mech_cache() -> void:
+	_mech_cache.resize(count)
+	_has_any_slow_aura = false
+	_has_any_regen = false
+	for i in count:
+		var cache := {}
+		for m in mechanics[i]:
+			var t: String = m.get("type", "")
+			if t != "":
+				cache[t] = m
+		_mech_cache[i] = cache
+		if cache.has("slow_aura"):
+			_has_any_slow_aura = true
+		if cache.has("regen"):
+			_has_any_regen = true
+
+
+## Rebuild mechanic cache for a single unit (after fission clone spawn).
+func _rebuild_mech_cache_single(i: int) -> void:
+	var cache := {}
 	for m in mechanics[i]:
-		if m.get("type", "") == mtype:
-			return m
-	return {}
+		var t: String = m.get("type", "")
+		if t != "":
+			cache[t] = m
+	_mech_cache[i] = cache
+
+
+## Count alive units per team. Call after setup.
+func _count_alive() -> void:
+	_ally_alive = 0
+	_enemy_alive = 0
+	for i in count:
+		if alive[i] == 0:
+			continue
+		if team[i] == 1:
+			_ally_alive += 1
+		else:
+			_enemy_alive += 1
 
 
 ## Static helper: check mechanic in a raw array (used during _set_unit).

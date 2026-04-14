@@ -54,6 +54,12 @@ AI_PARAMS_DEFAULTS = {
     "capstone_urgency_rerolls": 3,
     "bench_sell_threshold": 12.0,
     "arsenal_fuel_bonus": 15.0,
+    # Theme state scoring
+    "tree_value_per": 2.0,
+    "rank_value_per": 3.0,
+    "counter_near_bonus": 10.0,
+    "unit_cap_penalty": 15.0,
+    "theme_state_weight": 1.0,
 }
 
 AI_PARAMS_RANGES = {
@@ -74,6 +80,12 @@ AI_PARAMS_RANGES = {
     "capstone_urgency_rerolls": (0, 8),
     "bench_sell_threshold": (5.0, 25.0),
     "arsenal_fuel_bonus": (5.0, 30.0),
+    # Theme state scoring
+    "tree_value_per": (0.5, 6.0),
+    "rank_value_per": (1.0, 8.0),
+    "counter_near_bonus": (3.0, 25.0),
+    "unit_cap_penalty": (5.0, 30.0),
+    "theme_state_weight": (0.3, 3.0),
 }
 
 # Integer params (mutated as ints, not floats)

@@ -1,14 +1,7 @@
 class_name AIAgent
 extends RefCounted
 ## AI strategy agent for headless simulation.
-## Makes build-phase decisions: buy, sell, reroll, levelup, arrange.
-##
-## v5: Multi-review driven overhaul (VETO response).
-## Key improvements over v4:
-##   - Per-strategy configs: levelup schedule, reroll budget, gold reserve, core cards
-##   - Genome signal propagation: activation_caps → scoring, enemy_cp → spending
-##   - Economy gold floor: minimum board phase respects gold reserve
-##   - Adaptive spending: enemy pressure increases buy/reroll aggressiveness
+## Build-phase decisions: buy, sell, reroll, levelup, arrange.
 
 const STRATEGY_NAMES: Array[String] = [
 	"steampunk_focused",
@@ -27,52 +20,9 @@ const _THEME_MAP := {
 	"military_focused": Enums.CardTheme.MILITARY,
 }
 
-## Per-strategy behavior parameters.
-## levelup_targets: {round_num: target_shop_level} — by this round, aim for this level
-## max_rerolls_base: base reroll budget per round
-## max_rerolls_late: reroll budget after ShopLv3+ and R6+
-## gold_reserve: keep this much gold after buying (0 = spend all)
-## core_cards: highest priority cards for this strategy (beyond theme critical path)
-## early_aggression: spend more in R1-R5 (true for predator/aggressive)
-## Per-strategy config.
-## v6: Faster levelup for non-military themes + aggressive T3+ seeking.
-## levelup_schedule: {round: target_shop_level}
-## core_cards: highest priority cards (beyond critical path)
-## capstone_cards: T4/T5 game-changers that warrant extra rerolls
-const _STRATEGY_CONFIG := {
-	"steampunk_focused": {
-		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
-		"max_rerolls_base": 3,
-		"max_rerolls_late": 6,
-		"gold_reserve": 1,
-		"core_cards": ["sp_charger", "sp_circulator", "sp_workshop"],
-		"capstone_cards": ["sp_charger", "sp_arsenal", "sp_warmachine"],
-	},
-	"druid_focused": {
-		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
-		"max_rerolls_base": 3,
-		"max_rerolls_late": 5,
-		"gold_reserve": 1,
-		"core_cards": ["dr_world", "dr_wt_root", "dr_deep"],
-		"capstone_cards": ["dr_world", "dr_wrath", "dr_grace"],
-	},
-	"predator_focused": {
-		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
-		"max_rerolls_base": 4,
-		"max_rerolls_late": 6,
-		"gold_reserve": 0,
-		"core_cards": ["pr_apex_hunt", "pr_queen", "pr_molt"],
-		"capstone_cards": ["pr_apex_hunt", "pr_transcend"],
-	},
-	"military_focused": {
-		"levelup_schedule": {3: 2, 5: 3, 8: 4, 10: 5},
-		"max_rerolls_base": 2,
-		"max_rerolls_late": 4,
-		"gold_reserve": 2,
-		"core_cards": ["ml_command", "ml_academy", "ml_special_ops"],
-		"capstone_cards": ["ml_command", "ml_assault"],
-	},
-}
+## Per-strategy config — extracted to ai_synergy_data.gd for file size.
+var _STRATEGY_CONFIG: Dictionary:
+	get: return _Syn.STRATEGY_CONFIG
 
 var strategy: String
 var _rng: RandomNumberGenerator
@@ -89,6 +39,11 @@ const MAX_ACTIONS := 30
 
 # Synergy data extracted to ai_synergy_data.gd for file size management.
 const _Syn = preload("res://sim/ai_synergy_data.gd")
+# Theme-state-aware scoring (trees, rank, counters, unit caps).
+const _ThemeScorerScript = preload("res://sim/ai_theme_scorer.gd")
+var _theme_scorer = _ThemeScorerScript.new()
+# Helper utilities (state queries, extracted for file size).
+const _H = preload("res://sim/ai_helpers.gd")
 var _CHAIN_PAIRS: Dictionary:
 	get: return _Syn.CHAIN_PAIRS
 var _THEME_SYNERGY: Dictionary:
@@ -152,9 +107,7 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 	_arrange_board(state)
 
 
-# ================================================================
-# Genome signal: enemy pressure → adaptive spending
-# ================================================================
+# --- Genome signal: enemy pressure → adaptive spending ---
 
 ## Returns enemy pressure multiplier [0.5, 2.0] based on genome CP curve.
 ## Higher = enemies are harder this round → spend more aggressively.
@@ -192,13 +145,22 @@ func _get_universal_interest_floor(round_num: int) -> int:
 	return _get_interest_floor()
 
 
-## M2: Pool-aware slow-roll — delay levelup when board is strong and pool
-## still has good cards at current tier.
+## M2: Pool-aware slow-roll — delay levelup when winning/strong AND
+## an achievable merge exists (★1 copies with pool remaining).
 func _should_delay_levelup(state: GameState) -> bool:
 	var min_r: int = int(_p("slow_roll_min_round", 5))
 	if state.round_num < min_r:
 		return false
-	# Compute average card CP on board
+	# Must have an achievable merge with reasonable find probability
+	if not _H.has_achievable_merge(state):
+		return false
+	var p_merge := _H.merge_find_probability(state, _genome)
+	if p_merge < 0.05:
+		return false  # merge target too diluted at current shop level
+	# Primary: recent wins indicate we're strong enough to slow-roll
+	if _recent_wins >= 2:
+		return true
+	# Fallback: CP-based check for early game before battle data
 	var total_cp := 0.0
 	var card_count := 0
 	for card in state.board:
@@ -210,11 +172,9 @@ func _should_delay_levelup(state: GameState) -> bool:
 	if card_count == 0:
 		return false
 	var avg_cp: float = total_cp / card_count
-	# Compare to expected enemy CP this round
 	var enemy_cp: float = Genome._original_round_mult(state.round_num)
 	if _genome and not _genome.enemy_cp_curve.is_empty():
 		enemy_cp = _genome.enemy_cp_curve[state.round_num - 1]
-	# Heuristic: enemy CP scale × 100 as rough proxy
 	var enemy_proxy: float = enemy_cp * 100.0
 	var ratio: float = _p("slow_roll_board_cp_ratio", 1.5)
 	return avg_cp > enemy_proxy * ratio
@@ -252,9 +212,32 @@ func _p(key: String, fallback: float = 0.0) -> float:
 	return Genome.DEFAULT_AI_PARAMS.get(key, fallback)
 
 
-# ================================================================
-# Strategy implementations
-# ================================================================
+## Pool remaining copies for a card (99 if no pool tracking).
+func _pool_remaining(state: GameState, card_id: String) -> int:
+	if state.card_pool == null:
+		return 99
+	return state.card_pool.get_remaining(card_id)
+
+
+## Tier appearance probability [0.0, 1.0] at current shop level.
+func _tier_weight_fraction(tier: int, shop_level: int) -> float:
+	var key := str(shop_level)
+	var weights: Array
+	if _genome and _genome.shop_tier_weights.has(key):
+		weights = _genome.shop_tier_weights[key]
+	else:
+		weights = Genome.DEFAULT_SHOP_TIER_WEIGHTS.get(key, [100, 0, 0, 0, 0])
+	if tier < 1 or tier > weights.size():
+		return 0.0
+	var total := 0.0
+	for w in weights:
+		total += float(w)
+	if total <= 0.0:
+		return 0.0
+	return float(weights[tier - 1]) / total
+
+
+# --- Strategy implementations ---
 
 ## Cheap levelup: level up first when cost is trivially low.
 func _try_cheap_levelup(state: GameState) -> void:
@@ -351,10 +334,8 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 	else:
 		gold_reserve = maxi(gold_reserve - int(pressure_excess * 2.0), 0)
 
-	# M2: Slow-roll — skip scheduled levelup if board is strong at current tier
-	var do_levelup := true
-	if _should_delay_levelup(state) and _has_merge_candidate(state):
-		do_levelup = false
+	# M2: Slow-roll — skip scheduled levelup if board strong + achievable merge
+	var do_levelup := not _should_delay_levelup(state)
 
 	if do_levelup:
 		while state.shop_level < target_level and state.gold >= state.levelup_current_cost + gold_reserve:
@@ -365,18 +346,21 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 	var max_rerolls: int = config["max_rerolls_base"]
 	if state.round_num >= 6 and state.shop_level >= 3:
 		max_rerolls = config["max_rerolls_late"]
-	if _has_merge_candidate(state):
-		max_rerolls = maxi(max_rerolls, config["max_rerolls_late"])
+	if _H.has_achievable_merge(state):
+		# Scale reroll budget by merge probability at current shop level
+		var p_merge := _H.merge_find_probability(state, _genome)
+		var merge_extra := mini(int(p_merge * 10.0), 5)  # 0-5 extra based on find chance
+		max_rerolls = maxi(max_rerolls, config["max_rerolls_late"] + merge_extra)
 	max_rerolls += int(pressure_excess * 2.0)
 
 	# Capstone urgency
 	var capstone_cards: Array = config.get("capstone_cards", [])
-	if state.shop_level >= 4 and not _has_any_card(state, capstone_cards):
+	if state.shop_level >= 4 and not _H.has_any_card(state, capstone_cards):
 		max_rerolls += int(_p("capstone_urgency_rerolls", 3))
 
 	# M4: Chain pair urgency — if key chain partners are missing, reroll harder
-	var board_ids := _get_board_ids(state)
-	if _has_incomplete_chain_pair(board_ids, preferred_theme):
+	var board_ids := _H.get_board_ids(state)
+	if _H.has_incomplete_chain_pair(board_ids, preferred_theme):
 		max_rerolls += int(_p("chain_pair_reroll_bonus", 3))
 
 	# Foundation urgency: in R1-R4, if no foundation from build path
@@ -423,12 +407,13 @@ func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 
 	var preferred_theme := -1
 	if state.round_num >= 4:
-		preferred_theme = _detect_dominant_theme(state)
+		preferred_theme = _H.detect_dominant_theme(state)
 
 	var pressure: float = _get_enemy_pressure(state.round_num)
 	var max_rerolls := 2
-	if _has_merge_candidate(state):
-		max_rerolls = 4
+	if _H.has_achievable_merge(state):
+		var p_merge := _H.merge_find_probability(state, _genome)
+		max_rerolls = maxi(max_rerolls, 2 + mini(int(p_merge * 8.0), 4))
 	max_rerolls += int(maxf(pressure - 1.0, 0.0) * 2.0)
 
 	# M1: Gold floor for rerolls respects interest banking
@@ -451,9 +436,7 @@ func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 			break
 
 
-# ================================================================
-# Buy logic
-# ================================================================
+# --- Buy logic ---
 
 func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> bool:
 	var best_slot := -1
@@ -480,7 +463,7 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 	if best_score < -3.0:
 		return false
 
-	if not _has_space(state):
+	if not _H.has_space(state):
 		if best_score >= 15.0:
 			var sold := _sell_weakest_for_upgrade(state)
 			if not sold:
@@ -532,15 +515,27 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	score += tier * 2.0
 
 	# --- Build path detection (used by merge gate + engine completion modifier) ---
-	var board_ids := _get_board_ids(state)
+	var board_ids := _H.get_board_ids(state)
 	var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
 
-	# --- Merge potential (Tier 1) ---
-	var copy_count := _count_copies(state, card_id)
-	if copy_count == 2:
+	# --- Merge potential (Tier 1) — ★1-aware + pool-aware ---
+	var star1_copies := _H.count_star1_copies(state, card_id)
+	if star1_copies == 2:
 		score += _p("merge_imminent_bonus", 30.0)
-	elif copy_count == 1:
-		score += _p("merge_progress_bonus", 8.0)
+	elif star1_copies == 1:
+		var pool_left := _pool_remaining(state, card_id)
+		var merge_prog := _p("merge_progress_bonus", 8.0)
+		# Early game: pairs are more valuable (more rounds to complete merge)
+		if round_num <= 6:
+			merge_prog *= 1.5
+		# Scale by tier accessibility — T1 pair at ShopLv4 (10%) is less valuable
+		# than T1 pair at ShopLv1 (100%), because 3rd copy is harder to find
+		var tier_frac := _tier_weight_fraction(tier, state.shop_level)
+		merge_prog *= maxf(tier_frac, 0.1)  # floor at 10% to avoid zeroing out
+		if pool_left >= 2:
+			score += merge_prog
+		elif pool_left == 1:
+			score += merge_prog * 0.5
 
 	# --- Chain synergy (Layer1 event chains, Tier 1) ---
 	var syn_bonus: float = _p("synergy_pair_bonus", 6.0)
@@ -583,8 +578,9 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	if tier == 5 and round_num >= 10:
 		score += 10.0
 
-	# --- Duplicate card diminishing returns ---
-	if copy_count >= 3:
+	# --- Duplicate card diminishing returns (all star levels) ---
+	var total_copies := _H.count_copies(state, card_id)
+	if total_copies >= 3:
 		score -= 10.0
 
 
@@ -601,16 +597,17 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	if not bp_path.is_empty():
 		score += _build_path.score_card_modifier(card_id, bp_path, board_ids, round_num)
 
+	# --- Theme state context bonus (trees, rank, unit caps, synergy chains) ---
+	score += _theme_scorer.score_buy_bonus(
+		card_id, tmpl, preferred_theme, _H.get_board_cards(state), _genome)
+
 	return score
 
 
-# ================================================================
-# Bench cleanup
-# ================================================================
-
+# --- Bench cleanup ---
 func _cleanup_bench(state: GameState) -> void:
 	var preferred_theme: int = _THEME_MAP.get(strategy, -1)
-	var board_ids := _get_board_ids(state)
+	var board_ids := _H.get_board_ids(state)
 
 	var bench_count := 0
 	for card in state.bench:
@@ -645,9 +642,7 @@ func _cleanup_bench(state: GameState) -> void:
 			break
 
 
-# ================================================================
-# Bench promotion logic
-# ================================================================
+# --- Bench promotion logic ---
 
 func _promote_bench(state: GameState) -> void:
 	var actions: Array = _board_eval.find_promotions(
@@ -682,12 +677,16 @@ func _card_value(card: CardInstance, state: GameState) -> float:
 	if timing >= 0:
 		val += _board_eval.timing_modifier(timing, state.round_num) * 0.5
 
-	var board_ids := _get_board_ids(state)
-	val += _count_synergies(cid, board_ids) * 3.0
+	var board_ids := _H.get_board_ids(state)
+	val += _H.count_synergies(cid, board_ids) * 3.0
 
-	var copies := _count_copies(state, cid)
-	if copies >= 2:
+	# Protect merge candidates (★1 pairs only — ★1+★2 can't merge)
+	var star1_copies := _H.count_star1_copies(state, cid)
+	if star1_copies >= 2:
 		val += 20.0
+	elif star1_copies == 1:
+		# Mild protection for pair potential (don't sell 1st copy easily)
+		val += 5.0
 
 	var preferred_theme: int = _THEME_MAP.get(strategy, -1)
 	if preferred_theme >= 0:
@@ -718,12 +717,13 @@ func _card_value(card: CardInstance, state: GameState) -> float:
 	if not bp_path.is_empty():
 		val += _build_path.card_value_modifier(cid, bp_path, board_ids, state.round_num)
 
+	# Theme state accumulated value (trees, rank, counters)
+	val += _theme_scorer.card_value_bonus(card, _H.get_board_cards(state), _genome)
+
 	return val
 
 
-# ================================================================
-# Sell logic
-# ================================================================
+# --- Sell logic ---
 
 func _sell_weakest_for_upgrade(state: GameState) -> bool:
 	var worst_zone := ""
@@ -759,7 +759,7 @@ func _sell_weakest_for_upgrade(state: GameState) -> bool:
 
 
 func _transition_board(state: GameState) -> void:
-	var board_ids := _get_board_ids(state)
+	var board_ids := _H.get_board_ids(state)
 
 	for i in state.board.size():
 		if state.board[i] == null:
@@ -769,9 +769,9 @@ func _transition_board(state: GameState) -> void:
 
 		if tier > 1 or c.star_level > 1:
 			continue
-		if _count_copies(state, c.get_base_id()) >= 2:
+		if _H.count_star1_copies(state, c.get_base_id()) >= 2:
 			continue
-		if _count_synergies(c.get_base_id(), board_ids) >= 2:
+		if _H.count_synergies(c.get_base_id(), board_ids) >= 2:
 			continue
 		if c.get_total_atk() + c.get_total_hp() > 300.0:
 			continue
@@ -781,7 +781,7 @@ func _transition_board(state: GameState) -> void:
 
 
 func _try_sell_weak(state: GameState) -> void:
-	var total_cards := _count_all_cards(state)
+	var total_cards := _H.count_all_cards(state)
 	if total_cards < 14:
 		return
 
@@ -803,37 +803,7 @@ func _try_sell_weak(state: GameState) -> void:
 		state.sell_card(worst_zone, worst_idx)
 
 
-# ================================================================
-# Theme detection (for hybrid)
-# ================================================================
-
-func _detect_dominant_theme(state: GameState) -> int:
-	var counts := {}
-	for card in state.board:
-		if card == null:
-			continue
-		var theme: int = (card as CardInstance).template.get("theme", 0)
-		if theme != Enums.CardTheme.NEUTRAL and theme != 0:
-			counts[theme] = counts.get(theme, 0) + 1
-	for card in state.bench:
-		if card == null:
-			continue
-		var theme: int = (card as CardInstance).template.get("theme", 0)
-		if theme != Enums.CardTheme.NEUTRAL and theme != 0:
-			counts[theme] = counts.get(theme, 0) + 1
-
-	var best_theme := -1
-	var best_count := 1
-	for t in counts:
-		if counts[t] > best_count:
-			best_count = counts[t]
-			best_theme = t
-	return best_theme
-
-
-# ================================================================
-# Board arrangement
-# ================================================================
+# --- Board arrangement ---
 
 func _arrange_board(state: GameState) -> void:
 	# Move any remaining bench cards to empty board slots
@@ -871,121 +841,4 @@ func _arrange_board(state: GameState) -> void:
 			slot += 1
 
 
-# ================================================================
-# Helpers
-# ================================================================
-
-func _has_space(state: GameState) -> bool:
-	for b in state.bench:
-		if b == null:
-			return true
-	for b in state.board:
-		if b == null:
-			return true
-	return false
-
-
-func _count_copies(state: GameState, card_id: String) -> int:
-	var count := 0
-	for card in state.board:
-		if card != null and (card as CardInstance).get_base_id() == card_id:
-			count += 1
-	for card in state.bench:
-		if card != null and (card as CardInstance).get_base_id() == card_id:
-			count += 1
-	return count
-
-
-func _get_board_ids(state: GameState) -> Dictionary:
-	var ids := {}
-	for card in state.board:
-		if card != null:
-			ids[(card as CardInstance).get_base_id()] = true
-	for card in state.bench:
-		if card != null:
-			ids[(card as CardInstance).get_base_id()] = true
-	return ids
-
-
-func _count_synergies(card_id: String, board_ids: Dictionary) -> int:
-	var count := 0
-	if _CHAIN_PAIRS.has(card_id):
-		for pid in _CHAIN_PAIRS[card_id]:
-			if pid in board_ids:
-				count += 1
-	if _THEME_SYNERGY.has(card_id):
-		for pid in _THEME_SYNERGY[card_id]:
-			if pid in board_ids:
-				count += 1
-	return count
-
-
-func _has_merge_candidate(state: GameState) -> bool:
-	var counts := {}
-	for card in state.board:
-		if card != null:
-			var cid: String = (card as CardInstance).get_base_id()
-			counts[cid] = counts.get(cid, 0) + 1
-	for card in state.bench:
-		if card != null:
-			var cid: String = (card as CardInstance).get_base_id()
-			counts[cid] = counts.get(cid, 0) + 1
-	for cid in counts:
-		if counts[cid] == 2:
-			return true
-	return false
-
-
-func _has_any_card(state: GameState, card_ids: Array) -> bool:
-	for card in state.board:
-		if card != null and (card as CardInstance).get_base_id() in card_ids:
-			return true
-	for card in state.bench:
-		if card != null and (card as CardInstance).get_base_id() in card_ids:
-			return true
-	return false
-
-
-func _count_theme_cards(state: GameState, theme: int) -> int:
-	var count := 0
-	for card in state.board:
-		if card != null and (card as CardInstance).template.get("theme", 0) == theme:
-			count += 1
-	for card in state.bench:
-		if card != null and (card as CardInstance).template.get("theme", 0) == theme:
-			count += 1
-	return count
-
-
-func _count_all_cards(state: GameState) -> int:
-	var count := 0
-	for card in state.board:
-		if card != null:
-			count += 1
-	for card in state.bench:
-		if card != null:
-			count += 1
-	return count
-
-
-## M4: Check if any owned card has chain partners that are NOT on board.
-## Signals incomplete chain = worth rerolling for.
-func _has_incomplete_chain_pair(board_ids: Dictionary, preferred_theme: int) -> bool:
-	# Only check theme-relevant chain pairs
-	for owned_id in board_ids:
-		if not _CHAIN_PAIRS.has(owned_id):
-			continue
-		# Check card is on-theme (or neutral)
-		var tmpl: Dictionary = CardDB.get_template(owned_id)
-		var ct: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
-		if preferred_theme >= 0 and ct != preferred_theme and ct != Enums.CardTheme.NEUTRAL:
-			continue
-		# Has at least one partner NOT on board?
-		var all_present := true
-		for partner_id in _CHAIN_PAIRS[owned_id]:
-			if partner_id not in board_ids:
-				all_present = false
-				break
-		if not all_present:
-			return true
-	return false
+# Helpers delegated to ai_helpers.gd (static utilities).
