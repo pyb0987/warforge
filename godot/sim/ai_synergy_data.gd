@@ -89,7 +89,7 @@ const POSITION_PRIORITY := {
 # core_cards: highest priority cards (beyond critical path)
 # capstone_cards: T4/T5 game-changers that warrant extra rerolls
 const STRATEGY_CONFIG := {
-	"steampunk_focused": {
+	"soft_steampunk": {
 		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
 		"max_rerolls_base": 3,
 		"max_rerolls_late": 6,
@@ -97,7 +97,7 @@ const STRATEGY_CONFIG := {
 		"core_cards": ["sp_charger", "sp_circulator", "sp_workshop"],
 		"capstone_cards": ["sp_charger", "sp_arsenal", "sp_warmachine"],
 	},
-	"druid_focused": {
+	"soft_druid": {
 		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
 		"max_rerolls_base": 3,
 		"max_rerolls_late": 5,
@@ -105,7 +105,7 @@ const STRATEGY_CONFIG := {
 		"core_cards": ["dr_world", "dr_wt_root", "dr_deep"],
 		"capstone_cards": ["dr_world", "dr_wrath", "dr_grace"],
 	},
-	"predator_focused": {
+	"soft_predator": {
 		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},
 		"max_rerolls_base": 4,
 		"max_rerolls_late": 6,
@@ -113,7 +113,7 @@ const STRATEGY_CONFIG := {
 		"core_cards": ["pr_apex_hunt", "pr_queen", "pr_molt"],
 		"capstone_cards": ["pr_apex_hunt", "pr_transcend"],
 	},
-	"military_focused": {
+	"soft_military": {
 		"levelup_schedule": {3: 2, 5: 3, 8: 4, 10: 5},
 		"max_rerolls_base": 2,
 		"max_rerolls_late": 4,

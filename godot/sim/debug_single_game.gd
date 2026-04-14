@@ -10,7 +10,7 @@ func _run() -> void:
 	var _RunnerClass = load("res://sim/headless_runner.gd")
 
 	var args := _parse_args()
-	var strat: String = args.get("strategy", "druid_focused")
+	var strat: String = args.get("strategy", "soft_druid")
 	var seed_val: int = args.get("seed", 42)
 	var genome_path: String = args.get("genome", "res://sim/best_genome.json")
 

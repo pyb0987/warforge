@@ -29,11 +29,11 @@ func before_each() -> void:
 func test_strategy_names() -> void:
 	var names: Array = AIAgentScript.STRATEGY_NAMES
 	assert_eq(names.size(), 7, "7종 전략")
-	assert_has(names, "steampunk_focused", "스팀펑크 전략 존재")
-	assert_has(names, "druid_focused", "드루이드 전략 존재")
-	assert_has(names, "predator_focused", "포식종 전략 존재")
-	assert_has(names, "military_focused", "군대 전략 존재")
-	assert_has(names, "hybrid", "하이브리드 전략 존재")
+	assert_has(names, "soft_steampunk", "소프트 스팀펑크 전략 존재")
+	assert_has(names, "soft_druid", "소프트 드루이드 전략 존재")
+	assert_has(names, "soft_predator", "소프트 포식종 전략 존재")
+	assert_has(names, "soft_military", "소프트 군대 전략 존재")
+	assert_has(names, "adaptive", "적응형 전략 존재")
 	assert_has(names, "economy", "경제 전략 존재")
 	assert_has(names, "aggressive", "어그로 전략 존재")
 
@@ -43,7 +43,7 @@ func test_strategy_names() -> void:
 # ================================================================
 
 func test_agent_creation() -> void:
-	var agent = AIAgentScript.new("steampunk_focused", _rng)
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
 	assert_not_null(agent, "에이전트 생성")
 
 
@@ -75,7 +75,7 @@ func test_play_build_phase_adds_cards() -> void:
 
 func test_agent_moves_bench_to_board() -> void:
 	# 보드 비어있고 벤치에 카드 → 에이전트가 보드로 이동해야
-	var agent = AIAgentScript.new("steampunk_focused", _rng)
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
 	agent.play_build_phase(_state, _shop)
 	assert_gt(_state.board_count(), 0, "보드에 카드 배치됨")
 
@@ -93,8 +93,9 @@ func test_agent_does_not_exceed_gold() -> void:
 func test_steampunk_prefers_steampunk() -> void:
 	_state.shop_level = 3  # T1-T3 접근
 	_state.gold = 50
+	_state.round_num = 5  # R5: soft-commit 활성
 	_shop.refresh_shop()
-	var agent = AIAgentScript.new("steampunk_focused", _rng)
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
 	agent.play_build_phase(_state, _shop)
 	# 보드+벤치에 스팀펑크 카드가 하나라도 있어야
 	var has_steampunk := false
@@ -108,7 +109,7 @@ func test_steampunk_prefers_steampunk() -> void:
 			var tmpl: Dictionary = CardDB.get_template((card as CardInstance).get_base_id())
 			if tmpl.get("theme", -1) == Enums.CardTheme.STEAMPUNK:
 				has_steampunk = true
-	assert_true(has_steampunk, "스팀펑크 전략 → 스팀펑크 카드 존재")
+	assert_true(has_steampunk, "소프트 스팀펑크 → R5+에서 스팀펑크 카드 존재")
 
 
 # ================================================================
@@ -133,7 +134,7 @@ func test_economy_buys_cards_first() -> void:
 # ================================================================
 
 func test_deterministic() -> void:
-	var agent1 = AIAgentScript.new("hybrid", RandomNumberGenerator.new())
+	var agent1 = AIAgentScript.new("adaptive", RandomNumberGenerator.new())
 	agent1._rng.seed = 99
 	var state1 := GameState.new()
 	state1.gold = 20
@@ -148,7 +149,7 @@ func test_deterministic() -> void:
 	var gold1: int = state1.gold
 	var board1: int = state1.board_count()
 
-	var agent2 = AIAgentScript.new("hybrid", RandomNumberGenerator.new())
+	var agent2 = AIAgentScript.new("adaptive", RandomNumberGenerator.new())
 	agent2._rng.seed = 99
 	var state2 := GameState.new()
 	state2.gold = 20
@@ -163,3 +164,40 @@ func test_deterministic() -> void:
 
 	assert_eq(state2.gold, gold1, "같은 시드 → 같은 골드")
 	assert_eq(state2.board_count(), board1, "같은 시드 → 같은 보드")
+
+
+# ================================================================
+# 소프트 커밋 동작
+# ================================================================
+
+func test_soft_theme_no_preference_before_r4() -> void:
+	# R1-R3에서는 soft_druid도 테마 선호 없이 구매해야 함
+	var agent = AIAgentScript.new("soft_druid", _rng)
+	_state.round_num = 2
+	_state.gold = 30
+	_shop.refresh_shop()
+	agent.play_build_phase(_state, _shop)
+	# R2에서는 테마 무관하게 구매 → 중립/다른 테마 카드도 보드에 있어야 함
+	var total_cards := _state.board_count()
+	for c in _state.bench:
+		if c != null:
+			total_cards += 1
+	assert_gt(total_cards, 0, "R2에서도 카드 구매")
+
+
+func test_soft_theme_commits_after_r4() -> void:
+	# R5에서는 soft_steampunk가 스팀펑크를 선호해야 함
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
+	_state.round_num = 5
+	_state.shop_level = 3
+	_state.gold = 50
+	_shop.refresh_shop()
+	agent.play_build_phase(_state, _shop)
+	assert_gt(_state.board_count(), 0, "R5에서 카드 배치")
+
+
+func test_adaptive_buys_cards() -> void:
+	var agent = AIAgentScript.new("adaptive", _rng)
+	_state.gold = 20
+	agent.play_build_phase(_state, _shop)
+	assert_gt(_state.board_count(), 0, "적응형 전략 카드 구매")

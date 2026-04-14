@@ -7,7 +7,7 @@ const _AIRewardScript = preload("res://sim/ai_reward_logic.gd")
 
 
 func run_game(args: Dictionary) -> void:
-	var strat: String = args.get("strategy", "hybrid")
+	var strat: String = args.get("strategy", "adaptive")
 	var seed_val: int = args.get("seed", 42)
 	var genome_path: String = args.get("genome", "res://sim/default_genome.json")
 

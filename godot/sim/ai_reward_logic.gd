@@ -6,31 +6,31 @@ extends RefCounted
 ## All methods are stateless — they take state + strategy and return decisions.
 
 const _THEME_MAP := {
-	"steampunk_focused": Enums.CardTheme.STEAMPUNK,
-	"druid_focused": Enums.CardTheme.DRUID,
-	"predator_focused": Enums.CardTheme.PREDATOR,
-	"military_focused": Enums.CardTheme.MILITARY,
+	"soft_steampunk": Enums.CardTheme.STEAMPUNK,
+	"soft_druid": Enums.CardTheme.DRUID,
+	"soft_predator": Enums.CardTheme.PREDATOR,
+	"soft_military": Enums.CardTheme.MILITARY,
 }
 
 ## Boss reward priority per strategy. Higher = better.
 ## Only includes permanent rewards (P1 tier) — P0 (★승급) is handled separately.
 const _REWARD_PRIORITY := {
-	"predator_focused": {
+	"soft_predator": {
 		"r4_3": 95, "r4_6": 90, "r12_6": 98,  # spawn/물량 핵심
 		"r4_5": 70, "r8_3": 60, "r12_3": 65,
 		"r8_6": 50, "r8_5": 40, "r12_5": 55,
 	},
-	"druid_focused": {
+	"soft_druid": {
 		"r4_5": 95, "r8_5": 90, "r12_3": 85,  # enhance/chain 핵심
 		"r8_3": 80, "r4_3": 60, "r4_6": 50,
 		"r8_6": 70, "r12_6": 40, "r12_5": 45,
 	},
-	"steampunk_focused": {
+	"soft_steampunk": {
 		"r8_3": 95, "r12_3": 98, "r4_5": 85,  # activation/chain 핵심
 		"r8_5": 80, "r4_6": 50, "r4_3": 60,
 		"r8_6": 70, "r12_5": 45, "r12_6": 40,
 	},
-	"military_focused": {
+	"soft_military": {
 		"r8_6": 95, "r12_4": 90, "r8_3": 80,  # 승전+합성 핵심
 		"r12_3": 75, "r4_5": 70, "r4_3": 60,
 		"r8_5": 65, "r4_6": 50, "r12_5": 55,

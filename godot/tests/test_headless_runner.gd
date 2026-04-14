@@ -5,7 +5,7 @@ const RunnerScript = preload("res://sim/headless_runner.gd")
 const GenomeScript = preload("res://sim/genome.gd")
 
 
-func _make_runner(strat: String = "hybrid", seed_val: int = 42) -> RefCounted:
+func _make_runner(strat: String = "adaptive", seed_val: int = 42) -> RefCounted:
 	var genome = GenomeScript.load_file("res://sim/default_genome.json")
 	return RunnerScript.new(genome, strat, seed_val)
 

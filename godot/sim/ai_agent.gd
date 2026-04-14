@@ -4,20 +4,20 @@ extends RefCounted
 ## Build-phase decisions: buy, sell, reroll, levelup, arrange.
 
 const STRATEGY_NAMES: Array[String] = [
-	"steampunk_focused",
-	"druid_focused",
-	"predator_focused",
-	"military_focused",
-	"hybrid",
+	"soft_steampunk",
+	"soft_druid",
+	"soft_predator",
+	"soft_military",
+	"adaptive",
 	"economy",
 	"aggressive",
 ]
 
 const _THEME_MAP := {
-	"steampunk_focused": Enums.CardTheme.STEAMPUNK,
-	"druid_focused": Enums.CardTheme.DRUID,
-	"predator_focused": Enums.CardTheme.PREDATOR,
-	"military_focused": Enums.CardTheme.MILITARY,
+	"soft_steampunk": Enums.CardTheme.STEAMPUNK,
+	"soft_druid": Enums.CardTheme.DRUID,
+	"soft_predator": Enums.CardTheme.PREDATOR,
+	"soft_military": Enums.CardTheme.MILITARY,
 }
 
 ## Per-strategy config — extracted to ai_synergy_data.gd for file size.
@@ -52,7 +52,7 @@ var _THEME_CRITICAL: Dictionary:
 	get: return _Syn.THEME_CRITICAL
 
 
-func _init(strat: String = "hybrid", rng: RandomNumberGenerator = null, genome: Genome = null) -> void:
+func _init(strat: String = "adaptive", rng: RandomNumberGenerator = null, genome: Genome = null) -> void:
 	strategy = strat
 	_rng = rng if rng != null else RandomNumberGenerator.new()
 	_genome = genome
@@ -79,6 +79,19 @@ func record_battle_result(won: bool) -> void:
 		_recent_wins = maxi(_recent_wins - 1, 0)
 
 
+## Resolve preferred theme for current round.
+## Soft-commit: no preference before R4. Adaptive: detect dominant theme at R4+.
+func _get_preferred_theme(state: GameState) -> int:
+	if strategy == "adaptive":
+		if state.round_num >= 4:
+			return _H.detect_dominant_theme(state)
+		return -1
+	var theme: int = _THEME_MAP.get(strategy, -1)
+	if theme >= 0 and state.round_num < 4:
+		return -1  # Soft-commit: open buying before R4
+	return theme
+
+
 func play_build_phase(state: GameState, shop: RefCounted) -> void:
 	if state.hp <= 10 and strategy == "economy":
 		_play_aggressive(state, shop)
@@ -88,12 +101,12 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 				_play_economy(state, shop)
 			"aggressive":
 				_play_aggressive(state, shop)
-			"steampunk_focused", "druid_focused", "predator_focused", "military_focused":
-				_play_theme_focused(state, shop)
-			"hybrid":
-				_play_hybrid(state, shop)
+			"soft_steampunk", "soft_druid", "soft_predator", "soft_military":
+				_play_soft_theme(state, shop)
+			"adaptive":
+				_play_adaptive(state, shop)
 			_:
-				_play_hybrid(state, shop)
+				_play_adaptive(state, shop)
 
 	# M6: Arsenal fuel sell (before cleanup, so absorbed units arrive)
 	_try_arsenal_fuel_sell(state)
@@ -308,11 +321,11 @@ func _play_aggressive(state: GameState, shop: RefCounted) -> void:
 			break
 
 
-## Theme-focused: per-strategy parameterized behavior.
-## v7: M1 interest banking, M2 slow-roll, M4 chain urgency, M5 economy transition.
-func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
-	var preferred_theme: int = _THEME_MAP.get(strategy, Enums.CardTheme.NEUTRAL)
-	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, _STRATEGY_CONFIG["steampunk_focused"])
+## Soft-commit theme: R1-R3 open buying, R4+ theme preference.
+## v8: replaces hard-commit _play_theme_focused.
+func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
+	var preferred_theme: int = _get_preferred_theme(state)
+	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, _STRATEGY_CONFIG["soft_steampunk"])
 
 	_try_cheap_levelup(state)
 
@@ -353,27 +366,29 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 		max_rerolls = maxi(max_rerolls, config["max_rerolls_late"] + merge_extra)
 	max_rerolls += int(pressure_excess * 2.0)
 
-	# Capstone urgency
-	var capstone_cards: Array = config.get("capstone_cards", [])
-	if state.shop_level >= 4 and not _H.has_any_card(state, capstone_cards):
-		max_rerolls += int(_p("capstone_urgency_rerolls", 3))
-
-	# M4: Chain pair urgency — if key chain partners are missing, reroll harder
+	# Theme-dependent urgency modifiers (only after commitment at R4+)
 	var board_ids := _H.get_board_ids(state)
-	if _H.has_incomplete_chain_pair(board_ids, preferred_theme):
-		max_rerolls += int(_p("chain_pair_reroll_bonus", 3))
+	if preferred_theme >= 0:
+		# Capstone urgency
+		var capstone_cards: Array = config.get("capstone_cards", [])
+		if state.shop_level >= 4 and not _H.has_any_card(state, capstone_cards):
+			max_rerolls += int(_p("capstone_urgency_rerolls", 3))
 
-	# Foundation urgency: in R1-R4, if no foundation from build path
-	if state.round_num <= 4:
-		var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
-		var has_foundation := false
-		if not bp_path.is_empty():
-			for cid in bp_path["phases"].get("foundation", []):
-				if cid in board_ids:
-					has_foundation = true
-					break
-		if not has_foundation:
-			max_rerolls += int(_p("foundation_urgency_rerolls", 5))
+		# M4: Chain pair urgency — if key chain partners are missing, reroll harder
+		if _H.has_incomplete_chain_pair(board_ids, preferred_theme):
+			max_rerolls += int(_p("chain_pair_reroll_bonus", 3))
+
+		# Foundation urgency: in R4-R5, if no foundation from build path
+		if state.round_num <= 5:
+			var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
+			var has_foundation := false
+			if not bp_path.is_empty():
+				for cid in bp_path["phases"].get("foundation", []):
+					if cid in board_ids:
+						has_foundation = true
+						break
+			if not has_foundation:
+				max_rerolls += int(_p("foundation_urgency_rerolls", 5))
 
 	var actions := 0
 	var rerolls := 0
@@ -394,9 +409,9 @@ func _play_theme_focused(state: GameState, shop: RefCounted) -> void:
 		_try_levelup(state)
 
 
-## Hybrid: buy a mix, commit to dominant theme by mid-game.
-## v7: M1 interest banking, M5 economy transition.
-func _play_hybrid(state: GameState, shop: RefCounted) -> void:
+## Adaptive: buy openly, detect dominant theme by mid-game.
+## v8: renamed from _play_hybrid. Measures AI quality via post-hoc classification.
+func _play_adaptive(state: GameState, shop: RefCounted) -> void:
 	_try_cheap_levelup(state)
 
 	# M1: Interest-aware levelup buffer
@@ -405,9 +420,7 @@ func _play_hybrid(state: GameState, shop: RefCounted) -> void:
 	if state.gold >= state.levelup_current_cost + levelup_buffer:
 		_try_levelup(state)
 
-	var preferred_theme := -1
-	if state.round_num >= 4:
-		preferred_theme = _H.detect_dominant_theme(state)
+	var preferred_theme := _get_preferred_theme(state)
 
 	var pressure: float = _get_enemy_pressure(state.round_num)
 	var max_rerolls := 2
@@ -606,7 +619,7 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 
 # --- Bench cleanup ---
 func _cleanup_bench(state: GameState) -> void:
-	var preferred_theme: int = _THEME_MAP.get(strategy, -1)
+	var preferred_theme: int = _get_preferred_theme(state)
 	var board_ids := _H.get_board_ids(state)
 
 	var bench_count := 0
@@ -688,7 +701,7 @@ func _card_value(card: CardInstance, state: GameState) -> float:
 		# Mild protection for pair potential (don't sell 1st copy easily)
 		val += 5.0
 
-	var preferred_theme: int = _THEME_MAP.get(strategy, -1)
+	var preferred_theme: int = _get_preferred_theme(state)
 	if preferred_theme >= 0:
 		var card_theme: int = card.template.get("theme", 0)
 		if card_theme == preferred_theme:
@@ -698,10 +711,10 @@ func _card_value(card: CardInstance, state: GameState) -> float:
 		elif card_theme != Enums.CardTheme.NEUTRAL:
 			val -= 5.0
 
-	# Strategy core card bonus
+	# Strategy core card bonus (only after theme commitment)
 	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, {})
 	var core_cards: Array = config.get("core_cards", [])
-	if cid in core_cards:
+	if cid in core_cards and preferred_theme >= 0:
 		val += 8.0
 
 	# Genome activation cap: continuous penalty on board value

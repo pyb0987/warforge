@@ -110,7 +110,7 @@ func card_board_value(card: CardInstance, strategy: String,
 		val += effect_modifier(effects, round_num)
 
 	# Theme match bonus
-	var preferred: int = _theme_for(strategy)
+	var preferred: int = _theme_for(strategy, round_num)
 	var card_theme: int = tmpl.get("theme", 0)
 	if preferred >= 0:
 		if card_theme == preferred:
@@ -206,10 +206,13 @@ func find_promotions(board: Array, bench: Array, field_slots: int,
 # Helpers
 # ================================================================
 
-static func _theme_for(strategy: String) -> int:
+static func _theme_for(strategy: String, round_num: int = 99) -> int:
+	# Soft-commit strategies: no theme preference before R4
+	if round_num < 4 and strategy.begins_with("soft_"):
+		return -1
 	match strategy:
-		"steampunk_focused": return Enums.CardTheme.STEAMPUNK
-		"druid_focused": return Enums.CardTheme.DRUID
-		"predator_focused": return Enums.CardTheme.PREDATOR
-		"military_focused": return Enums.CardTheme.MILITARY
+		"soft_steampunk": return Enums.CardTheme.STEAMPUNK
+		"soft_druid": return Enums.CardTheme.DRUID
+		"soft_predator": return Enums.CardTheme.PREDATOR
+		"soft_military": return Enums.CardTheme.MILITARY
 	return -1

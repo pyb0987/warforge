@@ -16,7 +16,7 @@ const _PHASE_KEYS: Array[String] = ["foundation", "engine", "payoff", "capstone"
 # ================================================================
 
 const _BUILD_PATHS := {
-	"steampunk_focused": [
+	"soft_steampunk": [
 		{
 			"id": "steampunk_spread",
 			"branch_cards": ["sp_assembly"],
@@ -42,7 +42,7 @@ const _BUILD_PATHS := {
 			"shared_cards": ["sp_interest", "sp_barrier"],
 		},
 	],
-	"druid_focused": [
+	"soft_druid": [
 		{
 			"id": "druid_world_tree",
 			"branch_cards": ["dr_deep", "dr_wt_root"],
@@ -68,7 +68,7 @@ const _BUILD_PATHS := {
 			"shared_cards": ["dr_grace", "dr_spore_cloud"],
 		},
 	],
-	"predator_focused": [
+	"soft_predator": [
 		{
 			"id": "predator_swarm",
 			"branch_cards": ["pr_farm", "pr_swarm_sense"],
@@ -94,7 +94,7 @@ const _BUILD_PATHS := {
 			"shared_cards": ["pr_queen"],
 		},
 	],
-	"military_focused": [
+	"soft_military": [
 		{
 			"id": "military_elite",
 			"branch_cards": ["ml_barracks"],

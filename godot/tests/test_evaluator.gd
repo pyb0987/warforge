@@ -14,7 +14,7 @@ func test_evaluate_returns_all_axes() -> void:
 	var genome = GenomeScript.load_file("res://sim/default_genome.json")
 	var results: Array = []
 	# 3 strategies × 2 runs each (최소한의 데이터)
-	for strat in ["steampunk_focused", "druid_focused", "aggressive"]:
+	for strat in ["soft_steampunk", "soft_druid", "aggressive"]:
 		for seed_val in [42, 43]:
 			var runner = RunnerScript.new(genome, strat, seed_val)
 			results.append(runner.run())
@@ -33,7 +33,7 @@ func test_evaluate_returns_all_axes() -> void:
 func test_scores_are_bounded() -> void:
 	var genome = GenomeScript.load_file("res://sim/default_genome.json")
 	var results: Array = []
-	for strat in ["hybrid", "aggressive"]:
+	for strat in ["adaptive", "aggressive"]:
 		for seed_val in [10, 20]:
 			results.append(RunnerScript.new(genome, strat, seed_val).run())
 
@@ -48,7 +48,7 @@ func test_scores_are_bounded() -> void:
 func test_weighted_score_is_weighted_sum() -> void:
 	var genome = GenomeScript.load_file("res://sim/default_genome.json")
 	var results: Array = []
-	for strat in ["hybrid", "economy"]:
+	for strat in ["adaptive", "economy"]:
 		results.append(RunnerScript.new(genome, strat, 42).run())
 
 	var score: Dictionary = EvalScript.evaluate(results)

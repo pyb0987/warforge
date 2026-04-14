@@ -77,7 +77,7 @@ func _make_card(cid: String, star: int = 1) -> CardInstance:
 func test_promote_to_empty_slot() -> void:
 	var board: Array = [null, null, null, null, null, null, null, null]
 	var bench: Array = [_make_card("sp_assembly"), null, null, null, null, null, null, null]
-	var actions: Array = ev.find_promotions(board, bench, 8, "steampunk_focused", 3)
+	var actions: Array = ev.find_promotions(board, bench, 8, "soft_steampunk", 3)
 	assert_false(actions.is_empty(), "벤치 카드 → 빈 슬롯 배치")
 	assert_eq(actions[0]["action"], "place")
 
@@ -89,7 +89,7 @@ func test_swap_weak_for_strong() -> void:
 		_make_card("sp_assembly"), _make_card("sp_circulator"),
 		null, null]
 	var bench: Array = [_make_card("sp_charger"), null, null, null, null, null, null, null]
-	var actions: Array = ev.find_promotions(board, bench, 6, "steampunk_focused", 8)
+	var actions: Array = ev.find_promotions(board, bench, 6, "soft_steampunk", 8)
 	var has_swap := false
 	for a in actions:
 		if a["action"] == "swap":
@@ -103,7 +103,7 @@ func test_no_swap_merge_candidate() -> void:
 		_make_card("sp_assembly"), _make_card("sp_workshop"),
 		null, null, null, null]
 	var bench: Array = [_make_card("sp_circulator"), null, null, null, null, null, null, null]
-	var actions: Array = ev.find_promotions(board, bench, 4, "steampunk_focused", 5)
+	var actions: Array = ev.find_promotions(board, bench, 4, "soft_steampunk", 5)
 	for a in actions:
 		if a["action"] == "swap":
 			var board_card: CardInstance = board[a["board_idx"]]
@@ -121,7 +121,7 @@ func test_druid_rs_replaces_weak() -> void:
 		_make_card("dr_wt_root"), _make_card("dr_cradle"),
 		null, null]
 	var bench: Array = [_make_card("dr_origin"), null, null, null, null, null, null, null]
-	var actions: Array = ev.find_promotions(board, bench, 6, "druid_focused", 8)
+	var actions: Array = ev.find_promotions(board, bench, 6, "soft_druid", 8)
 	var has_swap := false
 	for a in actions:
 		if a["action"] == "swap":
@@ -129,8 +129,8 @@ func test_druid_rs_replaces_weak() -> void:
 			# The swapped-out card should be weaker than dr_origin
 			var board_card: CardInstance = board[a["board_idx"]]
 			var bench_card: CardInstance = bench[a["bench_idx"]]
-			var board_val: float = ev.card_board_value(board_card, "druid_focused", 8)
-			var bench_val: float = ev.card_board_value(bench_card, "druid_focused", 8)
+			var board_val: float = ev.card_board_value(board_card, "soft_druid", 8)
+			var bench_val: float = ev.card_board_value(bench_card, "soft_druid", 8)
 			assert_gt(bench_val, board_val,
 				"교체된 카드는 벤치 카드보다 약함")
 	assert_true(has_swap, "RS 카드가 약한 보드 카드를 교체")
@@ -139,8 +139,8 @@ func test_rs_valued_higher_than_bs_druid() -> void:
 	# Direct value comparison: RS druid > BS druid (same tier)
 	var rs_card: CardInstance = _make_card("dr_cradle")  # RS T1
 	var bs_card: CardInstance = _make_card("dr_lifebeat")  # BS T1
-	var rs_val: float = ev.card_board_value(rs_card, "druid_focused", 5)
-	var bs_val: float = ev.card_board_value(bs_card, "druid_focused", 5)
+	var rs_val: float = ev.card_board_value(rs_card, "soft_druid", 5)
+	var bs_val: float = ev.card_board_value(bs_card, "soft_druid", 5)
 	assert_gt(rs_val, bs_val,
 		"dr_cradle(RS) > dr_lifebeat(BS) at same tier")
 

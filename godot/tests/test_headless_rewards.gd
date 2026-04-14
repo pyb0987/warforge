@@ -38,7 +38,7 @@ func test_ai_choose_boss_reward_returns_valid_id() -> void:
 	_make_board_with_theme(state, ["pr_nest", "pr_farm", "pr_molt"])
 	var choices: Array[String] = ["r4_1", "r4_3", "r4_7", "r4_9"]
 	var decision := ai_reward.choose_boss_reward(
-		choices, state, "predator_focused")
+		choices, state, "soft_predator")
 	assert_has(decision, "reward_id", "보상 ID 포함")
 	assert_true(decision.reward_id in choices, "유효한 선택지")
 
@@ -50,7 +50,7 @@ func test_ai_choose_boss_reward_prefers_star_upgrade() -> void:
 	# r4_1(★승급)이 선택지에 있으면 우선 선택
 	var choices: Array[String] = ["r4_2", "r4_1", "r4_9", "r4_7"]
 	var decision := ai_reward.choose_boss_reward(
-		choices, state, "predator_focused")
+		choices, state, "soft_predator")
 	assert_eq(decision.reward_id, "r4_1", "★승급 우선 선택")
 
 
@@ -60,7 +60,7 @@ func test_ai_choose_target_card_for_star_upgrade() -> void:
 	_make_board_with_theme(state, ["pr_nest", "pr_farm", "ne_wild_pulse"])
 	var choices: Array[String] = ["r4_1", "r4_3", "r4_7", "r4_9"]
 	var decision := ai_reward.choose_boss_reward(
-		choices, state, "predator_focused")
+		choices, state, "soft_predator")
 	assert_eq(decision.reward_id, "r4_1")
 	assert_not_null(decision.target_card, "타겟 카드 지정")
 	# 포식종 테마 카드를 타겟으로 선택해야 함
@@ -77,7 +77,7 @@ func test_ai_choose_upgrade_returns_valid() -> void:
 	var state := _make_state()
 	_make_board_with_theme(state, ["pr_nest", "pr_farm"])
 	var result := ai_reward.choose_upgrade(
-		Enums.UpgradeRarity.RARE, state, "predator_focused")
+		Enums.UpgradeRarity.RARE, state, "soft_predator")
 	assert_has(result, "upgrade_id", "업그레이드 ID 포함")
 	assert_has(result, "target_card", "타겟 카드 포함")
 	assert_ne(result.upgrade_id, "", "빈 ID가 아님")
@@ -88,7 +88,7 @@ func test_ai_choose_upgrade_targets_theme_card() -> void:
 	var state := _make_state()
 	_make_board_with_theme(state, ["ne_wild_pulse", "pr_nest", "pr_farm"])
 	var result := ai_reward.choose_upgrade(
-		Enums.UpgradeRarity.RARE, state, "predator_focused")
+		Enums.UpgradeRarity.RARE, state, "soft_predator")
 	var target_theme: int = result.target_card.template.get("theme", 0)
 	assert_eq(target_theme, Enums.CardTheme.PREDATOR, "테마 카드 우선")
 
@@ -105,7 +105,7 @@ func test_ai_choose_upgrade_skips_full_slots() -> void:
 	# 다른 카드 추가
 	state.board[1] = CardInstance.create("pr_farm")
 	var result := ai_reward.choose_upgrade(
-		Enums.UpgradeRarity.RARE, state, "predator_focused")
+		Enums.UpgradeRarity.RARE, state, "soft_predator")
 	assert_eq(result.target_card, state.board[1], "여유 있는 카드 선택")
 
 
@@ -122,7 +122,7 @@ func test_ai_buy_upgrades_spends_terazin() -> void:
 		{"id": "C1", "cost": 4, "rarity": Enums.UpgradeRarity.COMMON},
 		{"id": "R1", "cost": 8, "rarity": Enums.UpgradeRarity.RARE},
 	]
-	ai_reward.buy_upgrades(state, offered, "predator_focused")
+	ai_reward.buy_upgrades(state, offered, "soft_predator")
 	assert_lt(state.terazin, 12, "테라진 소비됨")
 
 
@@ -136,7 +136,7 @@ func test_ai_buy_upgrades_attaches_to_card() -> void:
 	]
 	var card: CardInstance = state.board[0]
 	var before := card.upgrades.size()
-	ai_reward.buy_upgrades(state, offered, "predator_focused")
+	ai_reward.buy_upgrades(state, offered, "soft_predator")
 	assert_gt(card.upgrades.size(), before, "업그레이드 부착됨")
 
 
@@ -148,7 +148,7 @@ func test_runner_applies_boss_reward_on_win() -> void:
 	# seed를 찾아서 R4 보스를 이기는 게임 실행
 	# 보스 보상이 적용되었는지 확인
 	var genome := _make_genome()
-	var runner := RunnerScript.new(genome, "military_focused", 100)
+	var runner := RunnerScript.new(genome, "soft_military", 100)
 	var result: Dictionary = runner.run()
 	# R4 보스(4라운드) 승리 시 boss_rewards에 뭔가 있어야 함
 	assert_has(result, "boss_rewards_applied",
@@ -158,7 +158,7 @@ func test_runner_applies_boss_reward_on_win() -> void:
 func test_runner_no_boss_reward_on_loss() -> void:
 	# R4 보스를 지는 seed (CP curve가 높으면 R4에서 질 수 있음)
 	var genome := _make_genome()
-	var runner := RunnerScript.new(genome, "hybrid", 42)
+	var runner := RunnerScript.new(genome, "adaptive", 42)
 	var result: Dictionary = runner.run()
 	var boss_rewards: Array = result.get("boss_rewards_applied", [])
 	# 보스를 이겼든 졌든 적절히 기록되어야 함
@@ -188,7 +188,7 @@ func test_runner_merge_bonus_upgrade_attached() -> void:
 
 func test_runner_result_has_upgrades_purchased() -> void:
 	var genome := _make_genome()
-	var runner := RunnerScript.new(genome, "military_focused", 100)
+	var runner := RunnerScript.new(genome, "soft_military", 100)
 	var result: Dictionary = runner.run()
 	assert_has(result, "upgrades_purchased",
 		"업그레이드 구매 기록 포함")
