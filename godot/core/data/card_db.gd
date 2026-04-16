@@ -1299,17 +1299,17 @@ func _register_military() -> void:
 		1: [
 			{"action": "counter_produce", "event": "CO", "threshold": 10, "rewards": {"global_military_atk_pct": 0.05}},
 			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
 		],
 		2: [
 			{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"global_military_atk_pct": 0.07}},
 			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
 		],
 		3: [
 			{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"global_military_atk_pct": 0.1, "global_military_range_bonus": 1}},
 			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
 		],
 	}
 

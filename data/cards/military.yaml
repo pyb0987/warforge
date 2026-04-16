@@ -506,7 +506,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - upgrade_shop_bonus: {slot_delta: 2, terazin_discount: 2}  # R4 누적: 슬롯 +2 누적, -2 누적
+              - upgrade_shop_bonus: {slot_delta: 1, terazin_discount: 1}  # R4와 누적: 총 슬롯 +2, 할인 -2
       2:
         max_act: -1
         effects:
@@ -519,7 +519,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - upgrade_shop_bonus: {slot_delta: 2, terazin_discount: 2}
+              - upgrade_shop_bonus: {slot_delta: 1, terazin_discount: 1}  # R4 누적: 총 +2/-2
       3:
         max_act: -1
         effects:
@@ -532,7 +532,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - upgrade_shop_bonus: {slot_delta: 2, terazin_discount: 2}
+              - upgrade_shop_bonus: {slot_delta: 1, terazin_discount: 1}  # R4 누적: 총 +2/-2
 
   ml_command:
     name: 통합 사령부
