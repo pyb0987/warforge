@@ -123,10 +123,16 @@ func init_run_state(state: GameState) -> void:
 # ================================================================
 
 ## 업그레이드 상점 슬롯 수.
+## 기본 + 부적(터진 자루) + 군수공장 R4/R10 보너스.
 func get_upgrade_shop_slots(state: GameState) -> int:
+	var base: int = Enums.UPGRADE_SHOP_SLOTS
 	if state.talisman_type == TT.BURST_SACK:
-		return Enums.UPGRADE_SHOP_SLOTS + BURST_SACK_EXTRA_SLOTS
-	return Enums.UPGRADE_SHOP_SLOTS
+		base += BURST_SACK_EXTRA_SLOTS
+	# 군수공장 R 보너스: 보드에 ml_factory 카드가 있을 때 rank 기반 슬롯 추가.
+	var board: Array = state.get_active_board()
+	var factory_bonus: Dictionary = MilitarySystem.get_factory_shop_bonus(board)
+	base += int(factory_bonus.get("slot_delta", 0))
+	return base
 
 
 # ================================================================

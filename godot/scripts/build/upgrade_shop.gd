@@ -69,6 +69,10 @@ func get_upgrade_cost(slot_idx: int) -> int:
 	var rarity: int = UpgradeDB.get_upgrade(uid).get("rarity", 0)
 	if rarity == Enums.UpgradeRarity.COMMON:
 		base_cost -= Commander.get_common_upgrade_discount(_game_state)
+	# 🏭 군수공장 R4/R10: 모든 업그레이드 -N 테라진 할인 (단조사와 누적).
+	var board: Array = _game_state.get_active_board()
+	var factory_bonus: Dictionary = MilitarySystem.get_factory_shop_bonus(board)
+	base_cost -= int(factory_bonus.get("terazin_discount", 0))
 	return maxi(base_cost, 0)
 
 

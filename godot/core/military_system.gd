@@ -154,6 +154,36 @@ func _train_card(card: CardInstance, idx: int, amount: int) -> Array:
 	}]
 
 
+## 군수공장 R4/R10 상점 보너스 누적 계산.
+## 반환: {"slot_delta": int, "terazin_discount": int}
+## board를 순회하며 모든 ml_factory 카드의 YAML r_conditional에서
+## upgrade_shop_bonus 선언을 rank 조건부로 평가.
+## Talisman.get_upgrade_shop_slots, upgrade_shop.get_upgrade_cost에서 호출.
+static func get_factory_shop_bonus(board: Array) -> Dictionary:
+	var slot_delta := 0
+	var terazin_discount := 0
+	for c in board:
+		if c == null:
+			continue
+		var card: CardInstance = c as CardInstance
+		if card == null or card.get_base_id() != "ml_factory":
+			continue
+		var rank: int = card.theme_state.get("rank", 0)
+		var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+		for eff in effs:
+			if eff.get("action", "") != "r_conditional":
+				continue
+			if eff.get("condition", "") != "rank_gte":
+				continue
+			if rank < int(eff.get("threshold", 0)):
+				continue
+			for inner in eff.get("effects", []):
+				if inner.get("action", "") == "upgrade_shop_bonus":
+					slot_delta += int(inner.get("slot_delta", 0))
+					terazin_discount += int(inner.get("terazin_discount", 0))
+	return {"slot_delta": slot_delta, "terazin_discount": terazin_discount}
+
+
 ## @deprecated: rank_threshold 액션이 R4/R10 milestone 재설계(2026-04-16, trace 012)로
 ## YAML에서 제거됨. 현재는 no-op. Step 3 구현 스프린트에서
 ## R4/R10 공통 처리(enhance_convert_card) 및 카드별 r_conditional 로직으로 대체 예정.
@@ -427,6 +457,11 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 			# 통합사령부 R4/R10: revive scope 확장은 game_manager._materialize_army가
 			# 통합사령부 카드의 rank를 직접 읽어 scope를 결정하므로 dispatch는 no-op.
 			# action은 YAML 선언(설계 의도 문서화) 목적.
+			pass
+		"upgrade_shop_bonus":
+			# 군수공장 R4/R10: 상점 슬롯/할인은 Talisman.get_upgrade_shop_slots와
+			# upgrade_shop.get_upgrade_cost가 get_factory_shop_bonus를 직접 호출해
+			# rank 기반으로 평가하므로 dispatch는 no-op.
 			pass
 		"rank_buff_hp":
 			# 전술사령부 R4: 모든 군대 카드에 계급당 HP +% buff (BS 타이밍).
