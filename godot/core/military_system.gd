@@ -99,6 +99,9 @@ func _train_card(card: CardInstance, idx: int, amount: int) -> Array:
 	}]
 
 
+## @deprecated: rank_threshold 액션이 R4/R10 milestone 재설계(2026-04-16, trace 012)로
+## YAML에서 제거됨. 현재는 no-op. Step 3 구현 스프린트에서
+## R4/R10 공통 처리(enhance_convert_card) 및 카드별 r_conditional 로직으로 대체 예정.
 func _check_thresholds(card: CardInstance, old: int, new_rank: int) -> void:
 	var triggered: Dictionary = card.theme_state.get("rank_triggers", {})
 	var base := card.get_base_id()
@@ -124,6 +127,9 @@ func _check_thresholds(card: CardInstance, old: int, new_rank: int) -> void:
 
 
 ## Return the next unfired rank threshold for a military card, or -1 if none.
+## @deprecated: R4/R10 milestone 재설계(2026-04-16, trace 012)로 YAML에서
+## rank_threshold 제거됨 → 항상 -1 반환. UI(card_tooltip)에서 자연스럽게 표시 숨김.
+## Step 3에서 R4/R10 milestone 표시 방식으로 대체 예정.
 static func get_next_threshold(card: CardInstance) -> int:
 	var base := card.get_base_id()
 	var rank: int = card.theme_state.get("rank", 0)
