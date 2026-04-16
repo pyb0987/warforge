@@ -62,7 +62,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	match card.get_base_id():
 		"ml_tactical": return _tactical_battle(card, idx, board)
-		"ml_assault": return _assault_battle(card, board)
+		"ml_assault": return _assault_battle(card, idx, board)
 	return Enums.empty_result()
 
 
@@ -340,10 +340,48 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 			# 이 카드의 비(강화) 유닛 중 fraction 비율을 (강화)로 변환.
 			var fraction: float = eff.get("fraction", 0.5)
 			_enhance_convert_card(card, fraction)
+		"swarm_buff":
+			# BS 타이밍에 발동 (돌격편대 R4). 전군 유닛 수 × ATK%.
+			_apply_swarm_buff(eff, board)
+		"lifesteal":
+			# BS 타이밍 (돌격편대 R10). 전군에 라이프스틸 메커닉.
+			_apply_lifesteal(eff, board)
 		_:
 			# Phase 2+ 에서 추가 action 등록. 지금은 no-op.
 			pass
 	return events
+
+
+## swarm_buff 적용 (BS 타이밍). 필드 전체 군대 유닛 합계 × atk_per_unit% buff.
+## 기존 _assault_battle 로직에서 이식.
+func _apply_swarm_buff(eff: Dictionary, board: Array) -> void:
+	var atk_per_unit: float = eff.get("atk_per_unit", 0.005)
+	var ms_bonus_def: Dictionary = eff.get("ms_bonus", {})
+	var ms_thresh: int = ms_bonus_def.get("unit_thresh", 15)
+	var ms_bonus_val: int = ms_bonus_def.get("bonus", 1)
+
+	var total_units := 0
+	for mi in _military_indices(board):
+		total_units += (board[mi] as CardInstance).get_total_units()
+
+	var atk_pct := float(total_units) * atk_per_unit
+	for mi in _military_indices(board):
+		(board[mi] as CardInstance).temp_buff(null, atk_pct)
+		if total_units >= ms_thresh:
+			(board[mi] as CardInstance).theme_state["ms_bonus"] = ms_bonus_val
+
+
+## lifesteal 적용 (BS 타이밍). 모든 군대 카드 유닛에 "lifesteal" mechanic 추가.
+## pct만큼 가한 피해의 HP 회복. combat_engine mechanics_handler에 이미 구현됨.
+func _apply_lifesteal(eff: Dictionary, board: Array) -> void:
+	var pct: float = eff.get("pct", 0.10)
+	if pct <= 0:
+		return
+	for mi in _military_indices(board):
+		var mc: CardInstance = board[mi]
+		# 카드 수준 지속 mechanic. 전투 시작 시 유닛에 적용되도록 theme_state에 저장.
+		# combat_engine이 battle_start에 theme_state["lifesteal_pct"]를 읽어 unit mechanics에 주입.
+		mc.theme_state["lifesteal_pct"] = pct
 
 
 ## 카드의 비(강화) 유닛 중 fraction 비율(floor)을 (강화)로 변환.
@@ -616,29 +654,11 @@ func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
-func _assault_battle(card: CardInstance, board: Array) -> Dictionary:
-	# 돌격편대 재설계(trace 012): swarm_buff는 R4 조건부 해금.
-	# 기본 effects에는 없고 r_conditional 내부에 있음 → 이 함수는 과도기 안전장치.
-	# Phase 2 I에서 BS 시점 r_conditional swarm_buff/lifesteal 처리로 대체 예정.
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var buff_eff := _find_eff(effs, "swarm_buff", "all_military")
-	if buff_eff.is_empty():
-		return Enums.empty_result()  # swarm_buff 해금 전: no-op
-	var atk_per_unit: float = buff_eff.get("atk_per_unit", 0.01)
-	var ms_bonus_def: Dictionary = buff_eff.get("ms_bonus", {})
-	var ms_thresh: int = ms_bonus_def.get("unit_thresh", 15)
-	var ms_bonus_val: int = ms_bonus_def.get("bonus", 1)
-
-	var total_units := 0
-	for mi in _military_indices(board):
-		total_units += (board[mi] as CardInstance).get_total_units()
-
-	var atk_pct := float(total_units) * atk_per_unit
-	for mi in _military_indices(board):
-		(board[mi] as CardInstance).temp_buff(null, atk_pct)
-
-	if total_units >= ms_thresh:
-		card.theme_state["ms_bonus"] = ms_bonus_val
+func _assault_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# 돌격편대 재설계(trace 012): swarm_buff/lifesteal은 R4/R10 조건부 해금.
+	# r_conditional 내부에 있으므로 BS 시점에 _process_r_conditional 호출로 처리.
+	# (swarm_buff/lifesteal action은 _dispatch_r_effect 내부에서 BS 효과 적용)
+	_process_r_conditional(card, idx, board)
 	return Enums.empty_result()
 
 

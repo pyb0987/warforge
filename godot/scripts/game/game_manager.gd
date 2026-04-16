@@ -277,6 +277,9 @@ func _materialize_army() -> Array:
 			var rerolls := mini(game_state.round_rerolls, 5)
 			var buff_pct: float = 0.05 if c.star_level == 2 else 0.08
 			reroll_buff_mult = 1.0 + buff_pct * rerolls
+		# 군대 돌격편대 R10 lifesteal: _apply_lifesteal이 BS에서
+		# theme_state["lifesteal_pct"]에 저장 → 여기서 mechanic으로 주입.
+		var lifesteal_pct: float = c.theme_state.get("lifesteal_pct", 0.0)
 		for s in c.stacks:
 			var ut: Dictionary = s["unit_type"]
 			var eff_atk := c.eff_atk_for(s)
@@ -288,6 +291,9 @@ func _materialize_army() -> Array:
 				if "firearm" in ut_tags:
 					unit_mechs = unit_mechs.duplicate()
 					unit_mechs.append({"type": "attack_stack", "atk_pct": atk_stack_pct})
+			if lifesteal_pct > 0.0:
+				unit_mechs = unit_mechs.duplicate()
+				unit_mechs.append({"type": "lifesteal", "steal_pct": lifesteal_pct})
 			for _n in s["count"]:
 				units.append({
 					"atk": eff_atk * reroll_buff_mult,
