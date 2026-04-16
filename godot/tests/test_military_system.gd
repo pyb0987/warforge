@@ -1,8 +1,22 @@
 extends GutTest
-## MilitarySystem 테마 로직 테스트
-## 참조: military_system.gd, handoff.md P4-D
+## MilitarySystem 테마 로직 테스트 (R4/R10 재설계 반영, 2026-04-16)
 ##
-## barracks 훈련/임계값 / outpost 징집 / academy 추가 훈련 / factory 카운터 / command 부활 검증.
+## 테스트 범위:
+## - barracks 훈련 (self + right_adj, R4 차분 확장)
+## - conscript(스왑 후 T1 self 징집) / outpost(스왑 후 T2 반응)
+## - academy 훈련 반응
+## - factory counter (terazin → global_military_atk_pct 전환)
+## - tactical rank_buff
+## - supply PC gold
+## - command 부활 수치 (★1: 25%, ★2: 50%, ★3: 100%)
+##
+## 제거된 테스트 (rank_threshold 폐기):
+## - barracks rank3/5/8 → infantry/plasma/walker
+## - special_ops rank8 → commander
+## - factory terazin reward (rewards 구조 변경)
+## - assault BS swarm_buff (R4 조건부로 이동)
+##
+## 새 R4/R10 효과 테스트는 별도 스프린트에서 추가 예정.
 
 
 var _sys: MilitarySystem = null
@@ -25,8 +39,15 @@ func _make_conscript_event(src: int, tgt: int) -> Dictionary:
 			"source_idx": src, "target_idx": tgt}
 
 
+func _make_star(base_id: String, star: int) -> CardInstance:
+	var card: CardInstance = CardInstance.create(base_id)
+	for _i in star - 1:
+		card.evolve_star()
+	return card
+
+
 # ================================================================
-# ml_barracks (RS): train +1 self, +1 adj military
+# ml_barracks (RS): train self + right_adj (R0), left_adj R4, far_military R10
 # ================================================================
 
 func test_barracks_trains_self_plus1() -> void:
@@ -35,10 +56,12 @@ func test_barracks_trains_self_plus1() -> void:
 	assert_eq(card.theme_state.get("rank", 0), 1, "rank=1")
 
 
-func test_barracks_trains_adjacent_military() -> void:
-	var board: Array = [CardInstance.create("ml_barracks"), CardInstance.create("ml_outpost")]
+func test_barracks_trains_right_adj_military() -> void:
+	## R0 기본: self + right_adj.
+	var board: Array = [CardInstance.create("ml_barracks"), CardInstance.create("ml_conscript")]
 	_sys.process_rs_card(board[0], 0, board, _rng)
-	assert_eq(board[1].theme_state.get("rank", 0), 1, "adj military rank=1")
+	assert_eq(board[0].theme_state.get("rank", 0), 1, "self rank=1")
+	assert_eq(board[1].theme_state.get("rank", 0), 1, "right_adj rank=1")
 
 
 func test_barracks_no_train_to_non_military_adj() -> void:
@@ -48,34 +71,11 @@ func test_barracks_no_train_to_non_military_adj() -> void:
 
 
 # ================================================================
-# ml_barracks threshold: rank3→infantry
+# ml_conscript (T1 RS self 징집, 스왑 후 이전 _outpost 역할)
 # ================================================================
 
-func test_barracks_rank3_adds_infantry() -> void:
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 2
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# rank 2→3, threshold 3 → ml_infantry 1기 추가
-	assert_eq(card.theme_state.get("rank", 0), 3, "rank=3")
-	assert_eq(card.get_total_units(), units_before + 1, "infantry +1")
-
-
-func test_barracks_rank_threshold_fires_once_only() -> void:
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 2
-	_sys.process_rs_card(card, 0, [card], _rng)  # rank=3 → infantry 추가
-	var units_after_first: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)  # rank=4 → threshold 이미 발동
-	assert_eq(card.get_total_units(), units_after_first, "재발동 없음")
-
-
-# ================================================================
-# ml_outpost (RS): conscript 2
-# ================================================================
-
-func test_outpost_defers_self_conscription() -> void:
-	var card: CardInstance = CardInstance.create("ml_outpost")
+func test_conscript_defers_self_conscription() -> void:
+	var card: CardInstance = CardInstance.create("ml_conscript")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
 	# Self-conscription is deferred — units NOT added yet
@@ -84,15 +84,15 @@ func test_outpost_defers_self_conscription() -> void:
 	assert_eq(_sys.pending_conscriptions[0]["count"], 2, "count=2")
 
 
-func test_outpost_pending_has_card_ref() -> void:
-	var card: CardInstance = CardInstance.create("ml_outpost")
+func test_conscript_pending_has_card_ref() -> void:
+	var card: CardInstance = CardInstance.create("ml_conscript")
 	_sys.process_rs_card(card, 0, [card], _rng)
 	assert_eq(_sys.pending_conscriptions[0]["card_ref"], card, "card_ref 일치")
 	assert_eq(_sys.pending_conscriptions[0]["card_idx"], 0, "card_idx=0")
 
 
-func test_outpost_star3_defers_3() -> void:
-	var card: CardInstance = CardInstance.create("ml_outpost")
+func test_conscript_star3_defers_3() -> void:
+	var card: CardInstance = CardInstance.create("ml_conscript")
 	card.star_level = 3
 	_sys.process_rs_card(card, 0, [card], _rng)
 	assert_eq(_sys.pending_conscriptions[0]["count"], 3, "★3: count=3")
@@ -109,7 +109,7 @@ func test_pick_conscript_options_returns_3() -> void:
 
 
 func test_apply_conscript_adds_unit() -> void:
-	var card: CardInstance = CardInstance.create("ml_outpost")
+	var card: CardInstance = CardInstance.create("ml_conscript")
 	var before: int = card.get_total_units()
 	var added: int = _sys.apply_conscript(card, "ml_recruit")
 	assert_eq(added, 1, "1기 추가")
@@ -117,11 +117,24 @@ func test_apply_conscript_adds_unit() -> void:
 
 
 func test_clear_pending() -> void:
-	var card: CardInstance = CardInstance.create("ml_outpost")
+	var card: CardInstance = CardInstance.create("ml_conscript")
 	_sys.process_rs_card(card, 0, [card], _rng)
 	assert_gt(_sys.pending_conscriptions.size(), 0, "pending 있음")
 	_sys.clear_pending()
 	assert_eq(_sys.pending_conscriptions.size(), 0, "clear 후 비어있음")
+
+
+# ================================================================
+# ml_outpost (T2 OE 반응 증폭, 스왑 후 이전 _conscript_react 역할)
+# ================================================================
+
+func test_outpost_react_adds_unit_to_target() -> void:
+	## ★1: CONSCRIPT 이벤트 감지 → event_target에 1기 징집 추가.
+	var board: Array = [CardInstance.create("ml_outpost"), CardInstance.create("ml_conscript")]
+	var before: int = board[1].get_total_units()
+	var event: Dictionary = _make_conscript_event(0, 1)
+	_sys.process_event_card(board[0], 0, board, event, _rng)
+	assert_eq(board[1].get_total_units(), before + 1, "target +1 징집")
 
 
 # ================================================================
@@ -135,18 +148,17 @@ func test_academy_adds_rank_to_train_target() -> void:
 	assert_eq(board[1].theme_state.get("rank", 0), 1, "target rank +1")
 
 
-func test_academy_star1_bonus_train_1() -> void:
-	## ★1: bonus_train=1, growth=0
+func test_academy_star1_no_enhance() -> void:
+	## ★1: bonus_train=1, growth=0 (enhance 없음)
 	var board: Array = [CardInstance.create("ml_academy"), CardInstance.create("ml_barracks")]
 	var atk_before: float = board[1].get_total_atk()
 	var event: Dictionary = _make_train_event(1, 1)
 	_sys.process_event_card(board[0], 0, board, event, _rng)
-	# ★1: growth=0 → ATK 불변, rank만 +1
 	assert_almost_eq(board[1].get_total_atk(), atk_before, 0.01, "★1: ATK 불변")
 
 
 # ================================================================
-# ml_factory (OE): 징집 카운터 10마다 terazin
+# ml_factory (OE): CONSCRIPT 카운터 누적, rewards 구조 변경 (terazin 제거)
 # ================================================================
 
 func test_factory_counter_increments() -> void:
@@ -156,62 +168,24 @@ func test_factory_counter_increments() -> void:
 	assert_eq(card.theme_state.get("conscript_counter", 0), 1, "counter=1")
 
 
-func test_factory_at_10_gives_terazin() -> void:
+func test_factory_at_10_resets_counter() -> void:
+	## 재설계: terazin 제거, global_military_atk_pct 적용. counter는 리셋만 확인.
 	var card: CardInstance = CardInstance.create("ml_factory")
 	card.theme_state["conscript_counter"] = 9
 	var event: Dictionary = _make_conscript_event(0, 0)
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], event, _rng)
-	assert_eq(result["terazin"], 1, "counter 9→10 → terazin=1")
-	assert_eq(card.theme_state.get("conscript_counter", 0), 0, "counter reset")
+	assert_eq(result["terazin"], 0, "재설계: terazin 지급 없음")
+	assert_eq(card.theme_state.get("conscript_counter", 0), 0, "counter 리셋 (10→0)")
 
 
-# ================================================================
-# ml_command: apply_persistent → revive 설정
-# ================================================================
-
-func test_command_sets_revive_hp_50pct() -> void:
-	var card: CardInstance = CardInstance.create("ml_command")
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.50, 0.001, "revive_hp=0.50")
-
-
-# ================================================================
-# ml_barracks threshold: rank5→plasma, rank8→walker
-# ================================================================
-
-func test_barracks_rank5_adds_plasma() -> void:
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 4
-	card.theme_state["rank_triggers"] = {3: true}
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# rank 4→5, threshold 5 → ml_plasma 1기 추가
-	assert_eq(card.theme_state.get("rank", 0), 5, "rank=5")
-	assert_eq(card.get_total_units(), units_before + 1, "plasma +1")
-
-
-func test_barracks_rank8_adds_walker() -> void:
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 7
-	card.theme_state["rank_triggers"] = {3: true, 5: true}
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# rank 7→8, threshold 8 → ml_walker 1기 추가
-	assert_eq(card.theme_state.get("rank", 0), 8, "rank=8")
-	assert_eq(card.get_total_units(), units_before + 1, "walker +1")
-
-
-# ================================================================
-# ml_conscript (OE): CONSCRIPT 이벤트 → target에 징집 추가
-# ================================================================
-
-func test_conscript_react_adds_unit_to_target() -> void:
-	## ★1: event target에 1기 징집
-	var board: Array = [CardInstance.create("ml_conscript"), CardInstance.create("ml_outpost")]
-	var before: int = board[1].get_total_units()
-	var event: Dictionary = _make_conscript_event(0, 1)
+func test_factory_at_10_buffs_all_military_atk() -> void:
+	## ★1: counter 10 → global_military_atk_pct 0.05 → 모든 군대 카드 ATK +5% 영구.
+	var board: Array = [CardInstance.create("ml_factory"), CardInstance.create("ml_barracks")]
+	board[0].theme_state["conscript_counter"] = 9
+	var atk_before_board1: float = board[1].get_total_atk()
+	var event: Dictionary = _make_conscript_event(0, 0)
 	_sys.process_event_card(board[0], 0, board, event, _rng)
-	assert_eq(board[1].get_total_units(), before + 1, "target +1 징집")
+	assert_gt(board[1].get_total_atk(), atk_before_board1, "군대 카드 ATK 증가")
 
 
 # ================================================================
@@ -235,11 +209,11 @@ func test_supply_defeat_halves_gold() -> void:
 
 
 # ================================================================
-# ml_tactical (BS): rank×2% shield + 총유닛×0.5% ATK
+# ml_tactical (BS): rank_buff (shield + ATK)
 # ================================================================
 
 func test_tactical_applies_shield_by_rank() -> void:
-	## ★1: shield = rank * 2%
+	## ★1: shield = rank * shield_per_rank (0.02)
 	var board: Array = [CardInstance.create("ml_tactical"), CardInstance.create("ml_barracks")]
 	board[0].theme_state["rank"] = 5
 	_sys.apply_battle_start(board[0], 0, board)
@@ -247,7 +221,7 @@ func test_tactical_applies_shield_by_rank() -> void:
 
 
 func test_tactical_buffs_atk_by_total_units() -> void:
-	## ★1: ATK buff = total_units * 0.5%
+	## ★1: ATK buff = total_units * atk_per_unit (0.005)
 	var board: Array = [CardInstance.create("ml_tactical")]
 	board[0].theme_state["rank"] = 1
 	var atk_before: float = board[0].get_total_atk()
@@ -256,124 +230,44 @@ func test_tactical_buffs_atk_by_total_units() -> void:
 
 
 # ================================================================
-# ml_assault (BS): 총유닛×1% ATK + MS 보너스
+# ml_assault (RS): 재설계로 timing BS→RS, 기본 효과는 spawn_unit(바이커)
 # ================================================================
 
-func test_assault_buffs_atk() -> void:
-	## ★1: total_units * 1% ATK buff
+func test_assault_rs_spawns_biker() -> void:
+	## ★1: 매 RS 바이커 1기 추가.
 	var card: CardInstance = CardInstance.create("ml_assault")
-	var atk_before: float = card.get_total_atk()
-	_sys.apply_battle_start(card, 0, [card])
-	assert_gt(card.get_total_atk(), atk_before, "ATK 버프")
-
-
-func test_assault_ms_bonus_below_threshold() -> void:
-	## ★1: total_units >= 15 → ms_bonus=1. 초기 3유닛 → 미달
-	var card: CardInstance = CardInstance.create("ml_assault")
-	_sys.apply_battle_start(card, 0, [card])
-	assert_eq(card.theme_state.get("ms_bonus", 0), 0, "3유닛 < 15 → ms 없음")
+	var before: int = card.get_total_units()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(card.get_total_units(), before + 1, "★1: 바이커 +1")
 
 
 # ================================================================
-# ml_special_ops (RS): train +1 self/adj + rank threshold → commander
+# ml_special_ops (RS): 재설계로 훈련 제거, crit_buff 중심
 # ================================================================
 
-func test_special_ops_trains_self() -> void:
+func test_special_ops_sets_crit_chance() -> void:
+	## ★1: crit_chance 0.10, mult 2.0 → theme_state에 저장.
 	var card: CardInstance = CardInstance.create("ml_special_ops")
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.theme_state.get("rank", 0), 1, "rank=1")
-
-
-func test_special_ops_rank8_adds_commander() -> void:
-	## ★1: rank≥8 → ml_commander 1기 추가
-	var card: CardInstance = CardInstance.create("ml_special_ops")
-	card.theme_state["rank"] = 7
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# rank 7→8, threshold 8 → ml_commander ×1
-	assert_eq(card.theme_state.get("rank", 0), 8, "rank=8")
-	assert_eq(card.get_total_units(), units_before + 1, "commander +1")
-
-
-func _make_star(base_id: String, star: int) -> CardInstance:
-	var card: CardInstance = CardInstance.create(base_id)
-	for _i in star - 1:
-		card.evolve_star()
-	return card
+	assert_almost_eq(card.theme_state.get("crit_chance", 0.0), 0.10, 0.001, "★1: 크리 확률 10%")
+	assert_almost_eq(card.theme_state.get("crit_mult", 0.0), 2.0, 0.001, "★1: 크리 배율 2.0")
 
 
 # ================================================================
-# ★2/★3 특수 작전대 (RS leader threshold)
+# ml_command (RS + apply_persistent): train all + 부활 HP
 # ================================================================
 
-func test_special_ops_s2_leader_at_rank6() -> void:
-	## ★2: rank≥6에서 leader (★1은 8)
-	var card := _make_star("ml_special_ops", 2)
-	card.theme_state["rank"] = 5
-	card.theme_state["rank_triggers"] = {3: true}
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.theme_state.get("rank", 0), 6, "rank=6")
-	assert_eq(card.get_total_units(), units_before + 1, "★2 rank6 → commander +1")
+func test_command_s1_trains_all_military() -> void:
+	## ★1: train all_military amount=1.
+	var card: CardInstance = CardInstance.create("ml_command")
+	var ally: CardInstance = CardInstance.create("ml_barracks")
+	var rank_before: int = ally.theme_state.get("rank", 0)
+	_sys.process_rs_card(card, 0, [card, ally], _rng)
+	assert_eq(ally.theme_state.get("rank", 0), rank_before + 1, "★1 train +1")
 
 
-func test_special_ops_s3_leader_at_rank5_x2() -> void:
-	## ★3: rank≥5에서 leader 2기
-	var card := _make_star("ml_special_ops", 3)
-	card.theme_state["rank"] = 4
-	card.theme_state["rank_triggers"] = {3: true}
-	var units_before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.theme_state.get("rank", 0), 5, "rank=5")
-	assert_eq(card.get_total_units(), units_before + 2, "★3 rank5 → commander ×2")
-
-
-# ================================================================
-# ★2/★3 군수 공장 (OE conscript counter)
-# ================================================================
-
-func test_factory_s2_threshold_8() -> void:
-	## ★2: counter 8에서 발동 (★1은 10) + terazin 1 + ATK 3%
-	var card := _make_star("ml_factory", 2)
-	card.theme_state["conscript_counter"] = 7
-	var atk_before: float = card.get_total_atk()
-	var conscript_evt := {"layer1": -1, "layer2": Enums.Layer2.CONSCRIPT,
-		"source_idx": 0, "target_idx": 0}
-	var result: Dictionary = _sys.process_event_card(card, 0, [card], conscript_evt, _rng)
-	assert_eq(result["terazin"], 1, "★2 counter 8 → terazin 1")
-	assert_gt(card.get_total_atk(), atk_before, "★2 → ATK 3% enhance")
-
-
-func test_factory_s3_threshold_6_terazin_2() -> void:
-	## ★3: counter 6 + terazin 2 + ATK 5%
-	var card := _make_star("ml_factory", 3)
-	card.theme_state["conscript_counter"] = 5
-	var atk_before: float = card.get_total_atk()
-	var conscript_evt := {"layer1": -1, "layer2": Enums.Layer2.CONSCRIPT,
-		"source_idx": 0, "target_idx": 0}
-	var result: Dictionary = _sys.process_event_card(card, 0, [card], conscript_evt, _rng)
-	assert_eq(result["terazin"], 2, "★3 counter 6 → terazin 2")
-	assert_gt(card.get_total_atk(), atk_before, "★3 → ATK +5% enhance")
-
-
-func test_factory_s1_no_enhance_at_10() -> void:
-	## ★1: terazin만, enhance 없음
-	var card: CardInstance = CardInstance.create("ml_factory")
-	card.theme_state["conscript_counter"] = 9
-	var atk_before: float = card.get_total_atk()
-	var conscript_evt := {"layer1": -1, "layer2": Enums.Layer2.CONSCRIPT,
-		"source_idx": 0, "target_idx": 0}
-	var result: Dictionary = _sys.process_event_card(card, 0, [card], conscript_evt, _rng)
-	assert_eq(result["terazin"], 1, "★1 counter 10 → terazin 1")
-	assert_eq(card.get_total_atk(), atk_before, "★1 → enhance 없음")
-
-
-# ================================================================
-# ★2/★3 통합 사령부 (RS train + PERSISTENT revive)
-# ================================================================
-
-func test_command_s3_trains_2_per_ally() -> void:
-	## ★3: amount=2 (★1/★2는 1)
+func test_command_s3_trains_2() -> void:
+	## ★3: amount=2.
 	var card := _make_star("ml_command", 3)
 	var ally: CardInstance = CardInstance.create("ml_barracks")
 	var rank_before: int = ally.theme_state.get("rank", 0)
@@ -381,24 +275,60 @@ func test_command_s3_trains_2_per_ally() -> void:
 	assert_eq(ally.theme_state.get("rank", 0), rank_before + 2, "★3 train +2")
 
 
-func test_command_s2_revive_hp_75() -> void:
-	## ★2: revive HP 75% (★1은 50%)
-	var card := _make_star("ml_command", 2)
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.75, 0.001, "★2 revive HP 75%")
-
-
-func test_command_s3_revive_limit_3_hp_100() -> void:
-	## ★3: revive 3회, HP 100%
-	var card := _make_star("ml_command", 3)
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 1.0, 0.001, "★3 revive HP 100%")
-	assert_eq(card.theme_state.get("revive_limit", 0), 3, "★3 revive 3회")
-
-
-func test_command_s1_revive_limit_1_hp_50() -> void:
-	## ★1: revive 1회, HP 50%
+func test_command_s1_revive_hp_25() -> void:
+	## 재설계: ★1 revive HP 25% (기존 50% → 25%).
 	var card: CardInstance = CardInstance.create("ml_command")
 	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.50, 0.001, "★1 revive HP 50%")
-	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★1 revive 1회")
+	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.25, 0.001, "★1: HP 25%")
+	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★1: 1회")
+
+
+func test_command_s2_revive_hp_50() -> void:
+	## 재설계: ★2 HP 50%.
+	var card := _make_star("ml_command", 2)
+	_sys.apply_persistent(card)
+	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.50, 0.001, "★2: HP 50%")
+	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★2: 1회")
+
+
+func test_command_s3_revive_hp_100() -> void:
+	## 재설계: ★3 HP 100%, limit 1 (기존 3회 → 1회).
+	var card := _make_star("ml_command", 3)
+	_sys.apply_persistent(card)
+	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 1.0, 0.001, "★3: HP 100%")
+	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★3: 1회 (on_revive 버프 제거)")
+
+
+# ================================================================
+# 공통 R4/R10: enhance_convert_card (모든 카드)
+# ================================================================
+
+func test_barracks_r4_converts_half_to_enhanced() -> void:
+	## rank 4 도달 시 비(강화) 유닛 절반이 (강화)로 변환.
+	## ml_barracks comp: 신병×2 보병×1 (총 3 비강화).
+	var card: CardInstance = CardInstance.create("ml_barracks")
+	card.theme_state["rank"] = 4
+	# R4 효과는 r_conditional에서 매 실행 시 발동.
+	_sys.process_rs_card(card, 0, [card], _rng)
+	# 비(강화) 절반(floor 3*0.5=1) 변환. (강화) 유닛 1기 이상 존재해야 함.
+	var has_enhanced := false
+	for s in card.stacks:
+		var ut_tags: PackedStringArray = s["unit_type"].get("tags", PackedStringArray())
+		if "enhanced" in ut_tags:
+			has_enhanced = true
+			break
+	assert_true(has_enhanced, "R4: (강화) 유닛 존재")
+
+
+func test_barracks_r10_converts_all_to_enhanced() -> void:
+	## rank 10 도달 시 모든 비(강화) 유닛이 (강화)로 변환.
+	var card: CardInstance = CardInstance.create("ml_barracks")
+	card.theme_state["rank"] = 10
+	_sys.process_rs_card(card, 0, [card], _rng)
+	# 전원 (강화) 또는 엘리트(변환 불가 유닛).
+	for s in card.stacks:
+		var ut_tags: PackedStringArray = s["unit_type"].get("tags", PackedStringArray())
+		var uid: String = s["unit_type"].get("id", "")
+		# ENHANCED_MAP에 있는 유닛만 변환 대상. 이 카드는 recruit/infantry로 모두 변환 가능.
+		if MilitarySystem.ENHANCED_MAP.has(uid):
+			assert_true(false, "R10: 변환 가능한 비(강화) 유닛이 남아있으면 안 됨 (%s)" % uid)
