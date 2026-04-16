@@ -457,14 +457,14 @@ func _register_neutral() -> void:
 	var wil_tags := PackedStringArray(["neutral", "combat"])
 	_c("ne_wildforce", "야생의 힘", 2, T,
 		wil_comp, BS, -1,
-		[_buff("self", 0.1)],
+		[],
 		wil_tags, -1, -1, false, 0, false, {
-			2: _star("야생의 힘 ★2", wil_comp, BS, -1, [_buff("self", 0.15)], wil_tags),
+			2: _star("야생의 힘 ★2", wil_comp, BS, -1, [], wil_tags),
 			3: {
 				"name": "야생의 힘 ★3",
 				"composition": wil_comp,
 				"trigger_timing": BS, "max_activations": -1,
-				"effects": [_buff("self", 0.15)],
+				"effects": [],
 				"card_tags": wil_tags,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_other_card": false, "require_tenure": 0,
@@ -1072,15 +1072,21 @@ func _register_military() -> void:
 		1: [
 			{"action": "train", "target": "self", "amount": 1},
 			{"action": "train", "target": "right_adj", "amount": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "both_adj", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "all_military", "amount": 1}]},
 		],
 		2: [
 			{"action": "train", "target": "self", "amount": 2},
 			{"action": "train", "target": "right_adj", "amount": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "both_adj", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "all_military", "amount": 1}]},
 		],
 		3: [
 			{"action": "train", "target": "self", "amount": 2},
 			{"action": "train", "target": "right_adj", "amount": 1},
 			{"action": "high_rank_mult", "rank": 15, "atk_mult": 1.3},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "both_adj", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "all_military", "amount": 1}]},
 		],
 	}
 
@@ -1094,15 +1100,23 @@ func _register_military() -> void:
 			3: _star("징병국 ★3", con_comp, RS, -1, [], con_tags),
 		})
 	_theme_effects["ml_conscript"] = {
-		1: [{"action": "conscript", "target": "self", "count": 2}],
+		1: [
+			{"action": "conscript", "target": "self", "count": 2},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]},
+		],
 		2: [
 			{"action": "conscript", "target": "self", "count": 2},
 			{"action": "conscript", "target": "both_adj", "count": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]},
 		],
 		3: [
 			{"action": "conscript", "target": "self", "count": 3},
 			{"action": "conscript", "target": "both_adj", "count": 1},
 			{"action": "conditional", "condition": "unit_count_gte", "threshold": 12, "effects": [{"action": "buff", "target": "all_military", "atk_pct": 0.1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]},
 		],
 	}
 
@@ -1116,12 +1130,20 @@ func _register_military() -> void:
 			3: _star("전진 기지 ★3", out_comp, OE, 3, [], out_tags, -1, CO),
 		})
 	_theme_effects["ml_outpost"] = {
-		1: [{"action": "conscript", "target": "event_target", "count": 1}],
+		1: [
+			{"action": "conscript", "target": "event_target", "count": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "all_military", "count": 1}]},
+		],
 		2: [
 			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "partial"},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced": "partial"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "all_military", "count": 1, "enhanced": "partial"}]},
 		],
 		3: [
 			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "all"},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced": "all"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "all_military", "count": 1, "enhanced": "all"}]},
 		],
 	}
 
@@ -1135,14 +1157,22 @@ func _register_military() -> void:
 			3: _star("군사 학교 ★3", aca_comp, OE, 3, [], aca_tags, -1, TR),
 		})
 	_theme_effects["ml_academy"] = {
-		1: [{"action": "train", "target": "event_target", "amount": 1}],
+		1: [
+			{"action": "train", "target": "event_target", "amount": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]},
+		],
 		2: [
 			{"action": "train", "target": "event_target", "amount": 1},
 			{"action": "enhance", "target": "event_target", "atk_pct": 0.02},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]},
 		],
 		3: [
 			{"action": "train", "target": "event_target", "amount": 2},
 			{"action": "enhance", "target": "event_target", "atk_pct": 0.03},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]},
 		],
 	}
 
@@ -1158,12 +1188,18 @@ func _register_military() -> void:
 	_theme_effects["ml_supply"] = {
 		1: [
 			{"action": "economy", "gold_base": 1, "gold_per": 0.5, "gold_per_unit": "cards", "halve_on_loss": true},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 2}, {"action": "grant_gold", "amount": 1}]},
 		],
 		2: [
 			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 2}, {"action": "grant_gold", "amount": 1}]},
 		],
 		3: [
 			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 2}, {"action": "grant_gold", "amount": 1}]},
 		],
 	}
 
@@ -1179,12 +1215,18 @@ func _register_military() -> void:
 	_theme_effects["ml_tactical"] = {
 		1: [
 			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.02, "atk_per_unit": 0.005, "enhanced_shield_bonus": 0.03},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]},
 		],
 		2: [
 			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.03, "atk_per_unit": 0.008, "enhanced_shield_bonus": 0.05},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]},
 		],
 		3: [
 			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01, "enhanced_shield_bonus": 0.08},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]},
 		],
 	}
 
@@ -1200,12 +1242,18 @@ func _register_military() -> void:
 	_theme_effects["ml_assault"] = {
 		1: [
 			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]},
 		],
 		2: [
 			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 2},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]},
 		],
 		3: [
 			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 4},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]},
 		],
 	}
 
@@ -1219,14 +1267,22 @@ func _register_military() -> void:
 			3: _star("특수 작전대 ★3", so_comp, RS, -1, [], so_tags),
 		})
 	_theme_effects["ml_special_ops"] = {
-		1: [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 2.0}],
+		1: [
+			{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 2.0},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]},
+		],
 		2: [
 			{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0},
 			{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]},
 		],
 		3: [
 			{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0},
 			{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 3},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]},
 		],
 	}
 
@@ -1242,12 +1298,18 @@ func _register_military() -> void:
 	_theme_effects["ml_factory"] = {
 		1: [
 			{"action": "counter_produce", "event": "CO", "threshold": 10, "rewards": {"global_military_atk_pct": 0.05}},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
 		],
 		2: [
 			{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"global_military_atk_pct": 0.07}},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
 		],
 		3: [
 			{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"global_military_atk_pct": 0.1, "global_military_range_bonus": 1}},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 2, "terazin_discount": 2}]},
 		],
 	}
 
@@ -1264,13 +1326,19 @@ func _register_military() -> void:
 		1: [
 			{"action": "train", "target": "all_military", "amount": 1},
 			{"action": "revive", "target": "self_enhanced", "hp_pct": 0.25, "limit_per_combat": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]},
 		],
 		2: [
 			{"action": "train", "target": "all_military", "amount": 1},
 			{"action": "revive", "target": "self_enhanced", "hp_pct": 0.5, "limit_per_combat": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]},
 		],
 		3: [
 			{"action": "train", "target": "all_military", "amount": 2},
 			{"action": "revive", "target": "self_enhanced", "hp_pct": 1.0, "limit_per_combat": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]},
 		],
 	}

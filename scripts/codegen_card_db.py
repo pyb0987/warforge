@@ -304,6 +304,12 @@ THEME_EFFECTS = {
     "tree_gold", "druid_unit_enhance", "tree_temp_buff", "epic_shop_unlock",
     "persistent", "revive", "rare_counter", "epic_counter", "total_counter", "on_merge",
     "upgrade_discount", "hatch_enhance", "battle_buff", "free_reroll", "revive_override",
+    # Military R4/R10 재설계 (2026-04-16, trace 012)
+    "enhance_convert_card", "enhance_convert_target", "spawn_enhanced_random",
+    "spawn_unit", "crit_buff", "crit_splash", "rank_buff_hp",
+    "upgrade_shop_bonus", "conscript_pool_tier", "lifesteal",
+    "high_rank_mult", "grant_gold", "grant_terazin", "revive_scope_override",
+    "buff",  # 일반 버프 (as_bonus 등)
 }
 
 
@@ -361,6 +367,19 @@ def gen_theme_effects_block(card_id: str, card: dict, indent: str = "\t") -> lis
             threshold = when[cond_type]
             cond_effects = [gen_theme_effect_gd(e) for e in cond["effects"]]
             cond_dict = (f'{{"action": "conditional", "condition": "{cond_type}", '
+                         f'"threshold": {threshold}, '
+                         f'"effects": [{", ".join(cond_effects)}]}}')
+            effect_parts.append(cond_dict)
+
+        # Rank-milestone conditional effects (R4/R10, Military 재설계 trace 012).
+        # 런타임 차이: `conditional`은 매 실행마다 조건 체크, `r_conditional`은
+        # rank가 milestone(4 or 10)에 처음 도달할 때 one-shot 발동.
+        for cond in star_data.get("r_conditional", []):
+            when = cond["when"]
+            cond_type = next(iter(when))
+            threshold = when[cond_type]
+            cond_effects = [gen_theme_effect_gd(e) for e in cond["effects"]]
+            cond_dict = (f'{{"action": "r_conditional", "condition": "{cond_type}", '
                          f'"threshold": {threshold}, '
                          f'"effects": [{", ".join(cond_effects)}]}}')
             effect_parts.append(cond_dict)
