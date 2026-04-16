@@ -316,7 +316,7 @@ func _materialize_army() -> Array:
 					"hp": eff_hp,
 					"attack_speed": ut["attack_speed"] * as_mult_total,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),
-					"move_speed": ut["move_speed"] + c.upgrade_move_speed,
+					"move_speed": ut["move_speed"] + c.upgrade_move_speed + int(c.theme_state.get("ms_bonus", 0)),
 					"def": c.upgrade_def,
 					"mechanics": unit_mechs,
 					"radius": 6.0,

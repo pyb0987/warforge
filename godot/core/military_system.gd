@@ -381,9 +381,13 @@ func _apply_swarm_buff(eff: Dictionary, board: Array) -> void:
 
 	var atk_pct := float(total_units) * atk_per_unit
 	for mi in _military_indices(board):
-		(board[mi] as CardInstance).temp_buff(null, atk_pct)
+		var mc2: CardInstance = board[mi]
+		mc2.temp_buff(null, atk_pct)
+		# ms_bonus는 임계 도달 시에만 세팅, 미달 시 해제 (이전 전투 잔류 방지).
 		if total_units >= ms_thresh:
-			(board[mi] as CardInstance).theme_state["ms_bonus"] = ms_bonus_val
+			mc2.theme_state["ms_bonus"] = ms_bonus_val
+		else:
+			mc2.theme_state.erase("ms_bonus")
 
 
 ## lifesteal 적용 (BS 타이밍). 모든 군대 카드 유닛에 "lifesteal" mechanic 추가.
@@ -724,6 +728,10 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 
 
 func _factory(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# 재설계(trace 012): rewards 구조 변경.
+	# 구 버전: {terazin: N, enhance_atk_pct: N} — 이 카드만 enhance.
+	# 신 버전: {global_military_atk_pct: N, global_military_range_bonus: N}
+	#          — 모든 군대 카드에 영구 ATK/Range 증가.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var prod_eff := _find_eff(effs, "counter_produce")
 	var threshold: int = prod_eff.get("threshold", 10)
@@ -732,19 +740,26 @@ func _factory(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var counter: int = card.theme_state.get("conscript_counter", 0)
 	counter += 1
 
-	var terazin := 0
 	if counter >= threshold:
 		counter -= threshold
-		terazin += rewards.get("terazin", 1)
-		var enhance_pct: float = rewards.get("enhance_atk_pct", 0.0)
-		if enhance_pct > 0.0:
-			card.enhance(null, enhance_pct, 0.0)
+		# 모든 군대 카드에 ATK 영구 증강 (card.enhance → growth_atk_pct 누적)
+		var global_atk: float = rewards.get("global_military_atk_pct", 0.0)
+		if global_atk > 0.0:
+			for mi in _military_indices(board):
+				(board[mi] as CardInstance).enhance(null, global_atk, 0.0)
+		# Range +N 영구 (★3 전용). card.upgrade_range는 업그레이드 시스템이
+		# 쓰는 필드이므로, 별도 theme_state["range_bonus"]에 누적해 _materialize_army에서 반영.
+		var range_bonus: int = int(rewards.get("global_military_range_bonus", 0))
+		if range_bonus > 0:
+			for mi in _military_indices(board):
+				var mc: CardInstance = board[mi]
+				mc.theme_state["range_bonus"] = mc.theme_state.get("range_bonus", 0) + range_bonus
 
 	card.theme_state["conscript_counter"] = counter
 
 	# R4/R10 milestone (enhance_convert_card; upgrade_shop_bonus는 Phase 4)
 	var r_events := _process_r_conditional(card, idx, board)
-	return {"events": r_events, "gold": 0, "terazin": terazin}
+	return {"events": r_events, "gold": 0, "terazin": 0}
 
 
 # --- Battle hooks ---
