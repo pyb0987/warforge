@@ -50,7 +50,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 func process_event_card(card: CardInstance, idx: int, board: Array,
 		event: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
-		"ml_academy": return _academy(card, idx, board, event)
+		"ml_academy": return _academy(card, idx, board, event, rng)
 		"ml_outpost": return _conscript_react(card, idx, board, event, rng)
 		"ml_factory": return _factory(card, idx, board)
 	return Enums.empty_result()
@@ -368,6 +368,17 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 				var count_c: int = eff.get("count", 1)
 				if et >= 0 and et < board.size():
 					_enhance_convert_count(board[et] as CardInstance, count_c)
+		"spawn_enhanced_random":
+			# 군사학교 R10: 훈련 대상에 랜덤 (강화) 유닛 N기 추가. max_per_round 제한.
+			var max_per_round2: int = eff.get("max_per_round", 1)
+			if max_per_round2 > 0 and not _check_per_round(card, "academy_spawn_tenure"):
+				pass  # 이번 라운드 이미 발동
+			else:
+				var target_name2: String = eff.get("target", "event_target")
+				var targets2 := _resolve_targets(target_name2, idx, board, event)
+				var spawn_count: int = eff.get("count", 2)
+				for ti in targets2:
+					_spawn_enhanced_random(board[ti] as CardInstance, spawn_count, rng)
 		"buff":
 			# 전술사령부 R10: as_bonus / 기타 단일 buff.
 			# target=all_military인 경우 theme_state에 저장 → _materialize_army 반영.
@@ -503,6 +514,21 @@ func _enhance_convert_count(card: CardInstance, count: int) -> int:
 	if converted > 0:
 		card.stats_changed.emit()
 	return converted
+
+
+## 랜덤 (강화) 유닛 N기 추가. ENHANCED_MAP의 value에서 무작위 선택.
+## 군사학교 R10 등에서 사용.
+func _spawn_enhanced_random(card: CardInstance, count: int, rng: RandomNumberGenerator) -> int:
+	if count <= 0:
+		return 0
+	var enhanced_ids: Array = ENHANCED_MAP.values()
+	if enhanced_ids.is_empty():
+		return 0
+	var added := 0
+	for _i in count:
+		var uid: String = enhanced_ids[rng.randi() % enhanced_ids.size()] if rng != null else enhanced_ids[0]
+		added += card.add_specific_unit(uid, 1)
+	return added
 
 
 ## buff 적용 (전술사령부 R10 as_bonus, 추후 확장 가능).
@@ -747,7 +773,7 @@ func _command(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 
 func _academy(card: CardInstance, idx: int, board: Array,
-		event: Dictionary) -> Dictionary:
+		event: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var target_idx: int = event.get("target_idx", -1)
 	if target_idx < 0 or target_idx >= board.size():
 		return Enums.empty_result()
@@ -764,8 +790,8 @@ func _academy(card: CardInstance, idx: int, board: Array,
 	if growth > 0:
 		target.enhance(null, growth, 0.0)
 
-	# R4/R10 milestone (enhance_convert_card; enhance_convert_target/spawn_enhanced_random는 Phase 3)
-	events.append_array(_process_r_conditional(card, idx, board, event))
+	# R4/R10 milestone (enhance_convert_card + enhance_convert_target + spawn_enhanced_random)
+	events.append_array(_process_r_conditional(card, idx, board, event, rng))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
