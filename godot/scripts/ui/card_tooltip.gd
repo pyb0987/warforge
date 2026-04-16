@@ -93,11 +93,16 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 		Enums.CardTheme.MILITARY:
 			if card.theme_state.has("rank"):
 				var rank: int = card.theme_state["rank"]
-				var next_t: int = MilitarySystem.get_next_threshold(card)
-				if next_t > 0:
-					info_label.text += "\n계급 %d (다음: %d)" % [rank, next_t]
+				# R4/R10 milestone 재설계 (trace 012): 고정 milestone 두 단계.
+				var next_milestone: int = -1
+				if rank < 4:
+					next_milestone = 4
+				elif rank < 10:
+					next_milestone = 10
+				if next_milestone > 0:
+					info_label.text += "\n계급 %d (다음 R%d)" % [rank, next_milestone]
 				else:
-					info_label.text += "\n계급 %d (최대)" % rank
+					info_label.text += "\n계급 %d (R10 도달)" % rank
 			if card.theme_state.has("conscript_counter"):
 				var cc: int = card.theme_state["conscript_counter"]
 				var ct := 10

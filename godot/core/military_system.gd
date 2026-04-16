@@ -113,14 +113,11 @@ func apply_post_combat(card: CardInstance, idx: int, board: Array,
 	return Enums.empty_result()
 
 
-## Persistent combat: ml_command revive stored for combat engine.
-func apply_persistent(card: CardInstance) -> void:
-	if card.get_base_id() != "ml_command":
-		return
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var revive_eff := _find_eff(effs, "revive")
-	card.theme_state["revive_hp_pct"] = revive_eff.get("hp_pct", 0.50)
-	card.theme_state["revive_limit"] = revive_eff.get("limit_per_combat", 1)
+## NOTE: apply_persistent(ml_command) 제거 (2026-04-16, trace 012 후속 cleanup).
+## 이전에는 이곳에서 theme_state["revive_hp_pct/limit"]을 설정했으나,
+## chain_engine.process_persistent는 PERSISTENT timing 카드만 순회함 (ml_command는 RS).
+## 결과: 이 경로는 한 번도 실행되지 않았고, revive는 실제로 동작 안 했음.
+## 수정: game_manager._materialize_army가 ml_command의 YAML effects를 직접 평가.
 
 
 # --- Rank / Conscription helpers ---
@@ -143,10 +140,10 @@ func _add_rank(card: CardInstance, n: int) -> void:
 
 
 func _train_card(card: CardInstance, idx: int, amount: int) -> Array:
-	## Train a card: add rank, check thresholds, return TRAIN events.
-	var old_rank := _rank(card)
+	## Train a card: add rank, return TRAIN events.
+	## NOTE: _check_thresholds 호출 제거 (2026-04-16, trace 012 cleanup).
+	## rank_threshold 폐기로 해당 함수는 no-op이었음. 완전 제거.
 	_add_rank(card, amount)
-	_check_thresholds(card, old_rank, _rank(card))
 	return [{
 		"layer1": Enums.Layer1.ENHANCED,
 		"layer2": Enums.Layer2.TRAIN,
@@ -184,55 +181,10 @@ static func get_factory_shop_bonus(board: Array) -> Dictionary:
 	return {"slot_delta": slot_delta, "terazin_discount": terazin_discount}
 
 
-## @deprecated: rank_threshold 액션이 R4/R10 milestone 재설계(2026-04-16, trace 012)로
-## YAML에서 제거됨. 현재는 no-op. Step 3 구현 스프린트에서
-## R4/R10 공통 처리(enhance_convert_card) 및 카드별 r_conditional 로직으로 대체 예정.
-func _check_thresholds(card: CardInstance, old: int, new_rank: int) -> void:
-	var triggered: Dictionary = card.theme_state.get("rank_triggers", {})
-	var base := card.get_base_id()
-	var effs := CardDB.get_theme_effects(base, card.star_level)
-	var thresh_eff := _find_eff(effs, "rank_threshold")
-	if thresh_eff.is_empty():
-		card.theme_state["rank_triggers"] = triggered
-		return
-
-	var tiers: Array = thresh_eff.get("tiers", [])
-	for tier in tiers:
-		var rank_val: int = tier.get("rank", -1)
-		if rank_val < 0:
-			continue
-		if old < rank_val and new_rank >= rank_val and not triggered.get(rank_val, false):
-			triggered[rank_val] = true
-			var unit_id: String = tier.get("unit", "")
-			var count: int = tier.get("count", 1)
-			for _i in count:
-				_add_with_bonus(card, unit_id, 1)
-
-	card.theme_state["rank_triggers"] = triggered
-
-
-## Return the next unfired rank threshold for a military card, or -1 if none.
-## @deprecated: R4/R10 milestone 재설계(2026-04-16, trace 012)로 YAML에서
-## rank_threshold 제거됨 → 항상 -1 반환. UI(card_tooltip)에서 자연스럽게 표시 숨김.
-## Step 3에서 R4/R10 milestone 표시 방식으로 대체 예정.
-static func get_next_threshold(card: CardInstance) -> int:
-	var base := card.get_base_id()
-	var rank: int = card.theme_state.get("rank", 0)
-	var triggered: Dictionary = card.theme_state.get("rank_triggers", {})
-	var effs := CardDB.get_theme_effects(base, card.star_level)
-	var thresh_eff: Dictionary = {}
-	for e in effs:
-		if e.get("action") == "rank_threshold":
-			thresh_eff = e
-			break
-	if thresh_eff.is_empty():
-		return -1
-	var tiers: Array = thresh_eff.get("tiers", [])
-	for tier in tiers:
-		var t: int = tier.get("rank", -1)
-		if t >= 0 and not triggered.get(t, false):
-			return t
-	return -1
+## NOTE: _check_thresholds와 get_next_threshold 제거 (2026-04-16, trace 012 cleanup).
+## rank_threshold 폐기로 두 함수는 dead code였음.
+## 다음 milestone 표시는 card_tooltip이 rank < 4 ? "R4" : rank < 10 ? "R10" : "최대"로
+## 직접 계산 (R4/R10 고정 milestone이므로 단순).
 
 
 ## 양성가 보너스 포함 유닛 추가 (이벤트 미방출).

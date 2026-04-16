@@ -254,7 +254,8 @@ func test_special_ops_sets_crit_chance() -> void:
 
 
 # ================================================================
-# ml_command (RS + apply_persistent): train all + 부활 HP
+# ml_command (RS): train all + 부활 HP (apply_persistent 제거됨, trace 012 cleanup)
+# revive 수치는 game_manager._materialize_army가 YAML 직접 평가.
 # ================================================================
 
 func test_command_s1_trains_all_military() -> void:
@@ -275,28 +276,36 @@ func test_command_s3_trains_2() -> void:
 	assert_eq(ally.theme_state.get("rank", 0), rank_before + 2, "★3 train +2")
 
 
-func test_command_s1_revive_hp_25() -> void:
-	## 재설계: ★1 revive HP 25% (기존 50% → 25%).
+func _revive_effect_for(card: CardInstance) -> Dictionary:
+	## Helper: YAML의 revive effect를 직접 평가 (_materialize_army와 동일 로직).
+	var effs: Array = CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	for eff in effs:
+		if eff.get("action", "") == "revive":
+			return eff
+	return {}
+
+
+func test_command_s1_revive_hp_25_yaml() -> void:
+	## 재설계: ★1 revive HP 25%.
 	var card: CardInstance = CardInstance.create("ml_command")
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.25, 0.001, "★1: HP 25%")
-	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★1: 1회")
+	var eff: Dictionary = _revive_effect_for(card)
+	assert_almost_eq(float(eff.get("hp_pct", 0.0)), 0.25, 0.001, "★1: HP 25%")
+	assert_eq(int(eff.get("limit_per_combat", 0)), 1, "★1: 1회")
 
 
-func test_command_s2_revive_hp_50() -> void:
+func test_command_s2_revive_hp_50_yaml() -> void:
 	## 재설계: ★2 HP 50%.
 	var card := _make_star("ml_command", 2)
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 0.50, 0.001, "★2: HP 50%")
-	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★2: 1회")
+	var eff: Dictionary = _revive_effect_for(card)
+	assert_almost_eq(float(eff.get("hp_pct", 0.0)), 0.50, 0.001, "★2: HP 50%")
 
 
-func test_command_s3_revive_hp_100() -> void:
-	## 재설계: ★3 HP 100%, limit 1 (기존 3회 → 1회).
+func test_command_s3_revive_hp_100_yaml() -> void:
+	## 재설계: ★3 HP 100%, limit 1.
 	var card := _make_star("ml_command", 3)
-	_sys.apply_persistent(card)
-	assert_almost_eq(card.theme_state.get("revive_hp_pct", 0.0), 1.0, 0.001, "★3: HP 100%")
-	assert_eq(card.theme_state.get("revive_limit", 0), 1, "★3: 1회 (on_revive 버프 제거)")
+	var eff: Dictionary = _revive_effect_for(card)
+	assert_almost_eq(float(eff.get("hp_pct", 0.0)), 1.0, 0.001, "★3: HP 100%")
+	assert_eq(int(eff.get("limit_per_combat", 0)), 1, "★3: 1회")
 
 
 # ================================================================

@@ -267,16 +267,23 @@ func _materialize_army() -> Array:
 	_unit_card_map.clear()
 	var active := game_state.get_active_board()
 	# 군대 통합사령부 revive scope 계산:
-	# ml_command 카드가 보드에 있으면 rank/scope/hp_pct 정보로 scope_card_indices 구축.
-	# scope_card_indices[card_idx] = {"hp_pct": float, "limit": int, "only_enhanced": bool}
+	# ml_command 카드의 YAML revive effect를 직접 평가 (rank/hp_pct/limit).
+	# theme_state 경유 없이 직접 YAML 읽음 — apply_persistent 경로가 RS timing이라
+	# 호출되지 않았던 이전 버그 수정 (2026-04-16).
 	var revive_scope_map: Dictionary = {}
 	for ci in range(active.size()):
 		var cmd_card: CardInstance = active[ci]
 		if cmd_card.get_base_id() != "ml_command":
 			continue
 		var rank: int = cmd_card.theme_state.get("rank", 0)
-		var hp_pct: float = cmd_card.theme_state.get("revive_hp_pct", 0.0)
-		var limit: int = cmd_card.theme_state.get("revive_limit", 0)
+		var cmd_effs: Array = CardDB.get_theme_effects(cmd_card.get_base_id(), cmd_card.star_level)
+		var hp_pct: float = 0.0
+		var limit: int = 0
+		for eff in cmd_effs:
+			if eff.get("action", "") == "revive":
+				hp_pct = float(eff.get("hp_pct", 0.0))
+				limit = int(eff.get("limit_per_combat", 0))
+				break
 		if hp_pct <= 0 or limit <= 0:
 			continue
 		# scope 결정: R10 → 양쪽 인접까지, R4 → self 전체 유닛, R0 → self (강화) 유닛만
