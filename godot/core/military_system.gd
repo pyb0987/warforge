@@ -24,9 +24,12 @@ var pending_conscriptions: Array = []
 
 func process_rs_card(card: CardInstance, idx: int, board: Array,
 		rng: RandomNumberGenerator) -> Dictionary:
+	# 징병국↔전진기지 스왑 (trace 012):
+	#   ml_conscript: T1 RS self 징집 생성 (기존 _outpost 로직)
+	#   ml_outpost: T2 OE CO 반응 증폭 (아래 process_event_card)
 	match card.get_base_id():
 		"ml_barracks": return _barracks(card, idx, board)
-		"ml_outpost": return _outpost(card, idx, board, rng)
+		"ml_conscript": return _outpost(card, idx, board, rng)
 		"ml_special_ops": return _special_ops(card, idx, board)
 		"ml_command": return _command(card, idx, board)
 	return Enums.empty_result()
@@ -36,25 +39,25 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 		event: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
 		"ml_academy": return _academy(card, idx, board, event)
-		"ml_conscript": return _conscript_react(card, idx, board, event, rng)
-		"ml_factory": return _factory(card, idx)
+		"ml_outpost": return _conscript_react(card, idx, board, event, rng)
+		"ml_factory": return _factory(card, idx, board)
 	return Enums.empty_result()
 
 
 # --- External hooks (combat engine) ---
 
 
-func apply_battle_start(card: CardInstance, _idx: int, board: Array) -> Dictionary:
+func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	match card.get_base_id():
-		"ml_tactical": return _tactical_battle(card, board)
+		"ml_tactical": return _tactical_battle(card, idx, board)
 		"ml_assault": return _assault_battle(card, board)
 	return Enums.empty_result()
 
 
-func apply_post_combat(card: CardInstance, _idx: int, board: Array,
+func apply_post_combat(card: CardInstance, idx: int, board: Array,
 		won: bool) -> Dictionary:
 	if card.get_base_id() == "ml_supply":
-		return _supply_post(card, board, won)
+		return _supply_post(card, idx, board, won)
 	return Enums.empty_result()
 
 
@@ -205,6 +208,131 @@ func _conscript_evt(src: int, tgt: int) -> Dictionary:
 	}
 
 
+# ═══════════════════════════════════════════════════════════════════
+# R 축 milestone 프레임워크 (trace 012: R4/R10 재설계)
+# ═══════════════════════════════════════════════════════════════════
+
+## target 이름을 카드 index 배열로 해석. YAML에서 쓰이는 모든 target 커버.
+## - 기본: self, right_adj, left_adj, both_adj, all_military
+## - OE 전용: event_target, event_target_adj
+## - 차분 확장: far_military (self/인접 제외), far_event_military (event/인접 제외)
+func _resolve_targets(target_name: String, self_idx: int, board: Array,
+		event: Dictionary = {}) -> Array[int]:
+	var result: Array[int] = []
+	match target_name:
+		"self":
+			result.append(self_idx)
+		"right_adj":
+			var r := self_idx + 1
+			if r < board.size() and _is_military(board, r):
+				result.append(r)
+		"left_adj":
+			var l := self_idx - 1
+			if l >= 0 and _is_military(board, l):
+				result.append(l)
+		"both_adj":
+			for di in [-1, 1]:
+				var ni: int = self_idx + di
+				if ni >= 0 and ni < board.size() and _is_military(board, ni):
+					result.append(ni)
+		"all_military":
+			for mi in _military_indices(board):
+				result.append(mi)
+		"far_military":
+			# 군대 카드 중 self와 양옆 인접을 제외한 나머지.
+			var excluded: Dictionary = {self_idx: true}
+			for di in [-1, 1]:
+				excluded[self_idx + di] = true
+			for mi in _military_indices(board):
+				if not excluded.has(mi):
+					result.append(mi)
+		"event_target":
+			var et: int = event.get("target_idx", -1)
+			if et >= 0 and et < board.size():
+				result.append(et)
+		"event_target_adj":
+			var et2: int = event.get("target_idx", -1)
+			if et2 >= 0:
+				for di in [-1, 1]:
+					var ni2: int = et2 + di
+					if ni2 >= 0 and ni2 < board.size() and _is_military(board, ni2):
+						result.append(ni2)
+		"far_event_military":
+			# 군대 카드 중 event_target과 그 인접을 제외한 나머지.
+			var et3: int = event.get("target_idx", -1)
+			var excluded2: Dictionary = {}
+			if et3 >= 0:
+				excluded2[et3] = true
+				excluded2[et3 - 1] = true
+				excluded2[et3 + 1] = true
+			for mi in _military_indices(board):
+				if not excluded2.has(mi):
+					result.append(mi)
+		_:
+			# Unknown target — warning to console. Phase 2+ 에서 추가 target 등록.
+			push_warning("[military r_conditional] unknown target: %s" % target_name)
+	return result
+
+
+func _is_military(board: Array, idx: int) -> bool:
+	return (board[idx] as CardInstance).template.get("theme", -1) == Enums.CardTheme.MILITARY
+
+
+## r_conditional 블록을 순회하며 조건(rank_gte) 만족 시 내부 effects 실행.
+## 매 실행 시 조건 체크 (conditional과 동일 패턴). one-shot 아님.
+func _process_r_conditional(card: CardInstance, idx: int, board: Array,
+		event: Dictionary = {}, rng: RandomNumberGenerator = null) -> Array:
+	var events: Array = []
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var rank := _rank(card)
+	for eff in effs:
+		if eff.get("action", "") != "r_conditional":
+			continue
+		var condition: String = eff.get("condition", "")
+		var threshold: int = eff.get("threshold", 0)
+		var passed := false
+		match condition:
+			"rank_gte":
+				passed = rank >= threshold
+			_:
+				passed = false
+		if not passed:
+			continue
+		var inner_effects: Array = eff.get("effects", [])
+		for inner in inner_effects:
+			events.append_array(_dispatch_r_effect(inner, card, idx, board, event, rng))
+	return events
+
+
+## 개별 r_conditional 내부 effect를 dispatch.
+## Phase별로 지원 action을 확장. A-3(이 커밋)에서는 train/conscript만 연결.
+## A-4에서 enhance_convert_card, Phase 2+에서 나머지 action 추가.
+func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
+		board: Array, event: Dictionary, rng: RandomNumberGenerator) -> Array:
+	var events: Array = []
+	var action: String = eff.get("action", "")
+	var target_name: String = eff.get("target", "")
+	var targets := _resolve_targets(target_name, idx, board, event) if target_name != "" else ([] as Array[int])
+	match action:
+		"train":
+			var amount: int = eff.get("amount", 1)
+			for ti in targets:
+				events.append_array(_train_card(board[ti] as CardInstance, ti, amount))
+		"conscript":
+			var count: int = eff.get("count", 1)
+			for ti in targets:
+				if rng != null:
+					_conscript(board[ti] as CardInstance, count, rng)
+				events.append(_conscript_evt(idx, ti))
+		"enhance_convert_card":
+			# A-4에서 구현 예정. 현재 no-op.
+			pass
+		_:
+			# Phase 2+ 에서 추가 action 등록. 지금은 no-op.
+			pass
+	return events
+
+
 # --- RS cards ---
 
 
@@ -216,13 +344,15 @@ func _barracks(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var events: Array = []
 	events.append_array(_train_card(card, idx, self_train))
 
-	# Adjacent army cards +1 training
-	for di in [-1, 1]:
-		var ni: int = idx + di
-		if ni >= 0 and ni < board.size():
-			var adj: CardInstance = board[ni]
-			if adj.template.get("theme", -1) == Enums.CardTheme.MILITARY:
-				events.append_array(_train_card(adj, ni, 1))
+	# 기본 훈련: YAML의 right_adj (R0 기본값). R4에서 left_adj가 r_conditional로 추가됨.
+	var right_train_eff := _find_eff(effs, "train", "right_adj")
+	if not right_train_eff.is_empty():
+		var r := idx + 1
+		if r < board.size() and _is_military(board, r):
+			events.append_array(_train_card(board[r], r, right_train_eff.get("amount", 1)))
+
+	# R4/R10 milestone 효과 (left_adj, far_military, enhance_convert_card 등)
+	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
@@ -257,19 +387,28 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 				_conscript(adj, 1, rng)
 				events.append(_conscript_evt(idx, ni))
 
+	# R4/R10 milestone (enhance_convert_card, conscript_pool_tier, far_event_military 등)
+	events.append_array(_process_r_conditional(card, idx, board, {}, rng))
+
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
 func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# NOTE: 특수작전대 재설계 후 훈련 전파는 제거되고 crit_buff 중심으로 변경됨.
+	# 현재 함수는 과도기 호환: 훈련 전파 로직은 남아있지만 YAML에 없으면 no-op.
+	# Phase 3(crit_buff handler)에서 최종 정리 예정.
 	var events: Array = []
-	events.append_array(_train_card(card, idx, 1))
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var self_train_eff := _find_eff(effs, "train", "self")
+	if not self_train_eff.is_empty():
+		events.append_array(_train_card(card, idx, self_train_eff.get("amount", 1)))
+		for di in [-1, 1]:
+			var ni: int = idx + di
+			if ni >= 0 and ni < board.size() and _is_military(board, ni):
+				events.append_array(_train_card(board[ni], ni, 1))
 
-	for di in [-1, 1]:
-		var ni: int = idx + di
-		if ni >= 0 and ni < board.size():
-			var adj: CardInstance = board[ni]
-			if adj.template.get("theme", -1) == Enums.CardTheme.MILITARY:
-				events.append_array(_train_card(adj, ni, 1))
+	# R4/R10 milestone (enhance_convert_card; crit_buff/crit_splash는 Phase 3)
+	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
@@ -282,6 +421,9 @@ func _command(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var events: Array = []
 	for mi in _military_indices(board):
 		events.append_array(_train_card(board[mi], mi, amount))
+
+	# R4/R10 milestone (enhance_convert_card; revive_scope_override는 Phase 4)
+	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 
@@ -307,6 +449,9 @@ func _academy(card: CardInstance, idx: int, board: Array,
 	if growth > 0:
 		target.enhance(null, growth, 0.0)
 
+	# R4/R10 milestone (enhance_convert_card; enhance_convert_target/spawn_enhanced_random는 Phase 3)
+	events.append_array(_process_r_conditional(card, idx, board, event))
+
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
@@ -322,10 +467,15 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 
 	var target: CardInstance = board[target_idx]
 	_conscript(target, add_n, rng)
-	return {"events": [_conscript_evt(idx, target_idx)], "gold": 0, "terazin": 0}
+	var events: Array = [_conscript_evt(idx, target_idx)]
+
+	# R4/R10 milestone (enhance_convert_card + 반응 범위 확장 event_target_adj/far_event_military)
+	events.append_array(_process_r_conditional(card, idx, board, event, rng))
+
+	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _factory(card: CardInstance, _idx: int) -> Dictionary:
+func _factory(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var prod_eff := _find_eff(effs, "counter_produce")
 	var threshold: int = prod_eff.get("threshold", 10)
@@ -343,13 +493,16 @@ func _factory(card: CardInstance, _idx: int) -> Dictionary:
 			card.enhance(null, enhance_pct, 0.0)
 
 	card.theme_state["conscript_counter"] = counter
-	return {"events": [], "gold": 0, "terazin": terazin}
+
+	# R4/R10 milestone (enhance_convert_card; upgrade_shop_bonus는 Phase 4)
+	var r_events := _process_r_conditional(card, idx, board)
+	return {"events": r_events, "gold": 0, "terazin": terazin}
 
 
 # --- Battle hooks ---
 
 
-func _tactical_battle(card: CardInstance, board: Array) -> Dictionary:
+func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var buff_eff := _find_eff(effs, "rank_buff", "all_military")
 	var shield_per_rank: float = buff_eff.get("shield_per_rank", 0.02)
@@ -367,6 +520,9 @@ func _tactical_battle(card: CardInstance, board: Array) -> Dictionary:
 		var mc: CardInstance = board[mi]
 		mc.shield_hp_pct += shield_pct
 		mc.temp_buff(null, atk_pct)
+
+	# R4/R10 milestone (enhance_convert_card; rank_buff_hp/as_bonus buff는 Phase 3)
+	_process_r_conditional(card, idx, board)
 	return Enums.empty_result()
 
 
@@ -391,7 +547,7 @@ func _assault_battle(card: CardInstance, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
-func _supply_post(card: CardInstance, board: Array, won: bool) -> Dictionary:
+func _supply_post(card: CardInstance, idx: int, board: Array, won: bool) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var econ_eff := _find_eff(effs, "economy")
 	var base_gold: int = econ_eff.get("gold_base", 1)
@@ -410,6 +566,9 @@ func _supply_post(card: CardInstance, board: Array, won: bool) -> Dictionary:
 		var thresh: int = terazin_def.get("thresh", 0)
 		if cond == "rank_gte" and _rank(card) >= thresh:
 			terazin = terazin_def.get("amount", 1)
+
+	# R4/R10 milestone (enhance_convert_card; grant_terazin/gold는 Phase 2)
+	_process_r_conditional(card, idx, board)
 
 	return {"events": [], "gold": gold, "terazin": terazin}
 
