@@ -41,6 +41,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"ml_barracks": return _barracks(card, idx, board)
 		"ml_conscript": return _outpost(card, idx, board, rng)
+		"ml_assault": return _assault_rs(card, idx, board)
 		"ml_special_ops": return _special_ops(card, idx, board)
 		"ml_command": return _command(card, idx, board)
 	return Enums.empty_result()
@@ -462,21 +463,41 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# NOTE: 특수작전대 재설계 후 훈련 전파는 제거되고 crit_buff 중심으로 변경됨.
-	# 현재 함수는 과도기 호환: 훈련 전파 로직은 남아있지만 YAML에 없으면 no-op.
-	# Phase 3(crit_buff handler)에서 최종 정리 예정.
-	var events: Array = []
+func _assault_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# 돌격편대 재설계(trace 012): timing BS → RS, 구조 B.
+	# ★ 기본 효과: 매 RS 바이커 N기 생산 (spawn_unit).
+	# R4에서 swarm_buff 해금, R10에서 lifesteal 해금 (BS 타이밍, Phase 2 I에서 연결).
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var self_train_eff := _find_eff(effs, "train", "self")
-	if not self_train_eff.is_empty():
-		events.append_array(_train_card(card, idx, self_train_eff.get("amount", 1)))
-		for di in [-1, 1]:
-			var ni: int = idx + di
-			if ni >= 0 and ni < board.size() and _is_military(board, ni):
-				events.append_array(_train_card(board[ni], ni, 1))
+	var events: Array = []
+	var spawn_eff := _find_eff(effs, "spawn_unit", "self")
+	if not spawn_eff.is_empty():
+		var uid: String = spawn_eff.get("unit", "")
+		var count: int = spawn_eff.get("count", 1)
+		if uid != "" and count > 0:
+			card.add_specific_unit(uid, count)
+			# NOTE: spawn_unit은 CONSCRIPT 이벤트 방출하지 않음 (체인 독립).
+			# 이벤트 필요 시 여기 추가.
 
-	# R4/R10 milestone (enhance_convert_card; crit_buff/crit_splash는 Phase 3)
+	# R4/R10 milestone (enhance_convert_card; swarm_buff/lifesteal는 BS 타이밍)
+	events.append_array(_process_r_conditional(card, idx, board))
+
+	return {"events": events, "gold": 0, "terazin": 0}
+
+
+func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# 특수작전대 재설계(trace 012): 훈련 전파 제거, 치명타 중심으로 전환.
+	# ★ 기본 효과: 치명타 버프(crit_buff, BS 타이밍 적용 — Phase 3)
+	#              + 저격 드론 생산 (★2/★3, spawn_unit).
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var events: Array = []
+	var spawn_eff := _find_eff(effs, "spawn_unit", "self")
+	if not spawn_eff.is_empty():
+		var uid: String = spawn_eff.get("unit", "")
+		var count: int = spawn_eff.get("count", 1)
+		if uid != "" and count > 0:
+			card.add_specific_unit(uid, count)
+
+	# R4/R10 milestone (enhance_convert_card; crit_buff 확률 변경/crit_splash는 Phase 3)
 	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}
@@ -596,8 +617,13 @@ func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 
 func _assault_battle(card: CardInstance, board: Array) -> Dictionary:
+	# 돌격편대 재설계(trace 012): swarm_buff는 R4 조건부 해금.
+	# 기본 effects에는 없고 r_conditional 내부에 있음 → 이 함수는 과도기 안전장치.
+	# Phase 2 I에서 BS 시점 r_conditional swarm_buff/lifesteal 처리로 대체 예정.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var buff_eff := _find_eff(effs, "swarm_buff", "all_military")
+	if buff_eff.is_empty():
+		return Enums.empty_result()  # swarm_buff 해금 전: no-op
 	var atk_per_unit: float = buff_eff.get("atk_per_unit", 0.01)
 	var ms_bonus_def: Dictionary = buff_eff.get("ms_bonus", {})
 	var ms_thresh: int = ms_bonus_def.get("unit_thresh", 15)
