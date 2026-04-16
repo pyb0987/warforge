@@ -34,14 +34,16 @@ cards:
           - train: {target: self, amount: 1}
           - train: {target: right_adj, amount: 1}
         r_conditional:
+          # 차분(delta) 표현: 기본 train이 self+right_adj이므로,
+          # R4에서는 left_adj만 추가(합치면 양쪽), R10에서는 far_military 추가(나머지 군대).
           - when: {rank_gte: 4}
             effects:
               - enhance_convert_card: {fraction: 0.5}  # 비(강화) 절반 → (강화)
-              - train: {target: both_adj, amount: 1}   # 훈련 범위 확장 (오른쪽→양쪽)
+              - train: {target: left_adj, amount: 1}   # 왼쪽 인접 추가 (양쪽 훈련 완성)
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}  # 전원 (강화)
-              - train: {target: all_military, amount: 1}  # 훈련 범위 전체 확장
+              - train: {target: far_military, amount: 1}  # self/인접 제외한 나머지 군대
       2:
         max_act: -1
         effects:
@@ -146,6 +148,8 @@ cards:
         effects:
           - conscript: {target: event_target, count: 1}
         r_conditional:
+          # 차분 표현: R0=event_target, R4=+event_target_adj (이벤트+인접),
+          # R10=+far_event_military (이벤트/인접 제외한 나머지 군대)
           - when: {rank_gte: 4}
             effects:
               - enhance_convert_card: {fraction: 0.5}
@@ -153,7 +157,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - conscript: {target: all_military, count: 1}       # 전체 군대 카드 증원
+              - conscript: {target: far_event_military, count: 1}  # 이벤트/인접 제외한 나머지 군대
       2:
         max_act: 3
         effects:
@@ -166,7 +170,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - conscript: {target: all_military, count: 1, enhanced: partial}
+              - conscript: {target: far_event_military, count: 1, enhanced: partial}
       3:
         max_act: 3
         effects:
@@ -179,7 +183,7 @@ cards:
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - conscript: {target: all_military, count: 1, enhanced: all}
+              - conscript: {target: far_event_military, count: 1, enhanced: all}
 
   ml_academy:
     name: 군사 학교
