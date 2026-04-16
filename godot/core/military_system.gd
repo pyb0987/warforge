@@ -357,6 +357,17 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 		"rank_buff_hp":
 			# 전술사령부 R4: 모든 군대 카드에 계급당 HP +% buff (BS 타이밍).
 			_apply_rank_buff_hp(eff, card, board)
+		"enhance_convert_target":
+			# 군사학교 R4: 훈련 대상의 비(강화) 유닛 N기를 (강화)로 변환.
+			# max_per_round 제한. theme_state["academy_convert_tenure"]로 관리.
+			var max_per_round: int = eff.get("max_per_round", 1)
+			if max_per_round > 0 and not _check_per_round(card, "academy_convert_tenure"):
+				pass  # 이번 라운드 이미 발동
+			else:
+				var et: int = event.get("target_idx", -1)
+				var count_c: int = eff.get("count", 1)
+				if et >= 0 and et < board.size():
+					_enhance_convert_count(board[et] as CardInstance, count_c)
 		"buff":
 			# 전술사령부 R10: as_bonus / 기타 단일 buff.
 			# target=all_military인 경우 theme_state에 저장 → _materialize_army 반영.
@@ -440,6 +451,58 @@ func _apply_rank_buff_hp(eff: Dictionary, src_card: CardInstance, board: Array) 
 	var hp_pct := float(rank) * hp_per_rank
 	for mi in _military_indices(board):
 		(board[mi] as CardInstance).temp_mult_buff(1.0, 1.0 + hp_pct)
+
+
+## 라운드당 1회 제한 체크. card.tenure를 사용해 "이번 라운드 발동 여부" 판정.
+## 처음 호출이거나 tenure 달라졌으면 true 반환하고 기록 업데이트.
+## 동일 tenure면 false (이번 라운드 이미 발동).
+## card.reset_round()가 tenure += 1하므로 자연히 다음 라운드에 리셋.
+func _check_per_round(card: CardInstance, key: String) -> bool:
+	var last_tenure: int = card.theme_state.get(key, -1)
+	if last_tenure == card.tenure:
+		return false
+	card.theme_state[key] = card.tenure
+	return true
+
+
+## count 기반 (강화) 변환. _enhance_convert_card와 유사하지만 비율 대신 고정 개수.
+## 가장 약한(CP) 비(강화) 유닛부터 N기 변환.
+func _enhance_convert_count(card: CardInstance, count: int) -> int:
+	if count <= 0:
+		return 0
+	var candidates: Array = []
+	for i in card.stacks.size():
+		var s: Dictionary = card.stacks[i]
+		var uid: String = s["unit_type"].get("id", "")
+		if not ENHANCED_MAP.has(uid):
+			continue
+		var ut: Dictionary = s["unit_type"]
+		var as_val: float = maxf(ut["attack_speed"], 0.01)
+		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		candidates.append({"stack_idx": i, "uid": uid, "count": s["count"], "cp": cp})
+
+	if candidates.is_empty():
+		return 0
+
+	candidates.sort_custom(func(a, b): return a["cp"] < b["cp"])
+	var to_convert := count
+	var converted := 0
+	for c in candidates:
+		if to_convert <= 0:
+			break
+		var s: Dictionary = card.stacks[c["stack_idx"]]
+		var take: int = mini(s["count"], to_convert)
+		if take <= 0:
+			continue
+		s["count"] -= take
+		to_convert -= take
+		converted += take
+		card.add_specific_unit(ENHANCED_MAP[c["uid"]], take)
+
+	card.stacks = card.stacks.filter(func(s): return s["count"] > 0)
+	if converted > 0:
+		card.stats_changed.emit()
+	return converted
 
 
 ## buff 적용 (전술사령부 R10 as_bonus, 추후 확장 가능).
