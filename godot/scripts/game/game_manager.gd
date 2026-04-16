@@ -280,6 +280,11 @@ func _materialize_army() -> Array:
 		# 군대 돌격편대 R10 lifesteal: _apply_lifesteal이 BS에서
 		# theme_state["lifesteal_pct"]에 저장 → 여기서 mechanic으로 주입.
 		var lifesteal_pct: float = c.theme_state.get("lifesteal_pct", 0.0)
+		# 군대 특수작전대 ★/R crit: _apply_crit_buff/_apply_crit_splash가
+		# theme_state["crit_chance"/"crit_mult"/"crit_splash_pct"]에 저장.
+		var crit_chance: float = c.theme_state.get("crit_chance", 0.0)
+		var crit_mult: float = c.theme_state.get("crit_mult", 2.0)
+		var crit_splash_pct: float = c.theme_state.get("crit_splash_pct", 0.0)
 		for s in c.stacks:
 			var ut: Dictionary = s["unit_type"]
 			var eff_atk := c.eff_atk_for(s)
@@ -294,6 +299,12 @@ func _materialize_army() -> Array:
 			if lifesteal_pct > 0.0:
 				unit_mechs = unit_mechs.duplicate()
 				unit_mechs.append({"type": "lifesteal", "steal_pct": lifesteal_pct})
+			if crit_chance > 0.0:
+				unit_mechs = unit_mechs.duplicate()
+				var crit_mech: Dictionary = {"type": "critical", "crit_chance": crit_chance, "crit_mult": crit_mult}
+				if crit_splash_pct > 0.0:
+					crit_mech["splash_pct"] = crit_splash_pct
+				unit_mechs.append(crit_mech)
 			for _n in s["count"]:
 				units.append({
 					"atk": eff_atk * reroll_buff_mult,

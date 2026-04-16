@@ -149,6 +149,10 @@ func _calc_damage(attacker: int, defender: int) -> float:
 		var chance: float = crit.get("crit_chance", 0.0)
 		if randf() < chance:
 			base_atk *= crit.get("crit_mult", 2.5)
+			# 특수작전대 R4/R10: 치명타 발동 시 인접 적 스플래시 추가 피해
+			var crit_splash_pct: float = crit.get("splash_pct", 0.0)
+			if crit_splash_pct > 0.0:
+				_apply_splash(attacker, defender, crit_splash_pct, _e.RANGE_SCALE)
 
 	# DEF reduction with armor pierce
 	var def_val: float = _e.defense[defender]

@@ -346,6 +346,14 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 		"lifesteal":
 			# BS 타이밍 (돌격편대 R10). 전군에 라이프스틸 메커닉.
 			_apply_lifesteal(eff, board)
+		"crit_buff":
+			# 특수작전대 ★/R: 이 카드 유닛에 치명타 mechanic.
+			# theme_state에 저장 → _materialize_army가 읽어 unit mechanics 주입.
+			# 매 실행 시 덮어쓰기: R10 > R4 > base 순서로 호출되면 최종값은 가장 큰 값.
+			_apply_crit_buff(eff, card)
+		"crit_splash":
+			# 특수작전대 R4/R10: 치명타 발동 시 인접 적 스플래시.
+			_apply_crit_splash(eff, card)
 		_:
 			# Phase 2+ 에서 추가 action 등록. 지금은 no-op.
 			pass
@@ -382,6 +390,30 @@ func _apply_lifesteal(eff: Dictionary, board: Array) -> void:
 		# 카드 수준 지속 mechanic. 전투 시작 시 유닛에 적용되도록 theme_state에 저장.
 		# combat_engine이 battle_start에 theme_state["lifesteal_pct"]를 읽어 unit mechanics에 주입.
 		mc.theme_state["lifesteal_pct"] = pct
+
+
+## crit_buff 적용 (특수작전대 ★/R). 카드의 theme_state에 치명타 수치 저장.
+## _materialize_army가 읽어 unit mechanics에 "critical" mechanic 주입.
+## target이 "self"이면 이 카드만, "both_adj"이면 양쪽 인접 군대 카드까지.
+func _apply_crit_buff(eff: Dictionary, card: CardInstance) -> void:
+	var chance: float = eff.get("chance", 0.0)
+	var mult: float = eff.get("mult", 2.0)
+	if chance <= 0:
+		return
+	# target이 self면 이 카드만 (현재 YAML은 target=self로만 사용). 확장 시 board/idx 필요.
+	# 매 실행 시 덮어쓰기: R10 우선, R4 차선, base 최후.
+	# 순서 보장: dispatch가 YAML 선언 순서대로 호출 → 마지막 값이 최종.
+	card.theme_state["crit_chance"] = chance
+	card.theme_state["crit_mult"] = mult
+
+
+## crit_splash 적용 (특수작전대 R4/R10). theme_state에 splash_pct 저장.
+## _materialize_army가 읽어 crit mechanic과 함께 unit mechanics에 주입.
+func _apply_crit_splash(eff: Dictionary, card: CardInstance) -> void:
+	var splash_pct: float = eff.get("splash_pct", 0.0)
+	if splash_pct <= 0:
+		return
+	card.theme_state["crit_splash_pct"] = splash_pct
 
 
 ## r_conditional 블록에서 grant_gold/grant_terazin 합계를 모아서 반환.
@@ -558,10 +590,23 @@ func _assault_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	# 특수작전대 재설계(trace 012): 훈련 전파 제거, 치명타 중심으로 전환.
-	# ★ 기본 효과: 치명타 버프(crit_buff, BS 타이밍 적용 — Phase 3)
-	#              + 저격 드론 생산 (★2/★3, spawn_unit).
+	# ★ 기본 효과: 치명타 버프(crit_buff) + 저격 드론 생산 (★2/★3, spawn_unit).
+	# R4/R10: crit_buff 확률 교체 + crit_splash 해금. 매 RS 실행 시 덮어쓰기.
+	# 이전 전투의 theme_state 잔류 방지를 위해 매번 초기화 후 재적용.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var events: Array = []
+
+	# theme_state 초기화 (이전 ★/R 수치 재적용 보장)
+	card.theme_state.erase("crit_chance")
+	card.theme_state.erase("crit_mult")
+	card.theme_state.erase("crit_splash_pct")
+
+	# ★ 기본 crit_buff (R0 수치)
+	var crit_eff := _find_eff(effs, "crit_buff", "self")
+	if not crit_eff.is_empty():
+		_apply_crit_buff(crit_eff, card)
+
+	# spawn_unit (★2/★3: 저격 드론)
 	var spawn_eff := _find_eff(effs, "spawn_unit", "self")
 	if not spawn_eff.is_empty():
 		var uid: String = spawn_eff.get("unit", "")
@@ -569,7 +614,7 @@ func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		if uid != "" and count > 0:
 			card.add_specific_unit(uid, count)
 
-	# R4/R10 milestone (enhance_convert_card; crit_buff 확률 변경/crit_splash는 Phase 3)
+	# R4/R10 milestone (enhance_convert_card + crit_buff chance 덮어쓰기 + crit_splash)
 	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}
