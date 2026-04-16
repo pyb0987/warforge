@@ -1189,7 +1189,7 @@ func _register_military() -> void:
 		1: [
 			{"action": "economy", "gold_base": 1, "gold_per": 0.5, "gold_per_unit": "cards", "halve_on_loss": true},
 			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 2}, {"action": "grant_gold", "amount": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]},
 		],
 		2: [
 			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false},

@@ -384,6 +384,30 @@ func _apply_lifesteal(eff: Dictionary, board: Array) -> void:
 		mc.theme_state["lifesteal_pct"] = pct
 
 
+## r_conditional 블록에서 grant_gold/grant_terazin 합계를 모아서 반환.
+## _process_r_conditional은 events만 반환하므로 자원 지급은 이 경로로 분리.
+## 보급부대 _supply_post에서 호출.
+func _collect_r_grants(card: CardInstance) -> Dictionary:
+	var rank := _rank(card)
+	var gold := 0
+	var terazin := 0
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	for eff in effs:
+		if eff.get("action", "") != "r_conditional":
+			continue
+		var cond: String = eff.get("condition", "")
+		var thresh: int = eff.get("threshold", 0)
+		if cond != "rank_gte" or rank < thresh:
+			continue
+		for inner in eff.get("effects", []):
+			match inner.get("action", ""):
+				"grant_gold":
+					gold += int(inner.get("amount", 0))
+				"grant_terazin":
+					terazin += int(inner.get("amount", 0))
+	return {"gold": gold, "terazin": terazin}
+
+
 ## 카드의 비(강화) 유닛 중 fraction 비율(floor)을 (강화)로 변환.
 ## 가장 약한(CP) 유닛부터 변환. ENHANCED_MAP에 매핑된 유닛만 대상.
 ## 엘리트 유닛(sniper/artillery/commander/walker)은 매핑 없어 변환 불가.
@@ -458,6 +482,16 @@ func _barracks(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		var r := idx + 1
 		if r < board.size() and _is_military(board, r):
 			events.append_array(_train_card(board[r], r, right_train_eff.get("amount", 1)))
+
+	# ★3 high_rank_mult: 계급 N 도달 시 이 카드 유닛 ATK × atk_mult (one-shot).
+	# 기본 effects에 있음 (r_conditional 아님). theme_state 플래그로 중복 방지.
+	var hr_eff := _find_eff(effs, "high_rank_mult")
+	if not hr_eff.is_empty():
+		var hr_rank: int = hr_eff.get("rank", 15)
+		var mult: float = hr_eff.get("atk_mult", 1.3)
+		if _rank(card) >= hr_rank and not card.theme_state.get("high_rank_applied", false):
+			card.enhance(null, mult - 1.0, 0.0)  # mult 1.3 → +30% growth
+			card.theme_state["high_rank_applied"] = true
 
 	# R4/R10 milestone 효과 (left_adj, far_military, enhance_convert_card 등)
 	events.append_array(_process_r_conditional(card, idx, board))
@@ -682,7 +716,14 @@ func _supply_post(card: CardInstance, idx: int, board: Array, won: bool) -> Dict
 		if cond == "rank_gte" and _rank(card) >= thresh:
 			terazin = terazin_def.get("amount", 1)
 
-	# R4/R10 milestone (enhance_convert_card; grant_terazin/gold는 Phase 2)
+	# R4/R10 grants (grant_gold/grant_terazin)
+	# NOTE: YAML 의도상 R10 효과는 R4를 "대체"해야 함. YAML 누적 구조를
+	# 보존하기 위해 R10이 최종 총량(R4+R10 합계)이 되도록 맞췄다면 그대로 합산.
+	var r_grants := _collect_r_grants(card)
+	gold += int(r_grants.get("gold", 0))
+	terazin += int(r_grants.get("terazin", 0))
+
+	# R4/R10 기타 효과 (enhance_convert_card)
 	_process_r_conditional(card, idx, board)
 
 	return {"events": [], "gold": gold, "terazin": terazin}

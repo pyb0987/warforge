@@ -259,15 +259,17 @@ cards:
               gold_per_unit: cards
               halve_on_loss: true
         r_conditional:
+          # 차분 표현: R4에서 +1 테라진, R10에서 추가 +1 테라진(총 2) + 골드 +1.
+          # 누적 구조이므로 R4 효과는 R10에 포함 (덧셈 방식).
           - when: {rank_gte: 4}
             effects:
               - enhance_convert_card: {fraction: 0.5}
-              - grant_terazin: {amount: 1}   # 매 PC 테라진 +1
+              - grant_terazin: {amount: 1}
           - when: {rank_gte: 10}
             effects:
               - enhance_convert_card: {fraction: 1.0}
-              - grant_terazin: {amount: 2}   # 매 PC 테라진 +2 (R4 효과 대체)
-              - grant_gold: {amount: 1}      # + 골드 +1
+              - grant_terazin: {amount: 1}   # R4와 누적하여 총 +2 테라진
+              - grant_gold: {amount: 1}
       2:
         max_act: -1
         effects:
