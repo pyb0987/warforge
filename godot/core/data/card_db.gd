@@ -1071,31 +1071,29 @@ func _register_military() -> void:
 	_theme_effects["ml_barracks"] = {
 		1: [
 			{"action": "train", "target": "self", "amount": 1},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 3, "unit": "ml_infantry", "count": 1}, {"rank": 5, "unit": "ml_plasma", "count": 1}, {"rank": 8, "unit": "ml_walker", "count": 1}]},
+			{"action": "train", "target": "right_adj", "amount": 1},
 		],
 		2: [
 			{"action": "train", "target": "self", "amount": 2},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 3, "unit": "ml_infantry", "count": 1}, {"rank": 5, "unit": "ml_plasma", "count": 1}, {"rank": 8, "unit": "ml_walker", "count": 1}]},
+			{"action": "train", "target": "right_adj", "amount": 1},
 		],
 		3: [
 			{"action": "train", "target": "self", "amount": 2},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 3, "unit": "ml_infantry", "count": 1, "atk_bonus": 0.05}, {"rank": 5, "unit": "ml_plasma", "count": 1, "atk_bonus": 0.05}, {"rank": 8, "unit": "ml_walker", "count": 1, "atk_bonus": 0.05}], "high_rank": {"rank": 15, "atk_mult": 1.3}},
+			{"action": "train", "target": "right_adj", "amount": 1},
+			{"action": "high_rank_mult", "rank": 15, "atk_mult": 1.3},
 		],
 	}
 
-	var out_comp := [{"unit_id":"ml_recruit","count":3},{"unit_id":"ml_drone","count":1}]
-	var out_tags := PackedStringArray(["military", "frontline"])
-	_c("ml_outpost", "전진 기지", 1, T,
-		out_comp, RS, -1,
+	var con_comp := [{"unit_id":"ml_recruit","count":3},{"unit_id":"ml_drone","count":1}]
+	var con_tags := PackedStringArray(["military", "conscript"])
+	_c("ml_conscript", "징병국", 1, T,
+		con_comp, RS, -1,
 		[],
-		out_tags, -1, -1, false, 0, false, {
-			2: _star("전진 기지 ★2", out_comp, RS, -1, [], out_tags),
-			3: _star("전진 기지 ★3", out_comp, RS, -1, [], out_tags),
+		con_tags, -1, -1, false, 0, false, {
+			2: _star("징병국 ★2", con_comp, RS, -1, [], con_tags),
+			3: _star("징병국 ★3", con_comp, RS, -1, [], con_tags),
 		})
-	_theme_effects["ml_outpost"] = {
+	_theme_effects["ml_conscript"] = {
 		1: [{"action": "conscript", "target": "self", "count": 2}],
 		2: [
 			{"action": "conscript", "target": "self", "count": 2},
@@ -1105,6 +1103,25 @@ func _register_military() -> void:
 			{"action": "conscript", "target": "self", "count": 3},
 			{"action": "conscript", "target": "both_adj", "count": 1},
 			{"action": "conditional", "condition": "unit_count_gte", "threshold": 12, "effects": [{"action": "buff", "target": "all_military", "atk_pct": 0.1}]},
+		],
+	}
+
+	var out_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1}]
+	var out_tags := PackedStringArray(["military", "frontline"])
+	_c("ml_outpost", "전진 기지", 2, T,
+		out_comp, OE, 2,
+		[],
+		out_tags, -1, CO, false, 0, false, {
+			2: _star("전진 기지 ★2", out_comp, OE, 3, [], out_tags, -1, CO),
+			3: _star("전진 기지 ★3", out_comp, OE, 3, [], out_tags, -1, CO),
+		})
+	_theme_effects["ml_outpost"] = {
+		1: [{"action": "conscript", "target": "event_target", "count": 1}],
+		2: [
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "partial"},
+		],
+		3: [
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "all"},
 		],
 	}
 
@@ -1129,25 +1146,6 @@ func _register_military() -> void:
 		],
 	}
 
-	var con_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1}]
-	var con_tags := PackedStringArray(["military", "conscript"])
-	_c("ml_conscript", "징병국", 2, T,
-		con_comp, OE, 2,
-		[],
-		con_tags, -1, CO, false, 0, false, {
-			2: _star("징병국 ★2", con_comp, OE, 3, [], con_tags, -1, CO),
-			3: _star("징병국 ★3", con_comp, OE, 3, [], con_tags, -1, CO),
-		})
-	_theme_effects["ml_conscript"] = {
-		1: [{"action": "conscript", "target": "event_target", "count": 1}],
-		2: [
-			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "partial"},
-		],
-		3: [
-			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "all"},
-		],
-	}
-
 	var sup_comp := [{"unit_id":"ml_drone","count":1},{"unit_id":"ml_biker","count":1}]
 	var sup_tags := PackedStringArray(["military", "supply"])
 	_c("ml_supply", "보급 부대", 2, T,
@@ -1165,7 +1163,7 @@ func _register_military() -> void:
 			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false},
 		],
 		3: [
-			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false, "terazin": {"condition": "rank_gte", "thresh": 5, "amount": 1}},
+			{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false},
 		],
 	}
 
@@ -1186,28 +1184,28 @@ func _register_military() -> void:
 			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.03, "atk_per_unit": 0.008, "enhanced_shield_bonus": 0.05},
 		],
 		3: [
-			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01, "enhanced_shield_bonus": 0.08, "high_rank": {"rank_gte": 8, "as_bonus": 0.15}},
+			{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01, "enhanced_shield_bonus": 0.08},
 		],
 	}
 
 	var ass_comp := [{"unit_id":"ml_biker","count":2},{"unit_id":"ml_recruit","count":1}]
 	var ass_tags := PackedStringArray(["military", "assault"])
 	_c("ml_assault", "돌격 편대", 3, T,
-		ass_comp, BS, -1,
+		ass_comp, RS, -1,
 		[],
 		ass_tags, -1, -1, false, 0, false, {
-			2: _star("돌격 편대 ★2", ass_comp, BS, -1, [], ass_tags),
-			3: _star("돌격 편대 ★3", ass_comp, BS, -1, [], ass_tags),
+			2: _star("돌격 편대 ★2", ass_comp, RS, -1, [], ass_tags),
+			3: _star("돌격 편대 ★3", ass_comp, RS, -1, [], ass_tags),
 		})
 	_theme_effects["ml_assault"] = {
 		1: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.01, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2},
+			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 1},
 		],
 		2: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.015, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2},
+			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 2},
 		],
 		3: [
-			{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.02, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2, "high_rank": {"unit_thresh": 20, "as_bonus": 0.1}},
+			{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 4},
 		],
 	}
 
@@ -1221,20 +1219,14 @@ func _register_military() -> void:
 			3: _star("특수 작전대 ★3", so_comp, RS, -1, [], so_tags),
 		})
 	_theme_effects["ml_special_ops"] = {
-		1: [
-			{"action": "train", "target": "self", "amount": 1},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 8, "unit": "ml_commander", "count": 1}]},
-		],
+		1: [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 2.0}],
 		2: [
-			{"action": "train", "target": "self", "amount": 1},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 6, "unit": "ml_commander", "count": 1}]},
+			{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0},
+			{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 1},
 		],
 		3: [
-			{"action": "train", "target": "self", "amount": 1},
-			{"action": "train", "target": "both_adj", "amount": 1},
-			{"action": "rank_threshold", "tiers": [{"rank": 5, "unit": "ml_commander", "count": 2}], "high_rank": {"rank": 10, "leader_spread": "both_adj"}},
+			{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0},
+			{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 3},
 		],
 	}
 
@@ -1249,16 +1241,13 @@ func _register_military() -> void:
 		})
 	_theme_effects["ml_factory"] = {
 		1: [
-			{"action": "counter_produce", "event": "CO", "threshold": 10, "rewards": {"terazin": 1}},
+			{"action": "counter_produce", "event": "CO", "threshold": 10, "rewards": {"global_military_atk_pct": 0.05}},
 		],
 		2: [
-			{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"terazin": 1, "enhance_atk_pct": 0.03}},
-			{"action": "upgrade_discount", "tier": "rare", "pct": 0.2},
+			{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"global_military_atk_pct": 0.07}},
 		],
 		3: [
-			{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"terazin": 2, "enhance_atk_pct": 0.05}},
-			{"action": "upgrade_discount", "tier": "rare", "pct": 0.2},
-			{"action": "upgrade_discount", "tier": "epic", "pct": 0.2},
+			{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"global_military_atk_pct": 0.1, "global_military_range_bonus": 1}},
 		],
 	}
 
@@ -1274,15 +1263,14 @@ func _register_military() -> void:
 	_theme_effects["ml_command"] = {
 		1: [
 			{"action": "train", "target": "all_military", "amount": 1},
-			{"action": "revive", "target": "enhanced_units", "hp_pct": 0.5, "limit_per_combat": 1},
+			{"action": "revive", "target": "self_enhanced", "hp_pct": 0.25, "limit_per_combat": 1},
 		],
 		2: [
 			{"action": "train", "target": "all_military", "amount": 1},
-			{"action": "revive", "target": "enhanced_units", "hp_pct": 0.75, "limit_per_combat": 1, "on_revive_buff": {"atk_pct": 0.1}},
+			{"action": "revive", "target": "self_enhanced", "hp_pct": 0.5, "limit_per_combat": 1},
 		],
 		3: [
 			{"action": "train", "target": "all_military", "amount": 2},
-			{"action": "revive", "target": "enhanced_units", "hp_pct": 1.0, "limit_per_combat": 3, "shield_pct": 0.2, "on_revive_buff": {"atk_pct": 0.15}},
-			{"action": "conditional", "condition": "rank_gte", "threshold": 8, "effects": [{"action": "revive_override", "target": "all_military"}]},
+			{"action": "revive", "target": "self_enhanced", "hp_pct": 1.0, "limit_per_combat": 1},
 		],
 	}
