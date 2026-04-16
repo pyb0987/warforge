@@ -98,3 +98,13 @@ func _register_all() -> void:
 	_reg("ml_artillery","궤도 포대",     12,  40, 1.5, 6, 1, PackedStringArray(["military","machine","medium","ranged"]))
 	_reg("ml_commander","전술 지휘관",    4,  55, 1.0, 0, 2, PackedStringArray(["military","organic","medium","melee"]))
 	_reg("ml_walker",   "중장갑 워커",    9,  85, 1.5, 2, 1, PackedStringArray(["military","machine","large","melee"]))
+
+	# ═══ 군대 (강화) 버전 (6종) — units-military.md 하단 참조 ═══
+	# 징집 풀 6종에만 (강화) 버전 존재. 엘리트 유닛(sniper/artillery/commander/walker)은 (강화) 없음.
+	# 태그에 "enhanced" 추가 — 런타임에서 (강화) 유닛 식별용.
+	_reg("ml_recruit_enhanced",  "신병(강화)",          5,  45, 0.7, 0, 3, PackedStringArray(["military","organic","small","melee","enhanced"]))
+	_reg("ml_infantry_enhanced", "보병(강화)",          9,  70, 1.0, 0, 2, PackedStringArray(["military","organic","medium","melee","enhanced"]))
+	_reg("ml_shield_enhanced",   "에너지 방패병(강화)", 4, 110, 1.5, 0, 1, PackedStringArray(["military","organic","medium","melee","enhanced"]))
+	_reg("ml_drone_enhanced",    "정찰 드론(강화)",     5,  30, 0.7, 3, 3, PackedStringArray(["military","machine","small","melee","enhanced"]))
+	_reg("ml_biker_enhanced",    "강습 바이커(강화)",   8,  55, 0.7, 0, 3, PackedStringArray(["military","organic","medium","melee","enhanced"]))
+	_reg("ml_plasma_enhanced",   "플라즈마 사수(강화)", 9,  50, 1.0, 5, 2, PackedStringArray(["military","organic","medium","ranged","enhanced"]))
