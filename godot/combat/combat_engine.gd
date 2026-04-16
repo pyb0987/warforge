@@ -41,6 +41,8 @@ var focus_target: PackedInt32Array      # last attack target for focus_fire
 var focus_stacks: PackedInt32Array      # focus_fire stack count
 var phase_shift_left: PackedByteArray   # remaining phase_shift uses
 var immortal_left: PackedByteArray      # remaining immortal_core uses
+var revive_left: PackedByteArray        # 군대 통합사령부 revive 잔여 횟수 (유닛 단위)
+var revive_hp_pct: PackedFloat32Array   # 부활 시 HP 복원 비율 (max_hp × pct)
 var soul_kills: PackedInt32Array        # soul_harvest kill count
 var soul_atk_bonus: PackedFloat32Array  # soul_harvest accumulated ATK%
 var berserk_active: PackedByteArray     # berserk triggered
@@ -187,6 +189,10 @@ func _init_arrays(n: int) -> void:
 	phase_shift_left.resize(n)
 	immortal_left = PackedByteArray()
 	immortal_left.resize(n)
+	revive_left = PackedByteArray()
+	revive_left.resize(n)
+	revive_hp_pct = PackedFloat32Array()
+	revive_hp_pct.resize(n)
 	soul_kills = PackedInt32Array()
 	soul_kills.resize(n)
 	soul_atk_bonus = PackedFloat32Array()
@@ -229,6 +235,9 @@ func _set_unit(idx: int, data: Dictionary, is_ally: bool) -> void:
 	focus_stacks[idx] = 0
 	phase_shift_left[idx] = 1 if _has_mechanic_in(data.get("mechanics", []), "phase_shift") else 0
 	immortal_left[idx] = 1 if _has_mechanic_in(data.get("mechanics", []), "immortal_core") else 0
+	# 군대 통합사령부 revive — data에 revive_limit, revive_hp_pct가 있으면 주입.
+	revive_left[idx] = data.get("revive_limit", 0)
+	revive_hp_pct[idx] = data.get("revive_hp_pct", 0.0)
 	soul_kills[idx] = 0
 	soul_atk_bonus[idx] = 0.0
 	berserk_active[idx] = 0
@@ -477,6 +486,14 @@ func get_hp_ratio(i: int) -> float:
 func kill_unit(i: int) -> void:
 	if alive[i] == 0:
 		return
+	# 군대 통합사령부 revive: 사망 직전 체크. revive_left > 0이면 HP 복원하고 살림.
+	# 패턴은 immortal_core와 유사하지만 부활은 이미 사망 판정 시점이라 alive는 유지.
+	if revive_left[i] > 0 and revive_hp_pct[i] > 0.0:
+		revive_left[i] -= 1
+		hp[i] = max_hp[i] * revive_hp_pct[i]
+		target_idx[i] = -1
+		cooldown[i] = 0.0
+		return  # 부활 성공 — 사망 처리 취소
 	alive[i] = 0
 	if team[i] == 1:
 		_ally_alive -= 1

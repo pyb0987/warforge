@@ -423,6 +423,11 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 			# 징병국 R4/R10: pool 확장은 _pool_for_card가 YAML을 직접 평가하므로
 			# 이 dispatch는 no-op. action은 YAML 선언(설계 의도 문서화) 목적.
 			pass
+		"revive_scope_override":
+			# 통합사령부 R4/R10: revive scope 확장은 game_manager._materialize_army가
+			# 통합사령부 카드의 rank를 직접 읽어 scope를 결정하므로 dispatch는 no-op.
+			# action은 YAML 선언(설계 의도 문서화) 목적.
+			pass
 		"rank_buff_hp":
 			# 전술사령부 R4: 모든 군대 카드에 계급당 HP +% buff (BS 타이밍).
 			_apply_rank_buff_hp(eff, card, board)

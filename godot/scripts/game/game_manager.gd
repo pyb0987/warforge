@@ -266,6 +266,31 @@ func _materialize_army() -> Array:
 	var units: Array = []
 	_unit_card_map.clear()
 	var active := game_state.get_active_board()
+	# 군대 통합사령부 revive scope 계산:
+	# ml_command 카드가 보드에 있으면 rank/scope/hp_pct 정보로 scope_card_indices 구축.
+	# scope_card_indices[card_idx] = {"hp_pct": float, "limit": int, "only_enhanced": bool}
+	var revive_scope_map: Dictionary = {}
+	for ci in range(active.size()):
+		var cmd_card: CardInstance = active[ci]
+		if cmd_card.get_base_id() != "ml_command":
+			continue
+		var rank: int = cmd_card.theme_state.get("rank", 0)
+		var hp_pct: float = cmd_card.theme_state.get("revive_hp_pct", 0.0)
+		var limit: int = cmd_card.theme_state.get("revive_limit", 0)
+		if hp_pct <= 0 or limit <= 0:
+			continue
+		# scope 결정: R10 → 양쪽 인접까지, R4 → self 전체 유닛, R0 → self (강화) 유닛만
+		var scope_list: Array[int] = [ci]
+		var only_enhanced: bool = rank < 4
+		if rank >= 10:
+			if ci > 0: scope_list.append(ci - 1)
+			if ci + 1 < active.size(): scope_list.append(ci + 1)
+		for target_ci in scope_list:
+			revive_scope_map[target_ci] = {
+				"hp_pct": hp_pct,
+				"limit": limit,
+				"only_enhanced": only_enhanced,
+			}
 	var card_idx := -1
 	for card in active:
 		card_idx += 1
@@ -311,6 +336,16 @@ func _materialize_army() -> Array:
 			# as_bonus (전술사령부 R10): attack_speed *= (1 + as_bonus).
 			# 수치가 1.0 증가하면 AS 2배가 아닌 (1 + 0.15) = 1.15배. 기존 SC1 스타일 유지.
 			var as_mult_total: float = c.upgrade_as_mult * (1.0 + as_bonus)
+			# 군대 revive: 이 카드가 통합사령부 scope에 속하면 revive 필드 주입.
+			var revive_info: Dictionary = revive_scope_map.get(card_idx, {})
+			var revive_limit_val: int = 0
+			var revive_hp_pct_val: float = 0.0
+			if not revive_info.is_empty():
+				var ut_tags: PackedStringArray = ut.get("tags", PackedStringArray())
+				var is_enhanced: bool = "enhanced" in ut_tags
+				if not revive_info["only_enhanced"] or is_enhanced:
+					revive_limit_val = int(revive_info["limit"])
+					revive_hp_pct_val = float(revive_info["hp_pct"])
 			for _n in s["count"]:
 				units.append({
 					"atk": eff_atk * reroll_buff_mult,
@@ -321,6 +356,8 @@ func _materialize_army() -> Array:
 					"def": c.upgrade_def,
 					"mechanics": unit_mechs,
 					"radius": 6.0,
+					"revive_limit": revive_limit_val,
+					"revive_hp_pct": revive_hp_pct_val,
 				})
 				_unit_card_map.append(card_idx)
 	return units
