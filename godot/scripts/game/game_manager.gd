@@ -285,6 +285,8 @@ func _materialize_army() -> Array:
 		var crit_chance: float = c.theme_state.get("crit_chance", 0.0)
 		var crit_mult: float = c.theme_state.get("crit_mult", 2.0)
 		var crit_splash_pct: float = c.theme_state.get("crit_splash_pct", 0.0)
+		# 군대 전술사령부 R10: theme_state["as_bonus"]가 attack_speed에 %로 반영.
+		var as_bonus: float = c.theme_state.get("as_bonus", 0.0)
 		for s in c.stacks:
 			var ut: Dictionary = s["unit_type"]
 			var eff_atk := c.eff_atk_for(s)
@@ -305,11 +307,14 @@ func _materialize_army() -> Array:
 				if crit_splash_pct > 0.0:
 					crit_mech["splash_pct"] = crit_splash_pct
 				unit_mechs.append(crit_mech)
+			# as_bonus (전술사령부 R10): attack_speed *= (1 + as_bonus).
+			# 수치가 1.0 증가하면 AS 2배가 아닌 (1 + 0.15) = 1.15배. 기존 SC1 스타일 유지.
+			var as_mult_total: float = c.upgrade_as_mult * (1.0 + as_bonus)
 			for _n in s["count"]:
 				units.append({
 					"atk": eff_atk * reroll_buff_mult,
 					"hp": eff_hp,
-					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult,
+					"attack_speed": ut["attack_speed"] * as_mult_total,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),
 					"move_speed": ut["move_speed"] + c.upgrade_move_speed,
 					"def": c.upgrade_def,

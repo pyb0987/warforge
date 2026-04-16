@@ -354,6 +354,13 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 		"crit_splash":
 			# 특수작전대 R4/R10: 치명타 발동 시 인접 적 스플래시.
 			_apply_crit_splash(eff, card)
+		"rank_buff_hp":
+			# 전술사령부 R4: 모든 군대 카드에 계급당 HP +% buff (BS 타이밍).
+			_apply_rank_buff_hp(eff, card, board)
+		"buff":
+			# 전술사령부 R10: as_bonus / 기타 단일 buff.
+			# target=all_military인 경우 theme_state에 저장 → _materialize_army 반영.
+			_apply_buff(eff, board)
 		_:
 			# Phase 2+ 에서 추가 action 등록. 지금은 no-op.
 			pass
@@ -414,6 +421,40 @@ func _apply_crit_splash(eff: Dictionary, card: CardInstance) -> void:
 	if splash_pct <= 0:
 		return
 	card.theme_state["crit_splash_pct"] = splash_pct
+
+
+## rank_buff_hp 적용 (전술사령부 R4). 발동 카드의 계급 × hp_per_rank를
+## 모든 군대 카드에 HP 곱연산 buff (임시, 전투 후 소멸).
+## temp_mult_buff(1.0, 1.0 + hp_pct) 재사용.
+func _apply_rank_buff_hp(eff: Dictionary, src_card: CardInstance, board: Array) -> void:
+	var hp_per_rank: float = eff.get("hp_per_rank", 0.0)
+	if hp_per_rank <= 0:
+		return
+	var rank := _rank(src_card)
+	if rank <= 0:
+		return
+	var hp_pct := float(rank) * hp_per_rank
+	for mi in _military_indices(board):
+		(board[mi] as CardInstance).temp_mult_buff(1.0, 1.0 + hp_pct)
+
+
+## buff 적용 (전술사령부 R10 as_bonus, 추후 확장 가능).
+## target이 all_military면 모든 군대 카드 theme_state에 buff 값 저장.
+## _materialize_army가 attack_speed 계산 시 theme_state["as_bonus"] 반영.
+func _apply_buff(eff: Dictionary, board: Array) -> void:
+	var target_name: String = eff.get("target", "")
+	var as_bonus: float = eff.get("as_bonus", 0.0)
+	var atk_pct: float = eff.get("atk_pct", 0.0)
+	var targets: Array[int] = []
+	if target_name == "all_military":
+		targets = _military_indices(board)
+	# 다른 target은 Phase 확장에서.
+	for ti in targets:
+		var tc: CardInstance = board[ti]
+		if as_bonus > 0:
+			tc.theme_state["as_bonus"] = as_bonus
+		if atk_pct > 0:
+			tc.temp_buff(null, atk_pct)
 
 
 ## r_conditional 블록에서 grant_gold/grant_terazin 합계를 모아서 반환.
@@ -710,6 +751,10 @@ func _factory(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 
 func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# 이전 전투의 as_bonus 잔류 방지 (R10 해제는 불가하지만 안전 차원).
+	for mi in _military_indices(board):
+		(board[mi] as CardInstance).theme_state.erase("as_bonus")
+
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var buff_eff := _find_eff(effs, "rank_buff", "all_military")
 	var shield_per_rank: float = buff_eff.get("shield_per_rank", 0.02)
@@ -728,7 +773,7 @@ func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		mc.shield_hp_pct += shield_pct
 		mc.temp_buff(null, atk_pct)
 
-	# R4/R10 milestone (enhance_convert_card; rank_buff_hp/as_bonus buff는 Phase 3)
+	# R4/R10 milestone (enhance_convert_card + rank_buff_hp + buff as_bonus)
 	_process_r_conditional(card, idx, board)
 	return Enums.empty_result()
 
