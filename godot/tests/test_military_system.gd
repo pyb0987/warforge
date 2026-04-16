@@ -762,3 +762,163 @@ func test_assault_s3_spawns_4_bikers() -> void:
 	_sys.process_rs_card(card, 0, [card], _rng)
 	var after: Dictionary = _find_stack_by_id(card, "ml_biker")
 	assert_eq(after["count"] - before_count, 4, "★3: 바이커 +4")
+
+
+# ================================================================
+# 공통 R4/R10 enhance_convert_card 전 카드 검증 (iter 5 Critic 1 gap 해결)
+# _process_r_conditional을 직접 호출해 각 카드의 공통 R 효과 발동 확인.
+# ================================================================
+
+func _count_non_enhanced(card: CardInstance) -> int:
+	var n := 0
+	for s in card.stacks:
+		var uid: String = s["unit_type"].get("id", "")
+		if MilitarySystem.ENHANCED_MAP.has(uid):
+			n += s["count"]
+	return n
+
+
+func _assert_r4_converts_half(card_id: String) -> void:
+	var card: CardInstance = CardInstance.create(card_id)
+	card.theme_state["rank"] = 4
+	var non_enhanced_before: int = _count_non_enhanced(card)
+	_sys._process_r_conditional(card, 0, [card])
+	var non_enhanced_after: int = _count_non_enhanced(card)
+	var expected_converted: int = int(floor(float(non_enhanced_before) * 0.5))
+	assert_eq(non_enhanced_before - non_enhanced_after, expected_converted,
+		"%s R4: 비(강화) %d → %d (변환 %d, floor 절반, 0이면 no-op)" % [card_id,
+		non_enhanced_before, non_enhanced_after, expected_converted])
+
+
+func _assert_r10_converts_all(card_id: String) -> void:
+	var card: CardInstance = CardInstance.create(card_id)
+	card.theme_state["rank"] = 10
+	_sys._process_r_conditional(card, 0, [card])
+	assert_eq(_count_non_enhanced(card), 0,
+		"%s R10: 변환 가능한 비(강화) 유닛 잔존 없어야 함" % card_id)
+
+
+func test_common_r4_conscript() -> void:
+	_assert_r4_converts_half("ml_conscript")
+
+
+func test_common_r4_outpost() -> void:
+	_assert_r4_converts_half("ml_outpost")
+
+
+func test_common_r4_academy() -> void:
+	_assert_r4_converts_half("ml_academy")
+
+
+func test_common_r4_supply() -> void:
+	_assert_r4_converts_half("ml_supply")
+
+
+func test_common_r4_tactical() -> void:
+	_assert_r4_converts_half("ml_tactical")
+
+
+func test_common_r4_assault() -> void:
+	_assert_r4_converts_half("ml_assault")
+
+
+func test_common_r4_special_ops() -> void:
+	## 특수작전대 comp는 저격드론×1 + 워커×1 (둘 다 엘리트, ENHANCED_MAP에 없음).
+	## → 변환 대상 0. 테스트는 no-op 검증.
+	_assert_r4_converts_half("ml_special_ops")
+
+
+func test_common_r4_factory() -> void:
+	## 군수공장 comp는 궤도포대×1 + 저격드론×1 (둘 다 엘리트). no-op.
+	_assert_r4_converts_half("ml_factory")
+
+
+func test_common_r4_command() -> void:
+	## 통합사령부 comp는 지휘관×1 + 워커×1 + 포대×1 (모두 엘리트). no-op.
+	_assert_r4_converts_half("ml_command")
+
+
+func test_common_r10_conscript() -> void:
+	_assert_r10_converts_all("ml_conscript")
+
+
+func test_common_r10_outpost() -> void:
+	_assert_r10_converts_all("ml_outpost")
+
+
+func test_common_r10_academy() -> void:
+	_assert_r10_converts_all("ml_academy")
+
+
+func test_common_r10_supply() -> void:
+	_assert_r10_converts_all("ml_supply")
+
+
+func test_common_r10_tactical() -> void:
+	_assert_r10_converts_all("ml_tactical")
+
+
+func test_common_r10_assault() -> void:
+	_assert_r10_converts_all("ml_assault")
+
+
+func test_common_r10_special_ops() -> void:
+	_assert_r10_converts_all("ml_special_ops")
+
+
+func test_common_r10_factory() -> void:
+	_assert_r10_converts_all("ml_factory")
+
+
+func test_common_r10_command() -> void:
+	_assert_r10_converts_all("ml_command")
+
+
+# ================================================================
+# Combat integration 스모크 테스트: revive 실제 발동 (Critic 1 HIGH gap)
+# combat_engine을 직접 세팅 후 kill_unit 호출하여 revive_left 차감 및 HP 복원 확인.
+# ================================================================
+
+func test_combat_revive_integration_smoke() -> void:
+	## ml_command ★1 (hp_pct=0.25, limit=1)로 setup한 유닛이 사망 직전 부활.
+	var engine := preload("res://combat/combat_engine.gd").new()
+	# ally 유닛 1기: revive_limit=1, revive_hp_pct=0.5
+	var ally_units: Array = [{
+		"atk": 5.0, "hp": 50.0, "attack_speed": 1.0, "range": 0,
+		"move_speed": 1, "def": 0.0, "mechanics": [],
+		"radius": 6.0, "revive_limit": 1, "revive_hp_pct": 0.5,
+	}]
+	var enemy_units: Array = [{
+		"atk": 5.0, "hp": 10.0, "attack_speed": 1.0, "range": 0,
+		"move_speed": 1, "def": 0.0, "mechanics": [],
+		"radius": 6.0,
+	}]
+	engine.headless = true
+	engine.setup(ally_units, enemy_units)
+	# 초기 상태 확인
+	assert_eq(engine.revive_left[0], 1, "setup 후 revive_left=1")
+	assert_almost_eq(engine.revive_hp_pct[0], 0.5, 0.001, "setup 후 revive_hp_pct=0.5")
+	# kill_unit 호출 → revive 발동으로 사망 취소되어야 함
+	engine.kill_unit(0)
+	assert_eq(engine.alive[0], 1, "revive 발동 → alive 유지")
+	assert_almost_eq(engine.hp[0], 25.0, 0.001, "max_hp 50 × 0.5 = 25 HP")
+	assert_eq(engine.revive_left[0], 0, "revive_left 소진")
+	# 두 번째 kill → revive 없음, 실제 사망
+	engine.hp[0] = 0.0
+	engine.kill_unit(0)
+	assert_eq(engine.alive[0], 0, "revive 소진 후 실제 사망")
+
+
+func test_combat_revive_not_triggered_without_limit() -> void:
+	## revive_limit=0 unit은 kill 시 그대로 사망.
+	var engine := preload("res://combat/combat_engine.gd").new()
+	var ally_units: Array = [{
+		"atk": 5.0, "hp": 50.0, "attack_speed": 1.0, "range": 0,
+		"move_speed": 1, "def": 0.0, "mechanics": [],
+		"radius": 6.0, "revive_limit": 0, "revive_hp_pct": 0.0,
+	}]
+	var enemy_units: Array = []
+	engine.headless = true
+	engine.setup(ally_units, enemy_units)
+	engine.kill_unit(0)
+	assert_eq(engine.alive[0], 0, "revive_limit=0 → 정상 사망")
