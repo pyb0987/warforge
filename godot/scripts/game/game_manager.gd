@@ -178,7 +178,8 @@ func _run_chain() -> void:
 		var count: int = req["count"]
 		var mil_sys: MilitarySystem = chain_engine._theme_systems[Enums.CardTheme.MILITARY]
 		for _i in count:
-			var options: Array[String] = mil_sys.pick_conscript_options(_battle_rng, 3)
+			# card_ref 전달 → 징병국 R4/R10 pool 확장 반영 (enhanced/elite tier)
+			var options: Array[String] = mil_sys.pick_conscript_options(_battle_rng, 3, card_ref)
 			conscript_popup.show_choices(options)
 			var chosen_id: String = await conscript_popup.unit_chosen
 			mil_sys.apply_conscript(card_ref, chosen_id)
