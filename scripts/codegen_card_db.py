@@ -309,7 +309,11 @@ THEME_EFFECTS = {
     "spawn_unit", "crit_buff", "crit_splash", "rank_buff_hp",
     "upgrade_shop_bonus", "conscript_pool_tier", "lifesteal",
     "high_rank_mult", "grant_gold", "grant_terazin", "revive_scope_override",
-    "buff",  # 일반 버프 (as_bonus 등)
+    # NOTE: `buff`는 THEME_EFFECTS 에서 제외. ml_tactical의 `buff`는 r_conditional
+    # 안에 있어 _theme_effects 경로로 저장되므로 이 필터를 거치지 않는다. 반대로
+    # neutral ne_wildforce처럼 base effects에 `buff`를 쓰는 카드는 codegen이
+    # `_buff(...)` 헬퍼 호출을 생성해야 하는데, 여기서 필터되면 effects=[]가 되어
+    # BS 경로가 no-op이 된다 (과거 GUT 3건 실패 원인, 2026-04-17 수정).
 }
 
 

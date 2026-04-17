@@ -457,14 +457,14 @@ func _register_neutral() -> void:
 	var wil_tags := PackedStringArray(["neutral", "combat"])
 	_c("ne_wildforce", "야생의 힘", 2, T,
 		wil_comp, BS, -1,
-		[],
+		[_buff("self", 0.1)],
 		wil_tags, -1, -1, false, 0, false, {
-			2: _star("야생의 힘 ★2", wil_comp, BS, -1, [], wil_tags),
+			2: _star("야생의 힘 ★2", wil_comp, BS, -1, [_buff("self", 0.15)], wil_tags),
 			3: {
 				"name": "야생의 힘 ★3",
 				"composition": wil_comp,
 				"trigger_timing": BS, "max_activations": -1,
-				"effects": [],
+				"effects": [_buff("self", 0.15)],
 				"card_tags": wil_tags,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_other_card": false, "require_tenure": 0,
