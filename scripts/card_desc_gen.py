@@ -291,7 +291,7 @@ def desc_tree_gold(p: dict) -> str:
     if p.get("win_half"):
         text += ". 패배 시 절반"
     else:
-        text += ". 패배 전액"
+        text += ". 승패 무관 전액"
     if p.get("terazin_thresh"):
         text += f". 🌳{p['terazin_thresh']}+ → +{p.get('terazin', 1)} 테라진"
     return text
@@ -318,7 +318,10 @@ def desc_multiply_stats(p: dict) -> str:
     atk_base = p["atk_base"]
     atk_step = p["atk_tree_step"]
     atk_per = p["atk_per_tree"]
-    text = (f"[지속] ≤{cap}기 → 전체 드루이드 ATK×{atk_base}. "
+    # target 해석: dr_world는 target:self (이 카드 유닛에만 적용).
+    # 과거 하드코딩으로 '전체 드루이드'로 출력되던 drift 수정 (review 2026-04-17 H1).
+    tgt_str = resolve_target(p.get("target", "self"))
+    text = (f"[지속] ≤{cap}기 → {tgt_str} 유닛 ATK×{atk_base}. "
             f"숲의 깊이 {atk_step}당 +{atk_per}×")
     if p.get("hp_base"):
         hp_step = p.get("hp_tree_step", atk_step)
@@ -336,14 +339,17 @@ def desc_multiply_stats(p: dict) -> str:
 
 def desc_tree_temp_buff(p: dict) -> str:
     cap = p["unit_cap"]
+    # '이 카드' prefix를 CONDITION_TEXT["unit_count_lte"]와 일치시켜 다른 lte
+    # 조건문(ne_wildforce, pr_apex_hunt 등)과 표기 통일 (review 2026-04-17 L2).
+    cond_pfx = f"이 카드 ≤{cap}기이면"
     if p.get("atk_mult"):
-        text = f"≤{cap}기 ATK ×{p['atk_mult']}"
+        text = f"{cond_pfx} ATK ×{p['atk_mult']}"
         if p.get("hp_mult"):
-            text += f", HP ×{p['hp_mult']}(곱연산, 전투)"
+            text += f", HP ×{p['hp_mult']}(곱연산, 이번 전투)"
     else:
         atk_base = fmt_pct(p["atk_base_pct"])
         atk_tree = fmt_pct(p["atk_tree_pct"])
-        text = f"≤{cap}기 ATK +({atk_base}%+🌳×{atk_tree}%)(전투)"
+        text = f"{cond_pfx} ATK +({atk_base}%+🌳×{atk_tree}%)(이번 전투)"
         if p.get("hp_pct"):
             text += f", HP +{fmt_pct(p['hp_pct'])}%"
     if p.get("kill_hp_recover"):
@@ -416,7 +422,7 @@ def desc_persistent(p: dict) -> str:
     parts = []
     if p.get("death_atk_bonus"):
         pct = fmt_pct(p["death_atk_bonus"])
-        parts.append(f"아군 사망 시 생존 ATK +{pct}%(전투)")
+        parts.append(f"아군 사망 시 생존 ATK +{pct}%(이번 전투)")
     if p.get("kill_hp_recover"):
         pct = fmt_pct(p["kill_hp_recover"])
         parts.append(f"적 처치 HP {pct}% 회복")
@@ -438,10 +444,13 @@ def desc_conscript(p: dict) -> str:
     n = p["count"]
     enhanced = p.get("enhanced")
     text = f"{t}에 징집 {n}기"
+    # review 2026-04-17 H2: count와 enhanced 관계를 명시적으로 표기.
+    # 'partial'은 'N기 중 1기가 강화'인데 n==1일 때 'all'과 구별 불가해
+    # 이 경우엔 '(강화)'로 축약 (사실상 전원 강화).
     if enhanced == "partial":
-        text += "(1기 강화 버전)"
+        text += " (그중 1기는 (강화))" if n > 1 else " (강화)"
     elif enhanced == "all":
-        text += "(전원 강화 버전)"
+        text += " (전원 (강화))" if n > 1 else " (강화)"
     return text
 
 def desc_rank_threshold(p: dict) -> str:
@@ -484,7 +493,7 @@ def desc_revive(p: dict) -> str:
         text += f" + 방어막(HP {fmt_pct(p['shield_pct'])}%)"
     if p.get("on_revive_buff"):
         buff = p["on_revive_buff"]
-        text += f" + ATK +{fmt_pct(buff['atk_pct'])}%(전투)"
+        text += f" + ATK +{fmt_pct(buff['atk_pct'])}%(이번 전투)"
     return text
 
 def desc_revive_override(p: dict) -> str:
@@ -614,7 +623,7 @@ def desc_range_bonus(p: dict) -> str:
         text += f". #{tag} ATK +{fmt_pct(p['atk_buff_pct'])}%"
     if p.get("attack_stack_pct"):
         text += (f". 공격 시마다 "
-                 f"ATK +{fmt_pct(p['attack_stack_pct'])}%(전투)")
+                 f"ATK +{fmt_pct(p['attack_stack_pct'])}%(이번 전투)")
     return text
 
 def desc_economy(p: dict) -> str:
@@ -633,7 +642,7 @@ def desc_economy(p: dict) -> str:
     if halve:
         text += ". 패배 시 절반"
     else:
-        text += ". 패배 전액"
+        text += ". 승패 무관 전액"
     tz = p.get("terazin")
     if tz:
         cond = tz.get("condition", "always")
