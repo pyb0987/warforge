@@ -323,7 +323,22 @@ def gen_post_threshold(effects: list) -> str:
 
 def _convert_nested_effects(params: dict) -> dict:
     """Recursively convert nested YAML effect structures to clean dicts.
-    Handles 'effects' sub-arrays (e.g., on_combat_result.effects)."""
+    Handles 'effects' sub-arrays (e.g., on_combat_result.effects).
+
+    NOTE (multi-review 2026-04-17, H1): ``None`` values are intentionally
+    dropped from the generated dict. This is the CORRECT behavior for the
+    theme_system path because:
+      - card_db impl cards route ol1 via ``_gen_spawn``/``_gen_enhance`` which
+        read from the raw YAML dict via ``p.get("ol1", DEFAULT)`` — None is
+        preserved there as an explicit null.
+      - theme_system impl cards (e.g., ml_academy.enhance) have handlers that
+        emit events themselves (or choose not to) — they do NOT consume the
+        ``ol1`` field from _theme_effects. Dropping None-valued keys here
+        keeps the generated dict minimal.
+    If a future theme_system handler starts reading ``ol1`` from the stored
+    dict, change this filter to preserve explicit null (e.g. serialize as
+    ``-1`` or ``None`` sentinel) rather than dropping.
+    """
     result = {}
     for k, v in params.items():
         if v is None:
