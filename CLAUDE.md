@@ -70,6 +70,7 @@ Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS
   - **Tier 0 protect-files** (PreToolUse Edit/Write/MultiEdit, **차단형** exit 2) — `godot/sim/{autoresearch.py, baseline.json, batch_runner.gd, program.md}` 수정 차단. 추가로 chmod 444가 걸려 Bash redirection도 막힘 (defense in depth). 정당한 사유로 수정해야 한다면 사용자 승인 후 `chmod +w`로 명시적 잠금 해제. agent-writable 탐색 로그는 `godot/sim/rejection_history.md` 사용.
   - **codegen protect** (PreToolUse Edit/Write/MultiEdit + Bash, **차단형** exit 2) — `card_db.gd` 직접 수정 차단 (Edit/Write + sed/cp/mv 등 Bash 명령 모두). chmod 444 defense-in-depth. codegen 실행이 유일한 쓰기 경로.
   - **YAML→codegen drift** (PostToolUse Edit/Write, **경고형**) — `data/cards/*.yaml` 수정 후 `codegen --check` 자동 실행. 불일치 시 codegen 실행 안내.
+  - **r_conditional ★ parity validator** (codegen 내장, **차단형** exit 2) — 같은 카드의 `r_conditional`은 ★1/★2/★3에서 구조적으로 동일해야 함. 의도된 ★ 스케일링은 카드 top-level `star_scalable_actions: [action, ...]`로 명시. 근거: 훈련소/보급부대/군수공장 drift 3건 (commit 77e0a78, 18e7cb2). 회귀 테스트: `python3 -m unittest scripts.tests.test_r_conditional_validator`.
 - **Skills**: `card-designer` (도메인 스킬), `btw` (유틸리티)
 - **Trace Filesystem**: `.claude/traces/` — 진화(evolution/), 실패(failures/), 실험(experiments/)
 - **변경 전략**: Additive first → Subtractive → Structural (한 번에 하나, 교란 변수 격리)

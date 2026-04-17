@@ -1005,6 +1005,106 @@ def generate_descs_gd(
     return "\n".join(lines)
 
 
+def _diff_r_conditional(
+    baseline: Optional[list],
+    other: Optional[list],
+    allowed_actions: set,
+) -> Optional[str]:
+    """Return a human-readable diff, or None if equivalent modulo allowed actions.
+
+    ``allowed_actions`` is a set of action names whose parameters are permitted
+    to differ across stars (e.g. star-scaling combat buffs). All other actions
+    must have byte-identical params.
+    """
+    if baseline is None and other is None:
+        return None
+    if baseline is None or other is None:
+        return "one star defines r_conditional, the other does not"
+    if len(baseline) != len(other):
+        return (
+            f"different number of rank milestones "
+            f"(baseline={len(baseline)}, other={len(other)})"
+        )
+    for i, (rb, ro) in enumerate(zip(baseline, other)):
+        if rb.get("when") != ro.get("when"):
+            return (
+                f"milestone #{i} 'when' differs: "
+                f"{rb.get('when')} vs {ro.get('when')}"
+            )
+        effs_b = rb.get("effects") or []
+        effs_o = ro.get("effects") or []
+        if len(effs_b) != len(effs_o):
+            return (
+                f"milestone {rb.get('when')} effects count differs: "
+                f"{len(effs_b)} vs {len(effs_o)}"
+            )
+        for j, (eb, eo) in enumerate(zip(effs_b, effs_o)):
+            # Each effect is a single-key dict {action: params}
+            actions_b = list(eb.keys())
+            actions_o = list(eo.keys())
+            if actions_b != actions_o:
+                return (
+                    f"milestone {rb.get('when')} effect #{j} action name "
+                    f"differs: {actions_b} vs {actions_o}"
+                )
+            action = actions_b[0]
+            if eb[action] != eo[action]:
+                if action in allowed_actions:
+                    continue
+                return (
+                    f"milestone {rb.get('when')} action '{action}' params "
+                    f"differ (not in star_scalable_actions allowlist): "
+                    f"{eb[action]} vs {eo[action]}"
+                )
+    return None
+
+
+def validate_r_conditional_star_parity(
+    all_cards: dict[str, dict[str, dict]],
+) -> list[str]:
+    """Verify r_conditional is structurally identical across stars within a card.
+
+    Rationale: r_conditional represents rank-based milestones (R4/R10) that fire
+    identically regardless of card ★ tier. The base ``effects`` block already
+    scales with ★; per-star variance in ``r_conditional`` has historically
+    signalled copy-paste drift, not intent.
+
+    Evidence of 3 past drift bugs (all military theme):
+      - 훈련소 ★2/★3 (commit 77e0a78): R4/R10 target diverged from ★1
+        (``both_adj`` / ``all_military`` instead of ``left_adj`` / ``far_military``)
+      - 보급부대 ★2/★3 (commit 77e0a78): R10 ``grant_terazin.amount`` was 2
+        instead of 1, double-counting with R4's delta
+      - 군수공장 ★1-★3 (commit 18e7cb2): R10 ``upgrade_shop_bonus``
+        ``slot_delta``/``terazin_discount`` were 2 instead of 1, again double-
+        counting the cumulative intent against the delta convention
+
+    Opt-in variance: some cards (e.g. 돌격편대 swarm_buff, 특수작전대 crit_buff)
+    legitimately scale a combat-buff effect across ★. Declare those via a
+    per-card top-level field ``star_scalable_actions: [action_name, ...]``.
+    Only the listed action names are permitted to have per-star param drift.
+
+    Returns an empty list when all cards are clean.
+    """
+    errors: list[str] = []
+    for _theme, cards in all_cards.items():
+        for card_id, card in cards.items():
+            stars = card.get("stars") or {}
+            if len(stars) < 2:
+                continue
+            allowed = set(card.get("star_scalable_actions") or [])
+            star_keys = sorted(stars.keys())
+            baseline_star = star_keys[0]
+            baseline = stars[baseline_star].get("r_conditional")
+            for other_star in star_keys[1:]:
+                other = stars[other_star].get("r_conditional")
+                diff = _diff_r_conditional(baseline, other, allowed)
+                if diff is not None:
+                    errors.append(
+                        f"{card_id}: ★{other_star} vs ★{baseline_star} — {diff}"
+                    )
+    return errors
+
+
 def main():
     check_mode = "--check" in sys.argv
 
@@ -1012,6 +1112,21 @@ def main():
     if not all_cards:
         print("ERROR: No YAML files found in", CARDS_DIR)
         sys.exit(1)
+
+    # Structural validation — fail hard in both generate and --check modes.
+    # Prevents ★1/★2/★3 r_conditional drift before codegen produces output.
+    parity_errors = validate_r_conditional_star_parity(all_cards)
+    if parity_errors:
+        print("❌ r_conditional ★ parity violations:")
+        for err in parity_errors:
+            print(f"  - {err}")
+        print()
+        print(
+            "r_conditional must be structurally identical across ★1/★2/★3 "
+            "within a card.\n"
+            "See evidence: 훈련소/보급부대/군수공장 drift fixes (2026-04-16)."
+        )
+        sys.exit(2)
 
     total = sum(len(c) for c in all_cards.values())
     generated_db = generate(all_cards)

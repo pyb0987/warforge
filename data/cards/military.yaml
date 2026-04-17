@@ -144,6 +144,8 @@ cards:
       - {unit: ml_shield, n: 1}
     tags: [military, frontline]
     impl: theme_system
+    # conscript는 ★↑ 시 enhanced 옵션이 강화되는 의도된 스케일링 (none→partial→all).
+    star_scalable_actions: [conscript]
     stars:
       1:
         max_act: 2
@@ -370,6 +372,8 @@ cards:
       - {unit: ml_recruit, n: 1}
     tags: [military, assault]
     impl: theme_system
+    # swarm_buff는 ★↑ 시 unit_thresh가 낮아지는 의도된 스케일링 (15→12→10).
+    star_scalable_actions: [swarm_buff]
     stars:
       1:
         max_act: -1
@@ -433,6 +437,8 @@ cards:
       - {unit: ml_walker, n: 1}
     tags: [military, elite]
     impl: theme_system
+    # crit_buff는 ★↑ 시 mult가 커지는 의도된 스케일링 (2.0→3.0→6.0).
+    star_scalable_actions: [crit_buff]
     stars:
       1:
         max_act: -1
