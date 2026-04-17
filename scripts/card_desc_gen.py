@@ -828,6 +828,39 @@ def prefix_tenure(card: dict, star_data: dict) -> str:
         return f"필드 {tenure}R+ 체류 시"
     return ""
 
+COUNTER_ACTIONS = frozenset([
+    "counter_produce", "rare_counter", "epic_counter", "total_counter",
+])
+
+
+def counter_prefix_for(card: dict, star_data: dict) -> str:
+    """카드의 base effects에 counter 계열 action이 있으면 '이벤트 1회당 카운터 +1'
+    을 명시하는 짧은 prefix를 반환. 없으면 빈 문자열.
+
+    P1-2 (2026-04-17): 기존에는 카운터 축적 규칙(이벤트당 +1)이 런타임에만
+    존재하고 description에는 없어, 플레이어가 '카운터 N+'의 전제를 몰랐다.
+    OE 카드의 listen.l2가 이벤트 타입을 결정하므로 여기서 자동 유추.
+    """
+    has_counter = any(
+        isinstance(e, dict) and next(iter(e)) in COUNTER_ACTIONS
+        for e in star_data.get("effects", []) or []
+    )
+    if not has_counter:
+        return ""
+    l2 = (card.get("listen") or {}).get("l2")
+    event_name = {
+        "MF": "제조",
+        "CO": "징집",
+        "TR": "훈련",
+        "HA": "부화",
+        "MT": "변태",
+        "UP": "개량",
+        "BR": "번식",
+        "TG": "나무 성장",
+    }.get(l2, "발동")
+    return f"{event_name} 1회당 카운터 +1."
+
+
 def desc_max_act_suffix(max_act: int, timing: str) -> str:
     if max_act == -1:
         return ""  # RS/BS cards — 1x per round is obvious
@@ -883,6 +916,10 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
     # 5. Tenure prefix
     tenure_pfx = prefix_tenure(card, star_data)
 
+    # 5.5. Counter auto-prefix (P1-2): counter 계열 action이 있으면
+    # 'X 1회당 카운터 +1'을 base 본문 앞에 삽입해 축적 전제 노출.
+    counter_pfx = counter_prefix_for(card, star_data)
+
     # 6. Assemble per-timing texts
     parts = []
     # Base timing first, then others
@@ -897,6 +934,8 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
         else:
             pfx = TIMING_PREFIX.get(timing, timing + ":")
         body = ". ".join(timing_groups[timing])
+        if timing == base_timing and counter_pfx:
+            body = f"{counter_pfx} {body}"
         parts.append(f"{pfx} {body}")
 
     # 7. max_act suffix
