@@ -8,7 +8,33 @@ API: generate_all_descs(all_cards) → dict[card_id → {1: str, 2: str, 3: str}
 
 from __future__ import annotations
 from typing import Any
+import re
 import sys
+from pathlib import Path
+
+# ═══════════════════════════════════════════════════════════════════
+# Unit id → Korean name (parsed lazily from godot/core/data/unit_db.gd)
+# ═══════════════════════════════════════════════════════════════════
+
+_UNIT_NAME_CACHE: dict[str, str] | None = None
+
+def _unit_name(unit_id: str) -> str:
+    """Resolve unit id (e.g. 'ml_biker') to Korean name ('강습 바이커').
+
+    Parses ``_reg("id", "name", ...)`` lines in unit_db.gd on first call.
+    Falls back to the raw id if not found.
+    """
+    global _UNIT_NAME_CACHE
+    if _UNIT_NAME_CACHE is None:
+        _UNIT_NAME_CACHE = {}
+        db_path = Path(__file__).resolve().parent.parent / "godot/core/data/unit_db.gd"
+        try:
+            content = db_path.read_text()
+            for match in re.finditer(r'_reg\(\s*"([^"]+)"\s*,\s*"([^"]+)"', content):
+                _UNIT_NAME_CACHE[match.group(1)] = match.group(2)
+        except OSError:
+            pass
+    return _UNIT_NAME_CACHE.get(unit_id, unit_id)
 
 # ═══════════════════════════════════════════════════════════════════
 # Timing → prefix mappings
@@ -76,6 +102,14 @@ TARGET = {
     "both_adj_or_self":  "양쪽 인접 카드",
     "all_other_druid":   "필드 위 모든 드루이드 카드",
     "enhanced_units":    "(강화) 유닛",
+    # Military R4/R10 재설계 target (trace 012)
+    "far_military":      "인접하지 않은 다른 군대 카드",
+    "event_target_adj":  "해당 카드 양쪽 인접",
+    "far_event_military": "해당 카드·인접 제외 다른 군대 카드",
+    # Military command revive scope (trace 014)
+    "self_enhanced":     "이 카드 (강화) 유닛",
+    "self_all":          "이 카드 모든 유닛",
+    "self_and_adj_all":  "이 카드 + 양쪽 인접 카드 모든 유닛",
 }
 
 TAG_KR = {
@@ -461,8 +495,94 @@ def desc_counter_produce(p: dict) -> str:
         parts.append(f"{rewards['terazin']} 테라진")
     if rewards.get("enhance_atk_pct"):
         parts.append(f"개량 ATK +{fmt_pct(rewards['enhance_atk_pct'])}%")
-    reward_text = " + ".join(parts)
+    # Military factory (trace 012 재설계)
+    if rewards.get("global_military_atk_pct"):
+        parts.append(f"모든 군대 카드 ATK +{fmt_pct(rewards['global_military_atk_pct'])}%(영구)")
+    if rewards.get("global_military_range_bonus"):
+        parts.append(f"모든 군대 카드 Range +{rewards['global_military_range_bonus']}(영구)")
+    reward_text = " + ".join(parts) if parts else "(보상 없음)"
     return f"카운터 {thresh}+ → {thresh} 소비, {reward_text}"
+
+
+# ─── Military R4/R10 milestone effects (trace 012) ───
+
+def desc_spawn_unit(p: dict) -> str:
+    t = resolve_target(p["target"])
+    unit = _unit_name(p.get("unit", "유닛"))
+    n = p.get("count", 1)
+    return f"{t}에 {unit} {n}기 추가"
+
+def desc_spawn_enhanced_random(p: dict) -> str:
+    t = resolve_target(p["target"])
+    n = p.get("count", 1)
+    cap = p.get("max_per_round")
+    text = f"{t}에 랜덤 (강화) {n}기"
+    if cap:
+        text += f" (라운드당 {cap}회)"
+    return text
+
+def desc_enhance_convert_card(p: dict) -> str:
+    frac = p.get("fraction", 0.5)
+    if frac >= 1.0:
+        return "이 카드의 비(강화) 유닛 전원 → (강화)"
+    return f"이 카드의 비(강화) 유닛 {fmt_pct(frac)}% → (강화)"
+
+def desc_enhance_convert_target(p: dict) -> str:
+    n = p.get("count", 1)
+    cap = p.get("max_per_round")
+    text = f"대상 카드의 비(강화) {n}기 → (강화)"
+    if cap:
+        text += f" (라운드당 {cap}회)"
+    return text
+
+def desc_crit_buff(p: dict) -> str:
+    chance = fmt_pct(p["chance"])
+    mult = p["mult"]
+    return f"이 카드 유닛 치명타 {chance}% (×{mult} 피해)"
+
+def desc_crit_splash(p: dict) -> str:
+    pct = fmt_pct(p["splash_pct"])
+    return f"치명타 시 인접 적에 {pct}% 스플래시"
+
+def desc_rank_buff_hp(p: dict) -> str:
+    t = resolve_target(p["target"])
+    hp = fmt_pct(p["hp_per_rank"])
+    return f"{t} HP +계급×{hp}%"
+
+def desc_lifesteal(p: dict) -> str:
+    t = resolve_target(p["target"])
+    pct = fmt_pct(p["pct"])
+    return f"{t} 유닛 라이프스틸 {pct}%"
+
+def desc_high_rank_mult(p: dict) -> str:
+    rank = p["rank"]
+    mult = p["atk_mult"]
+    return f"계급 {rank}+ 시 ATK ×{mult}"
+
+def desc_grant_gold(p: dict) -> str:
+    return f"골드 +{p['amount']}"
+
+def desc_grant_terazin(p: dict) -> str:
+    return f"테라진 +{p['amount']}"
+
+def desc_upgrade_shop_bonus(p: dict) -> str:
+    slot = p.get("slot_delta", 0)
+    disc = p.get("terazin_discount", 0)
+    parts = []
+    if slot:
+        parts.append(f"업그레이드 슬롯 +{slot}")
+    if disc:
+        parts.append(f"업그레이드 비용 -{disc} 테라진")
+    return ", ".join(parts) if parts else "(효과 없음)"
+
+def desc_conscript_pool_tier(p: dict) -> str:
+    tier = p.get("tier", "enhanced")
+    tier_kr = {"enhanced": "(강화)", "elite": "정예"}.get(tier, tier)
+    return f"징집 풀에 {tier_kr} 유닛 추가"
+
+def desc_revive_scope_override(p: dict) -> str:
+    t = resolve_target(p["target"])
+    return f"부활 대상 확장 → {t}"
 
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
@@ -577,6 +697,21 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "range_bonus":      desc_range_bonus,
     "economy":          desc_economy,
     "battle_buff":      desc_battle_buff,
+    # Military R4/R10 재설계 (trace 012)
+    "spawn_unit":              desc_spawn_unit,
+    "spawn_enhanced_random":   desc_spawn_enhanced_random,
+    "enhance_convert_card":    desc_enhance_convert_card,
+    "enhance_convert_target":  desc_enhance_convert_target,
+    "crit_buff":               desc_crit_buff,
+    "crit_splash":             desc_crit_splash,
+    "rank_buff_hp":            desc_rank_buff_hp,
+    "lifesteal":               desc_lifesteal,
+    "high_rank_mult":          desc_high_rank_mult,
+    "grant_gold":              desc_grant_gold,
+    "grant_terazin":           desc_grant_terazin,
+    "upgrade_shop_bonus":      desc_upgrade_shop_bonus,
+    "conscript_pool_tier":     desc_conscript_pool_tier,
+    "revive_scope_override":   desc_revive_scope_override,
     # Steampunk-specific: hatch_enhance, battle_buff already covered
 }
 
