@@ -790,7 +790,12 @@ def desc_r_conditional(r_cond: dict) -> str:
 def get_oe_prefix(card: dict) -> str:
     listen = card.get("listen", {})
     key = (listen.get("l1"), listen.get("l2"))
-    return OE_PREFIX.get(key, f"[반응] {key}:")
+    base = OE_PREFIX.get(key, f"[반응] {key}:")
+    # require_other: true 인 카드는 자기 자신이 방출한 이벤트에는 반응하지 않는다
+    # (chain_engine.gd: require_other_card 체크). 이 의미를 툴팁에 반영.
+    if card.get("require_other"):
+        base = base.replace("[반응] ", "[반응] 다른 카드의 ", 1)
+    return base
 
 def get_prefix(card: dict, timing: str) -> str:
     if timing == "OE":
