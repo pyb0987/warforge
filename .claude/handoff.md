@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: 옵션 C (card_tooltip \x01 → char(1)) + 옵션 B (r_conditional ★ parity validator, P5 구조 흡수) — 2026-04-17
+## Last completed: 통합사령부 revive scope YAML 직접 파싱 리팩터 (fragile drift 제거, trace 014) — 2026-04-17
 
 ## Current state:
 
@@ -31,9 +31,10 @@
 - [x] **YAML delta/cumulative validator** (P5 structural debt, multi-review iter 5 합의) — 2026-04-17, trace 013.
   - 구현: `validate_r_conditional_star_parity()` + per-card `star_scalable_actions` allowlist
   - 검증: 12 unit tests 통과, 3개 과거 bug 합성 재현 모두 차단 (exit 2)
-- [ ] **통합사령부 revive scope_override YAML↔코드 일관성**:
-  - 현재 `_materialize_army`가 rank 조건으로 하드코딩, YAML의 target string 무시
-  - YAML target을 직접 파싱하도록 리팩터 (fragile drift 제거)
+- [x] **통합사령부 revive scope_override YAML↔코드 일관성** — 2026-04-17, trace 014.
+  - MilitarySystem.resolve_command_revive + resolve_revive_scope helper 도입
+  - game_manager._materialize_army 리팩터: rank 하드코딩 → YAML target 직접 파싱
+  - 10 신규 테스트 (rank 0/4/9/10 + target 3종 + 경계 + fallback)
 - [ ] **OBS-022 (S2-R8)**: 군대 ★2 도달 속도 < 게임 진행 속도 — 재설계 후 재측정 필요
 
 ### 일반 버그/검증
