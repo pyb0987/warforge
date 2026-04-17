@@ -335,7 +335,7 @@ def desc_multiply_stats(p: dict) -> str:
     atk_per = p["atk_per_tree"]
     tgt_str = resolve_target(p.get("target", "self"))
 
-    lines = [f"[지속] ≤{cap}기일 때 {tgt_str} 유닛 스탯 배수 적용:"]
+    lines = [f"[지속] 이 카드 ≤{cap}기일 때 {tgt_str} 유닛 스탯 배수 적용:"]
     lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}당 +{atk_per}×)")
     if p.get("hp_base"):
         hp_step = p.get("hp_tree_step", atk_step)
@@ -417,9 +417,11 @@ def desc_on_combat_result(p: dict) -> str:
     return f"{cond_text} {effects_text}"
 
 def desc_swarm_buff(p: dict) -> str:
-    ## P2-3 + iter3 N1: 주어·단위·'집계' 규칙 적용 범위 명시.
-    ## enhanced_count는 atk_per_unit 버프 + ms_thresh 판정 **양쪽** 에 적용됨
-    ## (_apply_swarm_buff 실측). 그래서 집계 규칙을 공통 prefix로 앞세운다.
+    ## P2-3 + iter3 N1 + iter4 L1:
+    ## 집계 prefix가 atk_per_unit + ms_thresh 양쪽에 공통 적용됨을 명시.
+    ## ms/as 조건 문장은 '+' 연결자로 단일 segment 내부에 머물게 해서
+    ## compress_repeated_target이 '동 대상'으로 축약하는 상황을 방지 —
+    ## 플레이어가 '동 대상'의 지시 대상을 혼동하지 않도록.
     t = resolve_target(p["target"])
     atk = fmt_pct(p["atk_per_unit"])
     per_n = p.get("per_n", 1)
@@ -432,12 +434,12 @@ def desc_swarm_buff(p: dict) -> str:
     )
     if p.get("ms_bonus"):
         ms = p["ms_bonus"]
-        text += (f". {t} 유닛 합계 {ms['unit_thresh']}기 이상이면 "
+        text += (f" + {t} 유닛 합계 {ms['unit_thresh']}기 이상이면 "
                  f"MS +{ms['bonus']}")
     if p.get("high_rank"):
         hr = p["high_rank"]
         if hr.get("as_bonus"):
-            text += (f". {t} 유닛 합계 {hr['unit_thresh']}기 이상이면 "
+            text += (f" + {t} 유닛 합계 {hr['unit_thresh']}기 이상이면 "
                      f"AS +{fmt_pct(hr['as_bonus'])}%")
     return text
 
@@ -503,15 +505,14 @@ def desc_rank_threshold(p: dict) -> str:
     return text
 
 def desc_rank_buff(p: dict) -> str:
-    ## iter3 N2: '(강화) 추가 +3%'가 shield/ATK 중 어느 축에 적용되는지 모호
-    ## 했던 문제. 런타임(_tactical_battle)은 **(강화) 유닛 보유 카드의 shield**에
-    ## 가산하므로 축을 명시한다.
+    ## iter3 N2 + iter4 L3: shield/ATK 축 명시 + 단위 명시.
+    ## 런타임(_tactical_battle)은 shield_hp_pct에 %p 가산하므로 '+Np' 표기.
     shield = fmt_pct(p["shield_per_rank"])
     atk_unit = fmt_pct(p["atk_per_unit"])
     enhanced = fmt_pct(p["enhanced_shield_bonus"])
     text = (f"모든 군대 카드에 방어막(HP 계급×{shield}%) + "
             f"ATK +유닛수×{atk_unit}%. "
-            f"(강화) 유닛 보유 카드는 방어막 +{enhanced}% 추가")
+            f"(강화) 유닛 보유 카드는 방어막 HP +{enhanced}%p 추가")
     if p.get("high_rank"):
         hr = p["high_rank"]
         text += (f". 계급 {hr['rank_gte']}+ → "
