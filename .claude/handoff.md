@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: pre-existing GUT 5건 해결 (wildforce BS 회귀 root fix + 유닛 카운트 stale 갱신) — 2026-04-17, 897/897 passing
+## Last completed: silent drop 구조 제거 (trace 015) + multi-review + 군대 카드 SSOT 전환 (docs/design/cards-military.md 효과 섹션 삭제) — 2026-04-17, 897/897 passing
 
 ## Current state:
 
