@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: 군대 카드 R4/R10 재설계 완전 구현 (2026-04-16, 27 커밋, 78/78 테스트 통과)
+## Last completed: 옵션 C (card_tooltip \x01 → char(1)) + 옵션 B (r_conditional ★ parity validator, P5 구조 흡수) — 2026-04-17
 
 ## Current state:
 
@@ -28,18 +28,16 @@
 
 ### 군대 재설계 후속 (우선순위 순)
 - [ ] **시뮬 밸런스 검증**: ★3+R10 power curve, 정예형 vs 물량형 승률, 훈련 가속 영향
-- [ ] **YAML delta/cumulative validator** (P5 structural debt, multi-review iter 5 합의):
-  - 3회 동일 패턴 fix (훈련소/보급부대/군수공장) — evidence threshold 도달
-  - codegen에 r_conditional amount 누적/차분 일관성 검증 추가 권장
+- [x] **YAML delta/cumulative validator** (P5 structural debt, multi-review iter 5 합의) — 2026-04-17, trace 013.
+  - 구현: `validate_r_conditional_star_parity()` + per-card `star_scalable_actions` allowlist
+  - 검증: 12 unit tests 통과, 3개 과거 bug 합성 재현 모두 차단 (exit 2)
 - [ ] **통합사령부 revive scope_override YAML↔코드 일관성**:
   - 현재 `_materialize_army`가 rank 조건으로 하드코딩, YAML의 target string 무시
   - YAML target을 직접 파싱하도록 리팩터 (fragile drift 제거)
 - [ ] **OBS-022 (S2-R8)**: 군대 ★2 도달 속도 < 게임 진행 속도 — 재설계 후 재측정 필요
 
 ### 일반 버그/검증
-- [ ] **card_tooltip.gd `\x01` parse error** (line 163, 기존 bug, R4/R10 재설계 무관)
-  - GDScript 4.6에서 `"\x01"` escape 미지원. `chr(1)` 또는 대체 필요
-  - 지금은 card_tooltip 로드 실패하지만 게임 자체는 구동됨
+- [x] **card_tooltip.gd `\x01` parse error** — 2026-04-17, commit f8d824b. `char(1)` placeholder로 교체.
 - [ ] OBS-047 (S5-R14): ★3 캐스케이드 머지 시 중간 레어 업그레이드 미지급 의심 — GUT 테스트로 검증
 
 ### 밸런스/설계 결정 (플레이 데이터 축적 필요)
