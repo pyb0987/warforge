@@ -160,7 +160,8 @@ func hide_tooltip() -> void:
 func _set_effect_text(raw_text: String) -> void:
 	# Escape square brackets so they aren't parsed as BBCode tags (e.g. [반응])
 	# Must use placeholder to avoid chained-replace corruption
-	var escaped := raw_text.replace("[", "\x01").replace("]", "[rb]").replace("\x01", "[lb]")
+	var placeholder := char(1)
+	var escaped := raw_text.replace("[", placeholder).replace("]", "[rb]").replace(placeholder, "[lb]")
 	var bbcode := escaped
 	for kw in KeywordGlossary.get_all_keywords():
 		bbcode = bbcode.replace(kw, "[url=%s][color=#aaccff]%s[/color][/url]" % [kw, kw])
