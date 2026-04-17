@@ -409,23 +409,30 @@ func _is_military(board: Array, idx: int) -> bool:
 
 ## r_conditional 블록을 순회하며 조건(rank_gte) 만족 시 내부 effects 실행.
 ## 매 실행 시 조건 체크 (conditional과 동일 패턴). one-shot 아님.
+##
+## 순회 순서: rank_gte 내림차순 (R10 → R4 → R0). ml_academy처럼 같은 tenure 키를
+## 공유하는 max_per_round 효과가 있을 때, R10 도달 시 상위 milestone이 먼저
+## 실행되어 tenure를 소진하면 하위 milestone이 자연스럽게 skip된다 (대체 의도).
+## 누적형(ml_supply, ml_factory 등) r_conditional은 tenure 키 없이 독립적이라
+## 순서와 무관하게 모두 실행됨.
 func _process_r_conditional(card: CardInstance, idx: int, board: Array,
 		event: Dictionary = {}, rng: RandomNumberGenerator = null) -> Array:
 	var events: Array = []
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var rank := _rank(card)
+	# rank_gte 내림차순으로 정렬된 r_conditional 블록만 추출
+	var rc_blocks: Array = []
 	for eff in effs:
 		if eff.get("action", "") != "r_conditional":
 			continue
-		var condition: String = eff.get("condition", "")
+		if eff.get("condition", "") != "rank_gte":
+			continue
+		rc_blocks.append(eff)
+	rc_blocks.sort_custom(func(a, b):
+		return int(a.get("threshold", 0)) > int(b.get("threshold", 0)))
+	for eff in rc_blocks:
 		var threshold: int = eff.get("threshold", 0)
-		var passed := false
-		match condition:
-			"rank_gte":
-				passed = rank >= threshold
-			_:
-				passed = false
-		if not passed:
+		if rank < threshold:
 			continue
 		var inner_effects: Array = eff.get("effects", [])
 		for inner in inner_effects:
@@ -500,9 +507,12 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 				if et >= 0 and et < board.size():
 					_enhance_convert_count(board[et] as CardInstance, count_c)
 		"spawn_enhanced_random":
-			# 군사학교 R10: 훈련 대상에 랜덤 (강화) 유닛 N기 추가. max_per_round 제한.
+			# 군사학교 R10: 훈련 대상에 랜덤 (강화) 유닛 N기 추가.
+			# academy_convert_tenure를 R4와 공유 (slot 공유 → R10이 R4 대체).
+			# _process_r_conditional이 rank_gte 내림차순으로 순회하므로 rank=10일 때
+			# 이 블록이 먼저 실행되어 tenure 소진 → R4 convert 자동 skip.
 			var max_per_round2: int = eff.get("max_per_round", 1)
-			if max_per_round2 > 0 and not _check_per_round(card, "academy_spawn_tenure"):
+			if max_per_round2 > 0 and not _check_per_round(card, "academy_convert_tenure"):
 				pass  # 이번 라운드 이미 발동
 			else:
 				var target_name2: String = eff.get("target", "event_target")
@@ -565,10 +575,13 @@ func _apply_crit_buff(eff: Dictionary, card: CardInstance) -> void:
 	if chance <= 0:
 		return
 	# target이 self면 이 카드만 (현재 YAML은 target=self로만 사용). 확장 시 board/idx 필요.
-	# 매 실행 시 덮어쓰기: R10 우선, R4 차선, base 최후.
-	# 순서 보장: dispatch가 YAML 선언 순서대로 호출 → 마지막 값이 최종.
-	card.theme_state["crit_chance"] = chance
-	card.theme_state["crit_mult"] = mult
+	# "큰 값 유지" — R10/R4/base 중 chance 큰 쪽이 최종. _process_r_conditional이
+	# rank_gte 내림차순으로 순회하게 바뀐 이후 "마지막 값이 승" 전제가 깨져서
+	# max() 기반으로 전환 (academy bug fix와 동일 이터레이션).
+	var prev_chance: float = card.theme_state.get("crit_chance", 0.0)
+	if chance > prev_chance:
+		card.theme_state["crit_chance"] = chance
+		card.theme_state["crit_mult"] = mult
 
 
 ## crit_splash 적용 (특수작전대 R4/R10). theme_state에 splash_pct 저장.
@@ -577,7 +590,10 @@ func _apply_crit_splash(eff: Dictionary, card: CardInstance) -> void:
 	var splash_pct: float = eff.get("splash_pct", 0.0)
 	if splash_pct <= 0:
 		return
-	card.theme_state["crit_splash_pct"] = splash_pct
+	# "큰 값 유지" (_apply_crit_buff와 동일 이유 — 순회 순서 무관화).
+	var prev: float = card.theme_state.get("crit_splash_pct", 0.0)
+	if splash_pct > prev:
+		card.theme_state["crit_splash_pct"] = splash_pct
 
 
 ## rank_buff_hp 적용 (전술사령부 R4). 발동 카드의 계급 × hp_per_rank를

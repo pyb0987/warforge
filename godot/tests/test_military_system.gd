@@ -505,7 +505,9 @@ func test_academy_r4_max_per_round() -> void:
 
 
 func test_academy_r10_spawns_enhanced_units() -> void:
-	## R10: 훈련 시 훈련 대상에 랜덤 (강화) 유닛 2기 추가 (라운드당 1회).
+	## R10: 훈련 시 훈련 대상에 랜덤 (강화) 유닛 2기 추가.
+	## R10은 R4 효과(convert)를 **대체** — 같은 tenure slot 공유(academy_convert_tenure).
+	## rank_gte 내림차순 순회로 R10이 먼저 실행 → tenure 소진 → R4 skip.
 	var board: Array = [
 		CardInstance.create("ml_academy"),
 		CardInstance.create("ml_barracks"),
@@ -515,9 +517,37 @@ func test_academy_r10_spawns_enhanced_units() -> void:
 	var before_total: int = target.get_total_units()
 	var event: Dictionary = _make_train_event(1, 1)
 	_sys.process_event_card(board[0], 0, board, event, _rng)
-	# R10은 R4도 조건 만족이므로 둘 다 발동: 변환 1기 + 스폰 2기 = 유닛 수 +2.
-	# R4 변환은 스택 내 conversion이라 total 불변, R10 spawn만 total 증가.
-	assert_eq(target.get_total_units() - before_total, 2, "R10: 유닛 +2")
+	# R10 spawn(2) — R4 convert는 tenure 공유로 skip.
+	assert_eq(target.get_total_units() - before_total, 2, "R10: 유닛 +2 (R10 spawn만, R4 convert skip)")
+
+
+func test_academy_r10_replaces_r4_via_shared_tenure() -> void:
+	## R10 도달 시 같은 tenure slot을 공유해 R4 convert가 실행되지 않아야 함.
+	## 명시적 회귀 테스트: R10 rank에서 라운드 1회 발동 → spawn만, convert 없음.
+	var board: Array = [
+		CardInstance.create("ml_academy"),
+		CardInstance.create("ml_barracks"),
+	]
+	board[0].theme_state["rank"] = 10
+	var target: CardInstance = board[1]
+	# R10 도달 전 (강화) 유닛 수 측정
+	var before_enhanced := 0
+	for s in target.stacks:
+		if "enhanced" in s["unit_type"].get("tags", PackedStringArray()):
+			before_enhanced += s["count"]
+	var event: Dictionary = _make_train_event(1, 1)
+	_sys.process_event_card(board[0], 0, board, event, _rng)
+	# R10 spawn은 랜덤 (강화) 유닛을 추가하므로 enhanced 수가 늘 수 있다.
+	# 하지만 R4 convert가 "기존 non-enhanced → enhanced 변환"을 실행했다면
+	# 기존 non-enhanced 감소분이 있어야 하는데, spawn만 있으면 기존 non-enhanced 불변.
+	# → non-enhanced 유닛 수가 불변이어야 R4가 skip된 것.
+	var after_non_enhanced := 0
+	for s in target.stacks:
+		if not ("enhanced" in s["unit_type"].get("tags", PackedStringArray())):
+			after_non_enhanced += s["count"]
+	# ml_barracks initial comp: 신병 2 + 보병 1 = 3기 (모두 non-enhanced).
+	assert_eq(after_non_enhanced, 3,
+		"R10: R4 convert skip되므로 기존 non-enhanced 유닛 수 불변")
 
 
 # --- 보급부대 R4/R10: grant_gold/terazin ---
