@@ -94,30 +94,34 @@ const _BUILD_PATHS := {
 			"shared_cards": ["pr_queen"],
 		},
 	],
+	# 재설계 (trace 012, 2026-04-16): 징병국↔전진기지 스왑 반영.
+	# 정예형: 훈련소(T1) → 군사학교(T2) → 보급(T2) → 전술사령부(T3) → 특수작전대(T4) → 통합사령부(T5)
+	# 물량형: 징병국(T1) → 전진기지(T2) → 보급(T2) → 돌격편대(T3) → 군수공장(T4) → 통합사령부(T5)
+	# 공유: ml_supply(T2), ml_tactical(T3). 양쪽 캡스톤: ml_command(T5).
 	"soft_military": [
 		{
 			"id": "military_elite",
 			"branch_cards": ["ml_barracks"],
-			"anti_cards": ["ml_outpost"],
+			"anti_cards": ["ml_conscript"],
 			"phases": {
 				"foundation": ["ml_barracks"],
 				"engine": ["ml_academy", "ml_tactical"],
 				"payoff": ["ml_special_ops"],
 				"capstone": ["ml_command"],
 			},
-			"shared_cards": ["ml_supply"],
+			"shared_cards": ["ml_supply", "ml_tactical"],
 		},
 		{
 			"id": "military_mass",
-			"branch_cards": ["ml_outpost"],
+			"branch_cards": ["ml_conscript"],
 			"anti_cards": ["ml_barracks"],
 			"phases": {
-				"foundation": ["ml_outpost"],
-				"engine": ["ml_conscript", "ml_supply"],
+				"foundation": ["ml_conscript"],
+				"engine": ["ml_outpost", "ml_supply"],
 				"payoff": ["ml_assault", "ml_factory"],
 				"capstone": ["ml_command"],
 			},
-			"shared_cards": ["ml_supply"],
+			"shared_cards": ["ml_supply", "ml_tactical"],
 		},
 	],
 }
