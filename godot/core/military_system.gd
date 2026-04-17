@@ -554,10 +554,19 @@ func _apply_swarm_buff(eff: Dictionary, board: Array) -> void:
 	var ms_bonus_def: Dictionary = eff.get("ms_bonus", {})
 	var ms_thresh: int = ms_bonus_def.get("unit_thresh", 15)
 	var ms_bonus_val: int = ms_bonus_def.get("bonus", 1)
+	# enhanced_count (2026-04-17 iter3 bug fix): YAML 선언(기본 1, ★1~3
+	# R4는 2)을 실제 유닛 집계에 반영. (강화) 유닛 1기를 N기로 환산해
+	# atk_per_unit 버프와 ms_thresh 판정 양쪽에 동시 적용.
+	var enhanced_weight: int = max(1, int(eff.get("enhanced_count", 1)))
 
 	var total_units := 0
 	for mi in _military_indices(board):
-		total_units += (board[mi] as CardInstance).get_total_units()
+		var mc: CardInstance = board[mi]
+		for s in mc.stacks:
+			var ut_tags: PackedStringArray = s["unit_type"].get(
+				"tags", PackedStringArray())
+			var w: int = enhanced_weight if "enhanced" in ut_tags else 1
+			total_units += int(s["count"]) * w
 
 	var atk_pct := float(total_units) * atk_per_unit
 	for mi in _military_indices(board):
@@ -1030,6 +1039,10 @@ func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var buff_eff := _find_eff(effs, "rank_buff", "all_military")
 	var shield_per_rank: float = buff_eff.get("shield_per_rank", 0.02)
 	var atk_per_unit: float = buff_eff.get("atk_per_unit", 0.005)
+	# enhanced_shield_bonus (2026-04-17 iter3 bug fix): YAML 선언이 기존에
+	# 런타임 미연결. (강화) 유닛이 1기 이상 배치된 군대 카드에 한해 추가
+	# 방어막 %를 가산한다 (카드 레벨 shield_hp_pct, binary 적용).
+	var enhanced_shield_bonus: float = buff_eff.get("enhanced_shield_bonus", 0.0)
 
 	var rank := _rank(card)
 	var total_units := 0
@@ -1042,6 +1055,16 @@ func _tactical_battle(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	for mi in _military_indices(board):
 		var mc: CardInstance = board[mi]
 		mc.shield_hp_pct += shield_pct
+		if enhanced_shield_bonus > 0.0:
+			var has_enhanced := false
+			for s in mc.stacks:
+				var ut_tags: PackedStringArray = s["unit_type"].get(
+					"tags", PackedStringArray())
+				if "enhanced" in ut_tags:
+					has_enhanced = true
+					break
+			if has_enhanced:
+				mc.shield_hp_pct += enhanced_shield_bonus
 		mc.temp_buff(null, atk_pct)
 
 	# R4/R10 milestone (enhance_convert_card + rank_buff_hp + buff as_bonus)

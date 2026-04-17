@@ -261,14 +261,16 @@ def desc_tree_breed(p: dict) -> str:
     return text
 
 def desc_tree_shield(p: dict) -> str:
+    ## iter3 N3: '≤3기 ×1.5' 수식 대상 모호. 런타임(_lifebeat_battle):
+    ## 'shield *= low_mult' — 방어막 수치 전체에 곱. 기준은 이 카드 유닛 수.
     t = resolve_target(p["target"])
     base = fmt_pct(p["base_pct"])
     scale = fmt_pct(p["tree_scale_pct"])
-    # timing_override is handled by generate_star_desc timing groups
     text = f"{t}에 방어막(HP {base}%+🌳×{scale}%)"
     low = p.get("low_unit")
     if low:
-        text += f". ≤{low['thresh']}기 ×{low['mult']}"
+        text += (f". 이 카드 ≤{low['thresh']}기이면 "
+                 f"방어막 수치 ×{low['mult']}")
     return text
 
 def desc_tree_enhance(p: dict) -> str:
@@ -309,12 +311,16 @@ def desc_tree_distribute(p: dict) -> str:
     return ". ".join(parts)
 
 def desc_druid_unit_enhance(p: dict) -> str:
+    ## iter3 N4: '8기+/12기+' 집계 기준이 불명. 런타임(_earth)은 필드
+    ## 전체 드루이드 유닛 합계를 사용하므로 이를 명시.
     div = p["divisor"]
-    text = f"모든 드루이드 ATK+HP +(전체 유닛÷{div})% 성장"
+    text = (f"모든 드루이드 ATK+HP +(필드 전체 드루이드 유닛 수÷{div})% "
+            f"성장")
     if p.get("bonus_tiers"):
         for bt in p["bonus_tiers"]:
             pct = fmt_pct(bt["bonus_pct"])
-            text += f". {bt['unit_gte']}기+ → 추가 +{pct}%"
+            text += (f". 필드 전체 드루이드 유닛 {bt['unit_gte']}기 이상이면 "
+                     f"추가 +{pct}% 성장")
     return text
 
 def desc_multiply_stats(p: dict) -> str:
@@ -411,24 +417,23 @@ def desc_on_combat_result(p: dict) -> str:
     return f"{cond_text} {effects_text}"
 
 def desc_swarm_buff(p: dict) -> str:
-    ## P2-3 (2026-04-17, review H4): 축약 절 재작성. 주어·단위·맥락을 명시.
-    ## 이전 "15기+ → MS +1. (강화) 2기 카운트"는 무엇의 15기/2기인지 불명.
-    ## 규칙:
-    ##   - unit_thresh는 target 범위 내 **군대 유닛 합계**로 명시
-    ##   - enhanced_count는 "(강화) 유닛 1기를 N기로 집계"로 관계 명시
+    ## P2-3 + iter3 N1: 주어·단위·'집계' 규칙 적용 범위 명시.
+    ## enhanced_count는 atk_per_unit 버프 + ms_thresh 판정 **양쪽** 에 적용됨
+    ## (_apply_swarm_buff 실측). 그래서 집계 규칙을 공통 prefix로 앞세운다.
     t = resolve_target(p["target"])
     atk = fmt_pct(p["atk_per_unit"])
     per_n = p.get("per_n", 1)
-    text = (f"{t} 유닛 1기당 ATK +{atk}% 전투 버프"
-            if per_n == 1 else
-            f"{t} 유닛 {per_n}기당 ATK +{atk}% 전투 버프")
+    ec = int(p.get("enhanced_count", 1))
+    enh_note = (f"(강화) 유닛은 {ec}기로 집계. " if ec > 1 else "")
+    text = enh_note + (
+        f"{t} 유닛 1기당 ATK +{atk}% 전투 버프"
+        if per_n == 1 else
+        f"{t} 유닛 {per_n}기당 ATK +{atk}% 전투 버프"
+    )
     if p.get("ms_bonus"):
         ms = p["ms_bonus"]
         text += (f". {t} 유닛 합계 {ms['unit_thresh']}기 이상이면 "
                  f"MS +{ms['bonus']}")
-    if p.get("enhanced_count"):
-        text += (f" ((강화) 유닛 1기를 "
-                 f"{p['enhanced_count']}기로 집계)")
     if p.get("high_rank"):
         hr = p["high_rank"]
         if hr.get("as_bonus"):
@@ -498,11 +503,15 @@ def desc_rank_threshold(p: dict) -> str:
     return text
 
 def desc_rank_buff(p: dict) -> str:
+    ## iter3 N2: '(강화) 추가 +3%'가 shield/ATK 중 어느 축에 적용되는지 모호
+    ## 했던 문제. 런타임(_tactical_battle)은 **(강화) 유닛 보유 카드의 shield**에
+    ## 가산하므로 축을 명시한다.
     shield = fmt_pct(p["shield_per_rank"])
     atk_unit = fmt_pct(p["atk_per_unit"])
     enhanced = fmt_pct(p["enhanced_shield_bonus"])
     text = (f"모든 군대 카드에 방어막(HP 계급×{shield}%) + "
-            f"ATK +유닛수×{atk_unit}%. (강화) 추가 +{enhanced}%")
+            f"ATK +유닛수×{atk_unit}%. "
+            f"(강화) 유닛 보유 카드는 방어막 +{enhanced}% 추가")
     if p.get("high_rank"):
         hr = p["high_rank"]
         text += (f". 계급 {hr['rank_gte']}+ → "
@@ -798,8 +807,11 @@ def desc_conditional(cond: dict) -> str:
     return f"{cond_text} {' + '.join(effects)}"
 
 def desc_post_threshold(effects: list) -> str:
+    ## iter3 N5: '1회' trigger 끝나고 '이후 매 라운드' 경계를 명확히 하기 위해
+    ## 줄바꿈 prefix로 물리 분리. ne_awakening ★3 등에서 '1회성 대각성'과
+    ## '영구 영향'을 시각적으로 구분.
     parts = [desc_effect(e) for e in effects]
-    return f"이후 매 라운드 {'. '.join(parts)}"
+    return f"\n이후 매 라운드: {', '.join(parts)}"
 
 
 R_CONDITIONAL_PREFIX = {
