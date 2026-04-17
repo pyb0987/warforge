@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: 통합사령부 revive scope YAML 직접 파싱 리팩터 (fragile drift 제거, trace 014) — 2026-04-17
+## Last completed: pre-existing GUT 5건 해결 (wildforce BS 회귀 root fix + 유닛 카운트 stale 갱신) — 2026-04-17, 897/897 passing
 
 ## Current state:
 
