@@ -123,17 +123,19 @@ cards:
           - enhance: {target: self, atk_pct: 0.03, ol1: null}
       2:
         max_act: 3
+        # NOTE(trace 015): ★2 리롤 횟수 비례 ATK 전투 버프(+5%/reroll, cap 5)는
+        # game_manager._materialize_army의 sp_interest 하드코딩 경로에서 처리.
+        # 향후 YAML 주도로 전환하려면 reroll_buff action + handler 추가 필요.
         effects:
           - spawn: {target: self, count: 2, ol1: null}
           - enhance: {target: self, atk_pct: 0.05, ol1: null}
-          - battle_buff: {target: self, atk_per_reroll: 0.05, cap: 5}  # 리롤 횟수 비례 ATK 전투 버프
       3:
         max_act: 3
+        # NOTE(trace 015): ★3 리롤 버프(+8%/reroll, cap 5)도 ★2와 동일 경로.
         effects:
           - spawn: {target: self, count: 2, ol1: null}
           - spawn: {target: both_adj, ol1: null}
           - enhance: {target: self, atk_pct: 0.05, ol1: null}
-          - battle_buff: {target: self, atk_per_reroll: 0.08, cap: 5}  # 리롤 횟수 비례 ATK 전투 버프 강화
 
   sp_line:
     name: 조립 라인
@@ -157,9 +159,12 @@ cards:
           - spawn: {target: both_adj, count: 2, ol2: MF}
       3:
         max_act: 4
+        # NOTE(trace 015): 이전 YAML에 있던 `persistent: {all_spawn_strongest: true}`
+        # ("모든 스팀펑크 제조가 가장 강한 유닛")는 런타임 구현이 전무한 dead
+        # declaration이어서 제거. 복원하려면 steampunk_system.apply_persistent
+        # 혹은 chain_engine의 spawn dispatch에 flag 전파 로직 추가 필요.
         effects:
           - spawn: {target: both_adj, count: 2, ol2: MF, strongest: true}
-          - persistent: {all_spawn_strongest: true}  # [지속] 모든 스팀펑크 제조가 가장 강한 유닛
 
   sp_barrier:
     name: 증기 방벽
