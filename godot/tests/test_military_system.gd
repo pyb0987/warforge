@@ -760,12 +760,12 @@ func test_resolve_command_revive_rank10_override_self_and_adj_all() -> void:
 	assert_eq(cfg["target"], "self_and_adj_all", "R10: override self_and_adj_all")
 
 
-func test_resolve_command_revive_rank9_still_r4_override() -> void:
-	## rank=9 (R10 미도달, R4는 도달): R4 override 유지.
+func test_resolve_command_revive_rank3_still_base() -> void:
+	## rank=3 (R4 바로 전, off-by-one 경계): base target 유지.
 	var card: CardInstance = CardInstance.create("ml_command")
-	card.theme_state["rank"] = 9
+	card.theme_state["rank"] = 3
 	var cfg: Dictionary = _sys.resolve_command_revive(card)
-	assert_eq(cfg["target"], "self_all", "R9: R4 override 유지, R10 미적용")
+	assert_eq(cfg["target"], "self_enhanced", "R3: base 유지, R4 미적용")
 
 
 # --- resolve_revive_scope: 각 target 문자열을 card index + flag로 해석 ---
