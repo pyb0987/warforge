@@ -47,7 +47,7 @@
 | [units-neutral.md](docs/design/units-neutral.md) | 중립 유닛 풀 10종 (#기계/#생체 50:50, 방랑자/야생) |
 | [cards-steampunk.md](docs/design/cards-steampunk.md) | 스팀펑크 카드 풀 10장 |
 | [cards-druid.md](docs/design/cards-druid.md) | 드루이드 카드 풀 10장 (나무 시스템) |
-| [cards-military.md](docs/design/cards-military.md) | 군대 카드 풀 10장 (계급 임계점 시스템) |
+| [cards-military.md](docs/design/cards-military.md) | 군대 카드 풀 10장 설계 전략/타임라인 (★/R 2축 + 정예형/물량형). **효과는 data/cards/military.yaml SSOT** |
 | [cards-neutral.md](docs/design/cards-neutral.md) | 중립 카드 풀 6장 (1차 검증용) |
 | [design-space.md](docs/design/design-space.md) | 카드 설계 공간: 트리거/효과/대상 풀, 발라트로식 효과, 시스템 간 강도 |
 | [game-loop.md](docs/design/game-loop.md) | 핵심 게임 루프, 런 구조, 보스 보상 유형별 설계 원칙 |
