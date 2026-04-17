@@ -187,6 +187,9 @@ def desc_buff(p: dict) -> str:
     tag = f" #{tag_kr(p['tag'])}" if p.get("tag") else ""
     if p.get("atk_mult"):
         text = f"{t}{tag} 유닛 ATK ×{p['atk_mult']}(이번 전투)"
+    elif p.get("as_bonus"):
+        # military ml_tactical R10: 모든 군대 카드 AS +15%
+        text = f"{t}{tag} 유닛 AS +{fmt_pct(p['as_bonus'])}%(이번 전투)"
     else:
         atk = fmt_pct(p["atk_pct"])
         text = f"{t}{tag} 유닛 ATK +{atk}%(이번 전투)"
@@ -757,6 +760,29 @@ def desc_post_threshold(effects: list) -> str:
     parts = [desc_effect(e) for e in effects]
     return f"이후 매 라운드 {'. '.join(parts)}"
 
+
+R_CONDITIONAL_PREFIX = {
+    "rank_gte": lambda v: f"[R{v}]",
+}
+
+
+def desc_r_conditional(r_cond: dict) -> str:
+    """Render one r_conditional milestone entry (military R4/R10).
+
+    YAML shape:
+      - when: {rank_gte: 4}
+        effects: [{enhance_convert_card: {fraction: 0.5}}, {train: {...}}]
+    Output: "[R4] 이 카드의 비(강화) 유닛 50% → (강화) + 오른쪽 인접 카드 훈련(계급+1)"
+    """
+    when = r_cond.get("when", {})
+    cond_type = next(iter(when)) if when else "rank_gte"
+    threshold = when.get(cond_type, 0)
+    prefix_fn = R_CONDITIONAL_PREFIX.get(cond_type,
+                                         lambda v: f"[{cond_type}={v}]")
+    prefix = prefix_fn(threshold)
+    effects = [desc_effect(e) for e in r_cond.get("effects", [])]
+    return f"{prefix} {' + '.join(effects)}"
+
 # ═══════════════════════════════════════════════════════════════════
 # Prefix helpers
 # ═══════════════════════════════════════════════════════════════════
@@ -827,6 +853,12 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
     if star_data.get("post_threshold"):
         timing_groups.setdefault(base_timing, []).append(
             desc_post_threshold(star_data["post_threshold"]))
+
+    # 4.5. r_conditional (rank milestones, e.g. military R4/R10) → base timing
+    # Each milestone rendered with "[R4] ..." / "[R10] ..." prefix.
+    for rcond in star_data.get("r_conditional") or []:
+        timing_groups.setdefault(base_timing, []).append(
+            desc_r_conditional(rcond))
 
     # 5. Tenure prefix
     tenure_pfx = prefix_tenure(card, star_data)
