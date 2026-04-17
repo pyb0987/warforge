@@ -442,15 +442,21 @@ def desc_train(p: dict) -> str:
 def desc_conscript(p: dict) -> str:
     t = resolve_target(p["target"])
     n = p["count"]
-    enhanced = p.get("enhanced")
     text = f"{t}에 징집 {n}기"
-    # review 2026-04-17 H2: count와 enhanced 관계를 명시적으로 표기.
-    # 'partial'은 'N기 중 1기가 강화'인데 n==1일 때 'all'과 구별 불가해
-    # 이 경우엔 '(강화)'로 축약 (사실상 전원 강화).
-    if enhanced == "partial":
-        text += " (그중 1기는 (강화))" if n > 1 else " (강화)"
-    elif enhanced == "all":
+    # enhanced_count: 강화 버전 유닛 수 (0 ≤ enhanced_count ≤ count).
+    # P1-1 migration (2026-04-17): 기존 'enhanced: partial/all' 문자열 필드를
+    # 이 수량 필드로 교체. 0이면 표기 생략, count와 같으면 '(전원 (강화))',
+    # 그 외엔 '(그중 N기는 (강화))'로 관계 명시.
+    # 호환: 기존 'enhanced: partial/all' entry가 남아있으면 관습대로 해석.
+    eh = int(p.get("enhanced_count", 0))
+    if "enhanced" in p and not eh:
+        eh = 1 if p["enhanced"] == "partial" else (n if p["enhanced"] == "all" else 0)
+    if eh <= 0:
+        return text
+    if eh >= n:
         text += " (전원 (강화))" if n > 1 else " (강화)"
+    else:
+        text += f" (그중 {eh}기는 (강화))"
     return text
 
 def desc_rank_threshold(p: dict) -> str:

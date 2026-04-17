@@ -267,12 +267,22 @@ func _add_with_bonus(target: CardInstance, unit_id: String, count: int) -> int:
 
 
 func _conscript(target: CardInstance, count: int, rng: RandomNumberGenerator,
-		pool: Array = CONSCRIPT_POOL) -> int:
+		pool: Array = CONSCRIPT_POOL, enhanced_count: int = 0) -> int:
+	## 유닛 `count`기를 `target` 카드에 징집한다.
+	## `enhanced_count > 0`이면 앞 N기는 ENHANCED 전용 풀에서 pick하고 나머지는
+	## 기본 `pool`에서 pick한다. enhanced_count >= count 이면 전원 강화.
+	## (P1-1 migration, 2026-04-17: 기존 `enhanced: partial/all` 문자열 필드를
+	##  수량 기반 정량 필드로 교체. partial=1, all=count로 마이그레이션됨.)
 	var added := 0
-	for _i in count:
-		var uid := _weighted_pick(rng, pool)
+	var enhanced_remaining: int = clampi(enhanced_count, 0, count)
+	for i in count:
+		var active_pool: Array = (
+			CONSCRIPT_POOL_ENHANCED if enhanced_remaining > 0 else pool)
+		var uid := _weighted_pick(rng, active_pool)
 		var n := target.add_specific_unit(uid, 1)
 		added += n
+		if enhanced_remaining > 0:
+			enhanced_remaining -= 1
 		# 양성가 보너스: 징집 유닛 각각 확률로 1기 추가 (이벤트 미방출)
 		if n > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
 			if bonus_rng.randf() < bonus_spawn_chance:
@@ -456,9 +466,16 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 				events.append_array(_train_card(board[ti] as CardInstance, ti, amount))
 		"conscript":
 			var count: int = eff.get("count", 1)
+			var enh_count: int = int(eff.get("enhanced_count", 0))
 			for ti in targets:
 				if rng != null:
-					_conscript(board[ti] as CardInstance, count, rng)
+					# r_conditional 내부 conscript는 이 카드 카드 자체의 rank-gated
+					# pool이 아닌 기본 pool + enhanced_count 파라미터로 동작.
+					# 전달된 pool은 (호출자 카드 자체의) _pool_for_card 결과일 때만
+					# 별도 확장 적용되지만, r_conditional dispatch 시점엔 call-site가
+					# event reactor(ml_outpost)이므로 기본 pool 사용이 적절.
+					_conscript(board[ti] as CardInstance, count, rng,
+							CONSCRIPT_POOL, enh_count)
 				events.append(_conscript_evt(idx, ti))
 		"enhance_convert_card":
 			# 이 카드의 비(강화) 유닛 중 fraction 비율을 (강화)로 변환.
@@ -954,9 +971,10 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var con_eff := _find_eff(effs, "conscript", "event_target")
 	var add_n: int = con_eff.get("count", 1)
+	var enh_n: int = int(con_eff.get("enhanced_count", 0))
 
 	var target: CardInstance = board[target_idx]
-	_conscript(target, add_n, rng)
+	_conscript(target, add_n, rng, CONSCRIPT_POOL, enh_n)
 	var events: Array = [_conscript_evt(idx, target_idx)]
 
 	# R4/R10 milestone (enhance_convert_card + 반응 범위 확장 event_target_adj/far_event_military)

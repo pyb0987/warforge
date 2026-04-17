@@ -1136,14 +1136,14 @@ func _register_military() -> void:
 			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1}]},
 		],
 		2: [
-			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "partial"},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced": "partial"}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced": "partial"}]},
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 1},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]},
 		],
 		3: [
-			{"action": "conscript", "target": "event_target", "count": 2, "enhanced": "all"},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced": "all"}]},
-			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced": "all"}]},
+			{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 2},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
+			{"action": "r_conditional", "condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]},
 		],
 	}
 

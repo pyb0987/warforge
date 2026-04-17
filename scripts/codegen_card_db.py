@@ -1125,6 +1125,52 @@ def validate_r_conditional_star_parity(
     return errors
 
 
+def validate_conscript_enhanced_count(
+    all_cards: dict[str, dict[str, dict]],
+) -> list[str]:
+    """Verify conscript.enhanced_count is within [0, count].
+
+    P1-1 migration (2026-04-17): 'enhanced: partial/all' 문자열 필드를
+    'enhanced_count: N' 수량 필드로 교체. 이 validator는 schema의 핵심 불변식
+    (0 ≤ enhanced_count ≤ count)을 codegen 시점에 강제해 드리프트를 차단한다.
+    """
+    errors: list[str] = []
+    def walk(cid: str, star: int, ctx: str, effs: list) -> None:
+        for eff in effs or []:
+            if not isinstance(eff, dict):
+                continue
+            action = next(iter(eff))
+            params = eff[action]
+            if action == "conscript" and isinstance(params, dict):
+                count = int(params.get("count", 1))
+                if "enhanced_count" in params:
+                    ec = int(params["enhanced_count"])
+                    if ec < 0 or ec > count:
+                        errors.append(
+                            f"{cid} ★{star} ({ctx}): conscript "
+                            f"enhanced_count={ec} outside [0, count={count}]"
+                        )
+                # 구 필드 검출 → 마이그레이션 필요
+                if "enhanced" in params:
+                    errors.append(
+                        f"{cid} ★{star} ({ctx}): deprecated "
+                        f"'enhanced: {params['enhanced']}' field — "
+                        f"migrate to 'enhanced_count: N' (P1-1)"
+                    )
+            # Recurse into nested effects (e.g. r_conditional.effects)
+            if isinstance(params, dict) and isinstance(params.get("effects"), list):
+                walk(cid, star, f"{ctx}→{action}.effects", params["effects"])
+    for _theme, cards in all_cards.items():
+        for cid, card in cards.items():
+            for star, sd in (card.get("stars") or {}).items():
+                walk(cid, star, "effects", sd.get("effects", []))
+                for cond in sd.get("conditional") or []:
+                    walk(cid, star, "conditional", cond.get("effects", []))
+                for rc in sd.get("r_conditional") or []:
+                    walk(cid, star, "r_conditional", rc.get("effects", []))
+    return errors
+
+
 def main():
     check_mode = "--check" in sys.argv
 
@@ -1132,6 +1178,14 @@ def main():
     if not all_cards:
         print("ERROR: No YAML files found in", CARDS_DIR)
         sys.exit(1)
+
+    # conscript.enhanced_count 불변식 검증 (P1-1). 구 필드 잔존 및 out-of-range 감지.
+    ec_errors = validate_conscript_enhanced_count(all_cards)
+    if ec_errors:
+        print("❌ conscript.enhanced_count violations:")
+        for err in ec_errors:
+            print(f"  - {err}")
+        sys.exit(2)
 
     # Structural validation — fail hard in both generate and --check modes.
     # Prevents ★1/★2/★3 r_conditional drift before codegen produces output.
