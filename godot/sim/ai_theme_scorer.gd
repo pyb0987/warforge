@@ -10,11 +10,21 @@ extends RefCounted
 
 const GenomeScript = preload("res://sim/genome.gd")
 
-# --- 군대 랭크 임계값 (military_system.gd 기준) ---
+# --- 군대 랭크 임계값 (R4/R10 milestone 시스템, trace 012 재설계) ---
+# 모든 군대 카드가 R4/R10에서 r_conditional 효과 발동.
+# ml_barracks ★3은 추가로 rank 15에서 high_rank_mult (ATK x1.3).
 # {card_id: [threshold_ranks]}
 const RANK_THRESHOLDS := {
-	"ml_barracks": [3, 5, 8, 15],
-	"ml_special_ops": [5, 6, 8, 10],
+	"ml_barracks": [4, 10, 15],
+	"ml_conscript": [4, 10],
+	"ml_outpost": [4, 10],
+	"ml_academy": [4, 10],
+	"ml_supply": [4, 10],
+	"ml_tactical": [4, 10],
+	"ml_assault": [4, 10],
+	"ml_special_ops": [4, 10],
+	"ml_factory": [4, 10],
+	"ml_command": [4, 10],
 }
 
 # --- 스팀펑크 카운터 임계값 ---
@@ -27,9 +37,11 @@ const CONSCRIPT_THRESHOLD := {1: 10, 2: 8, 3: 6}  # star → threshold
 const DRUID_WORLD_UNIT_CAP := {1: 20, 2: 40, 3: 200}
 const DRUID_WRATH_UNIT_CAP := {1: 5, 2: 6, 3: 7}
 
-# --- 군대 트레이닝 카드 ---
-const MILITARY_TRAINING_CARDS := ["ml_barracks", "ml_command", "ml_special_ops", "ml_outpost"]
-const MILITARY_TRAINING_AMPLIFIERS := ["ml_academy", "ml_conscript"]
+# --- 군대 트레이닝 카드 (trace 012 재설계 후 train: action 보유 카드) ---
+# ml_barracks(기본 훈련), ml_academy(훈련+강화 변환), ml_command(부활+글로벌 훈련)
+const MILITARY_TRAINING_CARDS := ["ml_barracks", "ml_academy", "ml_command"]
+# 앰프: 훈련된 유닛의 가치를 증폭(rank_buff로 rank 스케일링, enhance_convert로 강화 전환)
+const MILITARY_TRAINING_AMPLIFIERS := ["ml_tactical", "ml_academy"]
 
 # --- 포식종 유닛캡 카드 ---
 const PREDATOR_LOW_UNIT_CARDS := ["pr_apex_hunt"]
