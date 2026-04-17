@@ -267,36 +267,31 @@ func _materialize_army() -> Array:
 	_unit_card_map.clear()
 	var active := game_state.get_active_board()
 	# 군대 통합사령부 revive scope 계산:
-	# ml_command 카드의 YAML revive effect를 직접 평가 (rank/hp_pct/limit).
-	# theme_state 경유 없이 직접 YAML 읽음 — apply_persistent 경로가 RS timing이라
-	# 호출되지 않았던 이전 버그 수정 (2026-04-16).
+	# MilitarySystem.resolve_command_revive가 YAML base revive + r_conditional
+	# revive_scope_override.target을 직접 평가한다. rank 조건부 분기도 YAML에
+	# 선언된 target 문자열을 그대로 사용하므로, 설계자가 YAML target을 변경하면
+	# 코드 수정 없이 동작이 따라온다 (trace 014, fragile drift 제거).
+	# theme_state 경유 없음 — apply_persistent 경로가 RS timing이라 호출되지
+	# 않았던 이전 버그는 2026-04-16 (trace 012)에 수정됨.
 	var revive_scope_map: Dictionary = {}
+	var mil_sys: MilitarySystem = (
+		chain_engine._theme_systems[Enums.CardTheme.MILITARY])
 	for ci in range(active.size()):
 		var cmd_card: CardInstance = active[ci]
 		if cmd_card.get_base_id() != "ml_command":
 			continue
-		var rank: int = cmd_card.theme_state.get("rank", 0)
-		var cmd_effs: Array = CardDB.get_theme_effects(cmd_card.get_base_id(), cmd_card.star_level)
-		var hp_pct: float = 0.0
-		var limit: int = 0
-		for eff in cmd_effs:
-			if eff.get("action", "") == "revive":
-				hp_pct = float(eff.get("hp_pct", 0.0))
-				limit = int(eff.get("limit_per_combat", 0))
-				break
-		if hp_pct <= 0 or limit <= 0:
+		var revive_cfg: Dictionary = mil_sys.resolve_command_revive(cmd_card)
+		if revive_cfg["hp_pct"] <= 0 or revive_cfg["limit"] <= 0:
 			continue
-		# scope 결정: R10 → 양쪽 인접까지, R4 → self 전체 유닛, R0 → self (강화) 유닛만
-		var scope_list: Array[int] = [ci]
-		var only_enhanced: bool = rank < 4
-		if rank >= 10:
-			if ci > 0: scope_list.append(ci - 1)
-			if ci + 1 < active.size(): scope_list.append(ci + 1)
-		for target_ci in scope_list:
+		if String(revive_cfg["target"]) == "":
+			continue  # YAML에 target 선언 없음 → revive 미동작
+		var scope: Dictionary = mil_sys.resolve_revive_scope(
+			revive_cfg["target"], ci, active.size())
+		for target_ci in scope["card_indices"]:
 			revive_scope_map[target_ci] = {
-				"hp_pct": hp_pct,
-				"limit": limit,
-				"only_enhanced": only_enhanced,
+				"hp_pct": revive_cfg["hp_pct"],
+				"limit": revive_cfg["limit"],
+				"only_enhanced": scope["only_enhanced"],
 			}
 	var card_idx := -1
 	for card in active:

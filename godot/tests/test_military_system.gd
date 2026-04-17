@@ -729,6 +729,85 @@ func test_command_r10_revive_scope_self_and_adj_all_yaml() -> void:
 	assert_true(r10_has_scope, "R10: YAML에 revive_scope_override self_and_adj_all 선언")
 
 
+# --- resolve_command_revive: YAML target 문자열이 rank 구간에 따라 실제로 반환되는지 ---
+# 이 테스트 세트가 "YAML target → 코드 동작" 경로를 검증한다. 이전에는
+# _materialize_army가 rank 조건으로 하드코딩해, YAML target을 바꿔도 코드가
+# 반영하지 못했다 (fragile drift).
+
+func test_resolve_command_revive_rank0_base_self_enhanced() -> void:
+	## rank=0 (R4 미도달): base revive (self_enhanced) 반환.
+	var card: CardInstance = CardInstance.create("ml_command")
+	# rank는 theme_state.rank를 _rank() helper가 읽음
+	var cfg: Dictionary = _sys.resolve_command_revive(card)
+	assert_eq(cfg["target"], "self_enhanced", "R0: base target")
+	assert_true(cfg["hp_pct"] > 0.0, "R0: hp_pct 설정됨")
+	assert_true(cfg["limit"] > 0, "R0: limit 설정됨")
+
+
+func test_resolve_command_revive_rank4_override_self_all() -> void:
+	## rank=4: R4 override가 base를 덮어써 self_all 반환.
+	var card: CardInstance = CardInstance.create("ml_command")
+	card.theme_state["rank"] = 4
+	var cfg: Dictionary = _sys.resolve_command_revive(card)
+	assert_eq(cfg["target"], "self_all", "R4: override self_all")
+
+
+func test_resolve_command_revive_rank10_override_self_and_adj_all() -> void:
+	## rank=10: R10 override가 R4 override를 다시 덮어써 self_and_adj_all 반환.
+	var card: CardInstance = CardInstance.create("ml_command")
+	card.theme_state["rank"] = 10
+	var cfg: Dictionary = _sys.resolve_command_revive(card)
+	assert_eq(cfg["target"], "self_and_adj_all", "R10: override self_and_adj_all")
+
+
+func test_resolve_command_revive_rank9_still_r4_override() -> void:
+	## rank=9 (R10 미도달, R4는 도달): R4 override 유지.
+	var card: CardInstance = CardInstance.create("ml_command")
+	card.theme_state["rank"] = 9
+	var cfg: Dictionary = _sys.resolve_command_revive(card)
+	assert_eq(cfg["target"], "self_all", "R9: R4 override 유지, R10 미적용")
+
+
+# --- resolve_revive_scope: 각 target 문자열을 card index + flag로 해석 ---
+
+func test_resolve_revive_scope_self_enhanced() -> void:
+	var scope: Dictionary = _sys.resolve_revive_scope("self_enhanced", 2, 5)
+	assert_eq(scope["card_indices"], [2], "self_enhanced: self만")
+	assert_true(scope["only_enhanced"], "self_enhanced: enhanced flag")
+
+
+func test_resolve_revive_scope_self_all() -> void:
+	var scope: Dictionary = _sys.resolve_revive_scope("self_all", 2, 5)
+	assert_eq(scope["card_indices"], [2], "self_all: self만")
+	assert_false(scope["only_enhanced"], "self_all: 모든 유닛")
+
+
+func test_resolve_revive_scope_self_and_adj_all_middle() -> void:
+	## 보드 중간 카드(idx=2, size=5): 왼/자신/오 3개 반환.
+	var scope: Dictionary = _sys.resolve_revive_scope("self_and_adj_all", 2, 5)
+	assert_eq(scope["card_indices"], [1, 2, 3], "중간: 인접 양쪽 포함")
+	assert_false(scope["only_enhanced"], "self_and_adj_all: 모든 유닛")
+
+
+func test_resolve_revive_scope_self_and_adj_all_left_edge() -> void:
+	## 보드 좌측 끝(idx=0): 자신 + 오른쪽만.
+	var scope: Dictionary = _sys.resolve_revive_scope("self_and_adj_all", 0, 5)
+	assert_eq(scope["card_indices"], [0, 1], "좌측 끝: 왼쪽 인접 없음")
+
+
+func test_resolve_revive_scope_self_and_adj_all_right_edge() -> void:
+	## 보드 우측 끝(idx=4, size=5): 왼쪽 + 자신.
+	var scope: Dictionary = _sys.resolve_revive_scope("self_and_adj_all", 4, 5)
+	assert_eq(scope["card_indices"], [3, 4], "우측 끝: 오른쪽 인접 없음")
+
+
+func test_resolve_revive_scope_unknown_falls_back() -> void:
+	## 알 수 없는 target은 self_enhanced로 fallback (warning은 별도 확인 불가).
+	var scope: Dictionary = _sys.resolve_revive_scope("nonexistent_scope", 1, 3)
+	assert_eq(scope["card_indices"], [1], "unknown: self fallback")
+	assert_true(scope["only_enhanced"], "unknown: enhanced fallback")
+
+
 # --- 추가 ★ 검증 ---
 
 func test_barracks_s3_high_rank_mult_applies_once() -> void:

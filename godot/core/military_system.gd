@@ -117,7 +117,77 @@ func apply_post_combat(card: CardInstance, idx: int, board: Array,
 ## 이전에는 이곳에서 theme_state["revive_hp_pct/limit"]을 설정했으나,
 ## chain_engine.process_persistent는 PERSISTENT timing 카드만 순회함 (ml_command는 RS).
 ## 결과: 이 경로는 한 번도 실행되지 않았고, revive는 실제로 동작 안 했음.
-## 수정: game_manager._materialize_army가 ml_command의 YAML effects를 직접 평가.
+## 수정: game_manager._materialize_army가 아래 두 helper를 호출해 YAML을 직접 평가.
+
+
+# --- Command (통합사령부) revive scope resolution ---
+#
+# Rationale (trace 014): 과거 _materialize_army는 rank 조건으로 scope를
+# 하드코딩(`rank >= 10 → 양옆 인접`, `rank >= 4 → self` 등)해, YAML의
+# revive_scope_override.target 문자열을 실제로 읽지 않았다. 설계자가 YAML에서
+# target을 바꿔도 코드가 따라오지 못하는 drift 위험. 본 helper 2개가 YAML
+# target 문자열을 직접 해석한다.
+
+
+## YAML의 base revive + r_conditional revive_scope_override를 평가해
+## 통합사령부의 현재 effective revive config를 반환한다.
+## 반환: {"target": String, "hp_pct": float, "limit": int}
+##   - target이 빈 문자열이거나 hp_pct/limit이 0 이하면 revive 미동작.
+##   - rank_gte 조건이 충족된 r_conditional의 override가 base target을 덮어쓴다.
+##   - 여러 milestone이 충족되면 YAML 순서상 마지막 override가 승 (R10 > R4).
+func resolve_command_revive(card: CardInstance) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var rank := _rank(card)
+	var result := {"target": "", "hp_pct": 0.0, "limit": 0}
+	for eff in effs:
+		var action: String = eff.get("action", "")
+		if action == "revive":
+			result["target"] = String(eff.get("target", ""))
+			result["hp_pct"] = float(eff.get("hp_pct", 0.0))
+			result["limit"] = int(eff.get("limit_per_combat", 0))
+		elif action == "r_conditional":
+			if eff.get("condition", "") != "rank_gte":
+				continue
+			if rank < int(eff.get("threshold", 0)):
+				continue
+			for inner in eff.get("effects", []):
+				if inner.get("action", "") == "revive_scope_override":
+					var ov_target: String = String(inner.get("target", ""))
+					if ov_target != "":
+						result["target"] = ov_target
+	return result
+
+
+## YAML target 문자열을 card index 리스트 + enhanced-only 플래그로 해석.
+## 반환: {"card_indices": Array[int], "only_enhanced": bool}
+## 지원 target:
+##   - "self_enhanced": self 카드, (강화) 유닛만
+##   - "self_all": self 카드, 모든 유닛
+##   - "self_and_adj_all": self + 양옆 인접 카드, 모든 유닛 (인접은 테마 무관)
+## 알 수 없는 target은 warning을 띄우고 self_enhanced로 fallback.
+func resolve_revive_scope(target_name: String, self_idx: int,
+		board_size: int) -> Dictionary:
+	var card_indices: Array[int] = []
+	var only_enhanced: bool = false
+	match target_name:
+		"self_enhanced":
+			card_indices.append(self_idx)
+			only_enhanced = true
+		"self_all":
+			card_indices.append(self_idx)
+		"self_and_adj_all":
+			if self_idx - 1 >= 0:
+				card_indices.append(self_idx - 1)
+			card_indices.append(self_idx)
+			if self_idx + 1 < board_size:
+				card_indices.append(self_idx + 1)
+		_:
+			push_warning(
+				"[revive_scope] unknown target: %s (fallback: self_enhanced)"
+				% target_name)
+			card_indices.append(self_idx)
+			only_enhanced = true
+	return {"card_indices": card_indices, "only_enhanced": only_enhanced}
 
 
 # --- Rank / Conscription helpers ---
