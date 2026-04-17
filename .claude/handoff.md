@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: silent drop 구조 제거 (trace 015) + multi-review + 군대 카드 SSOT 전환 (docs/design/cards-military.md 효과 섹션 삭제) — 2026-04-17, 897/897 passing
+## Last completed: YAML → description validity 4-iteration multi-review 완료 (Critic 2: 5 → 7 → 8 → 9 PASS). iter4 LOW 3건까지 해결, 숨은 bug 3건(dr_deep tree_bonus mult, ml_assault swarm_buff enhanced_count, ml_tactical enhanced_shield_bonus) runtime 연결 — 2026-04-17, 898/898 passing
 
 ## Current state:
 
@@ -23,6 +23,22 @@
 - OBS-039 해결: ne_merchant star_overrides (card_db.gd)
 - OBS-045 해결: card_tooltip.gd — card_descs 우선 + ★별 template
 - OBS-041 해결: keyword_glossary.gd (14키워드) + tooltip 호버 연동
+
+### YAML SSOT 전환 작업 (2026-04-17, 완료)
+- **trace 013**: r_conditional ★ parity validator (codegen 내장, exit 2)
+- **trace 014**: 통합사령부 revive scope_override YAML target 직접 파싱
+- **trace 015**: codegen silent drop 구조 제거 (CARD_DB_ACTIONS hard-fail)
+- **docs/design/cards-military.md**: 효과 섹션 삭제 → YAML이 SSOT
+- **Multi-review 2차**: PASS with known gaps → P0/P1/P2 순차 개선
+- **description 4-iteration** (Critic 2 UX 5 → 9): 숨은 bug 3건 포함 처리
+  - dr_deep tree_bonus.mult: bonus_growth_pct dead field → mult 이관, ★3=1.5 실적용
+  - ml_assault swarm_buff: enhanced_count 런타임 연결 (atk buff + ms thresh 양쪽)
+  - ml_tactical enhanced_shield_bonus: (강화) 유닛 보유 카드에 shield +%p 실적용
+- **ml_academy R10 대체 bug fix**: rank 내림차순 순회 + tenure 공유 슬롯
+- **keyword_glossary 확장**: 계급/랭크/부대/비(강화) 정의 추가
+- **용어 통일**: "숲의 깊이" → "전체 나무 수" (5 파일)
+- **Evolution traces**: 013, 014, 015
+- **Review reports**: military-ssot-verification-2026-04-17, yaml-to-desc-validity-2026-04-17, yaml-to-desc-iteration2-2026-04-17
 
 ## Remaining:
 
@@ -66,13 +82,13 @@
 - 측정: 정예형/물량형 승률, 훈련 가속 복리 영향, ★3 도달 타이밍
 - 기존 시뮬 인프라 사용: `godot/sim/`
 
-**옵션 B**: YAML delta/cumulative validator (P5 구조적 해결)
-- harness-engineer 스킬 활용
-- codegen에 schema validation 추가
+**옵션 B**: OBS-047 (S5-R14) ★3 캐스케이드 머지 레어 업그레이드 미지급 검증
+- GUT 테스트로 재현 시도
+- 핫픽스 가능성 높음
 
-**옵션 C**: card_tooltip.gd `\x01` parse error 핫픽스
-- `"\x01"` → `chr(1)` 교체 (단일 라인)
-- UI 로드 재개
+**옵션 C**: AI v3 (build path 연결)
+- ai_build_path.gd → ai_agent.gd 연결 (plans/piped-jumping-unicorn.md)
+- 후속으로 AI 재탐색 가능
 
 ## 참고 파일
 
