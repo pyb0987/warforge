@@ -403,19 +403,29 @@ def desc_on_combat_result(p: dict) -> str:
     return f"{cond_text} {effects_text}"
 
 def desc_swarm_buff(p: dict) -> str:
+    ## P2-3 (2026-04-17, review H4): 축약 절 재작성. 주어·단위·맥락을 명시.
+    ## 이전 "15기+ → MS +1. (강화) 2기 카운트"는 무엇의 15기/2기인지 불명.
+    ## 규칙:
+    ##   - unit_thresh는 target 범위 내 **군대 유닛 합계**로 명시
+    ##   - enhanced_count는 "(강화) 유닛 1기를 N기로 집계"로 관계 명시
     t = resolve_target(p["target"])
     atk = fmt_pct(p["atk_per_unit"])
     per_n = p.get("per_n", 1)
-    text = f"{t} 유닛 {per_n}기당 ATK +{atk}% 전투 버프"
+    text = (f"{t} 유닛 1기당 ATK +{atk}% 전투 버프"
+            if per_n == 1 else
+            f"{t} 유닛 {per_n}기당 ATK +{atk}% 전투 버프")
     if p.get("ms_bonus"):
         ms = p["ms_bonus"]
-        text += f". {ms['unit_thresh']}기+ → MS +{ms['bonus']}"
+        text += (f". {t} 유닛 합계 {ms['unit_thresh']}기 이상이면 "
+                 f"MS +{ms['bonus']}")
     if p.get("enhanced_count"):
-        text += f". (강화) {p['enhanced_count']}기 카운트"
+        text += (f" ((강화) 유닛 1기를 "
+                 f"{p['enhanced_count']}기로 집계)")
     if p.get("high_rank"):
         hr = p["high_rank"]
         if hr.get("as_bonus"):
-            text += f". {hr['unit_thresh']}기+ → AS +{fmt_pct(hr['as_bonus'])}%"
+            text += (f". {t} 유닛 합계 {hr['unit_thresh']}기 이상이면 "
+                     f"AS +{fmt_pct(hr['as_bonus'])}%")
     return text
 
 def desc_persistent(p: dict) -> str:
