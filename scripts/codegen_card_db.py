@@ -1010,7 +1010,8 @@ def generate_descs_gd(
             lines.append(f'\t"{card_id}": {{')
             for star in (1, 2, 3):
                 if star in d:
-                    text = d[star].replace('"', '\\"')
+                    # Escape for GDScript string literal: " → \" and raw newline → \n
+                    text = d[star].replace('"', '\\"').replace("\n", "\\n")
                     lines.append(f'\t\t{star}: "{text}",')
             lines.append("\t},")
     lines.append("}")

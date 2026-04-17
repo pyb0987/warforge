@@ -912,10 +912,14 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
             desc_post_threshold(star_data["post_threshold"]))
 
     # 4.5. r_conditional (rank milestones, e.g. military R4/R10) → base timing
-    # Each milestone rendered with "[R4] ..." / "[R10] ..." prefix.
+    # Each milestone rendered with "[랭크 N 이상] ..." prefix on its own line.
+    # P2-1 (2026-04-17): base+R4+R10을 한 줄 prose로 합치면 플레이어가 경계를
+    # 찾지 못해 스캔 불가 (review H3 HIGH). r_conditional entry 앞에 '\n'을
+    # 끼워 tooltip 렌더러가 물리적 줄바꿈으로 분리하게 한다.
+    # 구분자는 '. ' 기준 join 후에도 살아남아 최종 출력에 반영됨.
     for rcond in star_data.get("r_conditional") or []:
         timing_groups.setdefault(base_timing, []).append(
-            desc_r_conditional(rcond))
+            "\n" + desc_r_conditional(rcond))
 
     # 5. Tenure prefix
     tenure_pfx = prefix_tenure(card, star_data)
@@ -938,6 +942,8 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
         else:
             pfx = TIMING_PREFIX.get(timing, timing + ":")
         body = ". ".join(timing_groups[timing])
+        # r_conditional 엔트리 앞에 삽입된 '\n'의 앞쪽 '. ' 소거 (P2-1).
+        body = body.replace(". \n", "\n")
         if timing == base_timing and counter_pfx:
             body = f"{counter_pfx} {body}"
         parts.append(f"{pfx} {body}")
