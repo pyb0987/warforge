@@ -163,7 +163,11 @@ func _set_effect_text(raw_text: String) -> void:
 	var placeholder := char(1)
 	var escaped := raw_text.replace("[", placeholder).replace("]", "[rb]").replace(placeholder, "[lb]")
 	var bbcode := escaped
-	for kw in KeywordGlossary.get_all_keywords():
+	# 길이 내림차순 정렬: '비(강화)' 같은 긴 키워드가 '강화'보다 먼저 치환되어야
+	# 부분 오버랩 문제가 없다 (P1-3, 2026-04-17).
+	var keywords := KeywordGlossary.get_all_keywords()
+	keywords.sort_custom(func(a, b): return a.length() > b.length())
+	for kw in keywords:
 		bbcode = bbcode.replace(kw, "[url=%s][color=#aaccff]%s[/color][/url]" % [kw, kw])
 	effect_label.clear()
 	effect_label.append_text(bbcode)

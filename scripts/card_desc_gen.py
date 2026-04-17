@@ -777,7 +777,11 @@ def desc_post_threshold(effects: list) -> str:
 
 
 R_CONDITIONAL_PREFIX = {
-    "rank_gte": lambda v: f"[R{v}]",
+    # P1-3 (2026-04-17): 과거 '[R4]' 축약 표기는 "조건/추가 효과"의 의미를
+    # 플레이어에게 자명하게 전달하지 못했다. '[랭크 N 이상]'은 한국어로
+    # 조건절임을 명시하고, 상위 milestone 도달 시 하위 milestone이 그대로
+    # 유효함을 '이상'이라는 표현으로 자연스럽게 시사한다.
+    "rank_gte": lambda v: f"[랭크 {v} 이상]",
 }
 
 
