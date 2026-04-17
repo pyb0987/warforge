@@ -272,16 +272,20 @@ def desc_tree_shield(p: dict) -> str:
     return text
 
 def desc_tree_enhance(p: dict) -> str:
+    ## 런타임 의미 (druid_system._tree_enhance):
+    ##   - low_unit: 이 카드 유닛 수 ≤ thresh 시 base_pct 대체 (더 큰 계수로)
+    ##   - tree_bonus: 🌳 ≥ thresh 시 최종 growth에 mult 곱 (누적)
+    ## P2 (review R4, 2026-04-17): 대체/곱셈 관계를 desc에 명시.
     base = fmt_pct(p["base_pct"])
     text = f"이 카드 ATK+HP +(🌳×{base}%) 성장"
     low = p.get("low_unit")
     if low:
         low_pct = fmt_pct(low["pct"])
-        text += f". ≤{low['thresh']}기 → 🌳×{low_pct}%"
+        text += f". 이 카드 ≤{low['thresh']}기이면 계수 🌳×{low_pct}% 대체 적용"
     bonus = p.get("tree_bonus")
     if bonus:
-        pct = fmt_pct(bonus["bonus_growth_pct"])
-        text += f". 🌳{bonus['thresh']}+ → 성장 +{pct}%"
+        mult = bonus.get("mult", 1.3)
+        text += f". 🌳 {bonus['thresh']}+ 시 최종 성장 ×{mult}"
     return text
 
 def desc_tree_gold(p: dict) -> str:
@@ -314,28 +318,32 @@ def desc_druid_unit_enhance(p: dict) -> str:
     return text
 
 def desc_multiply_stats(p: dict) -> str:
+    ## P2 (review R1, HIGH, 2026-04-17): 3축(ATK/HP/AS) × 서로 다른
+    ## 'N당 +X×' 기준이 한 줄에 혼재되어 파싱 불가하던 문제. '\n' 물리 분리로
+    ## 각 축을 독립 줄에 배치. '숲의 깊이' 신조어 대신 '전체 나무 수' 평이
+    ## 한국어로 용어 통일.
+    ## target 해석: dr_world는 target:self (이 카드 유닛에만 적용).
     cap = p["unit_cap"]
     atk_base = p["atk_base"]
     atk_step = p["atk_tree_step"]
     atk_per = p["atk_per_tree"]
-    # target 해석: dr_world는 target:self (이 카드 유닛에만 적용).
-    # 과거 하드코딩으로 '전체 드루이드'로 출력되던 drift 수정 (review 2026-04-17 H1).
     tgt_str = resolve_target(p.get("target", "self"))
-    text = (f"[지속] ≤{cap}기 → {tgt_str} 유닛 ATK×{atk_base}. "
-            f"숲의 깊이 {atk_step}당 +{atk_per}×")
+
+    lines = [f"[지속] ≤{cap}기일 때 {tgt_str} 유닛 스탯 배수 적용:"]
+    lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}당 +{atk_per}×)")
     if p.get("hp_base"):
         hp_step = p.get("hp_tree_step", atk_step)
         hp_per = p.get("hp_per_tree", 0)
-        text += f", HP×{p['hp_base']}"
-        if hp_per:
-            text += f"(깊이 {hp_step}당 +{hp_per}×)"
+        hp_tail = (f" (전체 나무 수 {hp_step}당 +{hp_per}×)"
+                   if hp_per else "")
+        lines.append(f"  HP ×{p['hp_base']}{hp_tail}")
     if p.get("as_base") and p["as_base"] != 1.0:
         as_step = p.get("as_tree_step", atk_step)
         as_per = p.get("as_per_tree", 0)
-        text += f", AS×{p['as_base']}"
-        if as_per:
-            text += f"(깊이 {as_step}당 +{as_per}×)"
-    return text
+        as_tail = (f" (전체 나무 수 {as_step}당 +{as_per}×)"
+                   if as_per else "")
+        lines.append(f"  AS ×{p['as_base']}{as_tail}")
+    return "\n".join(lines)
 
 def desc_tree_temp_buff(p: dict) -> str:
     cap = p["unit_cap"]
@@ -541,19 +549,27 @@ def desc_spawn_unit(p: dict) -> str:
     return f"{t}에 {unit} {n}기 추가"
 
 def desc_spawn_enhanced_random(p: dict) -> str:
+    ## ml_academy R10 전용. R4의 enhance_convert_target과 slot 공유
+    ## (military_system._dispatch_r_effect: academy_convert_tenure).
+    ## R10 도달 시 R4 효과를 대체하므로 '랭크 4 슬롯과 공유' 명시.
     t = resolve_target(p["target"])
     n = p.get("count", 1)
     cap = p.get("max_per_round")
     text = f"{t}에 랜덤 (강화) {n}기"
     if cap:
-        text += f" (라운드당 {cap}회)"
+        text += f" (라운드당 {cap}회, 랭크 4 효과 대체)"
     return text
 
 def desc_enhance_convert_card(p: dict) -> str:
+    ## P2 (2026-04-17, review R2): 군대 10장 × 3★ = 30 entries에 반복되는
+    ## R4/R10 공통 전환 효과. 주어 '이 카드의' 생략하고 '비(강화) 유닛'을
+    ## '비(강화) 부대'로 압축하여 반복 부담 완화. 'keyword (강화)' 여전히 유효.
     frac = p.get("fraction", 0.5)
     if frac >= 1.0:
-        return "이 카드의 비(강화) 유닛 전원 → (강화)"
-    return f"이 카드의 비(강화) 유닛 {fmt_pct(frac)}% → (강화)"
+        return "비(강화) 부대 전원 → (강화)"
+    if frac == 0.5:
+        return "비(강화) 부대 절반 → (강화)"
+    return f"비(강화) 부대 {fmt_pct(frac)}% → (강화)"
 
 def desc_enhance_convert_target(p: dict) -> str:
     n = p.get("count", 1)
@@ -875,6 +891,55 @@ def counter_prefix_for(card: dict, star_data: dict) -> str:
     return f"{event_name} 1회당 카운터 +1."
 
 
+def compress_repeated_target(body: str) -> str:
+    """같은 target prefix가 연속된 여러 segment에서 중복을 접는다.
+
+    예 (ne_awakening ★1):
+      '필드 위 모든 카드에 2기 유닛. 필드 위 모든 카드 ATK +10% 영구 강화.
+       필드 위 모든 카드 유닛에 방어막(HP 20%)'
+    →  '필드 위 모든 카드에 2기 유닛, 동 대상 ATK +10% 영구 강화, 동 대상
+        유닛에 방어막(HP 20%)'
+
+    대상 prefix 후보는 TARGET dict에 정의된 한국어 라벨 중 **4자 이상** 만
+    대상으로 한다 ('self'='이 카드'처럼 짧은 건 접기 효과 없음).
+
+    P2 (review R5, 2026-04-17): 'ne_awakening'처럼 동일 대상에 여러 효과가
+    같은 timing으로 걸리는 카드의 가독성 개선.
+    """
+    segments = body.split(". ")
+    if len(segments) < 2:
+        return body
+    # '이 카드'(4자) / '적 전체'(4자) / '해당 카드'(5자) 같은 짧고 흔한
+    # prefix는 서로 다른 의미의 effect 사이에도 우연히 매칭되어 의미를
+    # 흐릴 수 있으므로 제외. 테마별 집합형 target('필드 위 모든 카드',
+    # '모든 군대 카드' 등)만 안전하게 접는다.
+    target_labels = [t for t in TARGET.values() if len(t) >= 7]
+    out: list[str] = [segments[0]]
+    current_prefix: str = ""
+    for tlabel in target_labels:
+        if segments[0].startswith(tlabel):
+            current_prefix = tlabel
+            break
+    for seg in segments[1:]:
+        matched = None
+        for tlabel in target_labels:
+            if seg.startswith(tlabel) and tlabel == current_prefix:
+                matched = tlabel
+                break
+        if matched:
+            # Replace the repeated prefix with "동 대상" and use comma join.
+            suffix = seg[len(matched):].lstrip()
+            out[-1] = out[-1] + ", 동 대상 " + suffix
+        else:
+            out.append(seg)
+            current_prefix = ""
+            for tlabel in target_labels:
+                if seg.startswith(tlabel):
+                    current_prefix = tlabel
+                    break
+    return ". ".join(out)
+
+
 def desc_max_act_suffix(max_act: int, timing: str) -> str:
     if max_act == -1:
         return ""  # RS/BS cards — 1x per round is obvious
@@ -954,6 +1019,8 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
         body = ". ".join(timing_groups[timing])
         # r_conditional 엔트리 앞에 삽입된 '\n'의 앞쪽 '. ' 소거 (P2-1).
         body = body.replace(". \n", "\n")
+        # 같은 target prefix 연속 반복 압축 (R5).
+        body = compress_repeated_target(body)
         if timing == base_timing and counter_pfx:
             body = f"{counter_pfx} {body}"
         parts.append(f"{pfx} {body}")

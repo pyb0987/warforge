@@ -683,15 +683,15 @@ func _register_druid() -> void:
 	_theme_effects["dr_deep"] = {
 		1: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 3, "pct": 0.012}, "tree_bonus": {"thresh": 10, "bonus_growth_pct": 0.12}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 3, "pct": 0.012}, "tree_bonus": {"thresh": 10, "mult": 1.3}},
 		],
 		2: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.12}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.3}},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
-			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.18}},
+			{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.5}},
 		],
 	}
 

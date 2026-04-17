@@ -378,7 +378,7 @@ def desc_multiply_stats(p):
     atk_base = p["atk_base"]
     step = p["atk_tree_step"]
     per = p["atk_per_tree"]
-    text = f"[지속] ≤{cap}기 → 전체 드루이드 ATK×{atk_base}. 숲의 깊이 {step}당 +{per}×"
+    text = f"[지속] ≤{cap}기 → 이 카드 유닛 ATK×{atk_base}. 전체 나무 수 {step}당 +{per}×"
     # HP/AS 축약 (있으면 추가)
     if p.get("hp_base"):
         text += f", HP×{p['hp_base']}"

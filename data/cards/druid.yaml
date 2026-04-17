@@ -195,6 +195,10 @@ cards:
       # ★1: base=0.008, low(≤3)=0.012, tree_thresh=10, mult=1.3
       # ★2: base=0.012, low(≤3)=0.018, tree_thresh=8, mult=1.3
       # ★3: base=0.012, low(≤3)=0.018, tree_thresh=8, mult=1.5
+      # tree_bonus 필드 규칙 (runtime: druid_system._tree_enhance):
+      #   - thresh: 🌳 이 값 이상이면 최종 growth에 mult 곱
+      #   - mult: 곱셈 배율 (default 1.3)
+      # 기존 dead field 'bonus_growth_pct' 제거 (2026-04-17 desc bug fix).
       1:
         max_act: -1
         effects:
@@ -203,7 +207,7 @@ cards:
               target: self
               base_pct: 0.008
               low_unit: {thresh: 3, pct: 0.012}
-              tree_bonus: {thresh: 10, bonus_growth_pct: 0.12}
+              tree_bonus: {thresh: 10, mult: 1.3}
       2:
         max_act: -1
         effects:
@@ -212,7 +216,7 @@ cards:
               target: self
               base_pct: 0.012
               low_unit: {thresh: 3, pct: 0.018}
-              tree_bonus: {thresh: 8, bonus_growth_pct: 0.12}
+              tree_bonus: {thresh: 8, mult: 1.3}
       3:
         max_act: -1
         effects:
@@ -221,7 +225,7 @@ cards:
               target: self
               base_pct: 0.012
               low_unit: {thresh: 3, pct: 0.018}
-              tree_bonus: {thresh: 8, bonus_growth_pct: 0.18}
+              tree_bonus: {thresh: 8, mult: 1.5}
 
   dr_spore_cloud:
     name: 포자 구름
@@ -366,7 +370,7 @@ cards:
           - tree_add: {target: all_other_druid, count: 1}
           - multiply_stats:
               target: self
-              tree_source: forest_depth  # 숲의 깊이 = 전체 드루이드 카드 🌳 합계
+              tree_source: forest_depth  # 전체 나무 수 = 필드 위 모든 드루이드 카드의 🌳 합계
               atk_base: 1.10
               atk_per_tree: 0.1
               atk_tree_step: 30
