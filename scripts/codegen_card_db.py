@@ -78,8 +78,24 @@ def gen_layer(yaml_val: Any, map_dict: dict) -> str:
     return map_dict.get(str(yaml_val), "-1")
 
 
+# Actions that produce card_db.gd effects entries. Any YAML action encountered
+# by gen_effect() that is NOT in this set results in a hard-fail — previously
+# this path silently generated a raw_dict fallback that chain_engine could not
+# interpret (silent drop, trace 015). Theme-system cards are routed before
+# gen_effect via impl == "theme_system", so unknown actions arriving here are
+# definitionally bugs.
+CARD_DB_ACTIONS = frozenset([
+    "spawn", "enhance", "buff", "gold", "terazin",
+    "shield", "scrap", "diversity_gold", "absorb",
+])
+
+
 def gen_effect(effect: dict) -> str:
-    """Convert a single YAML effect to a GDScript expression string."""
+    """Convert a single YAML effect to a GDScript expression string.
+
+    Raises ValueError when the action is unknown — codegen fails fast rather
+    than emitting a dict that chain_engine cannot dispatch.
+    """
     # Each effect has exactly one key (the action type)
     action = next(iter(effect))
     params = effect[action]
@@ -106,10 +122,14 @@ def gen_effect(effect: dict) -> str:
     elif action == "absorb":
         return _gen_absorb(params)
     else:
-        # Theme-specific effect (tree_add, hatch, etc.)
-        # Phase 2: these will be stored in effects array for theme_system
-        # Phase 1: theme_system cards have impl: theme_system, effects ignored
-        return _gen_raw_dict({"action": action, **params})
+        raise ValueError(
+            f"Unknown card_db action '{action}' in base effects "
+            f"(params={params}). If this is a theme-system effect, set "
+            f"'impl: theme_system' on the card so it is dispatched via "
+            f"_theme_effects instead. Otherwise, add a handler in "
+            f"gen_effect() and update CARD_DB_ACTIONS. Known actions: "
+            f"{sorted(CARD_DB_ACTIONS)}"
+        )
 
 
 def _gen_spawn(p: dict) -> str:
@@ -294,27 +314,11 @@ def gen_post_threshold(effects: list) -> str:
 # Effects array generation
 # ═══════════════════════════════════════════════════════════════════
 
-THEME_EFFECTS = {
-    "tree_add", "tree_absorb", "tree_breed", "tree_enhance", "tree_shield",
-    "tree_distribute", "multiply_stats", "debuff_store",
-    "hatch", "meta_consume", "hatch_scaled", "on_combat_result",
-    "train", "conscript", "rank_threshold", "rank_buff", "swarm_buff",
-    "counter_produce", "range_bonus", "economy",
-    # Additional theme effect types used by sub-agents
-    "tree_gold", "druid_unit_enhance", "tree_temp_buff", "epic_shop_unlock",
-    "persistent", "revive", "rare_counter", "epic_counter", "total_counter", "on_merge",
-    "upgrade_discount", "hatch_enhance", "battle_buff", "free_reroll", "revive_override",
-    # Military R4/R10 재설계 (2026-04-16, trace 012)
-    "enhance_convert_card", "enhance_convert_target", "spawn_enhanced_random",
-    "spawn_unit", "crit_buff", "crit_splash", "rank_buff_hp",
-    "upgrade_shop_bonus", "conscript_pool_tier", "lifesteal",
-    "high_rank_mult", "grant_gold", "grant_terazin", "revive_scope_override",
-    # NOTE: `buff`는 THEME_EFFECTS 에서 제외. ml_tactical의 `buff`는 r_conditional
-    # 안에 있어 _theme_effects 경로로 저장되므로 이 필터를 거치지 않는다. 반대로
-    # neutral ne_wildforce처럼 base effects에 `buff`를 쓰는 카드는 codegen이
-    # `_buff(...)` 헬퍼 호출을 생성해야 하는데, 여기서 필터되면 effects=[]가 되어
-    # BS 경로가 no-op이 된다 (과거 GUT 3건 실패 원인, 2026-04-17 수정).
-}
+# NOTE (trace 015): THEME_EFFECTS/is_theme_effect silent filter 제거됨.
+# 이전에는 non-theme-system 카드의 base effects에서 알려지지 않은 action이
+# 조용히 누락되어 drift/dead declaration이 감춰졌다 (sp_interest.battle_buff,
+# sp_line.persistent 등). 현재는 gen_effect()의 CARD_DB_ACTIONS 화이트리스트
+# 기반 hard-fail + theme_system 카드는 impl 플래그로 명시 routing.
 
 
 def _convert_nested_effects(params: dict) -> dict:
@@ -402,19 +406,16 @@ def gen_theme_effects_block(card_id: str, card: dict, indent: str = "\t") -> lis
     return lines
 
 
-def is_theme_effect(effect: dict) -> bool:
-    """Check if effect uses theme DSL (not directly expressible in card_db)."""
-    action = next(iter(effect))
-    return action in THEME_EFFECTS
-
-
 def gen_effects_array(effects: list, indent: str = "\t\t") -> str:
-    """Generate GDScript effects array. Filters out theme effects for now."""
-    # Phase 1: theme effects become [] in card_db.gd
-    card_db_effects = [e for e in effects if not is_theme_effect(e)]
-    if not card_db_effects:
+    """Generate GDScript effects array for non-theme-system cards.
+
+    Callers (gen_star_override, gen_register_function) gate this behind
+    ``impl != "theme_system"``, so every effect entering here must be a
+    card_db-dispatched action. Unknown actions raise via ``gen_effect``.
+    """
+    if not effects:
         return "[]"
-    parts = [gen_effect(e) for e in card_db_effects]
+    parts = [gen_effect(e) for e in effects]
     if len(parts) == 1 and len(parts[0]) < 80:
         return f"[{parts[0]}]"
     sep = f",\n{indent}\t "
