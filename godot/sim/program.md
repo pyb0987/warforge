@@ -20,10 +20,20 @@
 
 ### weighted_score 목표
 
-현재 베이스라인: 0.5929 (AI v2: off-theme -20, foundation reroll +5, genome Phase 1+4 최적화 완료).
+현재 베이스라인: 0.4679 (2026-04-18 재촬영, strategy naming 현 코드와 일치. 군대 R4/R10 재설계 + bug fix 3건 + YAML SSOT 전환 반영).
 목표: 0.65+.
 ADOPT 기준: 이전 best 대비 weighted_score가 상승하면 ADOPT.
 게임 클리어율 목표: 5-10% (15R 생존).
+
+**현 전략 목록** (`ai_agent.gd:STRATEGY_NAMES`):
+`soft_steampunk`, `soft_druid`, `soft_predator`, `soft_military`, `adaptive`, `economy`, `aggressive`.
+구 네이밍(`*_focused`, `hybrid`)은 2026-04 전환으로 폐기됨.
+
+**현 스냅샷 주요 이슈** (sim-snapshot-2026-04-18):
+- mean WR 55.7% (목표 5-10% 대폭 초과 — 게임이 너무 쉬움)
+- card_coverage 15% (목표 70%+ 대폭 미달)
+- win_rate_band ≈ 0 (라운드별 감정 곡선 붕괴)
+- 전략 σ 0.15 (목표 < 0.10 미달, max/min ratio 2.0은 달성)
 
 > **탐색 이력 / AI 변경 이력 / Phase별 default_genome 스냅샷은 `rejection_history.md`로 분리됨** (이 파일은 Tier 0 immutable로 보호되므로 agent가 직접 갱신할 수 없음).
 

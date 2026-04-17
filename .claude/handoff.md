@@ -1,5 +1,7 @@
 ## Status: paused
-## Last completed: 시뮬 밸런스 스냅샷 — 군대 재설계 + bug fix 3건 검증 (soft_military 50% WR, 균형 범위). 거시 이슈 3건 발견(baseline stale, mean WR 과다, card_coverage 낮음) — 2026-04-18, 898/898 passing
+## Last completed: 설계문서 YAML 중복 정리 (2026-04-18). cards-{druid,neutral,predator,steampunk}.md에서 YAML 중복 라인(구성/태그/YAML pointer) 135줄 제거. 배치 의도/체인 연결/강화 과다 해소 노트 등 설계 narrative는 전면 보존.
+
+## 이전 완료: baseline.json 재촬영 + program.md 동기화 + OBS-047 GUT 커버리지 검증 (2026-04-18).
 
 ## Current state:
 
@@ -60,7 +62,10 @@
 
 ### 일반 버그/검증
 - [x] **card_tooltip.gd `\x01` parse error** — 2026-04-17, commit f8d824b. `char(1)` placeholder로 교체.
-- [ ] OBS-047 (S5-R14): ★3 캐스케이드 머지 시 중간 레어 업그레이드 미지급 의심 — GUT 테스트로 검증
+- [x] **OBS-047 (S5-R14)**: ★3 캐스케이드 머지 시 중간 레어 업그레이드 미지급 의심 — 2026-04-18 검증 완료.
+  - `shop.gd:98-104` cascade 시 step마다 card_merged emit → `build_phase.gd:_on_card_merged` 매 ★1→★2 step에서 rare 팝업 호출
+  - GUT 커버리지: test_merge_system.gd(cascade_returns_2_steps, cascade_step1_has_star2_for_reward, cascade_preserves_upgrades_through_star3) + test_build_phase_merge_bonus.gd(star1_to_star2 rare popup)
+  - 53/53 통과
 
 ### 밸런스/설계 결정 (플레이 데이터 축적 필요)
 - [ ] OBS-013 (S1-R9): 드루이드 ★ 합성 시 유닛 상한 도달 패널티
@@ -82,16 +87,8 @@
 
 ## Next entry point:
 
-**옵션 A (권장)**: baseline.json 재촬영 + program.md 업데이트
-- 현 strategy naming으로 baseline 재측정 (다음 세션에서 delta 비교 가능하게)
-- program.md의 emotional arc 목표/strategy 목록 현 구현과 동기화
-- 작은 작업
-
-**옵션 B**: OBS-047 (S5-R14) ★3 캐스케이드 머지 레어 업그레이드 미지급 검증
-- GUT 테스트로 재현 시도 → 핫픽스 가능성
-
-**옵션 C**: 거시 밸런스 autoresearch Phase
-- 거시 이슈 3건(weighted_score, mean WR, card_coverage, win_rate_band) 개선 목표
+**옵션 C (권장, 이제 남은 주요 작업)**: 거시 밸런스 autoresearch Phase
+- 거시 이슈 4건(weighted_score 0.4679→0.65, mean WR 55.7%→5-10%, card_coverage 15%→70%, win_rate_band≈0 회복) 개선
 - genome 재탐색 (적 CP 곡선 + enemy 스탯 튜닝)
 - 긴 세션 (autoresearch skill + Tier 0 정책 준수)
 
