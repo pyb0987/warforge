@@ -1,5 +1,5 @@
 ## Status: paused
-## Last completed: YAML → description validity 4-iteration multi-review 완료 (Critic 2: 5 → 7 → 8 → 9 PASS). iter4 LOW 3건까지 해결, 숨은 bug 3건(dr_deep tree_bonus mult, ml_assault swarm_buff enhanced_count, ml_tactical enhanced_shield_bonus) runtime 연결 — 2026-04-17, 898/898 passing
+## Last completed: 시뮬 밸런스 스냅샷 — 군대 재설계 + bug fix 3건 검증 (soft_military 50% WR, 균형 범위). 거시 이슈 3건 발견(baseline stale, mean WR 과다, card_coverage 낮음) — 2026-04-18, 898/898 passing
 
 ## Current state:
 
@@ -43,7 +43,12 @@
 ## Remaining:
 
 ### 군대 재설계 후속 (우선순위 순)
-- [ ] **시뮬 밸런스 검증**: ★3+R10 power curve, 정예형 vs 물량형 승률, 훈련 가속 영향
+- [x] **시뮬 밸런스 검증** — 2026-04-18, reviews/sim-snapshot-2026-04-18.md.
+  - soft_military 50% WR (soft_steampunk 55%와 근접, 다른 focused 테마 35~70% 범위 내 중간)
+  - avg_hp +3.80 (다른 focused +10~14 대비 가장 낮음 → "이기되 빡빡하게" 설계 의도에 근접)
+  - bug fix 3건(enhanced_count, enhanced_shield_bonus, tree_bonus.mult) 반영 후에도 과강/과약 없음
+  - 단 거시 이슈 존재: weighted_score 0.4642 (목표 0.65), mean WR 54.3% (목표 5-10% 초과), card_coverage 15% (목표 70%), win_rate_band 0.0000 (emotional arc 붕괴)
+  - baseline.json stale (strategy naming 불일치) — 향후 delta 비교를 위해 재촬영 필요
 - [x] **YAML delta/cumulative validator** (P5 structural debt, multi-review iter 5 합의) — 2026-04-17, trace 013.
   - 구현: `validate_r_conditional_star_parity()` + per-card `star_scalable_actions` allowlist
   - 검증: 12 unit tests 통과, 3개 과거 bug 합성 재현 모두 차단 (exit 2)
@@ -77,18 +82,21 @@
 
 ## Next entry point:
 
-**옵션 A (권장)**: 시뮬 밸런스 검증
-- 목적: 재설계 후 ★3+R10 조합이 실제로 엔드게임 "사기" 효과로 작동하는지
-- 측정: 정예형/물량형 승률, 훈련 가속 복리 영향, ★3 도달 타이밍
-- 기존 시뮬 인프라 사용: `godot/sim/`
+**옵션 A (권장)**: baseline.json 재촬영 + program.md 업데이트
+- 현 strategy naming으로 baseline 재측정 (다음 세션에서 delta 비교 가능하게)
+- program.md의 emotional arc 목표/strategy 목록 현 구현과 동기화
+- 작은 작업
 
 **옵션 B**: OBS-047 (S5-R14) ★3 캐스케이드 머지 레어 업그레이드 미지급 검증
-- GUT 테스트로 재현 시도
-- 핫픽스 가능성 높음
+- GUT 테스트로 재현 시도 → 핫픽스 가능성
 
-**옵션 C**: AI v3 (build path 연결)
+**옵션 C**: 거시 밸런스 autoresearch Phase
+- 거시 이슈 3건(weighted_score, mean WR, card_coverage, win_rate_band) 개선 목표
+- genome 재탐색 (적 CP 곡선 + enemy 스탯 튜닝)
+- 긴 세션 (autoresearch skill + Tier 0 정책 준수)
+
+**옵션 D**: AI v3 (build path 연결)
 - ai_build_path.gd → ai_agent.gd 연결 (plans/piped-jumping-unicorn.md)
-- 후속으로 AI 재탐색 가능
 
 ## 참고 파일
 
