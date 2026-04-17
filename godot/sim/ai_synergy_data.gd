@@ -40,16 +40,19 @@ const THEME_SYNERGY := {
 	"pr_transcend":  ["pr_molt", "pr_harvest", "pr_apex_hunt", "pr_swarm_sense"],
 	"pr_swarm_sense": ["pr_nest", "pr_queen", "pr_transcend"],
 	"pr_parasite":   ["pr_swarm_sense", "pr_nest", "pr_queen"],
-	"ml_barracks":   ["ml_academy", "ml_conscript", "ml_tactical"],
-	"ml_outpost":    ["ml_conscript", "ml_factory"],
-	"ml_academy":    ["ml_barracks", "ml_special_ops", "ml_command"],
-	"ml_conscript":  ["ml_outpost", "ml_factory"],
-	"ml_command":    ["ml_academy", "ml_barracks", "ml_special_ops"],
-	"ml_special_ops": ["ml_academy", "ml_tactical"],
-	"ml_factory":    ["ml_outpost", "ml_conscript"],
-	"ml_tactical":   ["ml_barracks", "ml_command", "ml_assault"],
-	"ml_assault":    ["ml_barracks", "ml_outpost", "ml_command"],
-	"ml_supply":     ["ml_barracks", "ml_outpost"],
+	# 재설계 (trace 012, 2026-04-16): 정예형(barracks→academy→tactical→special_ops)
+	# vs 물량형(conscript→outpost→assault→factory). ml_conscript↔ml_outpost 스왑.
+	# 공유: supply(T2), tactical(T3), factory(T4). 양쪽 캡스톤: command(T5).
+	"ml_barracks":   ["ml_academy", "ml_tactical", "ml_special_ops", "ml_command"],
+	"ml_conscript":  ["ml_outpost", "ml_assault", "ml_factory", "ml_command"],
+	"ml_outpost":    ["ml_conscript", "ml_assault", "ml_factory"],
+	"ml_academy":    ["ml_barracks", "ml_tactical", "ml_special_ops", "ml_command"],
+	"ml_supply":     ["ml_barracks", "ml_conscript", "ml_special_ops", "ml_assault"],
+	"ml_tactical":   ["ml_barracks", "ml_academy", "ml_special_ops", "ml_command"],
+	"ml_assault":    ["ml_conscript", "ml_outpost", "ml_factory", "ml_command"],
+	"ml_special_ops": ["ml_barracks", "ml_academy", "ml_tactical"],
+	"ml_factory":    ["ml_conscript", "ml_outpost", "ml_assault"],
+	"ml_command":    ["ml_academy", "ml_tactical", "ml_special_ops", "ml_assault"],
 }
 
 # Critical path cards per theme — essential infrastructure
@@ -57,7 +60,8 @@ const THEME_CRITICAL := {
 	Enums.CardTheme.STEAMPUNK: ["sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator", "sp_charger"],
 	Enums.CardTheme.DRUID: ["dr_cradle", "dr_origin", "dr_deep", "dr_wt_root"],
 	Enums.CardTheme.PREDATOR: ["pr_nest", "pr_farm", "pr_queen", "pr_molt"],
-	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_outpost", "ml_academy", "ml_conscript"],
+	# 재설계 후: 두 T1 분기(barracks/conscript) + 공유 supply + 공유 캡스톤 command
+	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_conscript", "ml_supply", "ml_command"],
 }
 
 # Position priority for board arrangement (1-90 scale, lower = leftmost)
@@ -118,7 +122,8 @@ const STRATEGY_CONFIG := {
 		"max_rerolls_base": 2,
 		"max_rerolls_late": 4,
 		"gold_reserve": 2,
-		"core_cards": ["ml_command", "ml_academy", "ml_special_ops"],
-		"capstone_cards": ["ml_command", "ml_assault"],
+		# 재설계: build_path.gd가 정예/물량 서브 감지. core는 path-independent 공유 인프라.
+		"core_cards": ["ml_supply", "ml_tactical", "ml_factory"],
+		"capstone_cards": ["ml_command", "ml_special_ops", "ml_assault"],
 	},
 }
