@@ -93,6 +93,10 @@
   - 3. _score_buy_military cross-chain (TR/CO 체인 양방향 +4) 추가
   - 4. _value_military enhanced_count 보너스 (assault/tactical, 1기당 +0.5 cap 20기)
   - 신규 테스트 4건, 902/902 GUT 통과
+- [x] AI 행동 트레이스 인프라 — 2026-04-18, commit 855a9bc.
+  - ai_tracer.gd + --trace-dir 플래그 + scripts/analyze_ai_trace.py
+  - 20-run 인사이트: `.claude/traces/ai_runs/insights-2026-04-18-baseline.md`
+  - **핵심 발견**: soft_druid/military T4/T5 capstone 구매 0건 — scoring 단계 문제
 - [x] 드루이드 AI drift 수정 — 2026-04-18, commit 5807f83.
   - P0: 유닛캡 페널티 재정의 (dr_world 자체만), TREE_THRESHOLDS 근접 보너스 추가
   - P1: DRUID_PAYOFF↔PRODUCER 시너지 교정, dr_world THEME_SYNERGY forest_depth 반영
