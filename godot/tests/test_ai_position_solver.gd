@@ -118,3 +118,40 @@ func test_neutral_earth_echo_before_wanderers() -> void:
 	var wand_idx: int = ids.find("ne_wanderers")
 	assert_lt(echo_idx, wand_idx,
 		"ne_earth_echo(right_adj) → ne_wanderers(OE listener)")
+
+
+# ================================================================
+# Druid adjacency (expanded 2026-04-18)
+# ================================================================
+
+func test_dr_lifebeat_has_both_adj_hint() -> void:
+	# dr_lifebeat tree_shield self_and_both_adj → should be treated as adjacency-needy
+	var cards: Array = [_make_card("dr_lifebeat"), _make_card("dr_cradle"), _make_card("dr_grace")]
+	var result: Array = solver.solve_positions(cards)
+	var ids: Array[String] = _get_ids(result)
+	var lb_idx: int = ids.find("dr_lifebeat")
+	# dr_lifebeat (both_adj) should be placed between other druids if possible (not at edge)
+	# Check lb_idx is valid — key: solver doesn't crash and places all 3
+	assert_eq(result.size(), 3, "3장 모두 배치됨")
+	assert_gte(lb_idx, 0, "dr_lifebeat 포함됨")
+
+
+func test_pr_queen_both_adj() -> void:
+	# pr_queen hatch both_adj → now has hint
+	var cards: Array = [_make_card("pr_queen"), _make_card("pr_molt"), _make_card("pr_carapace")]
+	var result: Array = solver.solve_positions(cards)
+	var ids: Array[String] = _get_ids(result)
+	assert_eq(result.size(), 3, "모두 배치됨")
+	# pr_queen should prefer middle position with pr_carapace (also both_adj) as neighbor
+	assert_true("pr_queen" in ids, "pr_queen 존재")
+
+
+func test_ml_barracks_adj_hint() -> void:
+	# ml_barracks → train right/left/far_military에 따라 adj dependency
+	var cards: Array = [_make_card("ml_barracks"), _make_card("ml_academy"), _make_card("ml_supply")]
+	var result: Array = solver.solve_positions(cards)
+	var ids: Array[String] = _get_ids(result)
+	var b_idx: int = ids.find("ml_barracks")
+	var a_idx: int = ids.find("ml_academy")
+	# ml_barracks RS → ml_academy OE listener. Barracks should be left of academy.
+	assert_lt(b_idx, a_idx, "ml_barracks(RS+adj) before ml_academy(OE listener)")

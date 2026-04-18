@@ -9,13 +9,34 @@ extends RefCounted
 # Static adjacency hints for theme-delegated cards (effects=[])
 # ================================================================
 
-# Cards whose theme system uses adjacency (not readable from effects array).
-# {card_id: {adj_type: "right"|"both", benefits: [card_ids that gain from adjacency]}}
+# Cards whose theme system uses adjacency (not readable from effects array,
+# since theme_system cards store effects in CardDB._theme_effects separately).
+# adj_type:
+#   "right" — spawns/enhances right neighbor only
+#   "both" — both neighbors (or ★별 right/left 혼합)
+#   "all" — all same-theme (spatial-agnostic, but central position helpful)
+# {card_id: {adj_type: ...}}
+# Source: data/cards/*.yaml target fields (2026-04-18 audit).
 const _THEME_ADJ_HINTS := {
-	"dr_cradle": {"adj_type": "both", "targets": "druid"},
-	"dr_origin": {"adj_type": "both", "targets": "druid"},
-	"dr_wt_root": {"adj_type": "all", "targets": "druid"},
-	"dr_world": {"adj_type": "all", "targets": "druid"},
+	# Druid
+	"dr_cradle":   {"adj_type": "both"},   # tree_add right_adj(★1)/both_adj(★2+)
+	"dr_origin":   {"adj_type": "both"},   # tree_absorb adj_druids, tree_breed both_adj_or_self
+	"dr_lifebeat": {"adj_type": "both"},   # tree_shield self_and_both_adj
+	"dr_wt_root":  {"adj_type": "all"},    # tree_distribute all_other_druid
+	"dr_world":    {"adj_type": "all"},    # tree_add all_other_druid, multiply_stats self
+	# Predator
+	"pr_nest":     {"adj_type": "both"},   # hatch right_adj(★1)/both_adj(★2+)
+	"pr_queen":    {"adj_type": "both"},   # hatch both_adj
+	"pr_carapace": {"adj_type": "both"},   # hatch right_adj(★1)/both_adj(★2+)
+	# Steampunk
+	"sp_assembly": {"adj_type": "both"},   # spawn both_adj/right_adj
+	"sp_workshop": {"adj_type": "both"},   # spawn both_adj
+	"sp_interest": {"adj_type": "both"},
+	"sp_line":     {"adj_type": "both"},
+	# Military (재설계 2026-04-16)
+	"ml_barracks":  {"adj_type": "both"},  # train right_adj(★1)/left_adj(★2+)/far_military(★3)
+	"ml_conscript": {"adj_type": "both"},  # conscript both_adj
+	"ml_outpost":   {"adj_type": "both"},  # conscript event_target_adj (OE — 인접 이벤트 카드에 붙음)
 }
 
 
@@ -120,7 +141,7 @@ func _analyze_card(card: CardInstance) -> Dictionary:
 		var hint: Dictionary = _THEME_ADJ_HINTS[cid]
 		match hint["adj_type"]:
 			"right": has_right_adj = true
-			"both": has_both_adj = true
+			"both", "all": has_both_adj = true  # "all" also benefits central placement
 
 	# Position score: lower = more left
 	var score := 50  # default middle
