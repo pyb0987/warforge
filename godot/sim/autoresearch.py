@@ -32,7 +32,7 @@ BEST_GENOME_PATH = "godot/sim/best_genome.json"
 TEMP_GENOME_PATH = "godot/sim/candidate_genome.json"
 
 # Validation constraints from program.md
-CP_RANGE = (0.5, 8.0)
+CP_RANGE = (0.5, 50.0)
 INCOME_RANGE = (3, 10)
 LEVELUP_RANGE = (2, 20)
 

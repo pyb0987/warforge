@@ -372,11 +372,11 @@ func get_ai_param(key: String) -> float:
 
 ## Validate genome constraints. Returns "" if valid, error message if not.
 func validate() -> String:
-	# 1. CP curve: monotonically increasing, range [0.5, 8.0]
+	# 1. CP curve: monotonically increasing, range [0.5, 50.0] (확대 2026-04-18, program.md § Genome 변수 참조)
 	for i in 15:
 		var v: float = enemy_cp_curve[i]
-		if v < 0.5 or v > 8.0:
-			return "enemy_cp_curve[%d] = %.2f out of range [0.5, 8.0]" % [i, v]
+		if v < 0.5 or v > 50.0:
+			return "enemy_cp_curve[%d] = %.2f out of range [0.5, 50.0]" % [i, v]
 		if i > 0 and enemy_cp_curve[i] < enemy_cp_curve[i - 1]:
 			return "enemy_cp_curve not monotonic: [%d]=%.2f < [%d]=%.2f" % [i, enemy_cp_curve[i], i - 1, enemy_cp_curve[i - 1]]
 
