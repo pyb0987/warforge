@@ -1,0 +1,7 @@
+{
+  "_comment": "Single source of truth for genome validator bounds. Read by autoresearch.py (Python) AND genome.gd (GDScript). Drift between them is a class of bug (see failures/002 precedent + 2026-04-18 iter3 40min waste). chmod 444 + hook protect. To change: chmod +w, edit, chmod 444, commit.",
+  "_references": ["godot/sim/program.md § Genome 변수 정의 + 허용 범위"],
+  "cp_range": [0.5, 50.0],
+  "income_range": [3, 10],
+  "levelup_range": [2, 20]
+}

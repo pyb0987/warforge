@@ -31,10 +31,14 @@ BASELINE_PATH = "godot/sim/baseline.json"
 BEST_GENOME_PATH = "godot/sim/best_genome.json"
 TEMP_GENOME_PATH = "godot/sim/candidate_genome.json"
 
-# Validation constraints from program.md
-CP_RANGE = (0.5, 50.0)
-INCOME_RANGE = (3, 10)
-LEVELUP_RANGE = (2, 20)
+# Validation bounds — single source: genome_bounds.json.
+# Do NOT hardcode here or in genome.gd. Drift caused 40min waste on 2026-04-18.
+_BOUNDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "genome_bounds.json")
+with open(_BOUNDS_PATH) as _f:
+    _BOUNDS = json.load(_f)
+CP_RANGE = tuple(_BOUNDS["cp_range"])
+INCOME_RANGE = tuple(_BOUNDS["income_range"])
+LEVELUP_RANGE = tuple(_BOUNDS["levelup_range"])
 
 
 def load_json(path):

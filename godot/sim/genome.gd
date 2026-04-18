@@ -370,23 +370,48 @@ func get_ai_param(key: String) -> float:
 # Validation
 # ============================================================
 
+## Cached bounds loaded from single source (genome_bounds.json).
+## Do NOT hardcode bounds — drift caused 40min waste on 2026-04-18.
+static var _BOUNDS_CACHE: Dictionary = {}
+
+static func _bounds() -> Dictionary:
+	if _BOUNDS_CACHE.is_empty():
+		var f: FileAccess = FileAccess.open("res://sim/genome_bounds.json", FileAccess.READ)
+		if f == null:
+			push_error("Genome: genome_bounds.json not found")
+			return {}
+		var txt: String = f.get_as_text()
+		var parsed: Variant = JSON.parse_string(txt)
+		if parsed is Dictionary:
+			_BOUNDS_CACHE = parsed
+	return _BOUNDS_CACHE
+
+
 ## Validate genome constraints. Returns "" if valid, error message if not.
 func validate() -> String:
-	# 1. CP curve: monotonically increasing, range [0.5, 50.0] (확대 2026-04-18, program.md § Genome 변수 참조)
+	var B: Dictionary = _bounds()
+	var cp_lo: float = float(B["cp_range"][0])
+	var cp_hi: float = float(B["cp_range"][1])
+	var in_lo: int = int(B["income_range"][0])
+	var in_hi: int = int(B["income_range"][1])
+	var lv_lo: int = int(B["levelup_range"][0])
+	var lv_hi: int = int(B["levelup_range"][1])
+
+	# 1. CP curve: monotonically increasing, range from genome_bounds.json
 	for i in 15:
 		var v: float = enemy_cp_curve[i]
-		if v < 0.5 or v > 50.0:
-			return "enemy_cp_curve[%d] = %.2f out of range [0.5, 50.0]" % [i, v]
+		if v < cp_lo or v > cp_hi:
+			return "enemy_cp_curve[%d] = %.2f out of range [%.2f, %.2f]" % [i, v, cp_lo, cp_hi]
 		if i > 0 and enemy_cp_curve[i] < enemy_cp_curve[i - 1]:
 			return "enemy_cp_curve not monotonic: [%d]=%.2f < [%d]=%.2f" % [i, enemy_cp_curve[i], i - 1, enemy_cp_curve[i - 1]]
 
-	# 2. Base income: monotonically increasing, range [3, 10]
+	# 2. Base income: monotonically increasing, range from genome_bounds.json
 	var inc: Array = economy.get("base_income", [])
 	if inc.size() == 15:
 		for i in 15:
 			var v: int = int(inc[i])
-			if v < 3 or v > 10:
-				return "base_income[%d] = %d out of range [3, 10]" % [i, v]
+			if v < in_lo or v > in_hi:
+				return "base_income[%d] = %d out of range [%d, %d]" % [i, v, in_lo, in_hi]
 			if i > 0 and int(inc[i]) < int(inc[i - 1]):
 				return "base_income not monotonic at index %d" % i
 
@@ -402,13 +427,13 @@ func validate() -> String:
 	if mi < ip:
 		return "max_interest (%d) must be >= interest_per_5g (%d)" % [mi, ip]
 
-	# 5. Levelup cost: monotonically increasing, range [2, 20]
+	# 5. Levelup cost: monotonically increasing, range from genome_bounds.json
 	var lc: Dictionary = economy.get("levelup_cost", DEFAULT_LEVELUP_COST)
 	var prev_cost := 0
 	for lv in [2, 3, 4, 5, 6]:
 		var c: int = lc.get(lv, 99)
-		if c < 2 or c > 20:
-			return "levelup_cost[%d] = %d out of range [2, 20]" % [lv, c]
+		if c < lv_lo or c > lv_hi:
+			return "levelup_cost[%d] = %d out of range [%d, %d]" % [lv, c, lv_lo, lv_hi]
 		if c <= prev_cost:
 			return "levelup_cost not monotonic: lv%d (%d) <= lv%d (%d)" % [lv, c, lv - 1, prev_cost]
 		prev_cost = c

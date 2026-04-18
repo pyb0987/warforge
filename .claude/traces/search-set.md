@@ -24,6 +24,25 @@ last_updated: "2026-04-18"
 - **ref**: traces/failures/002-evaluator-win-rate-band-dead-zone.md (2회 재발: 2026-04-05 cliff→gaussian, 2026-04-18 narrow σ 0.05→0.25)
 - **status**: regression guard (2026-04-18 verify 보강)
 
+### SS-007: genome bound drift 방지 (autoresearch.py ↔ genome.gd)
+- **증상**: 같은 bound이 Python 코드와 GDScript validator에 독립 하드코딩돼 drift 발생 (2026-04-18 CP_RANGE 40분 낭비 사례)
+- **verify**: `python3 -c "
+import re, json, sys
+with open('/Users/fainders/personal/chain-army/godot/sim/genome_bounds.json') as f: b=json.load(f)
+py=open('/Users/fainders/personal/chain-army/godot/sim/autoresearch.py').read()
+gd=open('/Users/fainders/personal/chain-army/godot/sim/genome.gd').read()
+fails=[]
+# Python side must use json load, not hardcoded tuples
+for name in ['CP_RANGE','INCOME_RANGE','LEVELUP_RANGE']:
+    if re.search(name+r'\s*=\s*\(\s*[0-9.]+\s*,\s*[0-9.]+\s*\)', py):
+        fails.append(('py hardcoded', name))
+# GDScript side must use _bounds() helper, not literal values in validate()
+if re.search(r'v\s*<\s*0\.5\s+or\s+v\s*>\s*[0-9.]+', gd):
+    fails.append(('gd hardcoded cp', 'literal'))
+print('FAIL:',fails) if fails else print('PASS: bounds via single source')"`
+- **ref**: traces/failures/007-genome-bound-drift.md (TBD if created), commit 0847506
+- **status**: active (2026-04-19 신설)
+
 ### SS-006: max_activations 설계↔코드 불일치 검증
 - **증상**: 설계 문서에 상한(1~3회)이 명시된 카드가 코드에서 -1(무제한)로 등록
 - **verify**: `cd /Users/fainders/personal/chain-army && python3 -c "import re; t=open('godot/core/data/card_db.gd').read(); checks=[('pr_molt',2),('pr_harvest',3),('pr_carapace',2),('ml_academy',2),('ml_conscript',1)]; fails=[c for c,v in checks if not re.search(c+r'.*max_activations.*'+str(v), t, re.DOTALL)]; print('FAIL: max_act mismatch:', fails) if fails else print('PASS: all max_activations correct')"`
