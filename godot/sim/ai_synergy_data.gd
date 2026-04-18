@@ -17,6 +17,12 @@ const CHAIN_PAIRS := {
 	"ne_mutant_adapt":   ["ne_wanderers", "ne_mana_crystal"],
 	"ne_mana_crystal":   ["ne_wanderers"],
 	"ne_ancient_catalyst": ["ne_mutant_adapt"],
+	# 군대 RS→OE 체인 (trace 012 재설계 후):
+	#   train: action → TR 이벤트 → ml_academy listen
+	#   conscript: action → CO 이벤트 → ml_outpost, ml_factory listen
+	"ml_barracks":  ["ml_academy"],
+	"ml_command":   ["ml_academy"],
+	"ml_conscript": ["ml_outpost", "ml_factory"],
 }
 
 # Theme-internal synergy (Layer2 systems)
