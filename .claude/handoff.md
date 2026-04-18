@@ -1,5 +1,11 @@
 ## Status: paused
-## Last completed: 설계문서 YAML 중복 정리 (2026-04-18). cards-{druid,neutral,predator,steampunk}.md에서 YAML 중복 라인(구성/태그/YAML pointer) 135줄 제거. 배치 의도/체인 연결/강화 과다 해소 노트 등 설계 narrative는 전면 보존.
+## Last completed: 군대 AI drift 수정 + CHAIN_PAIRS 추가 (2026-04-18). 4 commits (125698d, dfb8f6d, b245482, b414b3c).
+- ai_theme_scorer: RANK_THRESHOLDS R3/5/8 → R4/R10 통일, TRAINING 카드 스왑 반영
+- ai_synergy_data: THEME_SYNERGY/CRITICAL/STRATEGY 군대 부분 재작성, CHAIN_PAIRS 군대 체인 추가
+- ai_build_path: military_elite/mass paths 재설계 반영 (branch=barracks vs conscript)
+- 4-seed sim: weighted_score 0.4529→0.4545, soft_military 0.463±0.096 (변동 noise 범위)
+
+## 이전 완료: 설계문서 YAML 중복 정리 (2026-04-18, df83fd1).
 
 ## 이전 완료: baseline.json 재촬영 + program.md 동기화 + OBS-047 GUT 커버리지 검증 (2026-04-18).
 
@@ -80,8 +86,14 @@
 - [ ] OBS-025 (S2-R11): 후반 빌드 페이즈 빈 턴 반복 — 빌드 페이즈 자동 단축 검토
 
 ### AI 관련
-- [ ] ai_build_path.gd → ai_agent.gd 연결 (plan: piped-jumping-unicorn.md)
-- [ ] AI v3 (build path 연결) 후 genome 재탐색
+- [x] ai_build_path.gd → ai_agent.gd 연결 (이미 9c6c8a4에서 완료, 확인 2026-04-18)
+- [x] 군대 AI drift 수정 (4 commits, 2026-04-18)
+- [ ] **군대 AI 추가 개선** (priority 순, 다음 세션):
+  - 2. POSITION_PRIORITY 재조정 (재설계 배치 의도 반영, conscript→outpost 체인 순서)
+  - 3. _score_buy_military 확장 (factory 보유→CO emitter 우선 등 cross-bonus)
+  - 4. enhanced_count value bonus (assault/tactical이 enhanced 유닛 활용 평가)
+- [ ] 다른 테마 AI drift 점검 (드루이드 32.5%, soft_steampunk 51% — 동일 4-레이어 점검)
+- [ ] AI 안정화 후 genome 재탐색
 - [ ] Tier B multiplicative 파라미터 — 비군대 CP 격차 해소
 - [ ] starting_resources mutator 구현
 
