@@ -181,6 +181,40 @@ def mutate_cp_curve(genome, strength=0.15):
     return g
 
 
+def mutate_cp_curve_geometric(genome, strength=0.15):
+    """Mutate CP curve in ratio (compound growth) space.
+
+    매 라운드 개별 변이 + monotonic clamp 방식(mutate_cp_curve)은 인접 라운드를
+    같은 값으로 끌어당기는 plateau artifact를 만듭니다. 이 geometric 변이는
+    14개 성장률(cp[i]/cp[i-1])을 변수로 탐색하여 SC-style 복리 성장 구조를 보존.
+
+    - R1은 [0.5, 2.0] 앵커로 유지 (여유 구간 정체성)
+    - 각 ratio >= 1.0 (단조성 자연 보존)
+    - 각 ratio <= 3.0 (라운드당 3배 이하 — SC 레퍼런스 130배/14R => 평균 ~1.4배)
+    - 상한 clamp는 CP curve upper만 적용 (monotonic은 이미 보장)
+    """
+    g = copy.deepcopy(genome)
+    cp = list(g["enemy_cp_curve"])
+    # Extract 14 growth ratios
+    ratios = [cp[i] / max(cp[i-1], 1e-6) for i in range(1, 15)]
+    # Perturb each multiplicatively, clamp [1.0, 3.0]
+    new_ratios = []
+    for r in ratios:
+        new_r = r * (1.0 + strength * random.uniform(-1, 1))
+        new_r = max(1.0, min(3.0, new_r))
+        new_ratios.append(new_r)
+    # R1 anchor — smaller strength, range [0.5, 2.0]
+    new_r1 = cp[0] * (1.0 + strength * 0.5 * random.uniform(-1, 1))
+    new_r1 = max(CP_RANGE[0], min(2.0, new_r1))
+    # Reconstruct with upper clamp
+    new_cp = [new_r1]
+    for r in new_ratios:
+        nxt = min(new_cp[-1] * r, CP_RANGE[1])
+        new_cp.append(nxt)
+    g["enemy_cp_curve"] = [round(v, 3) for v in new_cp]
+    return g
+
+
 def mutate_economy(genome, strength=0.15):
     """Mutate economy parameters."""
     g = copy.deepcopy(genome)
@@ -390,7 +424,7 @@ def mutate_card_effects(genome, strength=0.15):
 
 
 PHASE_MUTATORS = {
-    1: [("cp_curve", mutate_cp_curve), ("economy", mutate_economy)],
+    1: [("cp_curve_geom", mutate_cp_curve_geometric), ("economy", mutate_economy)],
     2: [("shop_tiers", mutate_shop_tiers)],
     3: [("enemy_comp", mutate_enemy_comp)],
     4: [("activation_caps", mutate_activation_caps), ("boss_scaling", mutate_boss_scaling)],
