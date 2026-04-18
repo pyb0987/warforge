@@ -100,7 +100,10 @@
 - [x] **has_bench_space() 구조 버그 수정** — 2026-04-18, commit bd897f1.
   - 원인: _try_buy_best가 board+bench 빈칸을 체크했지만 shop은 bench만 사용 → 58% 구매 실패
   - 효과: predator 70→85%, aggressive 65→80%, steampunk 45→55% / merges 2x
-  - soft_druid만 25% 변화 없음 — 별도 구조 문제
+- [x] **position_solver _THEME_ADJ_HINTS 확장** — 2026-04-18, commit 260a93c.
+  - YAML target 감사 → theme_system 12장 추가 (druid/predator/steampunk/military)
+  - 'all' adj_type fallthrough 버그 수정
+  - **soft_druid WR 25→45% (+20%p), R15 42→82% (+40%p)**
 - [x] 드루이드 AI drift 수정 — 2026-04-18, commit 5807f83.
   - P0: 유닛캡 페널티 재정의 (dr_world 자체만), TREE_THRESHOLDS 근접 보너스 추가
   - P1: DRUID_PAYOFF↔PRODUCER 시너지 교정, dr_world THEME_SYNERGY forest_depth 반영
