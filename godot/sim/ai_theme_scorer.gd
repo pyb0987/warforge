@@ -43,6 +43,17 @@ const MILITARY_TRAINING_CARDS := ["ml_barracks", "ml_academy", "ml_command"]
 # 앰프: 훈련된 유닛의 가치를 증폭(rank_buff로 rank 스케일링, enhance_convert로 강화 전환)
 const MILITARY_TRAINING_AMPLIFIERS := ["ml_tactical", "ml_academy"]
 
+# --- CHAIN_PAIRS 교차 보너스 (ai_synergy_data.CHAIN_PAIRS 군대 부분 반영) ---
+# TR emitter (round start에 TR 이벤트 방출) → ml_academy listener
+const MILITARY_TR_EMITTERS := ["ml_barracks", "ml_command"]
+const MILITARY_TR_LISTENERS := ["ml_academy"]
+# CO emitter (round start에 CO 이벤트 방출) → outpost/factory listener
+const MILITARY_CO_EMITTERS := ["ml_conscript"]
+const MILITARY_CO_LISTENERS := ["ml_outpost", "ml_factory"]
+
+# --- Enhanced 유닛 활용 카드 (assault: swarm_buff 가중치, tactical: enhanced shield) ---
+const MILITARY_ENHANCED_CONSUMERS := ["ml_assault", "ml_tactical"]
+
 # --- 포식종 유닛캡 카드 ---
 const PREDATOR_LOW_UNIT_CARDS := ["pr_apex_hunt"]
 const PREDATOR_LOW_UNIT_CAP := 5
@@ -92,7 +103,7 @@ func card_value_bonus(card: CardInstance, board_cards: Array, genome: RefCounted
 		Enums.CardTheme.DRUID:
 			bonus += _value_druid(card, genome)
 		Enums.CardTheme.MILITARY:
-			bonus += _value_military(card, genome)
+			bonus += _value_military(card, board_cards, genome)
 		Enums.CardTheme.STEAMPUNK:
 			bonus += _value_steampunk(card, genome)
 		Enums.CardTheme.PREDATOR:
@@ -158,7 +169,7 @@ func _score_buy_druid(card_id: String, board_cards: Array, genome: RefCounted) -
 # 군대
 # ================================================================
 
-func _value_military(card: CardInstance, genome: RefCounted) -> float:
+func _value_military(card: CardInstance, board_cards: Array, genome: RefCounted) -> float:
 	var bonus := 0.0
 	var rank: int = card.theme_state.get("rank", 0)
 	var rank_val: float = _p(genome, "rank_value_per", 3.0)
@@ -166,6 +177,13 @@ func _value_military(card: CardInstance, genome: RefCounted) -> float:
 
 	# 랭크 축적 가치
 	bonus += rank * rank_val
+
+	# Enhanced 유닛 활용 카드(assault/tactical): 보드의 강화 유닛 수에 비례해 가치↑.
+	# 근거: ml_assault swarm_buff enhanced_weight, ml_tactical enhanced shield bonus.
+	if card.template_id in MILITARY_ENHANCED_CONSUMERS:
+		var enh_total: int = _count_enhanced_units(board_cards)
+		# cap 20기 기준 선형 스케일: 20기 = +10 가치. 1기당 +0.5.
+		bonus += min(enh_total, 20) * 0.5
 
 	# 임계 근접 보너스
 	var cid: String = card.template_id
@@ -216,7 +234,53 @@ func _score_buy_military(card_id: String, board_cards: Array, genome: RefCounted
 		if ct == Enums.CardTheme.MILITARY:
 			bonus += 3.0  # ml_command가 모든 군대 카드를 트레이닝
 
+	# 크로스 체인 보너스 (CHAIN_PAIRS 완성 유도)
+	var board_ids: Array[String] = []
+	for c in board_cards:
+		if c is CardInstance:
+			board_ids.append(c.template_id)
+
+	# TR 체인: listener(academy) 보유 시 emitter(barracks/command) 구매 ↑,
+	#          emitter 보유 & listener 없음 시 listener 구매 ↑
+	var has_tr_listener: bool = _any_in(board_ids, MILITARY_TR_LISTENERS)
+	var has_tr_emitter: bool = _any_in(board_ids, MILITARY_TR_EMITTERS)
+	if has_tr_listener and card_id in MILITARY_TR_EMITTERS:
+		bonus += 4.0
+	if has_tr_emitter and not has_tr_listener and card_id in MILITARY_TR_LISTENERS:
+		bonus += 4.0
+
+	# CO 체인: listener(outpost/factory) 보유 시 emitter(conscript) 구매 ↑,
+	#          emitter 보유 & listener 없음 시 listener 구매 ↑
+	var has_co_listener: bool = _any_in(board_ids, MILITARY_CO_LISTENERS)
+	var has_co_emitter: bool = _any_in(board_ids, MILITARY_CO_EMITTERS)
+	if has_co_listener and card_id in MILITARY_CO_EMITTERS:
+		bonus += 4.0
+	if has_co_emitter and not has_co_listener and card_id in MILITARY_CO_LISTENERS:
+		bonus += 4.0
+
 	return bonus
+
+
+# ================================================================
+# 군대 헬퍼
+# ================================================================
+
+func _count_enhanced_units(board_cards: Array) -> int:
+	var total := 0
+	for c in board_cards:
+		if c is CardInstance:
+			for s in c.stacks:
+				var ut_tags: PackedStringArray = s["unit_type"].get("tags", PackedStringArray())
+				if "enhanced" in ut_tags:
+					total += s["count"]
+	return total
+
+
+func _any_in(ids: Array[String], targets: Array) -> bool:
+	for t in targets:
+		if t in ids:
+			return true
+	return false
 
 
 # ================================================================

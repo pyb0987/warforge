@@ -193,3 +193,86 @@ func test_military_training_synergy() -> void:
 	var bonus_without: float = scorer.score_buy_bonus("ml_barracks", tmpl, Enums.CardTheme.MILITARY, board_without, genome)
 
 	assert_gt(bonus_with, bonus_without, "ml_academy 보유 시 트레이닝 카드 구매 보너스")
+
+
+# ================================================================
+# score_buy_bonus — 크로스 체인 보너스 (CHAIN_PAIRS 기반)
+# ================================================================
+
+func test_military_factory_prefers_conscript_emitter() -> void:
+	var scorer := ThemeScorerScript.new()
+	var genome := _make_genome()
+
+	# ml_factory는 CO 이벤트 listener. 보드에 factory가 있으면 CO emitter(ml_conscript) 구매 우선.
+	var board_with_factory: Array = [_make_card("ml_factory", Enums.CardTheme.MILITARY, 4)]
+	var board_neutral: Array = [_make_card("ml_supply", Enums.CardTheme.MILITARY, 2)]
+	var tmpl := {"id": "ml_conscript", "theme": Enums.CardTheme.MILITARY, "tier": 1}
+
+	var with_f: float = scorer.score_buy_bonus("ml_conscript", tmpl, Enums.CardTheme.MILITARY, board_with_factory, genome)
+	var without_f: float = scorer.score_buy_bonus("ml_conscript", tmpl, Enums.CardTheme.MILITARY, board_neutral, genome)
+
+	assert_gt(with_f, without_f, "ml_factory 보유 시 ml_conscript 구매 보너스 (CO 체인 완성)")
+
+
+func test_military_emitter_prefers_listener() -> void:
+	var scorer := ThemeScorerScript.new()
+	var genome := _make_genome()
+
+	# 보드에 ml_barracks(TR emitter)만 있을 때 ml_academy(TR listener) 구매에 보너스.
+	var board_emitter_only: Array = [_make_card("ml_barracks", Enums.CardTheme.MILITARY, 1)]
+	var board_neutral: Array = [_make_card("ml_supply", Enums.CardTheme.MILITARY, 2)]
+	var tmpl := {"id": "ml_academy", "theme": Enums.CardTheme.MILITARY, "tier": 2}
+
+	var with_e: float = scorer.score_buy_bonus("ml_academy", tmpl, Enums.CardTheme.MILITARY, board_emitter_only, genome)
+	var without_e: float = scorer.score_buy_bonus("ml_academy", tmpl, Enums.CardTheme.MILITARY, board_neutral, genome)
+
+	assert_gt(with_e, without_e, "ml_barracks(TR emitter) 보유 시 ml_academy 구매 보너스")
+
+
+# ================================================================
+# card_value_bonus — enhanced_count 기반 ml_assault/ml_tactical 가치
+# ================================================================
+
+func _make_military_card_with_enhanced(card_id: String, enhanced_units: int) -> CardInstance:
+	var card := _make_card(card_id, Enums.CardTheme.MILITARY, 3)
+	card.theme_state["rank"] = 0
+	card.theme_state["rank_triggers"] = {}
+	if enhanced_units > 0:
+		card.stacks = [{
+			"unit_type": {"id": "ml_recruit_enhanced", "tags": PackedStringArray(["enhanced"])},
+			"count": enhanced_units,
+			"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
+			"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0,
+		}]
+	return card
+
+
+func test_military_assault_gains_value_from_enhanced_units() -> void:
+	var scorer := ThemeScorerScript.new()
+	var assault := _make_card_with_rank("ml_assault", 0)
+	var genome := _make_genome()
+
+	# 빈 보드 vs enhanced 유닛 많은 보드
+	var board_empty: Array = [assault]
+	var enhanced_provider := _make_military_card_with_enhanced("ml_conscript", 6)
+	var board_with_enhanced: Array = [assault, enhanced_provider]
+
+	var bonus_empty: float = scorer.card_value_bonus(assault, board_empty, genome)
+	var bonus_full: float = scorer.card_value_bonus(assault, board_with_enhanced, genome)
+
+	assert_gt(bonus_full, bonus_empty, "보드에 enhanced 유닛이 많을수록 ml_assault 가치 상승")
+
+
+func test_military_non_assault_unaffected_by_enhanced() -> void:
+	var scorer := ThemeScorerScript.new()
+	var supply := _make_card_with_rank("ml_supply", 0)  # assault/tactical 아님
+	var genome := _make_genome()
+
+	var board_empty: Array = [supply]
+	var enhanced_provider := _make_military_card_with_enhanced("ml_conscript", 6)
+	var board_with_enhanced: Array = [supply, enhanced_provider]
+
+	var bonus_empty: float = scorer.card_value_bonus(supply, board_empty, genome)
+	var bonus_full: float = scorer.card_value_bonus(supply, board_with_enhanced, genome)
+
+	assert_almost_eq(bonus_full, bonus_empty, 0.01, "assault/tactical 아닌 군대 카드는 enhanced 보너스 없음")
