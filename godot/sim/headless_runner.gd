@@ -7,6 +7,11 @@ extends RefCounted
 var _genome: Genome
 var _strategy: String
 var _seed: int
+var _tracer: RefCounted = null  # AITracer (optional)
+
+
+func set_tracer(tracer: RefCounted) -> void:
+	_tracer = tracer
 
 ## Collected metrics
 var _round_data: Array = []       # Array[Dictionary] per round
@@ -68,6 +73,8 @@ func run() -> Dictionary:
 	shop.setup(state, rng, _genome)
 
 	var ai := AIAgent.new(_strategy, rng, _genome)
+	if _tracer != null:
+		ai.set_tracer(_tracer)
 	var ai_reward := _AIRewardScript.new()
 
 	# Track purchases and merges
@@ -78,6 +85,9 @@ func run() -> Dictionary:
 			"card_id": card.get_base_id(),
 			"new_star": new_star,
 		})
+		if _tracer != null and _tracer.enabled:
+			_tracer.emit({"t": "merge", "round": state.round_num,
+				"card_id": card.get_base_id(), "old_star": old_star, "new_star": new_star})
 		# ★合성 bonus upgrade: ★1→★2 = rare, ★2→★3 = epic
 		var bonus_rarity := -1
 		if old_star == 1 and new_star == 2:
@@ -220,6 +230,11 @@ func run() -> Dictionary:
 		# Post-combat
 		var won: bool = combat_result["player_won"]
 		ai.record_battle_result(won)
+		if _tracer != null and _tracer.enabled:
+			_tracer.emit({"t": "battle", "round": round_num, "won": won,
+				"hp_after": state.hp,
+				"ally_survived": combat_result["ally_survived"],
+				"enemy_survived": combat_result["enemy_survived"]})
 		var pc_result := chain_engine.process_post_combat(active_board, won)
 		state.gold += pc_result["gold"]
 		state.terazin += pc_result["terazin"]

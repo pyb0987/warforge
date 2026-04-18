@@ -44,6 +44,13 @@ const _ThemeScorerScript = preload("res://sim/ai_theme_scorer.gd")
 var _theme_scorer = _ThemeScorerScript.new()
 # Helper utilities (state queries, extracted for file size).
 const _H = preload("res://sim/ai_helpers.gd")
+
+# Optional decision tracer (no-op unless set via set_tracer).
+# Typed as RefCounted to avoid class_name registration timing issues.
+var _tracer: RefCounted = null
+
+func set_tracer(t: RefCounted) -> void:
+	_tracer = t
 var _CHAIN_PAIRS: Dictionary:
 	get: return _Syn.CHAIN_PAIRS
 var _THEME_SYNERGY: Dictionary:
@@ -93,6 +100,20 @@ func _get_preferred_theme(state: GameState) -> int:
 
 
 func play_build_phase(state: GameState, shop: RefCounted) -> void:
+	if _tracer != null and _tracer.enabled:
+		_tracer.emit({
+			"t": "round_start",
+			"round": state.round_num,
+			"gold": state.gold,
+			"terazin": state.terazin,
+			"hp": state.hp,
+			"shop_level": state.shop_level,
+			"strategy": strategy,
+			"preferred_theme": _get_preferred_theme(state),
+			"board": _H.get_board_ids(state).keys(),
+			"bench": _bench_ids(state),
+		})
+
 	if state.hp <= 10 and strategy == "economy":
 		_play_aggressive(state, shop)
 	else:
@@ -118,6 +139,27 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 		_transition_board(state)
 
 	_arrange_board(state)
+
+	if _tracer != null and _tracer.enabled:
+		var board_ids_end: Dictionary = _H.get_board_ids(state)
+		var path := _build_path.detect_build_path(strategy, board_ids_end)
+		_tracer.emit({
+			"t": "round_end",
+			"round": state.round_num,
+			"gold": state.gold,
+			"terazin": state.terazin,
+			"board": board_ids_end.keys(),
+			"bench": _bench_ids(state),
+			"detected_path": path.get("id", "") if not path.is_empty() else "",
+		})
+
+
+func _bench_ids(state: GameState) -> Array:
+	var ids: Array = []
+	for c in state.bench:
+		if c != null:
+			ids.append((c as CardInstance).get_base_id())
+	return ids
 
 
 # --- Genome signal: enemy pressure → adaptive spending ---
@@ -401,6 +443,9 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 		if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + gold_reserve:
 			if shop.reroll():
 				rerolls += 1
+				if _tracer != null and _tracer.enabled:
+					_tracer.emit({"t": "reroll", "round": state.round_num,
+						"n": rerolls, "budget": max_rerolls, "gold_after": state.gold})
 				continue
 		break
 
@@ -454,6 +499,8 @@ func _play_adaptive(state: GameState, shop: RefCounted) -> void:
 func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> bool:
 	var best_slot := -1
 	var best_score := -999.0
+	var evals: Array = []  # For tracer: [{id, score, cost, affordable}]
+	var trace_on: bool = _tracer != null and _tracer.enabled
 
 	for i in shop.offered_ids.size():
 		var card_id: String = shop.offered_ids[i]
@@ -462,29 +509,49 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 
 		var tmpl: Dictionary = CardDB.get_template(card_id)
 		var cost: int = tmpl.get("cost", 99)
-		if cost > state.gold:
-			continue
-
-		var score := _score_card(card_id, tmpl, preferred_theme, state)
-		if score > best_score:
-			best_score = score
-			best_slot = i
+		var affordable: bool = cost <= state.gold
+		if affordable:
+			var score := _score_card(card_id, tmpl, preferred_theme, state)
+			if trace_on:
+				evals.append({"id": card_id, "score": round(score * 100) / 100.0, "cost": cost, "affordable": true})
+			if score > best_score:
+				best_score = score
+				best_slot = i
+		elif trace_on:
+			evals.append({"id": card_id, "score": null, "cost": cost, "affordable": false})
 
 	if best_slot < 0:
+		if trace_on:
+			_tracer.emit({"t": "buy_skip", "round": state.round_num, "gold": state.gold,
+				"reason": "nothing_affordable", "offers": evals})
 		return false
 
 	if best_score < -3.0:
+		if trace_on:
+			_tracer.emit({"t": "buy_skip", "round": state.round_num, "gold": state.gold,
+				"reason": "below_threshold", "best_score": best_score, "offers": evals})
 		return false
 
 	if not _H.has_space(state):
 		if best_score >= 15.0:
 			var sold := _sell_weakest_for_upgrade(state)
 			if not sold:
+				if trace_on:
+					_tracer.emit({"t": "buy_skip", "round": state.round_num,
+						"reason": "no_space_no_sell", "offers": evals})
 				return false
 		else:
+			if trace_on:
+				_tracer.emit({"t": "buy_skip", "round": state.round_num,
+					"reason": "no_space", "best_score": best_score, "offers": evals})
 			return false
 
-	return shop.try_purchase(best_slot)
+	var chosen_id: String = shop.offered_ids[best_slot]
+	var result: bool = shop.try_purchase(best_slot)
+	if trace_on:
+		_tracer.emit({"t": "buy", "round": state.round_num, "card_id": chosen_id,
+			"score": round(best_score * 100) / 100.0, "success": result, "offers": evals})
+	return result
 
 
 ## Score a card for purchase priority.

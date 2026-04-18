@@ -23,6 +23,12 @@ func _run_batch() -> void:
 	var genome_path: String = args.get("genome", "res://sim/ai_research/ai_best_genome.json")
 	var runs_per_ai: int = args.get("runs", 20)
 	var base_seed: int = args.get("seed", 42)
+	var trace_dir: String = args.get("trace_dir", "")
+	var _TracerClass = load("res://sim/ai_tracer.gd") if trace_dir != "" else null
+
+	if trace_dir != "":
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(trace_dir))
+		printerr("Tracing enabled → %s" % trace_dir)
 
 	var genome = _GenomeClass.load_file(genome_path)
 	if genome == null:
@@ -43,8 +49,16 @@ func _run_batch() -> void:
 		for i in runs_per_ai:
 			var seed_val: int = base_seed + hash(strat) + i
 			var runner = _RunnerClass.new(genome, strat, seed_val)
+			var tracer = null
+			if _TracerClass != null:
+				tracer = _TracerClass.new()
+				tracer.enabled = true
+				runner.set_tracer(tracer)
 			var result: Dictionary = runner.run()
 			results.append(result)
+			if tracer != null:
+				var out_path: String = "%s/%s_%d.jsonl" % [trace_dir, strat, seed_val]
+				tracer.flush_to_file(out_path)
 			done += 1
 			if done % 10 == 0:
 				printerr("  Progress: %d/%d (%.0f%%)" % [done, total, float(done) / total * 100])
@@ -137,4 +151,6 @@ func _parse_args() -> Dictionary:
 			result["seed"] = arg.substr(7).to_int()
 		elif arg.begins_with("--baseline="):
 			result["baseline"] = arg.substr(11)
+		elif arg.begins_with("--trace-dir="):
+			result["trace_dir"] = arg.substr(12)
 	return result
