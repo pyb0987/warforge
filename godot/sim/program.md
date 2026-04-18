@@ -20,7 +20,7 @@
 
 ### weighted_score 목표
 
-현재 베이스라인: 0.4458 (2026-04-18 v2 재촬영, AI drift 수정 8건 반영: has_bench_space, position_solver 확장, adaptive R1 가드, 군대 strict_anti + cross-chain + enhanced_count, 드루이드 drift).
+현재 베이스라인: 0.4560 (2026-04-18 v3 재촬영, evaluator WIN_RATE_SIGMA 0.05→0.25 교정 후 — failures/002 2회 재발 흡수. win_rate_band 가우시안이 관측 WR span을 커버하도록 σ 확대).
 목표: 0.65+.
 ADOPT 기준: 이전 best 대비 weighted_score가 상승하면 ADOPT.
 게임 클리어율 목표: 5-10% (15R 생존).
@@ -30,7 +30,7 @@ ADOPT 기준: 이전 best 대비 weighted_score가 상승하면 ADOPT.
 구 네이밍(`*_focused`, `hybrid`)은 2026-04 전환으로 폐기됨.
 
 **현 스냅샷 주요 이슈** (baseline.json v2, 2026-04-18):
-- mean WR 67.9% (목표 5-10% 대폭 초과 — AI 안정화 후 게임 난도 부족 심화)
+- mean WR 75% (목표 5-10% 대폭 초과 — v3 evaluator에서 win_rate_band gradient 복원으로 이제 탐색 신호 있음)
 - card_coverage 28.1% (목표 70%+ 미달, bench_space 수정으로 15→28% 개선)
 - win_rate_band = 0 (라운드별 감정 곡선 붕괴)
 - emotional_arc 0.326 (WR 상향으로 0.389 → 0.326 악화)

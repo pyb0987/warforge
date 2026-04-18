@@ -21,7 +21,7 @@ const WEIGHTS := {
 ## Target GAME clear rate (not per-round). Gaussian gradient.
 ## 7.5% center = midpoint of 5-10% desired band.
 const WIN_RATE_TARGET := 0.075
-const WIN_RATE_SIGMA := 0.05  # Gaussian width — 5%→0.89, 10%→0.89, 0%→0.32, 20%→0.08
+const WIN_RATE_SIGMA := 0.25  # Gaussian width — dist 0.05→0.98, 0.10→0.92, 0.25→0.61, 0.50→0.14, 0.70→0.02. failures/002 재발 방지: 관측 WR span(0~1)을 커버해야 gradient 유지.
 
 ## CP margin gate for board_utilization.
 const MARGIN_LO := 0.2

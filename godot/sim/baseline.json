@@ -1,10 +1,10 @@
 {
-  "activation_utilization": 0.962580659416671,
-  "board_utilization": 0.632738702385981,
-  "card_coverage": 0.281428571428571,
-  "dominance_moment": 0.953072068557023,
-  "emotional_arc": 0.325706845238095,
-  "loss_resilience": 0.745119047619048,
+  "activation_utilization": 0.990067789574709,
+  "board_utilization": 0.629978670723656,
+  "card_coverage": 0.279285714285714,
+  "dominance_moment": 0.961616717484406,
+  "emotional_arc": 0.300181029180591,
+  "loss_resilience": 0.786428571428572,
   "metadata": {
     "base_seed": 42,
     "genome_path": "res://sim/best_genome.json",
@@ -22,50 +22,50 @@
   },
   "strategy_stats": {
     "adaptive": {
-      "avg_hp": 19.4,
+      "avg_hp": 22.45,
       "total": 20,
-      "win_rate": 0.75,
-      "wins": 15
+      "win_rate": 0.85,
+      "wins": 17
     },
     "aggressive": {
-      "avg_hp": 19.4,
+      "avg_hp": 23.7,
       "total": 20,
-      "win_rate": 0.75,
-      "wins": 15
+      "win_rate": 0.85,
+      "wins": 17
     },
     "economy": {
-      "avg_hp": 10.45,
+      "avg_hp": 19.85,
       "total": 20,
-      "win_rate": 0.6,
-      "wins": 12
+      "win_rate": 0.8,
+      "wins": 16
     },
     "soft_druid": {
-      "avg_hp": 7.25,
+      "avg_hp": 4.8,
       "total": 20,
       "win_rate": 0.5,
       "wins": 10
     },
     "soft_military": {
-      "avg_hp": 10.25,
+      "avg_hp": 8.45,
       "total": 20,
-      "win_rate": 0.6,
-      "wins": 12
+      "win_rate": 0.55,
+      "wins": 11
     },
     "soft_predator": {
-      "avg_hp": 23.15,
+      "avg_hp": 23.85,
       "total": 20,
       "win_rate": 0.95,
       "wins": 19
     },
     "soft_steampunk": {
-      "avg_hp": 13.05,
+      "avg_hp": 17.2,
       "total": 20,
-      "win_rate": 0.6,
-      "wins": 12
+      "win_rate": 0.75,
+      "wins": 15
     }
   },
-  "theme_ratio_variance": 0.35755753968254,
-  "tipping_point_quality": 0.076984126984127,
-  "weighted_score": 0.445813631179193,
-  "win_rate_band": 0.00000000000000000000000000000001
+  "theme_ratio_variance": 0.369207837301587,
+  "tipping_point_quality": 0.0857142857142857,
+  "weighted_score": 0.456043688842542,
+  "win_rate_band": 0.0130607049269591
 }
