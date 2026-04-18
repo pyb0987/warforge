@@ -104,6 +104,11 @@
   - YAML target 감사 → theme_system 12장 추가 (druid/predator/steampunk/military)
   - 'all' adj_type fallthrough 버그 수정
   - **soft_druid WR 25→45% (+20%p), R15 42→82% (+40%p)**
+- [x] **adaptive R1 levelup 가드 + reroll 트레이스 누락 수정** — 2026-04-18, commit fb8263c.
+  - adaptive R1 100% 패배 (R1 levelup → 2-card army → 0% WR) 원인 수정
+  - _play_aggressive/_play_adaptive reroll emit 추가 (진단 정확도)
+  - **adaptive WR 25%→75% (+50%p)**
+- [ ] **soft_military 35% 정체** — 별도 조사 필요 (R8/R15 약점, C fix 이후도)
 - [x] 드루이드 AI drift 수정 — 2026-04-18, commit 5807f83.
   - P0: 유닛캡 페널티 재정의 (dr_world 자체만), TREE_THRESHOLDS 근접 보너스 추가
   - P1: DRUID_PAYOFF↔PRODUCER 시너지 교정, dr_world THEME_SYNERGY forest_depth 반영
