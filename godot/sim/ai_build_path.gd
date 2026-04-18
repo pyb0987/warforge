@@ -103,6 +103,7 @@ const _BUILD_PATHS := {
 			"id": "military_elite",
 			"branch_cards": ["ml_barracks"],
 			"anti_cards": ["ml_conscript"],
+			"strict_anti": true,  # TR vs CO 체인 이벤트 배타 → 하드 veto
 			"phases": {
 				"foundation": ["ml_barracks"],
 				"engine": ["ml_academy", "ml_tactical"],
@@ -115,6 +116,7 @@ const _BUILD_PATHS := {
 			"id": "military_mass",
 			"branch_cards": ["ml_conscript"],
 			"anti_cards": ["ml_barracks"],
+			"strict_anti": true,
 			"phases": {
 				"foundation": ["ml_conscript"],
 				"engine": ["ml_outpost", "ml_supply"],
@@ -197,9 +199,14 @@ func score_card_modifier(card_id: String, path: Dictionary,
 	var phase := get_phase(round_num)
 	var phases: Dictionary = path["phases"]
 
-	# Anti card penalty
+	# Anti card penalty — path의 strict_anti 플래그에 따라 강도 조정.
+	# 군대는 elite/mass가 TR/CO 이벤트 체인이 달라 진짜 배타적 → strict veto(-50).
+	# 타 테마(druid/steampunk)는 분기가 부드러운 선호이지 배타 아님 → 약한 페널티(-12).
+	# 트레이스 증거(2026-04-18): -50 군대만 적용 시 military WR 35→50%,
+	# 타 테마 영향 최소화.
 	if card_id in path["anti_cards"]:
-		mod -= 12.0
+		var strict: bool = path.get("strict_anti", false)
+		mod -= 50.0 if strict else 12.0
 		return mod
 
 	# Shared card bonus

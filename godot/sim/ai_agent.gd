@@ -145,6 +145,17 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 	if _tracer != null and _tracer.enabled:
 		var board_ids_end: Dictionary = _H.get_board_ids(state)
 		var path := _build_path.detect_build_path(strategy, board_ids_end)
+		# Per-card theme_state summary: card_id → {rank, trees, star} for diagnostic use.
+		var states: Dictionary = {}
+		for c in state.board:
+			if c != null:
+				var ci: CardInstance = c
+				var cid: String = ci.get_base_id()
+				var ts: Dictionary = ci.theme_state
+				var summary: Dictionary = {"star": ci.star_level}
+				if ts.has("rank"): summary["rank"] = ts["rank"]
+				if ts.has("trees"): summary["trees"] = ts["trees"]
+				states[cid] = summary
 		_tracer.emit({
 			"t": "round_end",
 			"round": state.round_num,
@@ -153,6 +164,7 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 			"board": board_ids_end.keys(),
 			"bench": _bench_ids(state),
 			"detected_path": path.get("id", "") if not path.is_empty() else "",
+			"states": states,
 		})
 
 
