@@ -37,6 +37,21 @@ const CONSCRIPT_THRESHOLD := {1: 10, 2: 8, 3: 6}  # star → threshold
 const DRUID_WORLD_UNIT_CAP := {1: 20, 2: 40, 3: 200}
 const DRUID_WRATH_UNIT_CAP := {1: 5, 2: 6, 3: 7}
 
+# --- 드루이드 나무 임계값 (r_conditional 유형 임박 보너스용) ---
+# tree_bonus.thresh (dr_deep), terazin_thresh (dr_grace), tree_distribute tiers (dr_wt_root).
+# {card_id: {star: [thresholds]}}
+const TREE_THRESHOLDS := {
+	"dr_deep":    {1: [10], 2: [8], 3: [8]},
+	"dr_grace":   {1: [10], 2: [8], 3: [8]},
+	"dr_wt_root": {1: [4, 8], 2: [3, 6], 3: [3, 6]},
+}
+
+# --- 드루이드 빌드 타입 분류 (payoff↔producer 시너지 감지) ---
+# payoff: 나무 축적을 적극 소비/스케일링 (T3+ 및 dr_grace/dr_spore_cloud).
+const DRUID_PAYOFF := ["dr_deep", "dr_wt_root", "dr_grace", "dr_spore_cloud", "dr_wrath", "dr_world"]
+# producer: 주로 나무 생산(+부가 효과), tree_add 반복 소스.
+const DRUID_PRODUCER := ["dr_cradle", "dr_origin", "dr_lifebeat", "dr_earth"]
+
 # --- 군대 트레이닝 카드 (trace 012 재설계 후 train: action 보유 카드) ---
 # ml_barracks(기본 훈련), ml_academy(훈련+강화 변환), ml_command(부활+글로벌 훈련)
 const MILITARY_TRAINING_CARDS := ["ml_barracks", "ml_academy", "ml_command"]
@@ -120,9 +135,23 @@ func _value_druid(card: CardInstance, genome: RefCounted) -> float:
 	var bonus := 0.0
 	var trees: int = card.theme_state.get("trees", 0)
 	var tree_val: float = _p(genome, "tree_value_per", 2.0)
+	var near_bonus: float = _p(genome, "counter_near_bonus", 10.0)
 
 	# 나무 축적 가치
 	bonus += trees * tree_val
+
+	# 나무 임계 근접 보너스 (dr_deep tree_bonus, dr_grace terazin_thresh, dr_wt_root tier)
+	var cid: String = card.template_id
+	if TREE_THRESHOLDS.has(cid):
+		var per_star: Dictionary = TREE_THRESHOLDS[cid]
+		var thresholds: Array = per_star.get(card.star_level, [])
+		for threshold in thresholds:
+			if trees >= threshold:
+				continue
+			var distance: int = threshold - trees
+			if distance > 0 and distance <= 2:
+				bonus += near_bonus * (1.0 - float(distance - 1) / 2.0)
+				break  # 가장 가까운 미달 임계만
 
 	return bonus
 
@@ -131,36 +160,27 @@ func _score_buy_druid(card_id: String, board_cards: Array, genome: RefCounted) -
 	var bonus := 0.0
 	var cap_penalty: float = _p(genome, "unit_cap_penalty", 15.0)
 
-	# 유닛캡 근접 페널티: 전체 드루이드 유닛 수 계산
-	var total_druid_units := 0
-	var has_dr_world := false
-	var dr_world_star := 1
+	# 유닛캡 페널티: dr_world의 unit_cap은 자신(dr_world) stack에만 적용.
+	# 타 드루이드 카드의 유닛 수는 무관 — forest_depth만 기여.
 	for c in board_cards:
-		if c is CardInstance:
-			var ct: int = c.template.get("theme", 0)
-			if ct == Enums.CardTheme.DRUID:
-				total_druid_units += c.get_total_units()
-				if c.template_id == "dr_world":
-					has_dr_world = true
-					dr_world_star = c.star_level
-
-	# 드루이드 유닛캡 체크 — dr_world 보유 시 그 캡, 아니면 기본 20 적용
-	var cap: int = DRUID_WORLD_UNIT_CAP.get(dr_world_star, 20) if has_dr_world else 20
-	if total_druid_units > 0:
-		var ratio: float = float(total_druid_units) / float(cap)
-		if ratio > 0.8:
-			# 80% 이상이면 새 드루이드 카드 구매 페널티
-			bonus -= cap_penalty * (ratio - 0.8) / 0.2  # 80%→0, 100%→full penalty
-
-	# dr_deep/dr_wrath 보유 시 나무 생산 카드 보너스
-	var has_tree_consumer := false
-	for c in board_cards:
-		if c is CardInstance and c.template_id in ["dr_deep", "dr_wrath", "dr_spore_cloud"]:
-			has_tree_consumer = true
+		if c is CardInstance and c.template_id == "dr_world":
+			var cap: int = DRUID_WORLD_UNIT_CAP.get(c.star_level, 20)
+			var own_units: int = c.get_total_units()
+			if own_units > 0:
+				var ratio: float = float(own_units) / float(cap)
+				if ratio > 0.8:
+					bonus -= cap_penalty * (ratio - 0.8) / 0.2
 			break
 
-	if has_tree_consumer and card_id in ["dr_cradle", "dr_wt_root", "dr_origin"]:
-		bonus += 4.0  # 나무 생산-소비 시너지
+	# payoff 카드 보유 시 producer 구매 보너스 (forest_depth 공급 목적)
+	var has_payoff := false
+	for c in board_cards:
+		if c is CardInstance and c.template_id in DRUID_PAYOFF:
+			has_payoff = true
+			break
+
+	if has_payoff and card_id in DRUID_PRODUCER:
+		bonus += 4.0
 
 	return bonus
 

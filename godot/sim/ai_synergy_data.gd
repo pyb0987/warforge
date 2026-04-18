@@ -32,7 +32,8 @@ const THEME_SYNERGY := {
 	"dr_earth":      ["dr_cradle", "dr_origin", "dr_deep"],
 	"dr_deep":       ["dr_cradle", "dr_origin", "dr_wt_root", "dr_world"],
 	"dr_wt_root":    ["dr_cradle", "dr_origin", "dr_deep", "dr_world"],
-	"dr_world":      ["dr_deep", "dr_wt_root", "dr_earth"],
+	# dr_world multiply_stats는 forest_depth(전체 드루이드 🌳 합)로 스케일 → 모든 생산자와 시너지
+	"dr_world":      ["dr_cradle", "dr_origin", "dr_earth", "dr_lifebeat", "dr_deep", "dr_wt_root"],
 	"dr_lifebeat":   ["dr_cradle", "dr_origin"],
 	"dr_spore_cloud": ["dr_cradle", "dr_origin", "dr_deep"],
 	"dr_grace":      ["dr_cradle", "dr_origin"],
