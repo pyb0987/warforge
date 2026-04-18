@@ -1,10 +1,10 @@
 {
-  "activation_utilization": 0.953992610927059,
-  "board_utilization": 0.623842341987121,
-  "card_coverage": 0.155,
-  "dominance_moment": 0.938576141383988,
-  "emotional_arc": 0.388900757781358,
-  "loss_resilience": 0.650714285714286,
+  "activation_utilization": 0.962580659416671,
+  "board_utilization": 0.632738702385981,
+  "card_coverage": 0.281428571428571,
+  "dominance_moment": 0.953072068557023,
+  "emotional_arc": 0.325706845238095,
+  "loss_resilience": 0.745119047619048,
   "metadata": {
     "base_seed": 42,
     "genome_path": "res://sim/best_genome.json",
@@ -22,50 +22,50 @@
   },
   "strategy_stats": {
     "adaptive": {
-      "avg_hp": 0.25,
-      "total": 20,
-      "win_rate": 0.35,
-      "wins": 7
-    },
-    "aggressive": {
-      "avg_hp": 15.05,
-      "total": 20,
-      "win_rate": 0.65,
-      "wins": 13
-    },
-    "economy": {
-      "avg_hp": 15.2,
+      "avg_hp": 19.4,
       "total": 20,
       "win_rate": 0.75,
       "wins": 15
     },
-    "soft_druid": {
-      "avg_hp": 1.3,
+    "aggressive": {
+      "avg_hp": 19.4,
       "total": 20,
-      "win_rate": 0.35,
-      "wins": 7
+      "win_rate": 0.75,
+      "wins": 15
     },
-    "soft_military": {
-      "avg_hp": 4.85,
+    "economy": {
+      "avg_hp": 10.45,
+      "total": 20,
+      "win_rate": 0.6,
+      "wins": 12
+    },
+    "soft_druid": {
+      "avg_hp": 7.25,
       "total": 20,
       "win_rate": 0.5,
       "wins": 10
     },
-    "soft_predator": {
-      "avg_hp": 15.4,
+    "soft_military": {
+      "avg_hp": 10.25,
       "total": 20,
-      "win_rate": 0.75,
-      "wins": 15
+      "win_rate": 0.6,
+      "wins": 12
+    },
+    "soft_predator": {
+      "avg_hp": 23.15,
+      "total": 20,
+      "win_rate": 0.95,
+      "wins": 19
     },
     "soft_steampunk": {
-      "avg_hp": 11.25,
+      "avg_hp": 13.05,
       "total": 20,
-      "win_rate": 0.55,
-      "wins": 11
+      "win_rate": 0.6,
+      "wins": 12
     }
   },
-  "theme_ratio_variance": 0.539373511904762,
-  "tipping_point_quality": 0.199702380952381,
-  "weighted_score": 0.467894054648718,
-  "win_rate_band": 0.00000000000000000000321810550376
+  "theme_ratio_variance": 0.35755753968254,
+  "tipping_point_quality": 0.076984126984127,
+  "weighted_score": 0.445813631179193,
+  "win_rate_band": 0.00000000000000000000000000000001
 }

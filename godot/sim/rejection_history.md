@@ -23,7 +23,7 @@
 
 | Phase 종료 | default_genome.json sha256 | 변경 사유 |
 |-----------|---------------------------|----------|
-| (TBD)     | (TBD)                     | initial baseline |
+| Phase 1 시작 (2026-04-18) | 60dec1fbfd8ad67f202d7f2d79ac876aea0b2c09e186ee1c59832ba4c4fe4bc3 | initial baseline. baseline.json v2 재촬영 완료 (weighted_score 0.4458, mean WR 67.9%). AI drift 수정 8건 반영: has_bench_space(bd897f1), position_solver 확장(260a93c), adaptive R1 가드(fb8263c), 군대 strict_anti(0649f10) + cross-chain(05dd53e), 군대 재설계 반영 4건, 드루이드 drift(5807f83). |
 
 ## Rejection 로그
 ADOPT/REJECT 결정 중 특이사항이 있는 경우 여기에 raw context를 보존한다.

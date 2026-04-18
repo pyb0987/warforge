@@ -20,7 +20,7 @@
 
 ### weighted_score 목표
 
-현재 베이스라인: 0.4679 (2026-04-18 재촬영, strategy naming 현 코드와 일치. 군대 R4/R10 재설계 + bug fix 3건 + YAML SSOT 전환 반영).
+현재 베이스라인: 0.4458 (2026-04-18 v2 재촬영, AI drift 수정 8건 반영: has_bench_space, position_solver 확장, adaptive R1 가드, 군대 strict_anti + cross-chain + enhanced_count, 드루이드 drift).
 목표: 0.65+.
 ADOPT 기준: 이전 best 대비 weighted_score가 상승하면 ADOPT.
 게임 클리어율 목표: 5-10% (15R 생존).
@@ -29,11 +29,12 @@ ADOPT 기준: 이전 best 대비 weighted_score가 상승하면 ADOPT.
 `soft_steampunk`, `soft_druid`, `soft_predator`, `soft_military`, `adaptive`, `economy`, `aggressive`.
 구 네이밍(`*_focused`, `hybrid`)은 2026-04 전환으로 폐기됨.
 
-**현 스냅샷 주요 이슈** (sim-snapshot-2026-04-18):
-- mean WR 55.7% (목표 5-10% 대폭 초과 — 게임이 너무 쉬움)
-- card_coverage 15% (목표 70%+ 대폭 미달)
-- win_rate_band ≈ 0 (라운드별 감정 곡선 붕괴)
-- 전략 σ 0.15 (목표 < 0.10 미달, max/min ratio 2.0은 달성)
+**현 스냅샷 주요 이슈** (baseline.json v2, 2026-04-18):
+- mean WR 67.9% (목표 5-10% 대폭 초과 — AI 안정화 후 게임 난도 부족 심화)
+- card_coverage 28.1% (목표 70%+ 미달, bench_space 수정으로 15→28% 개선)
+- win_rate_band = 0 (라운드별 감정 곡선 붕괴)
+- emotional_arc 0.326 (WR 상향으로 0.389 → 0.326 악화)
+- 전략 σ 0.139 (목표 < 0.10 미달, max/min ratio 1.9)
 
 > **탐색 이력 / AI 변경 이력 / Phase별 default_genome 스냅샷은 `rejection_history.md`로 분리됨** (이 파일은 Tier 0 immutable로 보호되므로 agent가 직접 갱신할 수 없음).
 
