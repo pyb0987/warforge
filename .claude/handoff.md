@@ -93,7 +93,11 @@
   - 3. _score_buy_military cross-chain (TR/CO 체인 양방향 +4) 추가
   - 4. _value_military enhanced_count 보너스 (assault/tactical, 1기당 +0.5 cap 20기)
   - 신규 테스트 4건, 902/902 GUT 통과
-- [ ] 다른 테마 AI drift 점검 (드루이드 32.5%, soft_steampunk 51% — 동일 4-레이어 점검)
+- [x] 드루이드 AI drift 수정 — 2026-04-18, commit 5807f83.
+  - P0: 유닛캡 페널티 재정의 (dr_world 자체만), TREE_THRESHOLDS 근접 보너스 추가
+  - P1: DRUID_PAYOFF↔PRODUCER 시너지 교정, dr_world THEME_SYNERGY forest_depth 반영
+  - 신규 테스트 5건, 906/906 GUT 통과
+- [ ] soft_steampunk drift 점검 (51% WR, 동일 4-레이어)
 - [ ] AI 안정화 후 genome 재탐색
 - [ ] Tier B multiplicative 파라미터 — 비군대 CP 격차 해소
 - [ ] starting_resources mutator 구현
