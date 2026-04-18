@@ -197,11 +197,12 @@ def mutate_cp_curve_geometric(genome, strength=0.15):
     cp = list(g["enemy_cp_curve"])
     # Extract 14 growth ratios
     ratios = [cp[i] / max(cp[i-1], 1e-6) for i in range(1, 15)]
-    # Perturb each multiplicatively, clamp [1.0, 3.0]
+    # Perturb each multiplicatively, clamp [1.1, 3.0] — floor 1.1 enforces
+    # SC tavern-style 최소 10% 복리 성장 (absorbing boundary artifact 방지, 2026-04-19)
     new_ratios = []
     for r in ratios:
         new_r = r * (1.0 + strength * random.uniform(-1, 1))
-        new_r = max(1.0, min(3.0, new_r))
+        new_r = max(1.1, min(3.0, new_r))
         new_ratios.append(new_r)
     # R1 anchor — smaller strength, range [0.5, 2.0]
     new_r1 = cp[0] * (1.0 + strength * 0.5 * random.uniform(-1, 1))
