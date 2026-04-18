@@ -108,7 +108,10 @@
   - adaptive R1 100% 패배 (R1 levelup → 2-card army → 0% WR) 원인 수정
   - _play_aggressive/_play_adaptive reroll emit 추가 (진단 정확도)
   - **adaptive WR 25%→75% (+50%p)**
-- [ ] **soft_military 35% 정체** — 별도 조사 필요 (R8/R15 약점, C fix 이후도)
+- [x] **soft_military strict_anti** — 2026-04-18, commit 0649f10.
+  - 트레이스: 18/20 runs이 elite+mass 양쪽 구매, path flipping 13/20
+  - path별 strict_anti 플래그 도입 (-50 군대만, -12 타 테마)
+  - **military WR 35→50% (+15%p)**, 타 테마 안정
 - [x] 드루이드 AI drift 수정 — 2026-04-18, commit 5807f83.
   - P0: 유닛캡 페널티 재정의 (dr_world 자체만), TREE_THRESHOLDS 근접 보너스 추가
   - P1: DRUID_PAYOFF↔PRODUCER 시너지 교정, dr_world THEME_SYNERGY forest_depth 반영
