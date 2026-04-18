@@ -88,10 +88,11 @@
 ### AI 관련
 - [x] ai_build_path.gd → ai_agent.gd 연결 (이미 9c6c8a4에서 완료, 확인 2026-04-18)
 - [x] 군대 AI drift 수정 (4 commits, 2026-04-18)
-- [ ] **군대 AI 추가 개선** (priority 순, 다음 세션):
-  - 2. POSITION_PRIORITY 재조정 (재설계 배치 의도 반영, conscript→outpost 체인 순서)
-  - 3. _score_buy_military 확장 (factory 보유→CO emitter 우선 등 cross-bonus)
-  - 4. enhanced_count value bonus (assault/tactical이 enhanced 유닛 활용 평가)
+- [x] **군대 AI 추가 개선** — 2026-04-18, commit 05dd53e.
+  - 2. POSITION_PRIORITY — **dead code**로 확인(ai_position_solver가 timing 기반 동적 산출). 스킵.
+  - 3. _score_buy_military cross-chain (TR/CO 체인 양방향 +4) 추가
+  - 4. _value_military enhanced_count 보너스 (assault/tactical, 1기당 +0.5 cap 20기)
+  - 신규 테스트 4건, 902/902 GUT 통과
 - [ ] 다른 테마 AI drift 점검 (드루이드 32.5%, soft_steampunk 51% — 동일 4-레이어 점검)
 - [ ] AI 안정화 후 genome 재탐색
 - [ ] Tier B multiplicative 파라미터 — 비군대 CP 격차 해소
