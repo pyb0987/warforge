@@ -538,7 +538,7 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 				"reason": "below_threshold", "best_score": best_score, "offers": evals})
 		return false
 
-	if not _H.has_space(state):
+	if not _H.has_bench_space(state):
 		if best_score >= 15.0:
 			var sold := _sell_weakest_for_upgrade(state)
 			if not sold:

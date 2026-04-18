@@ -15,6 +15,17 @@ static func has_space(state: GameState) -> bool:
 	return false
 
 
+## Bench-only space check — shop purchases ALWAYS go to bench first,
+## so board empty slots are irrelevant for buy decisions. Using has_space()
+## (which includes board) caused 58%+ silent buy failures when bench full
+## but board had empty slots (2026-04-18 trace deep-dive).
+static func has_bench_space(state: GameState) -> bool:
+	for b in state.bench:
+		if b == null:
+			return true
+	return false
+
+
 static func count_copies(state: GameState, card_id: String) -> int:
 	var count := 0
 	for card in state.board:
