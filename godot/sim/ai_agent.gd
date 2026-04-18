@@ -48,6 +48,8 @@ const _H = preload("res://sim/ai_helpers.gd")
 # Optional decision tracer (no-op unless set via set_tracer).
 # Typed as RefCounted to avoid class_name registration timing issues.
 var _tracer: RefCounted = null
+# Populated by _score_card on each call when tracing; consumed by _try_buy_best.
+var _last_breakdown: Dictionary = {}
 
 func set_tracer(t: RefCounted) -> void:
 	_tracer = t
@@ -502,6 +504,8 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 	var evals: Array = []  # For tracer: [{id, score, cost, affordable}]
 	var trace_on: bool = _tracer != null and _tracer.enabled
 
+	var best_breakdown: Dictionary = {}
+
 	for i in shop.offered_ids.size():
 		var card_id: String = shop.offered_ids[i]
 		if card_id == "":
@@ -517,6 +521,8 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 			if score > best_score:
 				best_score = score
 				best_slot = i
+				if trace_on:
+					best_breakdown = _last_breakdown.duplicate()
 		elif trace_on:
 			evals.append({"id": card_id, "score": null, "cost": cost, "affordable": false})
 
@@ -550,7 +556,8 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 	var result: bool = shop.try_purchase(best_slot)
 	if trace_on:
 		_tracer.emit({"t": "buy", "round": state.round_num, "card_id": chosen_id,
-			"score": round(best_score * 100) / 100.0, "success": result, "offers": evals})
+			"score": round(best_score * 100) / 100.0, "success": result,
+			"breakdown": best_breakdown, "offers": evals})
 	return result
 
 
@@ -563,61 +570,68 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	var round_num: int = state.round_num
 	var timing: int = tmpl.get("trigger_timing", -1)
 
+	var trace_on: bool = _tracer != null and _tracer.enabled
+	var bk: Dictionary = {} if trace_on else {}
+
 	# --- Theme match (Tier 1 params) ---
 	var theme_bonus: float = _p("theme_match_bonus", 15.0)
 	var off_penalty: float = _p("off_theme_penalty", 20.0)
 	var crit_bonus: float = _p("critical_path_bonus", 8.0)
+	var theme_delta := 0.0
 	if preferred_theme >= 0:
 		if theme == preferred_theme:
-			score += theme_bonus
+			theme_delta += theme_bonus
 			if _THEME_CRITICAL.has(preferred_theme) and card_id in _THEME_CRITICAL[preferred_theme]:
-				score += crit_bonus
+				theme_delta += crit_bonus
 		elif theme == Enums.CardTheme.NEUTRAL:
-			if round_num <= 4:
-				score += 3.0
-			elif round_num <= 8:
-				score += 1.0
-			else:
-				score -= 2.0
+			if round_num <= 4: theme_delta += 3.0
+			elif round_num <= 8: theme_delta += 1.0
+			else: theme_delta -= 2.0
 		else:
-			score -= off_penalty
+			theme_delta -= off_penalty
 	else:
 		if theme == Enums.CardTheme.NEUTRAL:
-			score += 3.0
+			theme_delta += 3.0
+	score += theme_delta
+	if trace_on: bk["theme"] = theme_delta
 
 	# --- Strategy core card bonus (Tier 1) ---
 	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, {})
 	var core_cards: Array = config.get("core_cards", [])
 	if card_id in core_cards:
-		score += _p("core_card_bonus", 12.0)
+		var d := _p("core_card_bonus", 12.0)
+		score += d
+		if trace_on: bk["core"] = d
 
 	# --- Tier value ---
-	score += tier * 2.0
+	var tier_delta := tier * 2.0
+	score += tier_delta
+	if trace_on: bk["tier"] = tier_delta
 
-	# --- Build path detection (used by merge gate + engine completion modifier) ---
+	# --- Build path detection ---
 	var board_ids := _H.get_board_ids(state)
 	var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
 
-	# --- Merge potential (Tier 1) — ★1-aware + pool-aware ---
+	# --- Merge potential (Tier 1) ---
 	var star1_copies := _H.count_star1_copies(state, card_id)
+	var merge_delta := 0.0
 	if star1_copies == 2:
-		score += _p("merge_imminent_bonus", 30.0)
+		merge_delta = _p("merge_imminent_bonus", 30.0)
 	elif star1_copies == 1:
 		var pool_left := _pool_remaining(state, card_id)
 		var merge_prog := _p("merge_progress_bonus", 8.0)
-		# Early game: pairs are more valuable (more rounds to complete merge)
 		if round_num <= 6:
 			merge_prog *= 1.5
-		# Scale by tier accessibility — T1 pair at ShopLv4 (10%) is less valuable
-		# than T1 pair at ShopLv1 (100%), because 3rd copy is harder to find
 		var tier_frac := _tier_weight_fraction(tier, state.shop_level)
-		merge_prog *= maxf(tier_frac, 0.1)  # floor at 10% to avoid zeroing out
+		merge_prog *= maxf(tier_frac, 0.1)
 		if pool_left >= 2:
-			score += merge_prog
+			merge_delta = merge_prog
 		elif pool_left == 1:
-			score += merge_prog * 0.5
+			merge_delta = merge_prog * 0.5
+	score += merge_delta
+	if trace_on and merge_delta != 0.0: bk["merge"] = merge_delta
 
-	# --- Chain synergy (Layer1 event chains, Tier 1) ---
+	# --- Chain synergy (Layer1) ---
 	var syn_bonus: float = _p("synergy_pair_bonus", 6.0)
 	var chain_bonus := 0.0
 	if _CHAIN_PAIRS.has(card_id):
@@ -629,58 +643,78 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 		if _CHAIN_PAIRS.has(owned_id) and card_id in _CHAIN_PAIRS[owned_id]:
 			chain_bonus += syn_bonus
 			break
-	score += chain_bonus * (1.0 + round_num * 0.05)
+	var chain_delta := chain_bonus * (1.0 + round_num * 0.05)
+	score += chain_delta
+	if trace_on and chain_delta != 0.0: bk["chain"] = chain_delta
 
 	# --- Theme-internal synergy ---
+	var synergy_delta := 0.0
 	if _THEME_SYNERGY.has(card_id):
 		var synergy_count := 0
 		for partner_id in _THEME_SYNERGY[card_id]:
 			if partner_id in board_ids:
 				synergy_count += 1
-		score += synergy_count * 4.0
+		synergy_delta = synergy_count * 4.0
+	score += synergy_delta
+	if trace_on and synergy_delta != 0.0: bk["synergy"] = synergy_delta
 
-	# --- Round-adaptive tier preference (Tier 1) ---
+	# --- Round-adaptive tier preference ---
 	var late_bonus: float = _p("late_tier_bonus", 6.0)
+	var late_delta := 0.0
 	if round_num >= 10 and tier >= 4:
-		score += late_bonus
+		late_delta = late_bonus
 	elif round_num >= 5 and tier >= 3:
-		score += late_bonus * 0.5
+		late_delta = late_bonus * 0.5
+	score += late_delta
+	if trace_on and late_delta != 0.0: bk["late"] = late_delta
 
-	# --- Timing-aware purchase priority ---
+	# --- Timing-aware ---
 	if timing >= 0:
-		score += _board_eval.timing_modifier(timing, round_num) * 0.3
+		var t_delta := _board_eval.timing_modifier(timing, round_num) * 0.3
+		score += t_delta
+		if trace_on and t_delta != 0.0: bk["timing"] = t_delta
 
 	# --- POST_COMBAT_DEFEAT penalty when winning ---
 	if timing == Enums.TriggerTiming.POST_COMBAT_DEFEAT and _recent_wins >= 3:
 		score -= 10.0
+		if trace_on: bk["pcd_penalty"] = -10.0
 
-	# --- Capstone urgency in late game ---
+	# --- Capstone urgency ---
 	if tier == 5 and round_num >= 10:
 		score += 10.0
+		if trace_on: bk["capstone"] = 10.0
 
-	# --- Duplicate card diminishing returns (all star levels) ---
+	# --- Duplicate penalty ---
 	var total_copies := _H.count_copies(state, card_id)
 	if total_copies >= 3:
 		score -= 10.0
+		if trace_on: bk["dup_penalty"] = -10.0
 
-
-	# --- Genome: activation cap penalty (continuous) ---
+	# --- Genome: activation cap penalty ---
 	if _genome:
 		var cap: int = _genome.get_activation_cap(card_id)
 		if cap == 0:
-			score -= 20.0  # Card is disabled by genome
+			score -= 20.0
+			if trace_on: bk["cap_disabled"] = -20.0
 		elif cap > 0:
-			# Continuous decay: penalty = 8 / cap (cap=1→-8, cap=2→-4, cap=3→-2.7, cap=5→-1.6)
-			score -= 8.0 / maxf(float(cap), 1.0)
+			var d := -8.0 / maxf(float(cap), 1.0)
+			score += d
+			if trace_on and d != 0.0: bk["cap"] = d
 
-	# --- Build path: engine completion modifier ---
+	# --- Build path modifier ---
 	if not bp_path.is_empty():
-		score += _build_path.score_card_modifier(card_id, bp_path, board_ids, round_num)
+		var d := _build_path.score_card_modifier(card_id, bp_path, board_ids, round_num)
+		score += d
+		if trace_on and d != 0.0: bk["build_path"] = round(d * 100) / 100.0
 
-	# --- Theme state context bonus (trees, rank, unit caps, synergy chains) ---
-	score += _theme_scorer.score_buy_bonus(
+	# --- Theme state context bonus ---
+	var ts_delta := _theme_scorer.score_buy_bonus(
 		card_id, tmpl, preferred_theme, _H.get_board_cards(state), _genome)
+	score += ts_delta
+	if trace_on and ts_delta != 0.0: bk["theme_state"] = round(ts_delta * 100) / 100.0
 
+	if trace_on:
+		_last_breakdown = bk
 	return score
 
 
@@ -716,6 +750,11 @@ func _cleanup_bench(state: GameState) -> void:
 				worst_idx = i
 
 		if worst_idx >= 0 and worst_val < _p("bench_sell_threshold", 12.0):
+			if _tracer != null and _tracer.enabled:
+				var sold_card: CardInstance = state.bench[worst_idx]
+				_tracer.emit({"t": "sell", "round": state.round_num, "reason": "cleanup_bench",
+					"zone": "bench", "card_id": sold_card.get_base_id(),
+					"star": sold_card.star_level, "value": round(worst_val * 100) / 100.0})
 			state.sell_card("bench", worst_idx)
 			sold += 1
 		else:
@@ -833,6 +872,12 @@ func _sell_weakest_for_upgrade(state: GameState) -> bool:
 				worst_idx = i
 
 	if worst_idx >= 0:
+		if _tracer != null and _tracer.enabled:
+			var target_list: Array = state.bench if worst_zone == "bench" else state.board
+			var sold_card: CardInstance = target_list[worst_idx]
+			_tracer.emit({"t": "sell", "round": state.round_num, "reason": "weakest_for_upgrade",
+				"zone": worst_zone, "card_id": sold_card.get_base_id(),
+				"star": sold_card.star_level, "value": round(worst_val * 100) / 100.0})
 		state.sell_card(worst_zone, worst_idx)
 		return true
 	return false
@@ -856,6 +901,9 @@ func _transition_board(state: GameState) -> void:
 		if c.get_total_atk() + c.get_total_hp() > 300.0:
 			continue
 
+		if _tracer != null and _tracer.enabled:
+			_tracer.emit({"t": "sell", "round": state.round_num, "reason": "transition_board",
+				"zone": "board", "card_id": c.get_base_id(), "star": c.star_level})
 		state.sell_card("board", i)
 		break
 
