@@ -361,6 +361,9 @@ func _play_aggressive(state: GameState, shop: RefCounted) -> void:
 		if not bought:
 			if rerolls < reroll_budget and state.gold >= _get_reroll_cost() + 2 and shop.reroll():
 				rerolls += 1
+				if _tracer != null and _tracer.enabled:
+					_tracer.emit({"t": "reroll", "round": state.round_num,
+						"n": rerolls, "budget": reroll_budget, "gold_after": state.gold})
 				continue
 			break
 
@@ -464,7 +467,10 @@ func _play_adaptive(state: GameState, shop: RefCounted) -> void:
 	# M1: Interest-aware levelup buffer
 	var interest_floor: int = _get_universal_interest_floor(state.round_num)
 	var levelup_buffer: int = maxi(4, interest_floor)
-	if state.gold >= state.levelup_current_cost + levelup_buffer:
+	# R1 skip: levelup at R1 leaves insufficient gold to fill board (cost 5+
+	# buffer 4 = 9, leaving 1g from 10 start → only 2 T1 buys possible → 100% R1 loss).
+	# Trace evidence (2026-04-18, all_check 20-run): adaptive R1 WR = 0%.
+	if state.round_num >= 2 and state.gold >= state.levelup_current_cost + levelup_buffer:
 		_try_levelup(state)
 
 	var preferred_theme := _get_preferred_theme(state)
@@ -492,6 +498,9 @@ func _play_adaptive(state: GameState, shop: RefCounted) -> void:
 		if not bought:
 			if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + reroll_floor and shop.reroll():
 				rerolls += 1
+				if _tracer != null and _tracer.enabled:
+					_tracer.emit({"t": "reroll", "round": state.round_num,
+						"n": rerolls, "budget": max_rerolls, "gold_after": state.gold})
 				continue
 			break
 
