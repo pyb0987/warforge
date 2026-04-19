@@ -19,6 +19,10 @@ var field_slots: int = Enums.STARTING_FIELD_SLOTS  # 현재 사용 가능 필드
 # --- Economy ---
 var gold: int = 0
 var terazin: int = 0
+## Interest cap & rate — genome에서 주입 (game_manager / headless_runner init). 기본값은 Enums 상수.
+## 2026-04-19: build_phase UI가 calc_interest() 경유 → 이 값이 표시에 반영됨.
+var max_interest: int = Enums.MAX_INTEREST
+var interest_per_5g: int = Enums.INTEREST_PER_5G
 ## 이번 라운드 한정 무료 리롤 저축분. 라운드 시작 시 0으로 리셋 후 카드 효과 등으로 재충전.
 ## Commander 확률 무료 리롤에 실패한 리롤 시점에 소비 (player-favorable).
 var pending_free_rerolls: int = 0
@@ -149,9 +153,9 @@ func sell_card(zone: String, idx: int) -> int:
 	return refund
 
 
-## Calculate interest: 1 per 5 gold, max 2.
+## Calculate interest from stored economy params (genome-driven, fallback Enums).
 func calc_interest() -> int:
-	return mini(gold / 5, Enums.MAX_INTEREST)
+	return mini(gold / 5 * interest_per_5g, max_interest)
 
 
 ## Try to merge 3 copies of same card → next ★, with cascade.

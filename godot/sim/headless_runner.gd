@@ -46,8 +46,10 @@ func run() -> Dictionary:
 	state.round_num = 1
 	state.commander_type = Enums.CommanderType.NONE
 	state.talisman_type = Enums.TalismanType.NONE
-	# Override levelup cost from genome
+	# Override levelup cost + interest params from genome
 	state.levelup_current_cost = _genome.get_levelup_cost(2)
+	state.max_interest = int(_genome.economy.get("max_interest", Enums.MAX_INTEREST))
+	state.interest_per_5g = int(_genome.economy.get("interest_per_5g", Enums.INTEREST_PER_5G))
 	# 카드 풀 고갈 (OBS-049) — genome에서 pool_sizes 오버라이드 가능
 	state.card_pool = CardPool.new()
 	state.card_pool.init_pool(_genome.pool_sizes if _genome else {})
@@ -443,8 +445,6 @@ func _generate_enemies(round_num: int, rng: RandomNumberGenerator) -> Array:
 	return _enemy_db.generate(round_num, rng, _genome)
 
 
-## Calculate interest from genome parameters.
+## Calculate interest — state에 주입된 genome 값 사용 (SSOT: game_state.calc_interest()).
 func _calc_interest(state: GameState) -> int:
-	var per_5: int = _genome.economy.interest_per_5g
-	var max_i: int = _genome.economy.max_interest
-	return mini(state.gold / 5 * per_5, max_i)
+	return state.calc_interest()

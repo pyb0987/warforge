@@ -46,6 +46,8 @@ func _ready() -> void:
 	game_state.gold = _genome.get_starting_gold()
 	game_state.terazin = _genome.get_starting_terazin()
 	game_state.levelup_current_cost = _genome.get_levelup_cost(2)
+	game_state.max_interest = int(_genome.economy.get("max_interest", Enums.MAX_INTEREST))
+	game_state.interest_per_5g = int(_genome.economy.get("interest_per_5g", Enums.INTEREST_PER_5G))
 	# 카드 풀 고갈 메커니즘 (OBS-049)
 	game_state.card_pool = CardPool.new()
 	game_state.card_pool.init_pool()
@@ -442,11 +444,10 @@ func _apply_post_combat_effects(won: bool) -> Dictionary:
 	return {"gold": result["gold"], "terazin": result["terazin"]}
 
 
-## Genome-driven interest calc — mirrors headless_runner._calc_interest.
+## Settlement용 이자 — `_gold_before_effects` 스냅샷 사용 (OBS-032).
+## game_state.calc_interest()는 현재 gold 기반이라 별도 로직.
 func _calc_interest() -> int:
-	var per_5: int = int(_genome.economy.get("interest_per_5g", 1))
-	var max_i: int = int(_genome.economy.get("max_interest", 2))
-	return mini(_gold_before_effects / 5 * per_5, max_i)
+	return mini(_gold_before_effects / 5 * game_state.interest_per_5g, game_state.max_interest)
 
 
 func _run_settlement() -> void:
