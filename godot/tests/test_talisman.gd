@@ -350,8 +350,8 @@ func test_mercury_drop_actually_enhances_more() -> void:
 	## 수은 방울이 chain_engine의 enhance에 실제로 영향을 미치는지
 	var engine := ChainEngine.new()
 	engine.set_seed(42)
-	# ne_wild_pulse: RS, enhance self 3%
-	var board_normal: Array = [CardInstance.create("ne_wild_pulse")]
+	# ne_ruin_resonance: RS, spawn self + enhance self 2%
+	var board_normal: Array = [CardInstance.create("ne_ruin_resonance")]
 	assert_not_null(board_normal[0])
 	engine.run_growth_chain(board_normal)
 	var atk_normal: float = board_normal[0].get_total_atk()
@@ -366,7 +366,7 @@ func test_mercury_drop_actually_enhances_more() -> void:
 	engine2.enhance_multiplier = Talisman.get_enhance_multiplier(state)
 	assert_almost_eq(engine2.enhance_multiplier, 1.25, 0.001,
 		"MERCURY_DROP → multiplier 1.25")
-	var board_mercury: Array = [CardInstance.create("ne_wild_pulse")]
+	var board_mercury: Array = [CardInstance.create("ne_ruin_resonance")]
 	assert_not_null(board_mercury[0])
 	engine2.run_growth_chain(board_mercury)
 	var atk_mercury: float = board_mercury[0].get_total_atk()

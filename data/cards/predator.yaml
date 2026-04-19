@@ -162,12 +162,12 @@ cards:
       1:
         max_act: -1
         effects:
-          - hatch: {target: self, count: 3}
+          - hatch: {target: self, count: 2}
           - hatch: {target: right_adj, count: 1}
       2:
         max_act: -1
         effects:
-          - hatch: {target: self, count: 4}
+          - hatch: {target: self, count: 3}
           - hatch: {target: both_adj, count: 2}
       3:
         max_act: -1

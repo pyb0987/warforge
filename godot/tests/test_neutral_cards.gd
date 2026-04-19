@@ -40,12 +40,12 @@ func test_earth_echo_solo_no_spawn() -> void:
 	assert_eq(board[0].get_total_units(), before, "단독 → right 없어 유닛 불변")
 
 
-func test_wild_pulse_enhances_self() -> void:
-	## ne_wild_pulse(RS): enhance self 3%
-	var board := _make_board(["ne_wild_pulse"])
-	var atk_before: float = board[0].get_total_atk()
+func test_wild_pulse_spawns_right_adj() -> void:
+	## ne_wild_pulse(RS): spawn right_adj
+	var board := _make_board(["ne_wild_pulse", "ne_earth_echo"])
+	var units_before: int = board[1].get_total_units()
 	_engine.run_growth_chain(board)
-	assert_gt(board[0].get_total_atk(), atk_before, "self enhance → ATK 증가")
+	assert_gt(board[1].get_total_units(), units_before, "right_adj spawn → 유닛 증가")
 
 
 func test_ruin_resonance_spawn_and_enhance_self() -> void:
@@ -110,17 +110,17 @@ func test_mana_crystal_spawns_both_adj_on_unit_added() -> void:
 
 func test_ancient_catalyst_enhances_both_adj_on_enhanced() -> void:
 	## ne_ancient_catalyst(OE/ENHANCED): enhance both_adj 2%
-	## 배치: [ne_wild_pulse, ne_ancient_catalyst, sp_assembly]
-	## wild_pulse RS → ENHANCED → catalyst 반응 → both_adj enhance
-	var board := _make_board(["ne_wild_pulse", "ne_ancient_catalyst", "sp_assembly"])
-	var pulse_atk_before: float = board[0].get_total_atk()
+	## 배치: [ne_ruin_resonance, ne_ancient_catalyst, sp_assembly]
+	## ruin_resonance RS → ENHANCED → catalyst 반응 → both_adj enhance
+	var board := _make_board(["ne_ruin_resonance", "ne_ancient_catalyst", "sp_assembly"])
+	var ruin_atk_before: float = board[0].get_total_atk()
 	var assembly_atk_before: float = board[2].get_total_atk()
 	var result: Dictionary = _engine.run_growth_chain(board)
 	assert_gte(result["chain_count"], 2, "RS + OE 반응")
 	# catalyst의 both_adj = board[0], board[2] enhance
-	var pulse_grew: bool = board[0].get_total_atk() > pulse_atk_before
+	var ruin_grew: bool = board[0].get_total_atk() > ruin_atk_before
 	var assembly_grew: bool = board[2].get_total_atk() > assembly_atk_before
-	assert_true(pulse_grew or assembly_grew, "both_adj 중 최소 한쪽 ATK 증가")
+	assert_true(ruin_grew or assembly_grew, "both_adj 중 최소 한쪽 ATK 증가")
 
 
 # ================================================================

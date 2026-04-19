@@ -111,11 +111,11 @@ func test_harvest_hatches_1() -> void:
 # pr_queen (RS): hatch 3 self, 1 right
 # ================================================================
 
-func test_queen_hatches_3_on_self() -> void:
+func test_queen_hatches_2_on_self() -> void:
 	var card: CardInstance = CardInstance.create("pr_queen")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 3, "self +3")
+	assert_eq(card.get_total_units(), before + 2, "self +2")
 
 
 func test_queen_hatches_1_to_right_adj() -> void:
