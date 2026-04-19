@@ -87,6 +87,18 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 	# Keyword glossary — auto-show definitions for keywords found in text
 	_update_keyword_panel(raw_text)
 
+	# Permanent 강화 누적 (테마 무관, 모든 카드) — growth_atk_pct / growth_hp_pct.
+	# 2026-04-19: 사용자가 sp_furnace 등 enhance 효과 UI 확인 요청.
+	if card.growth_atk_pct > 0.001 or card.growth_hp_pct > 0.001:
+		var atk_p: float = card.growth_atk_pct * 100.0
+		var hp_p: float = card.growth_hp_pct * 100.0
+		var parts: PackedStringArray = []
+		if atk_p > 0.001:
+			parts.append("ATK +%.0f%%" % atk_p)
+		if hp_p > 0.001:
+			parts.append("HP +%.0f%%" % hp_p)
+		info_label.text += "\n💪 강화: " + ", ".join(parts)
+
 	# Theme-specific state display
 	var tmpl_theme: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
 	match tmpl_theme:
