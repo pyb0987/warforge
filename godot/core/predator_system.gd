@@ -400,7 +400,7 @@ func _farm_post(card: CardInstance, won: bool) -> Dictionary:
 	var gold_per: float = econ_eff.get("gold_per", 0.2)
 	var max_gold: int = econ_eff.get("max_gold", 3)
 	var halve_on_loss: bool = econ_eff.get("halve_on_loss", false)
-	var gold := units / 5
+	var gold := units / 4
 	gold = mini(gold, max_gold)
 	if not won and halve_on_loss:
 		gold /= 2

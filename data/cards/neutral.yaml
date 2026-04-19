@@ -34,20 +34,21 @@ cards:
     comp:
       - {unit: ne_archer, n: 1}
       - {unit: ne_golem, n: 1}
-    tags: [neutral, enhance]
+    tags: [neutral, production]
     stars:
       1:
         max_act: -1
         effects:
-          - enhance: {target: self, atk_pct: 0.03}
+          - spawn: {target: right_adj}
       2:
         max_act: -1
         effects:
-          - enhance: {target: self, atk_pct: 0.05}
+          - spawn: {target: right_adj}
+          - enhance: {target: right_adj, atk_pct: 0.02}
       3:
         max_act: -1
         effects:
-          - enhance: {target: self, atk_pct: 0.05}
+          - spawn: {target: both_adj}
           - enhance: {target: both_adj, atk_pct: 0.03}
 
   ne_ruin_resonance:

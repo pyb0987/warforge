@@ -34,11 +34,7 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 	var g: Genome = genome if genome != null else Genome.create_default()
 
 	var is_boss := round_num in [4, 8, 12, 15]
-	var preset: int
-	if is_boss:
-		preset = _boss_preset(round_num)
-	else:
-		preset = rng.randi_range(0, 3)
+	var preset: int = rng.randi_range(0, 3)
 
 	var preset_name: String = PRESET_NAMES[preset]
 	var comp: Dictionary = g.get_enemy_comp(preset_name)
