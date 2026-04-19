@@ -217,18 +217,17 @@ def mutate_cp_curve_geometric(genome, strength=0.15):
 
 
 def mutate_economy(genome, strength=0.15):
-    """Mutate economy parameters."""
+    """Mutate economy parameters.
+
+    Phase 1 재탐색 (2026-04-19): 사용자가 base_income / reroll_cost / interest_per_5g /
+    terazin_win / terazin_lose를 고정값으로 결정. 이 mutator는 두 축만 변이한다:
+    - levelup_cost (lv2~6 각각, range [5, 13])
+    - max_interest (range [1, 4], interest_per_5g 이상 유지)
+    """
     g = copy.deepcopy(genome)
     econ = g["economy"]
 
-    # base_income: preset toggle (2026-04-19, 사용자 설계 의도)
-    # 자유 정수 perturbation은 상한 포화 artifact 발생 (2026-04-19 iter에서 전구간 10 도달).
-    # 두 프리셋 중 하나만 허용 — genome_bounds.json의 income_presets 참조.
-    if random.random() < 0.3:
-        preset_key = random.choice(["A", "B"])
-        econ["base_income"] = list(_BOUNDS["income_presets"][preset_key])
-
-    # levelup_cost
+    # levelup_cost — 각 레벨 개별 변이
     lc = econ["levelup_cost"]
     for lv in ["2", "3", "4", "5", "6"]:
         delta = max(1, int(abs(lc[lv] * strength * random.uniform(-1, 1))))
@@ -240,9 +239,8 @@ def mutate_economy(genome, strength=0.15):
             lc[lv] = prev + 1
         prev = lc[lv]
 
-    # interest
-    if random.random() < 0.3:
-        econ["interest_per_5g"] = random.choice([0, 1, 2])
+    # max_interest — interest_per_5g는 고정, max_interest만 변이
+    if random.random() < 0.4:
         econ["max_interest"] = max(econ["interest_per_5g"], random.choice([1, 2, 3, 4]))
 
     return g
