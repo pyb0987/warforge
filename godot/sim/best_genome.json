@@ -1,20 +1,20 @@
 {
   "enemy_cp_curve": [
     1.0,
-    1.2,
-    1.4,
-    1.6,
-    1.8,
-    2.0,
-    2.2,
-    2.4,
-    2.7,
+    1.286,
+    1.571,
+    1.857,
+    2.143,
+    2.429,
+    2.714,
     3.0,
-    3.3,
-    3.6,
-    3.9,
-    4.2,
-    4.5
+    3.286,
+    3.571,
+    3.857,
+    4.143,
+    4.429,
+    4.714,
+    5.0
   ],
   "economy": {
     "base_income": [
@@ -94,32 +94,32 @@
   },
   "enemy_composition": {
     "swarm": {
-      "swarm_base": 8,
-      "swarm_per_r": 2.5,
-      "ranged_base": 2,
-      "ranged_per_r": 0.5
+      "swarm_base": 7,
+      "swarm_per_r": 2.6,
+      "ranged_base": 1,
+      "ranged_per_r": 0.3
     },
     "heavy": {
       "heavy_base": 3,
-      "heavy_per_r": 0.8,
+      "heavy_per_r": 0.7,
       "melee_base": 4,
-      "melee_per_r": 1.0,
+      "melee_per_r": 0.8,
       "ranged_base": 2,
-      "ranged_per_r": 0.5
+      "ranged_per_r": 0.4
     },
     "sniper": {
-      "sniper_base": 3,
+      "sniper_base": 1,
       "sniper_per_r": 0.6,
-      "melee_base": 5,
-      "melee_per_r": 1.2
+      "melee_base": 3,
+      "melee_per_r": 1.5
     },
     "balanced": {
-      "melee_base": 4,
-      "melee_per_r": 1.0,
-      "ranged_base": 3,
-      "ranged_per_r": 0.7,
+      "melee_base": 6,
+      "melee_per_r": 0.7,
+      "ranged_base": 5,
+      "ranged_per_r": 0.9,
       "swarm_base": 3,
-      "swarm_per_r": 0.5
+      "swarm_per_r": 0.6
     }
   },
   "enemy_stats": {

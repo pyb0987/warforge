@@ -501,6 +501,9 @@ func _execute_effects(card: CardInstance, card_idx: int,
 						count += cracked_egg_callback.call(target_card)
 					var use_strongest: bool = eff.get("breed_strongest", false)
 					for _n in count:
+						# Board-level cap (2026-04-19): MAX_BOARD_UNITS 초과 시 spawn 중단.
+						if _count_board_units(board) >= Enums.MAX_BOARD_UNITS:
+							break
 						if use_strongest:
 							var best_id := _strongest_unit_id(target_card)
 							if best_id != "":
@@ -619,6 +622,15 @@ func _execute_effects(card: CardInstance, card_idx: int,
 									"source_idx": card_idx, "target_idx": board.find(ci)})
 
 	return {"events": events, "gold": gold, "terazin": terazin}
+
+
+## 보드 전체 유닛 수 합계 (MAX_BOARD_UNITS 체크용, 2026-04-19 도입).
+func _count_board_units(board: Array) -> int:
+	var total := 0
+	for c in board:
+		if c != null:
+			total += (c as CardInstance).get_total_units()
+	return total
 
 
 func _strongest_unit_id(card: CardInstance) -> String:

@@ -100,6 +100,9 @@ const UPGRADE_SHOP_SLOTS := 2
 const STARTING_FIELD_SLOTS := 6
 const MAX_FIELD_SLOTS := 8
 const MAX_BENCH_SLOTS := 8
+## 보드 전체 유닛 합 상한. 2026-04-19 도입 (포식종 밸런스 200).
+## 전투 시뮬 비용 제한 + card-level 60cap의 board-level 보강.
+const MAX_BOARD_UNITS := 200
 const MAX_ROUNDS := 15
 const REROLL_COST := 1
 const SELL_REFUND_RATE := 1.0  # 전액 환급

@@ -443,7 +443,7 @@ def run_batch(genome_path, baseline_path=None, runs=20):
         cmd.append(f"--baseline={baseline_path.replace('godot/', 'res://')}")
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     except subprocess.TimeoutExpired:
         print(" TIMEOUT (300s)", flush=True)
         return None

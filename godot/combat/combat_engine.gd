@@ -10,6 +10,10 @@ signal unit_attacked(attacker_idx: int, defender_idx: int)
 const TICK_RATE := 20.0
 const TICK_DELTA := 1.0 / TICK_RATE
 const MAX_TICKS := 1200  # 60 seconds max
+## Spatial grid cell size. 2026-04-19: 실험 결과 32는 target 탐색 cell 수 ×3 → 역효과. 64 유지.
+const CELL_SIZE := 64.0
+## Collision 빈도 (tick interval). 2026-04-19: 3 → 5 (headless에서 속도 우선, 1.67배 절감).
+const COLLISION_INTERVAL := 5
 const BATTLEFIELD_W := 1000.0
 const BATTLEFIELD_H := 500.0
 const SEPARATION_DIST := 14.0
@@ -110,7 +114,7 @@ func setup(ally_units: Array, enemy_units: Array) -> void:
 	count = _base_count + fission_extra
 	_init_arrays(count)
 	_fission_slots.clear()
-	_grid = _SpatialGridScript.new(64.0)
+	_grid = _SpatialGridScript.new(CELL_SIZE)
 	_flow_ally = _FlowFieldScript.new()
 	_flow_enemy = _FlowFieldScript.new()
 	_mech = _MechanicsScript.new(self)
@@ -312,8 +316,8 @@ func tick() -> bool:
 	for idx in _alive_list:
 		_update_unit(idx)
 
-	# Collision separation (every 3 ticks in headless — visual smoothness not needed)
-	if not headless or _tick % 3 == 0:
+	# Collision separation (every COLLISION_INTERVAL ticks in headless — visual smoothness not needed)
+	if not headless or _tick % COLLISION_INTERVAL == 0:
 		_resolve_collisions()
 
 	# Win condition (tracked incrementally via _ally_alive/_enemy_alive)
@@ -390,8 +394,8 @@ func _resolve_collisions() -> void:
 	push_accum.resize(count)
 	push_accum.fill(Vector2.ZERO)
 	for i in _alive_list:
-		var cx := floori(pos[i].x / 64.0)
-		var cy := floori(pos[i].y / 64.0)
+		var cx := floori(pos[i].x / CELL_SIZE)
+		var cy := floori(pos[i].y / CELL_SIZE)
 		for dx in range(maxi(cx - 1, 0), mini(cx + 2, _grid._cols)):
 			for dy in range(maxi(cy - 1, 0), mini(cy + 2, _grid._rows)):
 				var cell: Array = _grid._cells[dy * _grid._cols + dx]
