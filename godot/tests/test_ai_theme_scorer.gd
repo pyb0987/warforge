@@ -156,23 +156,24 @@ func test_neutral_card_no_bonus() -> void:
 # ================================================================
 
 func test_druid_unit_cap_penalty() -> void:
+	# 2026-04-19 재정의: unit_cap_penalty는 dr_world의 own stack에만 적용.
+	# 타 드루이드 카드의 유닛 수는 forest_depth만 기여 (page druid AI drift fix 5807f83).
+	# dr_world를 보드에 올리고 own_units / cap > 0.8 이면 페널티 발생.
 	var scorer := ThemeScorerScript.new()
 	var genome := _make_genome()
 
-	# Board with druid cards totaling 18 units (near cap 20)
-	var board_cards: Array = []
-	for i in 3:
-		var c := _make_card("dr_cradle", Enums.CardTheme.DRUID)
-		c.stacks = [{"unit_type": {"id": "dr_treant"}, "count": 6,
-			"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
-			"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0}]
-		board_cards.append(c)
+	# dr_world ★1 cap = 20. 17 units (85% full) → penalty triggered.
+	var dr_world := _make_card("dr_world", Enums.CardTheme.DRUID)
+	dr_world.stacks = [{"unit_type": {"id": "dr_treant"}, "count": 17,
+		"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
+		"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0}]
+	var board_cards: Array = [dr_world]
 
-	# Buying another druid card when near cap should be penalized
+	# dr_world 자체 유닛캡 근접 시 druid 구매 점수가 페널티 받음
 	var tmpl := {"id": "dr_prune", "theme": Enums.CardTheme.DRUID, "tier": 2}
 	var bonus: float = scorer.score_buy_bonus("dr_prune", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
 
-	assert_lt(bonus, 0.0, "유닛캡 근접 시 드루이드 구매 페널티")
+	assert_lt(bonus, 0.0, "dr_world 유닛캡 근접(≥80%) 시 드루이드 구매 페널티")
 
 
 # ================================================================

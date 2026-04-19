@@ -115,12 +115,13 @@ func test_boss_r15_is_balanced() -> void:
 
 func test_boss_round_has_130_stat_boost() -> void:
 	## 보스 라운드(R4)는 ×1.3 추가 적용
-	## 비보스(R3)와 보스(R4) 비교: 같은 프리셋이면 보스가 1.3배
+	## 2026-04-19: preset 랜덤화 이후 seed=42는 R4에서 HEAVY preset 선택.
+	## HEAVY comp 첫 유닛 = heavy (base_atk=5.0, sub_mult=1.0).
 	var r4: Array = EnemyDBScript.generate(4, _rng)
 	# R4 mult = _round_mult(4) * 1.3 = (1.0+0.6) * 1.3 = 2.08
-	# swarm base atk=2.0 → 2.0 * 2.08 = 4.16
-	var expected_atk: float = 2.0 * EnemyDBScript._round_mult(4) * 1.3
-	assert_almost_eq(r4[0]["atk"], expected_atk, 0.01, "R4 swarm atk = base×mult×1.3")
+	# heavy base atk=5.0 → 5.0 * 2.08 = 10.4
+	var expected_atk: float = 5.0 * EnemyDBScript._round_mult(4) * 1.3
+	assert_almost_eq(r4[0]["atk"], expected_atk, 0.01, "R4 heavy atk = base×mult×1.3 (seed=42 → HEAVY)")
 
 
 func test_non_boss_round_no_130_boost() -> void:
@@ -138,13 +139,13 @@ func test_non_boss_round_no_130_boost() -> void:
 # 프리셋별 유닛 수 공식
 # ================================================================
 
-func test_swarm_preset_unit_count_r1() -> void:
-	## SWARM R1: swarm=int(8+1*2.5)=10, ranged=int(2+1*0.5)=2 → 12
+func test_preset_unit_count_r4() -> void:
+	## 2026-04-19: preset 랜덤화 — seed=42는 R4에서 HEAVY preset 선택.
+	## HEAVY R4: heavy=int(3+4*0.8)=6, melee=int(4+4*1.0)=8, ranged=int(2+4*0.5)=4 → 18
 	_rng.seed = 42
-	# 강제 SWARM: boss R4 사용
 	var units: Array = EnemyDBScript.generate(4, _rng)
-	var n_expected: int = int(8 + 4 * 2.5) + int(2 + 4 * 0.5)  # 18 + 4 = 22
-	assert_eq(units.size(), n_expected, "R4 SWARM 유닛 수 = %d" % n_expected)
+	var n_expected: int = int(3 + 4 * 0.8) + int(4 + 4 * 1.0) + int(2 + 4 * 0.5)
+	assert_eq(units.size(), n_expected, "R4 HEAVY 유닛 수 = %d (seed=42)" % n_expected)
 
 
 func test_heavy_preset_unit_count_r8() -> void:
