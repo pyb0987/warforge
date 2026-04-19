@@ -481,6 +481,7 @@ def main():
     parser.add_argument("--phase", type=int, default=1, choices=[1, 2, 3, 4, 5, 6])
     parser.add_argument("--strength", type=float, default=0.20)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--runs", type=int, default=20, help="runs per strategy (default 20)")
     args = parser.parse_args()
 
     if args.seed is not None:
@@ -531,7 +532,7 @@ def main():
 
         # Evaluate
         print(f"[{iteration:3d}] Testing {mut_name} mutation (strength={strength:.2f})...", end="", flush=True)
-        result = run_batch(TEMP_GENOME_PATH, BASELINE_PATH)
+        result = run_batch(TEMP_GENOME_PATH, BASELINE_PATH, runs=args.runs)
 
         if result is None:
             print(" ERROR — batch runner failed")
