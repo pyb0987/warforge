@@ -221,14 +221,12 @@ def mutate_economy(genome, strength=0.15):
     g = copy.deepcopy(genome)
     econ = g["economy"]
 
-    # base_income
-    inc = econ["base_income"]
-    for i in range(15):
-        delta = max(1, int(inc[i] * strength * random.uniform(-1, 1)))
-        inc[i] = max(INCOME_RANGE[0], min(INCOME_RANGE[1], inc[i] + delta))
-    for i in range(1, 15):
-        if inc[i] < inc[i - 1]:
-            inc[i] = inc[i - 1]
+    # base_income: preset toggle (2026-04-19, 사용자 설계 의도)
+    # 자유 정수 perturbation은 상한 포화 artifact 발생 (2026-04-19 iter에서 전구간 10 도달).
+    # 두 프리셋 중 하나만 허용 — genome_bounds.json의 income_presets 참조.
+    if random.random() < 0.3:
+        preset_key = random.choice(["A", "B"])
+        econ["base_income"] = list(_BOUNDS["income_presets"][preset_key])
 
     # levelup_cost
     lc = econ["levelup_cost"]
