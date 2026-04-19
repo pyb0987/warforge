@@ -18,10 +18,14 @@ const WEIGHTS := {
 	"loss_resilience": 0.10,
 }
 
-## Target GAME clear rate (not per-round). Gaussian gradient.
+## Target GAME clear rate (not per-round). Asymmetric gaussian gradient.
 ## 7.5% center = midpoint of 5-10% desired band.
+## Asymmetric σ (2026-04-19): symmetric gaussian으로는 0% WR이 target에서 7.5%p 떨어져 있어도
+## 같은 거리의 15%와 동점 (대칭). 하지만 "이길 수 없는 게임"과 "살짝 쉬운 게임"은 설계상 비대칭.
+## failures/002 3회째 재발 방지.
 const WIN_RATE_TARGET := 0.075
-const WIN_RATE_SIGMA := 0.25  # Gaussian width — dist 0.05→0.98, 0.10→0.92, 0.25→0.61, 0.50→0.14, 0.70→0.02. failures/002 재발 방지: 관측 WR span(0~1)을 커버해야 gradient 유지.
+const WIN_RATE_SIGMA_BELOW := 0.07  # target 아래 (WR < 7.5%) — 하한 완만 벌점 (0% → 0.563)
+const WIN_RATE_SIGMA_ABOVE := 0.15  # target 위 (WR > 7.5%) — 상한 급격 벌점 (30% → 0.325)
 
 ## CP margin gate for board_utilization.
 const MARGIN_LO := 0.2
@@ -179,7 +183,8 @@ static func _eval_win_rate_band(results: Array) -> float:
 ## At 7.5%: 1.0. At 5% or 10%: 0.89. At 0%: 0.32. At 20%: 0.08.
 static func _score_win_rate_band(overall_cr: float, strat_sigma: float) -> float:
 	var dist: float = overall_cr - WIN_RATE_TARGET
-	var band_score: float = exp(-dist * dist / (2.0 * WIN_RATE_SIGMA * WIN_RATE_SIGMA))
+	var sig: float = WIN_RATE_SIGMA_BELOW if dist < 0.0 else WIN_RATE_SIGMA_ABOVE
+	var band_score: float = exp(-dist * dist / (2.0 * sig * sig))
 	# Penalize high strategy variance (σ > 0.10 is concerning for low clear rates)
 	var sigma_penalty: float = clampf(strat_sigma / 0.10, 0.0, 1.0)
 	return clampf(band_score * (1.0 - sigma_penalty * 0.5), 0.0, 1.0)

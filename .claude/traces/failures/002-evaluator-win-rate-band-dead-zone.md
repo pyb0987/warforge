@@ -8,9 +8,13 @@ resolved_date: "2026-04-18"
 escalation_date: "2026-04-07"
 recurrence:
   - date: "2026-04-18"
-    commit: "TBD (Phase 1 iter 1 fix)"
-    context: "failures/002 1회 fix 이후 WIN_RATE_TARGET 0.70→0.075로 이전됐으나 WIN_RATE_SIGMA=0.05 유지. 관측 WR(76%)이 타겟(7.5%)에서 68.9%p 떨어진 상태에서 exp(−94.9) ≈ 1e−41 → 실질 cliff. Phase 1 iter 1 배치에서 cp_curve +40% 상향에도 win_rate_band=0 불변, score는 activation_util/theme_ratio_variance 등 비목표 축에서 +0.0082 상승."
+    commit: "00a345d"
+    context: "failures/002 1회 fix 이후 WIN_RATE_TARGET 0.70→0.075로 이전됐으나 WIN_RATE_SIGMA=0.05 유지. 관측 WR(76%)이 타겟(7.5%)에서 68.9%p 떨어진 상태에서 exp(−94.9) ≈ 1e−41 → 실질 cliff. Phase 1 iter 1 배치에서 cp_curve +40% 상향에도 win_rate_band=0 불변."
     fix: "WIN_RATE_SIGMA 0.05 → 0.25. dist=0.689에서 exp(−3.80)=0.022 (살아있는 gradient). 타겟 밴드(5-10%) 내 점수는 0.82+ 유지."
+  - date: "2026-04-19"
+    commit: "TBD (asymmetric σ fix)"
+    context: "σ=0.25 대칭 gaussian에서 WR 0%(dist 0.075)와 WR 15%(dist 0.075)가 **동일 점수 0.956**. 설계 의도는 '이길 수 없음 ≈ 너무 쉬움'이 아니라 비대칭(이길 수 없는 게임이 더 나쁨). optimizer가 0% WR 상태(mean WR = 0/20 × 7 전략)에 안착 — win_rate_band는 거의 만점이고 emotional_arc도 0.891로 유지. CP curve R15=35.61까지 상향된 상태에서 탈출 유인 없음."
+    fix: "대칭 σ → 비대칭 σ. WIN_RATE_SIGMA_BELOW=0.07 (하한 완만), WIN_RATE_SIGMA_ABOVE=0.15 (상한 급격). 0% WR → 0.563 (이전 0.956, −0.39), 7.5% → 1.0, 20% → 0.707 (이전 0.883), 30% → 0.325 (이전 0.668). 이길 수 없는 게임과 너무 쉬운 게임 각각 다른 강도로 벌점. 사용자 결정 (2026-04-19)."
 promoted_to_feedback: "feedback_evaluator_gaussian_sigma.md"
 ---
 
@@ -51,3 +55,9 @@ Target도 0.70 → WIN_RATE_TARGET(0.075, 5-10% 클리어율 밴드)로 변경.
 - Gaussian 자체만으로는 불충분 — **σ가 관측 변수 span을 커버**해야 한다.
 - 판단 기준: `σ ≥ (관측 최빈값 − 타겟) / 3` 정도면 gradient 0.01+ 보장 (exp(−4.5)).
 - 현 사례: 관측 WR 0.70~0.80, 타겟 0.075 → span 0.625+ → σ ≥ 0.21 필요. 0.25로 설정.
+
+### 3차 재발 교훈 (2026-04-19)
+- **대칭 Gaussian도 충분하지 않다** — 설계의도가 비대칭일 때는 비대칭 Gaussian 필요.
+- "target에서 7.5%p 떨어진 WR 0%"와 "target에서 7.5%p 떨어진 WR 15%"가 **같은 score**면 optimizer가 나쁜 쪽을 선택할 수 있다 (다른 축과의 시너지 때문).
+- Design의도: win_rate_band는 "게임이 작동하지 않음" < "살짝 쉬움" 순서로 페널티 차이가 있어야 함. → 비대칭 σ 도입.
+- 검증 체크리스트 추가 항목: "target 양쪽 편차가 설계상 동치인가? 아니면 비대칭인가?" 비대칭이면 σ_below ≠ σ_above.
