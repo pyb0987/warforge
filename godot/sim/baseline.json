@@ -1,10 +1,10 @@
 {
-  "activation_utilization": 0.991464558972138,
-  "board_utilization": 0.670195939669733,
-  "card_coverage": 0.176666666666667,
-  "dominance_moment": 0.991405501213939,
-  "emotional_arc": 0.873937533244203,
-  "loss_resilience": 0.340595238095238,
+  "activation_utilization": 0.929045504901445,
+  "board_utilization": 0.651932984956499,
+  "card_coverage": 0.265,
+  "dominance_moment": 0.983138719113206,
+  "emotional_arc": 0.286210317460317,
+  "loss_resilience": 0.945357142857143,
   "metadata": {
     "base_seed": 42,
     "genome_path": "res://sim/best_genome.json",
@@ -22,50 +22,50 @@
   },
   "strategy_stats": {
     "adaptive": {
-      "avg_hp": -9.28333333333333,
+      "avg_hp": 29.85,
       "total": 60,
-      "win_rate": 0.05,
-      "wins": 3
+      "win_rate": 1.0,
+      "wins": 60
     },
     "aggressive": {
-      "avg_hp": -8.65,
+      "avg_hp": 30.0,
       "total": 60,
-      "win_rate": 0.0666666666666667,
-      "wins": 4
+      "win_rate": 1.0,
+      "wins": 60
     },
     "economy": {
-      "avg_hp": -9.45,
+      "avg_hp": 28.0,
       "total": 60,
-      "win_rate": 0.0166666666666667,
-      "wins": 1
+      "win_rate": 1.0,
+      "wins": 60
     },
     "soft_druid": {
-      "avg_hp": -9.75,
+      "avg_hp": 19.7833333333333,
       "total": 60,
-      "win_rate": 0.0166666666666667,
-      "wins": 1
+      "win_rate": 0.833333333333333,
+      "wins": 50
     },
     "soft_military": {
-      "avg_hp": -11.1,
+      "avg_hp": 26.6666666666667,
       "total": 60,
-      "win_rate": 0.0166666666666667,
-      "wins": 1
+      "win_rate": 0.966666666666667,
+      "wins": 58
     },
     "soft_predator": {
-      "avg_hp": -7.88333333333333,
+      "avg_hp": 26.4666666666667,
       "total": 60,
-      "win_rate": 0.05,
-      "wins": 3
+      "win_rate": 0.966666666666667,
+      "wins": 58
     },
     "soft_steampunk": {
-      "avg_hp": -10.9333333333333,
+      "avg_hp": 26.0166666666667,
       "total": 60,
-      "win_rate": 0.0,
-      "wins": 0
+      "win_rate": 0.933333333333333,
+      "wins": 56
     }
   },
-  "theme_ratio_variance": 0.448212931468884,
-  "tipping_point_quality": 0.0826790723841566,
-  "weighted_score": 0.541060936825507,
-  "win_rate_band": 0.72773391282333
+  "theme_ratio_variance": 0.313261054421769,
+  "tipping_point_quality": 0.025408670931059,
+  "weighted_score": 0.450921889073099,
+  "win_rate_band": 0.0000000223136810107596
 }

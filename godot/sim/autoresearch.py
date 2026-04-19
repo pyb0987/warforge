@@ -278,7 +278,13 @@ def mutate_shop_tiers(genome, strength=0.15):
 
 
 def mutate_enemy_comp(genome, strength=0.15):
-    """Mutate enemy composition and stats."""
+    """Mutate enemy unit composition (count formula) only.
+
+    2026-04-19 pivot: 유닛 수가 autoresearch 대상, 유닛 스탯은 고정.
+    사용자 설계 의도: 적은 '수가 많아도 개별은 약한' 방향. 정예화 금지.
+    - base: [1, 20] (R1 기본 유닛 수 확대)
+    - per_r: [0.1, 8.0] (라운드당 증가율 확대)
+    """
     g = copy.deepcopy(genome)
     comp = g["enemy_composition"]
     for preset in comp:
@@ -286,28 +292,10 @@ def mutate_enemy_comp(genome, strength=0.15):
             val = comp[preset][key]
             if key.endswith("_base"):
                 delta = max(1, int(val * strength))
-                comp[preset][key] = max(1, min(15, val + delta * random.choice([-1, 1])))
+                comp[preset][key] = max(1, min(20, val + delta * random.choice([-1, 1])))
             elif key.endswith("_per_r"):
                 delta = val * strength * random.uniform(-1, 1)
-                comp[preset][key] = round(max(0.1, min(5.0, val + delta)), 1)
-
-    stats = g["enemy_stats"]
-    for utype in stats:
-        for stat in stats[utype]:
-            val = stats[utype][stat]
-            delta = val * strength * random.uniform(-1, 1)
-            if stat == "atk":
-                stats[utype][stat] = round(max(1.0, min(12.0, val + delta)), 1)
-            elif stat == "hp":
-                stats[utype][stat] = round(max(5.0, min(120.0, val + delta)), 1)
-            elif stat == "as":
-                stats[utype][stat] = round(max(0.3, min(3.0, val + delta)), 1)
-    # Enforce heavy has highest HP
-    heavy_hp = stats["heavy"]["hp"]
-    for t in ["swarm", "melee", "ranged", "sniper"]:
-        if stats[t]["hp"] > heavy_hp:
-            stats[t]["hp"] = heavy_hp
-
+                comp[preset][key] = round(max(0.1, min(8.0, val + delta)), 1)
     return g
 
 
@@ -431,7 +419,7 @@ def mutate_card_effects(genome, strength=0.15):
 
 
 PHASE_MUTATORS = {
-    1: [("cp_curve_geom", mutate_cp_curve_geometric), ("economy", mutate_economy)],
+    1: [("enemy_comp", mutate_enemy_comp), ("economy", mutate_economy)],  # 2026-04-19: cp_curve freeze, enemy_comp 탐색
     2: [("shop_tiers", mutate_shop_tiers)],
     3: [("enemy_comp", mutate_enemy_comp)],
     4: [("activation_caps", mutate_activation_caps), ("boss_scaling", mutate_boss_scaling)],
