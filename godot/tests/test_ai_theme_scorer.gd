@@ -169,8 +169,8 @@ func test_druid_unit_cap_penalty() -> void:
 		board_cards.append(c)
 
 	# Buying another druid card when near cap should be penalized
-	var tmpl := {"id": "dr_earth", "theme": Enums.CardTheme.DRUID, "tier": 2}
-	var bonus: float = scorer.score_buy_bonus("dr_earth", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
+	var tmpl := {"id": "dr_prune", "theme": Enums.CardTheme.DRUID, "tier": 2}
+	var bonus: float = scorer.score_buy_bonus("dr_prune", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
 
 	assert_lt(bonus, 0.0, "유닛캡 근접 시 드루이드 구매 페널티")
 

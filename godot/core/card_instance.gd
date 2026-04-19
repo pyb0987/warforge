@@ -283,6 +283,29 @@ func breed_strongest() -> bool:
 	return true
 
 
+## Remove 1 copy of the weakest unit (by CP). Returns true if removed.
+func remove_weakest_unit() -> bool:
+	if stacks.is_empty() or get_total_units() <= 0:
+		return false
+	var worst_idx := 0
+	var worst_cp := INF
+	for i in stacks.size():
+		var s: Dictionary = stacks[i]
+		if s["count"] <= 0:
+			continue
+		var ut: Dictionary = s["unit_type"]
+		var as_val: float = maxf(ut.get("attack_speed", 1.0), 0.01)
+		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		if cp < worst_cp:
+			worst_cp = cp
+			worst_idx = i
+	stacks[worst_idx]["count"] -= 1
+	if stacks[worst_idx]["count"] <= 0:
+		stacks.remove_at(worst_idx)
+	stats_changed.emit()
+	return true
+
+
 ## Get the base template ID. template_id는 항상 base ID.
 func get_base_id() -> String:
 	return template_id

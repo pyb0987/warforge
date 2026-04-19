@@ -13,7 +13,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"dr_cradle": return _cradle(card, idx, board)
 		"dr_origin": return _origin(card, idx, board)
-		"dr_earth": return _earth(card, idx, board)
+		"dr_prune": return _prune(card, idx, board)
 		"dr_deep": return _deep(card, idx)
 		"dr_wt_root": return _wt_root(card, idx, board)
 		"dr_world": return _world(card, idx, board)
@@ -171,18 +171,12 @@ func _origin(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects("dr_origin", card.star_level)
 	var add_eff := _find_eff(effs, "tree_add", "self")
 	var absorb_eff := _find_eff(effs, "tree_absorb")
-	var breed_eff := _find_eff(effs, "tree_breed")
+	var enhance_eff := _find_eff(effs, "tree_enhance")
 
-	var self_add: int = add_eff.get("count", 1)
-	var absorb: int = absorb_eff.get("count", 1)
-	var breed_thresh: int = breed_eff.get("tree_thresh", 6)
-	var breed_count: int = breed_eff.get("count", 1)
-	var penalty: float = breed_eff.get("penalty_pct", 0.04)
-	var breed_both: bool = breed_eff.get("target", "adj_or_self") == "both_adj_or_self"
-
-	_add_trees(card, self_add)
+	_add_trees(card, add_eff.get("count", 1))
 
 	# Absorb from adjacent druid cards
+	var absorb: int = absorb_eff.get("count", 1)
 	for di in [-1, 1]:
 		var ni: int = idx + di
 		if ni >= 0 and ni < board.size():
@@ -192,71 +186,80 @@ func _origin(card: CardInstance, idx: int, board: Array) -> Dictionary:
 				_add_trees(adj, -take)
 				_add_trees(card, take)
 
-	# Breed if threshold met
+	# tree_enhance all_druid — like dr_deep but all_druid range, lower rates
+	var trees := _trees(card)
+	var base_pct: float = enhance_eff.get("base_pct", 0.004)
+	var low_unit_data: Dictionary = enhance_eff.get("low_unit", {})
+	var low_thresh: int = low_unit_data.get("thresh", 3)
+	var low_pct: float = low_unit_data.get("pct", base_pct * 1.5)
+	var tree_bonus_data: Dictionary = enhance_eff.get("tree_bonus", {})
+	var bonus_thresh: int = tree_bonus_data.get("thresh", 999)
+	var bonus_growth: float = tree_bonus_data.get("bonus_growth_pct", 0.0)
+
+	var units := card.get_total_units()
+	var rate := low_pct if units <= low_thresh else base_pct
+	var growth := float(trees) * rate
+	if trees >= bonus_thresh and bonus_growth > 0:
+		growth += bonus_growth
+
 	var events: Array = []
-	if _trees(card) >= breed_thresh:
-		var targets := _adj_druid_indices(idx, board, breed_both)
-		# Fallback: breed on self if no adjacent druid
-		if targets.is_empty():
-			for _b in breed_count:
-				_breed_with_bonus(card)
-			if penalty > 0:
-				card.growth_atk_pct -= penalty
-				card.growth_hp_pct -= penalty
-			events.append({
-				"layer1": Enums.Layer1.UNIT_ADDED,
-				"layer2": Enums.Layer2.BREED,
-				"source_idx": idx, "target_idx": idx,
-			})
-		else:
-			for ti in targets:
-				var target: CardInstance = board[ti]
-				for _b in breed_count:
-					_breed_with_bonus(target)
-				if penalty > 0:
-					target.growth_atk_pct -= penalty
-					target.growth_hp_pct -= penalty
-				events.append({
-					"layer1": Enums.Layer1.UNIT_ADDED,
-					"layer2": Enums.Layer2.BREED,
-					"source_idx": idx, "target_idx": ti,
-				})
-
-	return {"events": events, "gold": 0, "terazin": 0}
-
-
-func _earth(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	var effs := CardDB.get_theme_effects("dr_earth", card.star_level)
-	var add_eff := _find_eff(effs, "tree_add", "self")
-	var enhance_eff := _find_eff(effs, "druid_unit_enhance")
-
-	_add_trees(card, add_eff.get("count", 1))
-
-	var druid_units := _druid_unit_count(board)
-	var divisor: int = enhance_eff.get("divisor", 5)
-	var growth_pct := float(druid_units / divisor) / 100.0
-	var events: Array = []
-
-	if growth_pct > 0:
+	if growth > 0:
 		for entry in _druid_entries(board):
-			(entry["card"] as CardInstance).enhance(null, growth_pct, growth_pct)
+			(entry["card"] as CardInstance).enhance(null, growth, growth)
 		events.append({
 			"layer1": Enums.Layer1.ENHANCED,
 			"layer2": Enums.Layer2.TREE_GROW,
 			"source_idx": idx, "target_idx": idx,
 		})
+	return {"events": events, "gold": 0, "terazin": 0}
 
-	# Bonus tiers (★2+)
-	var bonus_tiers: Array = enhance_eff.get("bonus_tiers", [])
-	if not bonus_tiers.is_empty():
-		var bonus := 0.0
-		# Tiers are ordered ascending by unit_gte; pick the highest matching tier
-		for tier in bonus_tiers:
-			if druid_units >= tier.get("unit_gte", 999):
-				bonus = tier.get("bonus_pct", 0.0)
-		if bonus > 0:
-			for entry in _druid_entries(board):
-				(entry["card"] as CardInstance).enhance(null, bonus, bonus)
+
+func _prune(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	var effs := CardDB.get_theme_effects("dr_prune", card.star_level)
+	var add_eff := _find_eff(effs, "tree_add", "self")
+	var prune_eff := _find_eff(effs, "prune")
+
+	_add_trees(card, add_eff.get("count", 1))
+
+	var prune_count: int = prune_eff.get("count", 2)
+	var min_units: int = prune_eff.get("min_units", 3)
+	var enhance_pct: float = prune_eff.get("enhance_pct", 0.0)
+
+	# Find the card with the most units on the field
+	var target_card: CardInstance = null
+	var target_idx: int = -1
+	var max_units: int = 0
+	for i in board.size():
+		var c: CardInstance = board[i]
+		var u: int = c.get_total_units()
+		if u > max_units:
+			max_units = u
+			target_card = c
+			target_idx = i
+
+	var events: Array = []
+	# Skip if target has too few units (min_units=3 → skip if ≤2)
+	if target_card != null and max_units >= min_units:
+		var pruned := 0
+		for _i in prune_count:
+			if target_card.remove_weakest_unit():
+				pruned += 1
+		if pruned > 0:
+			# 🌳 added to the pruned card (가지치기 당한 카드에 귀속)
+			_add_trees(target_card, pruned)
+			events.append({
+				"layer1": Enums.Layer1.UNIT_REMOVED,
+				"layer2": Enums.Layer2.TREE_GROW,
+				"source_idx": idx, "target_idx": target_idx,
+			})
+			# ★2+: enhance the pruned card's remaining units
+			if enhance_pct > 0:
+				target_card.enhance(null, enhance_pct, enhance_pct)
+				events.append({
+					"layer1": Enums.Layer1.ENHANCED,
+					"layer2": Enums.Layer2.TREE_GROW,
+					"source_idx": idx, "target_idx": target_idx,
+				})
 
 	return {"events": events, "gold": 0, "terazin": 0}
 

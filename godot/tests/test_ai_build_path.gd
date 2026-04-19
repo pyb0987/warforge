@@ -56,11 +56,11 @@ func test_detect_druid_world_tree() -> void:
 	assert_eq(path.get("id", ""), "druid_world_tree",
 		"dr_deep → world tree path")
 
-func test_detect_druid_spread() -> void:
-	var board := {"dr_cradle": true, "dr_origin": true, "dr_earth": true}
+func test_detect_druid_garden() -> void:
+	var board := {"dr_cradle": true, "dr_origin": true, "dr_prune": true}
 	var path: Dictionary = bp.detect_build_path("soft_druid", board)
-	assert_eq(path.get("id", ""), "druid_spread",
-		"dr_origin + dr_earth → spread path")
+	assert_eq(path.get("id", ""), "druid_garden",
+		"dr_origin + dr_prune → garden path")
 
 func test_detect_predator_swarm() -> void:
 	var board := {"pr_nest": true, "pr_farm": true, "pr_swarm_sense": true}
