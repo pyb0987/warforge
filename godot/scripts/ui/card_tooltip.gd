@@ -163,12 +163,24 @@ func _set_effect_text(raw_text: String) -> void:
 	var placeholder := char(1)
 	var escaped := raw_text.replace("[", placeholder).replace("]", "[rb]").replace(placeholder, "[lb]")
 	var bbcode := escaped
-	# 길이 내림차순 정렬: '비(강화)' 같은 긴 키워드가 '강화'보다 먼저 치환되어야
-	# 부분 오버랩 문제가 없다 (P1-3, 2026-04-17).
+	# 2-phase 치환: 같은 키워드가 다른 키워드의 치환 결과 안에서 재매칭 되지 않도록
+	# 센티널 토큰으로 먼저 교체 → 마지막에 일괄 BBCode url로 확장.
+	# (2026-04-19: '비(강화)' → url 안의 '(강화)' 재매칭으로 BBCode 파편화되는 버그 수정)
 	var keywords := KeywordGlossary.get_all_keywords()
 	keywords.sort_custom(func(a, b): return a.length() > b.length())
-	for kw in keywords:
-		bbcode = bbcode.replace(kw, "[url=%s][color=#aaccff]%s[/color][/url]" % [kw, kw])
+	# Phase 1: keyword → sentinel token (START=char(2), SEP=char(3))
+	var sen_start := char(2)
+	var sen_end := char(3)
+	for i in keywords.size():
+		var kw: String = keywords[i]
+		var token: String = sen_start + str(i) + sen_end
+		bbcode = bbcode.replace(kw, token)
+	# Phase 2: sentinel → BBCode url (치환 순서 무관, sentinel은 고유)
+	for i in keywords.size():
+		var kw: String = keywords[i]
+		var token: String = sen_start + str(i) + sen_end
+		var url: String = "[url=%s][color=#aaccff]%s[/color][/url]" % [kw, kw]
+		bbcode = bbcode.replace(token, url)
 	effect_label.clear()
 	effect_label.append_text(bbcode)
 
