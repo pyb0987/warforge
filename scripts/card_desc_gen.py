@@ -583,15 +583,14 @@ def desc_spawn_enhanced_random(p: dict) -> str:
     return text
 
 def desc_enhance_convert_card(p: dict) -> str:
-    ## P2 (2026-04-17, review R2): 군대 10장 × 3★ = 30 entries에 반복되는
-    ## R4/R10 공통 전환 효과. 주어 '이 카드의' 생략하고 '비(강화) 유닛'을
-    ## '비(강화) 부대'로 압축하여 반복 부담 완화. 'keyword (강화)' 여전히 유효.
+    ## 군대 10장 × 3★ = 30 entries에 반복되는 R4/R10 공통 전환 효과.
+    ## 2026-04-19: '부대' 키워드 제거 — '유닛'과 중복되어 혼란 유발. 전원 '유닛'으로 통일.
     frac = p.get("fraction", 0.5)
     if frac >= 1.0:
-        return "비(강화) 부대 전원 → (강화)"
+        return "비(강화) 유닛 전원 → (강화)"
     if frac == 0.5:
-        return "비(강화) 부대 절반 → (강화)"
-    return f"비(강화) 부대 {fmt_pct(frac)}% → (강화)"
+        return "비(강화) 유닛 절반 → (강화)"
+    return f"비(강화) 유닛 {fmt_pct(frac)}% → (강화)"
 
 def desc_enhance_convert_target(p: dict) -> str:
     n = p.get("count", 1)
