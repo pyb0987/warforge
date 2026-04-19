@@ -46,7 +46,7 @@ const _BUILD_PATHS := {
 		{
 			"id": "druid_world_tree",
 			"branch_cards": ["dr_deep", "dr_wt_root"],
-			"anti_cards": ["dr_origin", "dr_earth"],
+			"anti_cards": ["dr_origin", "dr_prune"],
 			"phases": {
 				"foundation": ["dr_cradle", "dr_lifebeat"],
 				"engine": ["dr_grace", "dr_deep", "dr_wt_root"],
@@ -56,12 +56,12 @@ const _BUILD_PATHS := {
 			"shared_cards": ["dr_grace", "dr_spore_cloud", "dr_wrath"],
 		},
 		{
-			"id": "druid_spread",
-			"branch_cards": ["dr_origin", "dr_earth"],
+			"id": "druid_garden",
+			"branch_cards": ["dr_origin", "dr_prune"],
 			"anti_cards": ["dr_deep", "dr_wt_root"],
 			"phases": {
 				"foundation": ["dr_cradle", "dr_lifebeat"],
-				"engine": ["dr_origin", "dr_earth", "dr_grace"],
+				"engine": ["dr_origin", "dr_prune", "dr_grace"],
 				"payoff": ["dr_spore_cloud", "dr_wrath"],
 				"capstone": ["dr_wrath"],
 			},

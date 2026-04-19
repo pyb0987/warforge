@@ -279,7 +279,9 @@ def desc_tree_enhance(p: dict) -> str:
     ##   - tree_bonus: 🌳 ≥ thresh 시 최종 growth에 mult 곱 (누적)
     ## P2 (review R4, 2026-04-17): 대체/곱셈 관계를 desc에 명시.
     base = fmt_pct(p["base_pct"])
-    text = f"이 카드 ATK+HP +(🌳×{base}%) 성장"
+    target = p.get("target", "self")
+    target_text = "전체 드루이드" if target == "all_druid" else "이 카드"
+    text = f"{target_text} ATK+HP +(🌳×{base}%) 성장"
     low = p.get("low_unit")
     if low:
         low_pct = fmt_pct(low["pct"])
@@ -309,6 +311,16 @@ def desc_tree_distribute(p: dict) -> str:
         parts.append(
             f"🌳{tier['tree_gte']}+ → 전체 드루이드 +{tier['amount']}")
     return ". ".join(parts)
+
+def desc_prune(p: dict) -> str:
+    count = p.get("count", 2)
+    min_u = p.get("min_units", 3)
+    text = f"유닛 최다 카드의 최약 {count}기→🌳 변환 (≤{min_u - 1}기 스킵)"
+    ep = p.get("enhance_pct")
+    if ep:
+        text += f". 남은 유닛 ATK+HP +{fmt_pct(ep)}%"
+    return text
+
 
 def desc_druid_unit_enhance(p: dict) -> str:
     ## iter3 N4: '8기+/12기+' 집계 기준이 불명. 런타임(_earth)은 필드
@@ -723,6 +735,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "tree_gold":        desc_tree_gold,
     "tree_distribute":  desc_tree_distribute,
     "druid_unit_enhance": desc_druid_unit_enhance,
+    "prune":             desc_prune,
     "multiply_stats":   desc_multiply_stats,
     "tree_temp_buff":   desc_tree_temp_buff,
     "debuff_store":     desc_debuff_store,

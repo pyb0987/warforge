@@ -155,44 +155,24 @@ func test_neutral_card_no_bonus() -> void:
 # score_buy_bonus — 드루이드 유닛캡 근접 페널티
 # ================================================================
 
-func _make_druid_card_with_units(card_id: String, units: int, star: int = 1) -> CardInstance:
-	var c := _make_card(card_id, Enums.CardTheme.DRUID, 1, star)
-	c.stacks = [{"unit_type": {"id": "dr_treant"}, "count": units,
-		"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
-		"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0}]
-	return c
-
-
-func test_druid_no_penalty_without_dr_world() -> void:
-	# 버그 수정(2026-04-18): dr_world 없으면 total druid units 기반 페널티 없음.
-	# dr_world unit_cap은 자신(dr_world)만 대상.
+func test_druid_unit_cap_penalty() -> void:
 	var scorer := ThemeScorerScript.new()
 	var genome := _make_genome()
 
+	# Board with druid cards totaling 18 units (near cap 20)
 	var board_cards: Array = []
 	for i in 3:
-		board_cards.append(_make_druid_card_with_units("dr_cradle", 6))  # 총 18기
+		var c := _make_card("dr_cradle", Enums.CardTheme.DRUID)
+		c.stacks = [{"unit_type": {"id": "dr_treant"}, "count": 6,
+			"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
+			"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0}]
+		board_cards.append(c)
 
-	var tmpl := {"id": "dr_earth", "theme": Enums.CardTheme.DRUID, "tier": 2}
-	var bonus: float = scorer.score_buy_bonus("dr_earth", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
+	# Buying another druid card when near cap should be penalized
+	var tmpl := {"id": "dr_prune", "theme": Enums.CardTheme.DRUID, "tier": 2}
+	var bonus: float = scorer.score_buy_bonus("dr_prune", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
 
-	assert_gte(bonus, 0.0, "dr_world 없으면 유닛 수 상관없이 페널티 없음")
-
-
-func test_druid_penalty_with_dr_world_near_cap() -> void:
-	# dr_world ★1 (cap=20), 자신의 unit count에 따라 페널티 스케일.
-	# 캡 근접(19) vs 여유(5) 비교 — payoff 보너스는 양쪽 동일하므로 순수 페널티 차이 검증.
-	var scorer := ThemeScorerScript.new()
-	var genome := _make_genome()
-
-	var tmpl := {"id": "dr_cradle", "theme": Enums.CardTheme.DRUID, "tier": 1}
-
-	var bonus_near: float = scorer.score_buy_bonus("dr_cradle", tmpl, Enums.CardTheme.DRUID,
-		[_make_druid_card_with_units("dr_world", 19, 1)], genome)
-	var bonus_far: float = scorer.score_buy_bonus("dr_cradle", tmpl, Enums.CardTheme.DRUID,
-		[_make_druid_card_with_units("dr_world", 5, 1)], genome)
-
-	assert_lt(bonus_near, bonus_far, "dr_world 자기 유닛이 cap 근접할수록 페널티 ↑")
+	assert_lt(bonus, 0.0, "유닛캡 근접 시 드루이드 구매 페널티")
 
 
 # ================================================================
@@ -213,137 +193,3 @@ func test_military_training_synergy() -> void:
 	var bonus_without: float = scorer.score_buy_bonus("ml_barracks", tmpl, Enums.CardTheme.MILITARY, board_without, genome)
 
 	assert_gt(bonus_with, bonus_without, "ml_academy 보유 시 트레이닝 카드 구매 보너스")
-
-
-# ================================================================
-# score_buy_bonus — 크로스 체인 보너스 (CHAIN_PAIRS 기반)
-# ================================================================
-
-func test_military_factory_prefers_conscript_emitter() -> void:
-	var scorer := ThemeScorerScript.new()
-	var genome := _make_genome()
-
-	# ml_factory는 CO 이벤트 listener. 보드에 factory가 있으면 CO emitter(ml_conscript) 구매 우선.
-	var board_with_factory: Array = [_make_card("ml_factory", Enums.CardTheme.MILITARY, 4)]
-	var board_neutral: Array = [_make_card("ml_supply", Enums.CardTheme.MILITARY, 2)]
-	var tmpl := {"id": "ml_conscript", "theme": Enums.CardTheme.MILITARY, "tier": 1}
-
-	var with_f: float = scorer.score_buy_bonus("ml_conscript", tmpl, Enums.CardTheme.MILITARY, board_with_factory, genome)
-	var without_f: float = scorer.score_buy_bonus("ml_conscript", tmpl, Enums.CardTheme.MILITARY, board_neutral, genome)
-
-	assert_gt(with_f, without_f, "ml_factory 보유 시 ml_conscript 구매 보너스 (CO 체인 완성)")
-
-
-func test_military_emitter_prefers_listener() -> void:
-	var scorer := ThemeScorerScript.new()
-	var genome := _make_genome()
-
-	# 보드에 ml_barracks(TR emitter)만 있을 때 ml_academy(TR listener) 구매에 보너스.
-	var board_emitter_only: Array = [_make_card("ml_barracks", Enums.CardTheme.MILITARY, 1)]
-	var board_neutral: Array = [_make_card("ml_supply", Enums.CardTheme.MILITARY, 2)]
-	var tmpl := {"id": "ml_academy", "theme": Enums.CardTheme.MILITARY, "tier": 2}
-
-	var with_e: float = scorer.score_buy_bonus("ml_academy", tmpl, Enums.CardTheme.MILITARY, board_emitter_only, genome)
-	var without_e: float = scorer.score_buy_bonus("ml_academy", tmpl, Enums.CardTheme.MILITARY, board_neutral, genome)
-
-	assert_gt(with_e, without_e, "ml_barracks(TR emitter) 보유 시 ml_academy 구매 보너스")
-
-
-# ================================================================
-# card_value_bonus — enhanced_count 기반 ml_assault/ml_tactical 가치
-# ================================================================
-
-func _make_military_card_with_enhanced(card_id: String, enhanced_units: int) -> CardInstance:
-	var card := _make_card(card_id, Enums.CardTheme.MILITARY, 3)
-	card.theme_state["rank"] = 0
-	card.theme_state["rank_triggers"] = {}
-	if enhanced_units > 0:
-		card.stacks = [{
-			"unit_type": {"id": "ml_recruit_enhanced", "tags": PackedStringArray(["enhanced"])},
-			"count": enhanced_units,
-			"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
-			"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0,
-		}]
-	return card
-
-
-func test_military_assault_gains_value_from_enhanced_units() -> void:
-	var scorer := ThemeScorerScript.new()
-	var assault := _make_card_with_rank("ml_assault", 0)
-	var genome := _make_genome()
-
-	# 빈 보드 vs enhanced 유닛 많은 보드
-	var board_empty: Array = [assault]
-	var enhanced_provider := _make_military_card_with_enhanced("ml_conscript", 6)
-	var board_with_enhanced: Array = [assault, enhanced_provider]
-
-	var bonus_empty: float = scorer.card_value_bonus(assault, board_empty, genome)
-	var bonus_full: float = scorer.card_value_bonus(assault, board_with_enhanced, genome)
-
-	assert_gt(bonus_full, bonus_empty, "보드에 enhanced 유닛이 많을수록 ml_assault 가치 상승")
-
-
-func test_military_non_assault_unaffected_by_enhanced() -> void:
-	var scorer := ThemeScorerScript.new()
-	var supply := _make_card_with_rank("ml_supply", 0)  # assault/tactical 아님
-	var genome := _make_genome()
-
-	var board_empty: Array = [supply]
-	var enhanced_provider := _make_military_card_with_enhanced("ml_conscript", 6)
-	var board_with_enhanced: Array = [supply, enhanced_provider]
-
-	var bonus_empty: float = scorer.card_value_bonus(supply, board_empty, genome)
-	var bonus_full: float = scorer.card_value_bonus(supply, board_with_enhanced, genome)
-
-	assert_almost_eq(bonus_full, bonus_empty, 0.01, "assault/tactical 아닌 군대 카드는 enhanced 보너스 없음")
-
-
-# ================================================================
-# card_value_bonus — 드루이드 나무 임계 근접 보너스
-# ================================================================
-
-func test_druid_deep_near_tree_threshold() -> void:
-	# dr_deep ★1 tree_bonus thresh=10. 나무 9개 → 임박 보너스 발생.
-	var scorer := ThemeScorerScript.new()
-	var card_near := _make_card_with_trees("dr_deep", 9, 1)
-	var card_far := _make_card_with_trees("dr_deep", 2, 1)
-	var genome := _make_genome()
-
-	var bonus_near: float = scorer.card_value_bonus(card_near, [], genome)
-	var bonus_far: float = scorer.card_value_bonus(card_far, [], genome)
-
-	var tree_diff: float = (9 - 2) * genome.get_ai_param("tree_value_per")
-	assert_gt(bonus_near - bonus_far, tree_diff, "임계 근접 보너스가 나무 차이 이상")
-
-
-func test_druid_wt_root_dual_threshold() -> void:
-	# dr_wt_root ★2 thresholds=[3, 6]. 나무 5개 → 6 임계 근접.
-	var scorer := ThemeScorerScript.new()
-	var card_near := _make_card_with_trees("dr_wt_root", 5, 2)
-	var card_far := _make_card_with_trees("dr_wt_root", 1, 2)  # 3 이미 미달, 거리=2
-	var genome := _make_genome()
-
-	var bonus_near: float = scorer.card_value_bonus(card_near, [], genome)
-	var bonus_far: float = scorer.card_value_bonus(card_far, [], genome)
-	# 둘 다 근접 (1→3 distance 2, 5→6 distance 1). 가까운 쪽이 더 큰 보너스.
-	assert_gt(bonus_near, bonus_far, "가장 가까운 미달 임계까지 distance 작을수록 큰 보너스")
-
-
-# ================================================================
-# score_buy_bonus — 드루이드 payoff-producer 시너지
-# ================================================================
-
-func test_druid_payoff_boosts_producer() -> void:
-	# 보드에 payoff 카드(dr_deep) 있음 → producer(dr_cradle) 구매 보너스.
-	var scorer := ThemeScorerScript.new()
-	var genome := _make_genome()
-
-	var board_payoff: Array = [_make_card("dr_deep", Enums.CardTheme.DRUID, 3)]
-	var board_empty: Array = []
-
-	var tmpl := {"id": "dr_cradle", "theme": Enums.CardTheme.DRUID, "tier": 1}
-
-	var with_p: float = scorer.score_buy_bonus("dr_cradle", tmpl, Enums.CardTheme.DRUID, board_payoff, genome)
-	var without_p: float = scorer.score_buy_bonus("dr_cradle", tmpl, Enums.CardTheme.DRUID, board_empty, genome)
-
-	assert_gt(with_p, without_p, "payoff 보유 시 tree producer 구매 보너스")

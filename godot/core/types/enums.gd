@@ -4,6 +4,7 @@ extends Node
 # --- Layer 1: 결과 범주 (테마 무관) ---
 enum Layer1 {
 	UNIT_ADDED,
+	UNIT_REMOVED,
 	ENHANCED,
 }
 

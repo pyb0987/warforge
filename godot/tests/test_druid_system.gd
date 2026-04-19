@@ -158,7 +158,7 @@ func test_grace_trees_bonus_gold() -> void:
 
 
 # ================================================================
-# dr_origin (RS): 🌳+1, 인접 드루이드에서 🌳 흡수, breed
+# dr_origin (RS): 🌳+1, 인접 드루이드에서 🌳 흡수, all_druid tree_enhance
 # ================================================================
 
 func test_origin_adds_1_tree() -> void:
@@ -177,24 +177,35 @@ func test_origin_absorbs_tree_from_adj_druid() -> void:
 
 
 # ================================================================
-# dr_earth (RS): 🌳+1, 전체 드루이드 유닛수 기반 enhance
+# dr_prune (RS): 🌳+1, 유닛 최다 카드의 최약 유닛 → 🌳 변환
 # ================================================================
 
-func test_earth_adds_1_tree() -> void:
-	var card: CardInstance = CardInstance.create("dr_earth")
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.theme_state.get("trees", 0), 1, "🌳+1")
+func test_prune_adds_1_tree_to_self() -> void:
+	var card: CardInstance = CardInstance.create("dr_prune")
+	var target: CardInstance = CardInstance.create("dr_cradle")
+	target.add_specific_unit("dr_wolf", 5)  # enough units to prune
+	_sys.process_rs_card(card, 0, [card, target], _rng)
+	assert_eq(card.theme_state.get("trees", 0), 1, "self 🌳+1")
 
 
-func test_earth_enhances_by_unit_ratio() -> void:
-	## ★1: floor(units/5)% enhance. dr_earth 2유닛 → floor(2/5)=0% → ATK 불변
-	## 10유닛이면 floor(10/5)=2%
-	var card: CardInstance = CardInstance.create("dr_earth")
-	card.add_specific_unit("dr_wolf", 8)  # 2+8=10유닛
-	var atk_before: float = card.get_total_atk()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# floor(10/5) = 2% → enhance(null, 0.02, 0.02)
-	assert_gt(card.get_total_atk(), atk_before, "10유닛 → 2% 성장")
+func test_prune_removes_weakest_and_adds_trees() -> void:
+	## ★1: count=2, min_units=3. Target needs ≥3 units.
+	var prune: CardInstance = CardInstance.create("dr_prune")
+	var target: CardInstance = CardInstance.create("dr_cradle")
+	target.add_specific_unit("dr_wolf", 3)  # 2 base + 3 = 5 units
+	var units_before: int = target.get_total_units()
+	_sys.process_rs_card(prune, 0, [prune, target], _rng)
+	assert_eq(target.get_total_units(), units_before - 2, "2기 가지치기")
+	assert_gte(target.theme_state.get("trees", 0), 2, "가지치기한 카드에 🌳+2")
+
+
+func test_prune_skips_when_too_few_units() -> void:
+	## min_units=3 → skip if target has < 3 units
+	var prune: CardInstance = CardInstance.create("dr_prune")
+	var target: CardInstance = CardInstance.create("dr_cradle")  # 2 base units
+	var units_before: int = target.get_total_units()
+	_sys.process_rs_card(prune, 0, [prune, target], _rng)
+	assert_eq(target.get_total_units(), units_before, "2기 → 스킵")
 
 
 # ================================================================

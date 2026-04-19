@@ -117,7 +117,7 @@ func test_druid_rs_replaces_weak() -> void:
 	# dr_origin (RS T2) should replace the weakest card.
 	var board: Array = [
 		_make_card("dr_lifebeat"), _make_card("dr_cradle"),
-		_make_card("dr_deep"), _make_card("dr_earth"),
+		_make_card("dr_deep"), _make_card("dr_prune"),
 		_make_card("dr_wt_root"), _make_card("dr_cradle"),
 		null, null]
 	var bench: Array = [_make_card("dr_origin"), null, null, null, null, null, null, null]

@@ -313,13 +313,14 @@ func _register_neutral() -> void:
 		})
 
 	var wp_comp := [{"unit_id":"ne_archer","count":1},{"unit_id":"ne_golem","count":1}]
-	var wp_tags := PackedStringArray(["neutral", "enhance"])
+	var wp_tags := PackedStringArray(["neutral", "production"])
 	_c("ne_wild_pulse", "야생의 맥동", 1, T,
 		wp_comp, RS, -1,
-		[_enhance("self", 0.03)],
+		[_spawn("right_adj")],
 		wp_tags, -1, -1, false, 0, false, {
-			2: _star("야생의 맥동 ★2", wp_comp, RS, -1, [_enhance("self", 0.05)], wp_tags),
-			3: _star("야생의 맥동 ★3", wp_comp, RS, -1, [_enhance("self", 0.05),
+			2: _star("야생의 맥동 ★2", wp_comp, RS, -1, [_spawn("right_adj"),
+					 _enhance("right_adj", 0.02)], wp_tags),
+			3: _star("야생의 맥동 ★3", wp_comp, RS, -1, [_spawn("both_adj"),
 					 _enhance("both_adj", 0.03)], wp_tags),
 		})
 
@@ -598,7 +599,7 @@ func _register_druid() -> void:
 	}
 
 	var ori_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_vine","count":1}]
-	var ori_tags := PackedStringArray(["druid", "breed"])
+	var ori_tags := PackedStringArray(["druid", "growth"])
 	_c("dr_origin", "오래된 근원", 2, T,
 		ori_comp, RS, -1,
 		[],
@@ -610,17 +611,17 @@ func _register_druid() -> void:
 		1: [
 			{"action": "tree_add", "target": "self", "count": 1},
 			{"action": "tree_absorb", "target": "adj_druids", "count": 1},
-			{"action": "tree_breed", "target": "adj_or_self", "count": 1, "tree_thresh": 6, "penalty_pct": 0.04},
+			{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.004, "low_unit": {"thresh": 3, "pct": 0.006}},
 		],
 		2: [
 			{"action": "tree_add", "target": "self", "count": 1},
 			{"action": "tree_absorb", "target": "adj_druids", "count": 2},
-			{"action": "tree_breed", "target": "adj_or_self", "count": 2, "tree_thresh": 5, "penalty_pct": 0.03},
+			{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 4, "pct": 0.009}},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
 			{"action": "tree_absorb", "target": "adj_druids", "count": 2},
-			{"action": "tree_breed", "target": "both_adj_or_self", "count": 2, "tree_thresh": 5, "penalty_pct": 0.0},
+			{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 5, "pct": 0.009}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.08}},
 		],
 	}
 
@@ -646,28 +647,27 @@ func _register_druid() -> void:
 		],
 	}
 
-	var ear_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_wolf","count":1}]
-	var ear_tags := PackedStringArray(["druid", "earth"])
-	_c("dr_earth", "대지의 축복", 2, T,
-		ear_comp, RS, -1,
+	var pru_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_wolf","count":1}]
+	var pru_tags := PackedStringArray(["druid", "prune"])
+	_c("dr_prune", "가지치기", 2, T,
+		pru_comp, RS, -1,
 		[],
-		ear_tags, -1, -1, false, 0, false, {
-			2: _star("대지의 축복 ★2", ear_comp, RS, -1, [], ear_tags),
-			3: _star("대지의 축복 ★3", ear_comp, RS, -1, [], ear_tags),
+		pru_tags, -1, -1, false, 0, false, {
+			2: _star("가지치기 ★2", pru_comp, RS, -1, [], pru_tags),
+			3: _star("가지치기 ★3", pru_comp, RS, -1, [], pru_tags),
 		})
-	_theme_effects["dr_earth"] = {
+	_theme_effects["dr_prune"] = {
 		1: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "druid_unit_enhance", "target": "all_druid", "divisor": 5},
+			{"action": "prune", "count": 2, "min_units": 3},
 		],
 		2: [
 			{"action": "tree_add", "target": "self", "count": 1},
-			{"action": "druid_unit_enhance", "target": "all_druid", "divisor": 4, "bonus_tiers": [{"unit_gte": 8, "bonus_pct": 0.02}, {"unit_gte": 12, "bonus_pct": 0.03}]},
+			{"action": "prune", "count": 2, "min_units": 3, "enhance_pct": 0.03},
 		],
 		3: [
 			{"action": "tree_add", "target": "self", "count": 2},
-			{"action": "druid_unit_enhance", "target": "all_druid", "divisor": 3, "bonus_tiers": [{"unit_gte": 8, "bonus_pct": 0.02}, {"unit_gte": 12, "bonus_pct": 0.03}]},
-			{"action": "tree_shield", "target": "all_druid", "timing_override": "BS", "base_pct": 0.05, "tree_scale_pct": 0.03},
+			{"action": "prune", "count": 3, "min_units": 3, "enhance_pct": 0.05},
 		],
 	}
 
@@ -931,11 +931,11 @@ func _register_predator() -> void:
 		})
 	_theme_effects["pr_queen"] = {
 		1: [
-			{"action": "hatch", "target": "self", "count": 3},
+			{"action": "hatch", "target": "self", "count": 2},
 			{"action": "hatch", "target": "right_adj", "count": 1},
 		],
 		2: [
-			{"action": "hatch", "target": "self", "count": 4},
+			{"action": "hatch", "target": "self", "count": 3},
 			{"action": "hatch", "target": "both_adj", "count": 2},
 		],
 		3: [

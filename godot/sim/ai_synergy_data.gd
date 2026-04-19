@@ -17,25 +17,18 @@ const CHAIN_PAIRS := {
 	"ne_mutant_adapt":   ["ne_wanderers", "ne_mana_crystal"],
 	"ne_mana_crystal":   ["ne_wanderers"],
 	"ne_ancient_catalyst": ["ne_mutant_adapt"],
-	# 군대 RS→OE 체인 (trace 012 재설계 후):
-	#   train: action → TR 이벤트 → ml_academy listen
-	#   conscript: action → CO 이벤트 → ml_outpost, ml_factory listen
-	"ml_barracks":  ["ml_academy"],
-	"ml_command":   ["ml_academy"],
-	"ml_conscript": ["ml_outpost", "ml_factory"],
 }
 
 # Theme-internal synergy (Layer2 systems)
 const THEME_SYNERGY := {
-	"dr_cradle":     ["dr_origin", "dr_deep", "dr_wt_root", "dr_earth"],
-	"dr_origin":     ["dr_cradle", "dr_deep", "dr_wt_root"],
-	"dr_earth":      ["dr_cradle", "dr_origin", "dr_deep"],
+	"dr_cradle":     ["dr_origin", "dr_prune", "dr_deep", "dr_wt_root"],
+	"dr_origin":     ["dr_cradle", "dr_prune", "dr_deep"],
+	"dr_prune":      ["dr_cradle", "dr_origin", "dr_wrath"],
 	"dr_deep":       ["dr_cradle", "dr_origin", "dr_wt_root", "dr_world"],
-	"dr_wt_root":    ["dr_cradle", "dr_origin", "dr_deep", "dr_world"],
-	# dr_world multiply_stats는 forest_depth(전체 드루이드 🌳 합)로 스케일 → 모든 생산자와 시너지
-	"dr_world":      ["dr_cradle", "dr_origin", "dr_earth", "dr_lifebeat", "dr_deep", "dr_wt_root"],
-	"dr_lifebeat":   ["dr_cradle", "dr_origin"],
-	"dr_spore_cloud": ["dr_cradle", "dr_origin", "dr_deep"],
+	"dr_wt_root":    ["dr_cradle", "dr_deep", "dr_world"],
+	"dr_world":      ["dr_deep", "dr_wt_root"],
+	"dr_lifebeat":   ["dr_cradle", "dr_prune"],
+	"dr_spore_cloud": ["dr_cradle", "dr_deep", "dr_prune"],
 	"dr_grace":      ["dr_cradle", "dr_origin"],
 	"pr_nest":       ["pr_molt", "pr_queen", "pr_carapace", "pr_harvest"],
 	"pr_farm":       ["pr_molt", "pr_harvest"],
@@ -47,19 +40,16 @@ const THEME_SYNERGY := {
 	"pr_transcend":  ["pr_molt", "pr_harvest", "pr_apex_hunt", "pr_swarm_sense"],
 	"pr_swarm_sense": ["pr_nest", "pr_queen", "pr_transcend"],
 	"pr_parasite":   ["pr_swarm_sense", "pr_nest", "pr_queen"],
-	# 재설계 (trace 012, 2026-04-16): 정예형(barracks→academy→tactical→special_ops)
-	# vs 물량형(conscript→outpost→assault→factory). ml_conscript↔ml_outpost 스왑.
-	# 공유: supply(T2), tactical(T3), factory(T4). 양쪽 캡스톤: command(T5).
-	"ml_barracks":   ["ml_academy", "ml_tactical", "ml_special_ops", "ml_command"],
-	"ml_conscript":  ["ml_outpost", "ml_assault", "ml_factory", "ml_command"],
-	"ml_outpost":    ["ml_conscript", "ml_assault", "ml_factory"],
-	"ml_academy":    ["ml_barracks", "ml_tactical", "ml_special_ops", "ml_command"],
-	"ml_supply":     ["ml_barracks", "ml_conscript", "ml_special_ops", "ml_assault"],
-	"ml_tactical":   ["ml_barracks", "ml_academy", "ml_special_ops", "ml_command"],
-	"ml_assault":    ["ml_conscript", "ml_outpost", "ml_factory", "ml_command"],
-	"ml_special_ops": ["ml_barracks", "ml_academy", "ml_tactical"],
-	"ml_factory":    ["ml_conscript", "ml_outpost", "ml_assault"],
-	"ml_command":    ["ml_academy", "ml_tactical", "ml_special_ops", "ml_assault"],
+	"ml_barracks":   ["ml_academy", "ml_conscript", "ml_tactical"],
+	"ml_outpost":    ["ml_conscript", "ml_factory"],
+	"ml_academy":    ["ml_barracks", "ml_special_ops", "ml_command"],
+	"ml_conscript":  ["ml_outpost", "ml_factory"],
+	"ml_command":    ["ml_academy", "ml_barracks", "ml_special_ops"],
+	"ml_special_ops": ["ml_academy", "ml_tactical"],
+	"ml_factory":    ["ml_outpost", "ml_conscript"],
+	"ml_tactical":   ["ml_barracks", "ml_command", "ml_assault"],
+	"ml_assault":    ["ml_barracks", "ml_outpost", "ml_command"],
+	"ml_supply":     ["ml_barracks", "ml_outpost"],
 }
 
 # Critical path cards per theme — essential infrastructure
@@ -67,8 +57,7 @@ const THEME_CRITICAL := {
 	Enums.CardTheme.STEAMPUNK: ["sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator", "sp_charger"],
 	Enums.CardTheme.DRUID: ["dr_cradle", "dr_origin", "dr_deep", "dr_wt_root"],
 	Enums.CardTheme.PREDATOR: ["pr_nest", "pr_farm", "pr_queen", "pr_molt"],
-	# 재설계 후: 두 T1 분기(barracks/conscript) + 공유 supply + 공유 캡스톤 command
-	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_conscript", "ml_supply", "ml_command"],
+	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_outpost", "ml_academy", "ml_conscript"],
 }
 
 # Position priority for board arrangement (1-90 scale, lower = leftmost)
@@ -83,7 +72,7 @@ const POSITION_PRIORITY := {
 	"ne_merchant": 80, "ne_ruins": 20, "ne_awakening": 25,
 	"ne_wildforce": 70, "ne_chimera_cry": 85, "ne_spirit_blessing": 75,
 	"ne_dim_merchant": 15,
-	"dr_cradle": 10, "dr_origin": 11, "dr_earth": 20,
+	"dr_cradle": 10, "dr_origin": 11, "dr_prune": 20,
 	"dr_deep": 25, "dr_wt_root": 30, "dr_world": 35,
 	"dr_lifebeat": 50, "dr_spore_cloud": 55, "dr_grace": 60, "dr_wrath": 45,
 	"pr_nest": 10, "pr_farm": 15, "pr_queen": 12, "pr_transcend": 5,
@@ -129,8 +118,7 @@ const STRATEGY_CONFIG := {
 		"max_rerolls_base": 2,
 		"max_rerolls_late": 4,
 		"gold_reserve": 2,
-		# 재설계: build_path.gd가 정예/물량 서브 감지. core는 path-independent 공유 인프라.
-		"core_cards": ["ml_supply", "ml_tactical", "ml_factory"],
-		"capstone_cards": ["ml_command", "ml_special_ops", "ml_assault"],
+		"core_cards": ["ml_command", "ml_academy", "ml_special_ops"],
+		"capstone_cards": ["ml_command", "ml_assault"],
 	},
 }
