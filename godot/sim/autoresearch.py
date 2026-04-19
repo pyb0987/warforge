@@ -228,13 +228,23 @@ def mutate_economy(genome, strength=0.15):
     econ = g["economy"]
 
     # levelup_cost — 각 레벨 개별 변이
+    # 각 position은 monotonic headroom을 가져야 함 (2026-04-19 버그 수정):
+    # Lv2: [lo, hi-4], Lv3: [lo+1, hi-3], ..., Lv6: [lo+4, hi]
+    # 이 제약 안에서만 변이 → monotonic enforcement가 range를 초과 못함.
     lc = econ["levelup_cost"]
-    for lv in ["2", "3", "4", "5", "6"]:
+    lv_order = ["2", "3", "4", "5", "6"]
+    lo = LEVELUP_RANGE[0]
+    hi = LEVELUP_RANGE[1]
+    for i, lv in enumerate(lv_order):
         delta = max(1, int(abs(lc[lv] * strength * random.uniform(-1, 1))))
-        lc[lv] = max(LEVELUP_RANGE[0], min(LEVELUP_RANGE[1], lc[lv] + delta * random.choice([-1, 1])))
-    # Enforce monotonic
-    prev = 0
-    for lv in ["2", "3", "4", "5", "6"]:
+        new_v = lc[lv] + delta * random.choice([-1, 1])
+        # Position-specific clamp: leave headroom for other levels
+        pos_lo = lo + i
+        pos_hi = hi - (len(lv_order) - 1 - i)
+        lc[lv] = max(pos_lo, min(pos_hi, new_v))
+    # Enforce monotonic (now safe — position ranges guarantee feasibility)
+    prev = lo - 1
+    for lv in lv_order:
         if lc[lv] <= prev:
             lc[lv] = prev + 1
         prev = lc[lv]
