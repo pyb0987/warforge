@@ -12,7 +12,7 @@ recurrence:
     context: "failures/002 1회 fix 이후 WIN_RATE_TARGET 0.70→0.075로 이전됐으나 WIN_RATE_SIGMA=0.05 유지. 관측 WR(76%)이 타겟(7.5%)에서 68.9%p 떨어진 상태에서 exp(−94.9) ≈ 1e−41 → 실질 cliff. Phase 1 iter 1 배치에서 cp_curve +40% 상향에도 win_rate_band=0 불변."
     fix: "WIN_RATE_SIGMA 0.05 → 0.25. dist=0.689에서 exp(−3.80)=0.022 (살아있는 gradient). 타겟 밴드(5-10%) 내 점수는 0.82+ 유지."
   - date: "2026-04-19"
-    commit: "TBD (asymmetric σ fix)"
+    commit: "db8fa27"
     context: "σ=0.25 대칭 gaussian에서 WR 0%(dist 0.075)와 WR 15%(dist 0.075)가 **동일 점수 0.956**. 설계 의도는 '이길 수 없음 ≈ 너무 쉬움'이 아니라 비대칭(이길 수 없는 게임이 더 나쁨). optimizer가 0% WR 상태(mean WR = 0/20 × 7 전략)에 안착 — win_rate_band는 거의 만점이고 emotional_arc도 0.891로 유지. CP curve R15=35.61까지 상향된 상태에서 탈출 유인 없음."
     fix: "대칭 σ → 비대칭 σ. WIN_RATE_SIGMA_BELOW=0.07 (하한 완만), WIN_RATE_SIGMA_ABOVE=0.15 (상한 급격). 0% WR → 0.563 (이전 0.956, −0.39), 7.5% → 1.0, 20% → 0.707 (이전 0.883), 30% → 0.325 (이전 0.668). 이길 수 없는 게임과 너무 쉬운 게임 각각 다른 강도로 벌점. 사용자 결정 (2026-04-19)."
 promoted_to_feedback: "feedback_evaluator_gaussian_sigma.md"
