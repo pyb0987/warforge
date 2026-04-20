@@ -505,39 +505,55 @@ func get_block_for_timing(card_id: String, star_level: int, timing: int) -> Dict
 \treturn {}
 
 
-## Legacy adapter for theme_systems still using the flat-effects API.
-## Returns the first block's actions AND reconstructs r_conditional /
-## conditional entries as pseudo-actions (matching v1 codegen emission),
-## because theme_systems search for these via _find_eff in the same list.
-## Multi-block cards (introduced in C5) must use get_block_for_timing() directly.
+## Flat view of a card's theme actions across ALL timing blocks.
+## Theme actions have globally unique names (spawn_firearm, manufacture,
+## range_bonus, hatch_scaled, train, …), so the flat list preserves meaning
+## for `_find_eff(effs, action_name)` lookups regardless of which block the
+## action lives in.
+## Includes reconstructed r_conditional / conditional pseudo-actions so
+## theme_systems can still iterate them alongside regular actions.
+## Multi-block cards (e.g. sp_warmachine RS+PERSISTENT) are supported: every
+## block contributes its actions to the view.
 func get_theme_effects(card_id: String, star_level: int) -> Array:
 \tvar blocks := get_effect_blocks(card_id, star_level)
-\tif blocks.is_empty():
-\t\treturn []
-\tvar block: Dictionary = blocks[0]
-\tvar result: Array = block.get("actions", []).duplicate()
-\tfor rc in block.get("r_conditional_effects", []):
-\t\tresult.append({
-\t\t\t"action": "r_conditional",
-\t\t\t"condition": rc.get("condition", ""),
-\t\t\t"threshold": rc.get("threshold", 0),
-\t\t\t"effects": rc.get("effects", []),
-\t\t})
-\tfor c in block.get("conditional_effects", []):
-\t\tresult.append({
-\t\t\t"action": "conditional",
-\t\t\t"condition": c.get("condition", ""),
-\t\t\t"threshold": c.get("threshold", 0),
-\t\t\t"effects": c.get("effects", []),
-\t\t})
+\tvar result: Array = []
+\tfor block in blocks:
+\t\tresult.append_array(block.get("actions", []))
+\t\tfor rc in block.get("r_conditional_effects", []):
+\t\t\tresult.append({
+\t\t\t\t"action": "r_conditional",
+\t\t\t\t"condition": rc.get("condition", ""),
+\t\t\t\t"threshold": rc.get("threshold", 0),
+\t\t\t\t"effects": rc.get("effects", []),
+\t\t\t})
+\t\tfor c in block.get("conditional_effects", []):
+\t\t\tresult.append({
+\t\t\t\t"action": "conditional",
+\t\t\t\t"condition": c.get("condition", ""),
+\t\t\t\t"threshold": c.get("threshold", 0),
+\t\t\t\t"effects": c.get("effects", []),
+\t\t\t})
 \treturn result
 '''
 
 HELPER_FUNCTIONS = '''
 ## Compact card registration (v2 block format).
-## Backward-compat: the first block's meta fields are also hoisted to the
-## template top level so legacy read sites (tests, UI code) keep working while
-## Phase 2 runtime migrates to full block-awareness.
+##
+## Template shape (v2):
+##   _templates[id] = {
+##     id, name, tier, theme, impl, composition, card_tags, cost,
+##     effects: [block, block, ...],      # ← primary truth
+##     star_overrides: {2: {...}, 3: {...}},
+##     # ─── Backward-compat flat accessors (hoisted from effects[0]) ───
+##     # Legacy read sites (tests, UI, sim harness, AI evaluator, some
+##     # game_manager paths) still expect these top-level fields. They are
+##     # a "first-block hoist": for a multi-block card, these reflect the
+##     # representative timing (first block in YAML order) only. Tech debt
+##     # tracked in docs/design/backlog.md.
+##     trigger_timing, max_activations,
+##     trigger_layer1, trigger_layer2,
+##     require_tenure, require_other_card, is_threshold,
+##   }
 func _c(id: String, nm: String, tier: int, theme: int,
 \t\tcomp: Array, effects: Array, tags: PackedStringArray,
 \t\tstar_overrides: Dictionary = {},

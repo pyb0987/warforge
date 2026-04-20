@@ -46,11 +46,17 @@ func timing_modifier(timing: int, round_num: int) -> float:
 # ================================================================
 
 ## Additive modifier based on effect actions.
+## v2 block format: `effects` is a list of timing blocks. Iterate block.actions
+## across all blocks (multi-block cards contribute actions from every block).
 func effect_modifier(effects: Array, round_num: int) -> float:
 	var mod := 0.0
 	var remaining := maxi(MAX_ROUND - round_num, 1)
 
-	for eff in effects:
+	var actions: Array = []
+	for block in effects:
+		actions.append_array(block.get("actions", []))
+
+	for eff in actions:
 		var action: String = eff.get("action", "")
 		var target: String = eff.get("target", "self")
 
@@ -118,8 +124,10 @@ func card_board_value(card: CardInstance, strategy: String,
 		elif card_theme != Enums.CardTheme.NEUTRAL:
 			val -= 5.0
 
-	# Empty effects but theme system handles → give timing-based value
-	if effects.is_empty() and card_theme != Enums.CardTheme.NEUTRAL:
+	# Theme-system cards handled by theme logic → timing-based value boost.
+	# v2: all cards have non-empty blocks; use impl flag instead of is_empty.
+	var impl: String = tmpl.get("impl", "card_db")
+	if impl == "theme_system" and card_theme != Enums.CardTheme.NEUTRAL:
 		if timing == Enums.TriggerTiming.ROUND_START:
 			val += 6.0  # Theme RS cards are growth engines
 
