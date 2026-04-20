@@ -114,7 +114,11 @@ func _analyze_card(card: CardInstance) -> Dictionary:
 	var tmpl: Dictionary = card.template
 	var cid: String = card.get_base_id()
 	var timing: int = tmpl.get("trigger_timing", -1)
-	var effects: Array = tmpl.get("effects", [])
+	# v2 block format: `effects` is a list of timing blocks. Unfold to actions.
+	var blocks: Array = tmpl.get("effects", [])
+	var actions: Array = []
+	for block in blocks:
+		actions.append_array(block.get("actions", []))
 
 	var has_right_adj := false
 	var has_both_adj := false
@@ -123,7 +127,7 @@ func _analyze_card(card: CardInstance) -> Dictionary:
 	var listen_l2: int = tmpl.get("trigger_layer2", -1)
 
 	# Read effect targets
-	for eff in effects:
+	for eff in actions:
 		var target: String = eff.get("target", "self")
 		if target == "right_adj":
 			has_right_adj = true

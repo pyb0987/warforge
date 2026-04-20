@@ -23,23 +23,23 @@ func before_each() -> void:
 # ================================================================
 
 func _apply_battle_start_effects() -> void:
-	## game_manager._apply_battle_start_effects() 로직 복제
+	## game_manager._apply_battle_start_effects() 로직 복제 (v2 block-aware).
 	var active := _state.get_active_board()
 	for card in active:
 		var c: CardInstance = card
-		var timing: int = c.template.get("trigger_timing", -1)
-		if timing != Enums.TriggerTiming.BATTLE_START:
-			continue
-		for eff in c.template.get("effects", []):
-			var action: String = eff.get("action", "")
-			match action:
-				"buff_pct":
-					var tag_filter = eff.get("unit_tag_filter", "")
-					if tag_filter == "":
-						tag_filter = null
-					c.temp_buff(tag_filter, eff.get("buff_atk_pct", 0.0))
-				"shield_pct":
-					c.shield_hp_pct += eff.get("shield_hp_pct", 0.0)
+		for block in c.template.get("effects", []):
+			if block.get("trigger_timing", -1) != Enums.TriggerTiming.BATTLE_START:
+				continue
+			for eff in block.get("actions", []):
+				var action: String = eff.get("action", "")
+				match action:
+					"buff_pct":
+						var tag_filter = eff.get("unit_tag_filter", "")
+						if tag_filter == "":
+							tag_filter = null
+						c.temp_buff(tag_filter, eff.get("buff_atk_pct", 0.0))
+					"shield_pct":
+						c.shield_hp_pct += eff.get("shield_hp_pct", 0.0)
 
 
 func _materialize_army() -> Array:
@@ -67,11 +67,27 @@ func _materialize_army() -> Array:
 
 
 func _apply_post_combat_effects(won: bool) -> void:
-	## game_manager._apply_post_combat_effects() 로직 복제
+	## game_manager._apply_post_combat_effects() 로직 복제 (v2 block-aware).
 	var active := _state.get_active_board()
+	var pc_timings := [
+		Enums.TriggerTiming.POST_COMBAT,
+		Enums.TriggerTiming.POST_COMBAT_DEFEAT,
+		Enums.TriggerTiming.POST_COMBAT_VICTORY,
+	]
 	for card in active:
 		var c: CardInstance = card
-		var timing: int = c.template.get("trigger_timing", -1)
+		var block: Dictionary = {}
+		var timing: int = -1
+		for t in pc_timings:
+			for b in c.template.get("effects", []):
+				if b.get("trigger_timing", -1) == t:
+					block = b
+					timing = t
+					break
+			if not block.is_empty():
+				break
+		if block.is_empty():
+			continue
 		var should_fire := false
 		match timing:
 			Enums.TriggerTiming.POST_COMBAT:
@@ -82,11 +98,11 @@ func _apply_post_combat_effects(won: bool) -> void:
 				should_fire = won
 		if not should_fire:
 			continue
-		var max_act: int = c.template.get("max_activations", -1)
+		var max_act: int = block.get("max_activations", -1)
 		if max_act != -1 and c.activations_used >= max_act:
 			continue
 		c.activations_used += 1
-		for eff in c.template.get("effects", []):
+		for eff in block.get("actions", []):
 			var action: String = eff.get("action", "")
 			match action:
 				"grant_gold":

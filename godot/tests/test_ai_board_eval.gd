@@ -42,23 +42,28 @@ func test_on_event_positive() -> void:
 # Effect value: spawn adjacency vs self
 # ================================================================
 
+## v2 block format: effect_modifier takes a list of timing blocks. Helpers
+## wrap a single action into a minimal 1-block list for test readability.
+func _wrap(actions: Array) -> Array:
+	return [{"trigger_timing": -1, "max_activations": -1, "actions": actions}]
+
 func test_spawn_adj_valued_higher_than_self() -> void:
-	var adj_eff: Array = [{"action": "spawn", "target": "right_adj", "spawn_count": 1}]
-	var self_eff: Array = [{"action": "spawn", "target": "self", "spawn_count": 1}]
+	var adj_eff: Array = _wrap([{"action": "spawn", "target": "right_adj", "spawn_count": 1}])
+	var self_eff: Array = _wrap([{"action": "spawn", "target": "self", "spawn_count": 1}])
 	var adj_val: float = ev.effect_modifier(adj_eff, 5)
 	var self_val: float = ev.effect_modifier(self_eff, 5)
 	assert_gt(adj_val, self_val,
 		"right_adj spawn > self spawn (chain potential)")
 
 func test_enhance_valued_higher_early() -> void:
-	var eff: Array = [{"action": "enhance_pct", "enhance_atk_pct": 0.05}]
+	var eff: Array = _wrap([{"action": "enhance_pct", "enhance_atk_pct": 0.05}])
 	var early: float = ev.effect_modifier(eff, 3)
 	var late: float = ev.effect_modifier(eff, 13)
 	assert_gt(early, late,
 		"enhance compound value higher early game")
 
 func test_shield_valued_higher_late() -> void:
-	var eff: Array = [{"action": "shield_pct", "shield_hp_pct": 0.20}]
+	var eff: Array = _wrap([{"action": "shield_pct", "shield_hp_pct": 0.20}])
 	var early: float = ev.effect_modifier(eff, 3)
 	var late: float = ev.effect_modifier(eff, 12)
 	assert_gt(late, early,

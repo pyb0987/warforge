@@ -308,5 +308,15 @@ func test_sp_workshop_listens_on_event() -> void:
 
 func test_sp_warmachine_is_persistent() -> void:
 	var t: Dictionary = CardDB.get_template("sp_warmachine")
-	assert_eq(t["trigger_timing"], Enums.TriggerTiming.PERSISTENT)
-	assert_eq(t["effects"].size(), 0, "PERSISTENT 효과는 테마 시스템에서 처리")
+	# v2 multi-block: PERSISTENT (range_bonus) + RS (manufacture).
+	# Representative timing is PERSISTENT — the first-block hoist.
+	assert_eq(t["trigger_timing"], Enums.TriggerTiming.PERSISTENT,
+		"대표 timing = PERSISTENT (first block)")
+	var blocks: Array = t["effects"]
+	assert_eq(blocks.size(), 2, "multi-block: PERSISTENT + RS")
+	assert_eq(
+		blocks[0]["trigger_timing"], Enums.TriggerTiming.PERSISTENT,
+		"block[0] = PERSISTENT (range_bonus)")
+	assert_eq(
+		blocks[1]["trigger_timing"], Enums.TriggerTiming.ROUND_START,
+		"block[1] = RS (manufacture)")

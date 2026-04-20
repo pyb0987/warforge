@@ -399,6 +399,17 @@ func reset_round() -> void:
 	tenure += 1
 
 
+## v2 block format: max_activations lives inside each timing block, not at the
+## card top level. Chain engine looks up the matching block and passes max_act.
+func can_activate_with(max_act: int, bonus: int = 0) -> bool:
+	if max_act == -1:
+		return true
+	return activations_used < max_act + bonus
+
+
+## Legacy accessor — reads the hoisted top-level max_activations from the
+## first block (populated by _c()'s backward-compat hoist). Callers that need
+## per-block semantics (multi-block cards) should use can_activate_with().
 func can_activate(bonus: int = 0) -> bool:
 	var max_act: int = template.get("max_activations", -1)
 	if max_act == -1:

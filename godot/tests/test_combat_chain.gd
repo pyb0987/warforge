@@ -37,9 +37,12 @@ func test_combat_event_ignores_non_combat_cards() -> void:
 func test_combat_event_on_combat_attack_fires() -> void:
 	## ON_COMBAT_ATTACK 타이밍 카드가 공격 이벤트에 반응
 	var card := CardInstance.create("sp_assembly")
-	# 테스트용: ON_COMBAT_ATTACK + 효과 설정
-	card.template["trigger_timing"] = Enums.TriggerTiming.ON_COMBAT_ATTACK
-	card.template["effects"] = [{"action": "combat_buff_pct", "buff_atk_pct": 0.12, "target": "self"}]
+	# v2 block format: effects[0] is the timing block
+	card.template["effects"] = [{
+		"trigger_timing": Enums.TriggerTiming.ON_COMBAT_ATTACK,
+		"max_activations": -1,
+		"actions": [{"action": "combat_buff_pct", "buff_atk_pct": 0.12, "target": "self"}],
+	}]
 	_board.append(card)
 
 	var result := _chain.process_combat_event(_board, "attack", 0)
@@ -51,8 +54,11 @@ func test_combat_event_on_combat_attack_fires() -> void:
 func test_combat_event_ally_death_fires() -> void:
 	## ON_COMBAT_DEATH 타이밍 카드가 사망 이벤트에 반응
 	var card := CardInstance.create("sp_assembly")
-	card.template["trigger_timing"] = Enums.TriggerTiming.ON_COMBAT_DEATH
-	card.template["effects"] = [{"action": "combat_buff_pct", "buff_atk_pct": 0.03, "target": "all_allies"}]
+	card.template["effects"] = [{
+		"trigger_timing": Enums.TriggerTiming.ON_COMBAT_DEATH,
+		"max_activations": -1,
+		"actions": [{"action": "combat_buff_pct", "buff_atk_pct": 0.03, "target": "all_allies"}],
+	}]
 	_board.append(card)
 
 	var result := _chain.process_combat_event(_board, "ally_death", 0)
@@ -63,8 +69,11 @@ func test_combat_event_ally_death_fires() -> void:
 func test_combat_event_ally_death_ignores_attack_cards() -> void:
 	## ON_COMBAT_ATTACK 카드는 사망 이벤트에 반응 안 함
 	var card := CardInstance.create("sp_assembly")
-	card.template["trigger_timing"] = Enums.TriggerTiming.ON_COMBAT_ATTACK
-	card.template["effects"] = [{"action": "combat_buff_pct", "buff_atk_pct": 0.12, "target": "self"}]
+	card.template["effects"] = [{
+		"trigger_timing": Enums.TriggerTiming.ON_COMBAT_ATTACK,
+		"max_activations": -1,
+		"actions": [{"action": "combat_buff_pct", "buff_atk_pct": 0.12, "target": "self"}],
+	}]
 	_board.append(card)
 
 	var result := _chain.process_combat_event(_board, "ally_death", 0)

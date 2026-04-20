@@ -414,7 +414,11 @@ def desc_hatch_enhance(p: dict) -> str:
     return f"부화 유닛 ATK +{pct}% 성장"
 
 def desc_meta_consume(p: dict) -> str:
-    return f"변태({p['consume']}기 소모)"
+    base = f"변태({p['consume']}기 소모)"
+    count = p.get("count", 1)
+    if count > 1:
+        return f"{base} × {count}회"
+    return base
 
 def desc_hatch_scaled(p: dict) -> str:
     per = p["per_units"]
@@ -667,6 +671,11 @@ def desc_upgrade_discount(p: dict) -> str:
     pct = int(p["pct"] * 100)
     return f"[지속] {tier} 업그레이드 {pct}% 할인"
 
+def desc_manufacture(p: dict) -> str:
+    count = p.get("count", 1)
+    return f"이 카드에 유닛 {count}기 제조 (#화기 랜덤)"
+
+
 def desc_range_bonus(p: dict) -> str:
     raw_tag = p.get("tag", "firearm")
     tag = tag_kr(raw_tag)
@@ -760,6 +769,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "epic_counter":     desc_epic_counter,
     "total_counter":    desc_total_counter,
     "upgrade_discount": desc_upgrade_discount,
+    "manufacture":      desc_manufacture,
     "range_bonus":      desc_range_bonus,
     "economy":          desc_economy,
     "battle_buff":      desc_battle_buff,

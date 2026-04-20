@@ -378,16 +378,28 @@ func _parasite_post(card: CardInstance, idx: int, won: bool) -> Dictionary:
 	if do_meta:
 		var inner_effs: Array = combat_result_eff.get("effects", [])
 		var meta_eff: Dictionary = {}
+		var enhance_eff: Dictionary = {}
 		var shield_eff: Dictionary = {}
 		for e in inner_effs:
 			if e.get("action") == "meta_consume":
 				meta_eff = e
+			elif e.get("action") == "enhance":
+				enhance_eff = e
 			elif e.get("action") == "shield":
 				shield_eff = e
-		if not meta_eff.is_empty() and card.metamorphosis(meta_eff.get("consume", 2)):
-			events.append(_meta_evt(idx, idx))
-			if not shield_eff.is_empty():
-				card.shield_hp_pct += shield_eff.get("hp_pct", 0.30)
+		if not meta_eff.is_empty():
+			var consume: int = meta_eff.get("consume", 2)
+			var count: int = meta_eff.get("count", 1)
+			var any_success := false
+			for _i in count:
+				if card.metamorphosis(consume):
+					any_success = true
+					events.append(_meta_evt(idx, idx))
+			if any_success:
+				if not enhance_eff.is_empty():
+					card.enhance(null, enhance_eff.get("atk_pct", 0.0), enhance_eff.get("hp_pct", 0.0))
+				if not shield_eff.is_empty():
+					card.shield_hp_pct += shield_eff.get("hp_pct", 0.30)
 
 	return {"events": events, "gold": 0, "terazin": 0}
 

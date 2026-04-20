@@ -120,7 +120,11 @@ func run() -> Dictionary:
 			c.reset_round()
 			var cap: int = _genome.get_activation_cap(c.get_base_id())
 			if cap >= 0:
+				# v2 block format: chain_engine reads max_activations from the
+				# block array, not the hoisted top-level. Keep both in sync.
 				c.template["max_activations"] = cap
+				for block in c.template.get("effects", []):
+					block["max_activations"] = cap
 		for card in state.bench:
 			if card != null:
 				(card as CardInstance).reset_round()
@@ -144,6 +148,9 @@ func run() -> Dictionary:
 				var base_max: int = c.template.get("max_activations", -1)
 				if base_max > 0:
 					c.template["max_activations"] = base_max + act_bonus
+					for block in c.template.get("effects", []):
+						if block.get("max_activations", -1) == base_max:
+							block["max_activations"] = base_max + act_bonus
 		# Enhance amp from r4_5
 		var enhance_amp: float = BossReward.get_enhance_amp(state)
 		if enhance_amp > 1.0:
