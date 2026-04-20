@@ -551,6 +551,12 @@ func _register_steampunk() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "range_bonus", "tag": "firearm", "unit_thresh": 8}],
+			},
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "manufacture", "target": "self", "count": 1}],
 			}
 		],
 		war_tags,
@@ -567,6 +573,12 @@ func _register_steampunk() -> void:
 					"actions": [
 						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 6, "atk_buff_pct": 0.3}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "manufacture", "target": "self", "count": 2}],
 				}
 			],
 			},
@@ -582,6 +594,12 @@ func _register_steampunk() -> void:
 					"actions": [
 						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 4, "atk_buff_pct": 0.3, "attack_stack_pct": 0.12}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "manufacture", "target": "self", "count": 4}],
 				}
 			],
 			},

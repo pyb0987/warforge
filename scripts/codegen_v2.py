@@ -670,26 +670,43 @@ def _project_v2_to_desc_gen_input(all_cards: dict) -> dict:
             projected_stars: dict = {}
             for star_n, star_data in card["stars"].items():
                 proj_star: dict = {}
-                # For desc gen, only use the ★1-timing block to mimic v1 behavior.
-                # Multi-block cards (future sp_warmachine) need desc_gen updates —
-                # out of scope for C1.
-                block = star_data["effects"][0]
-                proj_star["max_act"] = block["max_act"]
-                if block["trigger_timing"] != base_timing:
-                    proj_star["timing"] = block["trigger_timing"]
+                blocks = star_data["effects"]
+                first_block = blocks[0]
+                # First block's trigger_timing is the card-level "representative"
+                # timing; other blocks' actions get timing_override injected so
+                # desc_gen renders them as separate sections.
+                proj_star["max_act"] = first_block["max_act"]
+                if first_block["trigger_timing"] != base_timing:
+                    proj_star["timing"] = first_block["trigger_timing"]
                 for f in ("conditional", "r_conditional", "post_threshold"):
-                    if f in block:
-                        proj_star[f] = block[f]
-                # Flatten actions back to v1 effects list
+                    if f in first_block:
+                        proj_star[f] = first_block[f]
+
+                # Flatten actions across all blocks. Non-primary block actions
+                # carry `timing_override` so card_desc_gen splits them into a
+                # separate prefixed section ("라운드 시작: …" / "[지속] …").
                 effects: list = []
-                for key, val in block.items():
-                    if key in BLOCK_META_KEYS:
-                        continue
-                    if isinstance(val, list) and val and all(isinstance(v, dict) for v in val):
-                        for p in val:
-                            effects.append({key: p})
-                    else:
-                        effects.append({key: val})
+                primary_timing = first_block["trigger_timing"]
+                for block in blocks:
+                    block_timing = block["trigger_timing"]
+                    is_non_primary = block_timing != primary_timing
+                    for key, val in block.items():
+                        if key in BLOCK_META_KEYS:
+                            continue
+                        if (isinstance(val, list) and val and
+                                all(isinstance(v, dict) for v in val)):
+                            for p in val:
+                                p_copy = dict(p)
+                                if is_non_primary:
+                                    p_copy["timing_override"] = block_timing
+                                effects.append({key: p_copy})
+                        elif isinstance(val, dict):
+                            v_copy = dict(val)
+                            if is_non_primary:
+                                v_copy["timing_override"] = block_timing
+                            effects.append({key: v_copy})
+                        else:
+                            effects.append({key: val})
                 proj_star["effects"] = effects
                 projected_stars[star_n] = proj_star
             projected_card["stars"] = projected_stars

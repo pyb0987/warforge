@@ -72,6 +72,60 @@ func test_warmachine_range_bonus_calculation() -> void:
 
 
 # ================================================================
+# sp_warmachine: RS manufacture (multi-block) — comp 랜덤 N기 제조
+# ================================================================
+
+func test_warmachine_rs_s1_manufactures_1_unit() -> void:
+	## ★1: RS 블록 count=1
+	var card: CardInstance = CardInstance.create("sp_warmachine")
+	var before: int = card.get_total_units()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(card.get_total_units(), before + 1, "★1: +1기 제조")
+	assert_eq(result["events"].size(), 1, "MF 이벤트 1개")
+	assert_eq(result["events"][0]["layer2"], Enums.Layer2.MANUFACTURE,
+		"layer2 = MANUFACTURE")
+
+
+func test_warmachine_rs_s2_manufactures_2_units() -> void:
+	var card := _make_star("sp_warmachine", 2)
+	var before: int = card.get_total_units()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(card.get_total_units(), before + 2, "★2: +2기 제조")
+
+
+func test_warmachine_rs_s3_manufactures_4_units() -> void:
+	var card := _make_star("sp_warmachine", 3)
+	var before: int = card.get_total_units()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(card.get_total_units(), before + 4, "★3: +4기 제조")
+	assert_eq(result["events"].size(), 4, "제조당 MF 이벤트 1개 → 총 4개")
+
+
+func test_warmachine_rs_unit_is_from_comp() -> void:
+	## 제조 유닛은 comp(sp_turret/sp_cannon/sp_drone) 중에서만 선택
+	var card := _make_star("sp_warmachine", 3)
+	var comp_ids: Array[String] = ["sp_turret", "sp_cannon", "sp_drone"]
+	_sys.process_rs_card(card, 0, [card], _rng)
+	for s in card.stacks:
+		var uid: String = s["unit_type"].get("id", "")
+		assert_true(uid in comp_ids, "유닛 %s 는 comp 내부 소속" % uid)
+
+
+func test_warmachine_rs_and_persistent_coexist() -> void:
+	## multi-block: RS(manufacture) + PERSISTENT(range_bonus) 동시 작동
+	var card := _make_star("sp_warmachine", 3)
+	_sys.process_rs_card(card, 0, [card], _rng)  # RS: +4기
+	var total_after_rs := card.get_total_units()
+	_sys.apply_persistent(card)  # PERSISTENT: range_bonus 계산
+	assert_eq(card.get_total_units(), total_after_rs,
+		"apply_persistent는 유닛 수 변경 없음")
+	# firearm(turret/cannon)만 카운트. ★3 threshold=4.
+	# 최소 1개는 firearm 보장 못 하지만 range_bonus 필드는 존재해야.
+	assert_true(card.theme_state.has("range_bonus"),
+		"apply_persistent 후 range_bonus 설정됨")
+
+
+# ================================================================
 # sp_arsenal: on_sell_trigger → 최강 유닛 3기 흡수
 # ================================================================
 

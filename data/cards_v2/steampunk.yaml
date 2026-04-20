@@ -345,6 +345,11 @@ cards:
           range_bonus:
             tag: firearm
             unit_thresh: 8
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 1
       2:
         effects:
         - trigger_timing: PERSISTENT
@@ -353,6 +358,11 @@ cards:
             tag: firearm
             unit_thresh: 6
             atk_buff_pct: 0.3
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 2
       3:
         effects:
         - trigger_timing: PERSISTENT
@@ -362,6 +372,11 @@ cards:
             unit_thresh: 4
             atk_buff_pct: 0.3
             attack_stack_pct: 0.12
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 4
   sp_charger:
     name: 태엽 과급기
     tier: 4
