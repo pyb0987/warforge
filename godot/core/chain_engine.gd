@@ -399,18 +399,26 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 		var actions: Array = block.get("actions", [])
 		var theme: int = tmpl.get("theme", -1)
 		var impl: String = tmpl.get("impl", "card_db")
+		var result: Dictionary
 
 		if impl == "theme_system" and theme in _theme_systems:
-			var result: Dictionary = _theme_systems[theme].apply_post_combat(
+			result = _theme_systems[theme].apply_post_combat(
 				card, i, board, won)
-			gold += result["gold"]
-			terazin += result["terazin"]
-			events.append_array(result["events"])
 		else:
-			var result := _execute_actions(card, i, board, -1, 0, 1.0, actions)
-			gold += result["gold"]
-			terazin += result["terazin"]
-			events.append_array(result["events"])
+			result = _execute_actions(card, i, board, -1, 0, 1.0, actions)
+
+		# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과 (RS/OE/BS 와 대칭)
+		var cond_effects: Array = block.get("conditional_effects", [])
+		for cond in cond_effects:
+			if _check_condition(cond, card, i, board):
+				var cond_result := _execute_conditional(cond, card, i, board, 1.0)
+				result["events"].append_array(cond_result["events"])
+				result["gold"] += cond_result["gold"]
+				result["terazin"] += cond_result["terazin"]
+
+		gold += result["gold"]
+		terazin += result["terazin"]
+		events.append_array(result["events"])
 
 	return {"gold": gold, "terazin": terazin, "events": events}
 
