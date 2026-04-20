@@ -10,6 +10,7 @@ cards:
     timing: RS
     comp:
       - {unit: sp_spider, n: 2}
+      - {unit: sp_sawblade, n: 1}
       - {unit: sp_rat, n: 1}
     tags: [steampunk, production]
     stars:
@@ -89,8 +90,8 @@ cards:
     timing: OE
     listen: {l2: UP}
     comp:
-      - {unit: sp_sawblade, n: 1}
-      - {unit: sp_scout, n: 1}
+      - {unit: sp_sawblade, n: 2}
+      - {unit: sp_scout, n: 2}
     tags: [steampunk, cycle]
     stars:
       1:
@@ -113,7 +114,8 @@ cards:
     timing: REROLL
     comp:
       - {unit: sp_scout, n: 2}
-      - {unit: sp_rat, n: 1}
+      - {unit: sp_sawblade, n: 1}
+      - {unit: sp_rat, n: 2}
     tags: [steampunk, economy]
     stars:
       1:
@@ -146,6 +148,7 @@ cards:
     comp:
       - {unit: sp_sawblade, n: 2}
       - {unit: sp_spider, n: 1}
+      - {unit: sp_scorpion, n: 1}
     tags: [steampunk, production]
     require_other: true
     stars:
@@ -172,7 +175,7 @@ cards:
     theme: steampunk
     timing: BS
     comp:
-      - {unit: sp_titan, n: 1}
+      - {unit: sp_titan, n: 2}
       - {unit: sp_crab, n: 1}
     tags: [steampunk, defense]
     stars:
@@ -195,8 +198,8 @@ cards:
     theme: steampunk
     timing: PERSISTENT
     comp:
-      - {unit: sp_turret, n: 1}
-      - {unit: sp_cannon, n: 1}
+      - {unit: sp_turret, n: 2}
+      - {unit: sp_cannon, n: 2}
       - {unit: sp_drone, n: 2}
     tags: [steampunk, combat]
     impl: theme_system
@@ -221,8 +224,9 @@ cards:
     timing: OE
     listen: {l1: UA, l2: MF}
     comp:
-      - {unit: sp_titan, n: 1}
-      - {unit: sp_turret, n: 1}
+      - {unit: sp_titan, n: 2}
+      - {unit: sp_turret, n: 2}
+      - {unit: sp_cannon, n: 1}
     tags: [steampunk, power]
     impl: theme_system
     stars:
@@ -249,8 +253,8 @@ cards:
     timing: SELL
     impl: theme_system
     comp:
-      - {unit: sp_titan, n: 1}
-      - {unit: sp_scorpion, n: 1}
+      - {unit: sp_titan, n: 2}
+      - {unit: sp_scorpion, n: 2}
       - {unit: sp_crab, n: 1}
     tags: [steampunk, arsenal]
     stars:

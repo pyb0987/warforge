@@ -188,10 +188,10 @@ func test_sell_t5_refunds_6() -> void:
 # ================================================================
 
 func test_materialize_army_unit_count() -> void:
-	## sp_assembly: spider×2 + rat×1 = 3유닛 → 3개 unit dict
+	## sp_assembly: spider×2 + sawblade×1 + rat×1 = 4유닛 → 4개 unit dict
 	var card: CardInstance = CardInstance.create("sp_assembly")
 	var units: Array = _materialize_card(card)
-	assert_eq(units.size(), 3, "sp_assembly → 3유닛")
+	assert_eq(units.size(), 4, "sp_assembly → 4유닛")
 
 
 func test_materialize_army_has_combat_keys() -> void:

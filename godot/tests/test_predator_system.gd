@@ -156,10 +156,8 @@ func test_swarm_sense_buffs_predator_cards() -> void:
 
 func test_apex_hunt_metamorphosis_and_buff() -> void:
 	## ★1: meta(2), ≤5기면 temp_buff(0.30)
-	## pr_apex_hunt: apex×1 + charger×1 = 2기. meta(2) 조건: total>=3
-	## 3기 이상 필요 → larvae 추가
+	## pr_apex_hunt: apex×3 + guardian×1 = 4기. meta(2): 4-2+1=3기
 	var card: CardInstance = CardInstance.create("pr_apex_hunt")
-	card.add_specific_unit("pr_larva", 3)  # 2+3=5기, meta(2): 2소비+1최강 = 5-2+1=4
 	var event: Dictionary = _make_metamorphosis_event(0, 0)
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], event, _rng)

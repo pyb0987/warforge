@@ -93,16 +93,16 @@ func test_arsenal_ignores_non_steampunk_sold() -> void:
 
 
 func test_arsenal_absorbed_unit_is_highest_cp() -> void:
-	## sp_assembly 최강: sp_spider(CP=80) vs sp_rat(CP=60)
+	## sp_assembly 최강: sp_sawblade(CP=160) vs sp_spider(80) vs sp_rat(60)
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
 	sold.attach_upgrade("C1")
 	_sys.on_sell_trigger(arsenal, sold)
 	var found := false
 	for s in arsenal.stacks:
-		if s["unit_type"].get("id", "") == "sp_spider":
+		if s["unit_type"].get("id", "") == "sp_sawblade":
 			found = true
-	assert_true(found, "흡수된 유닛 = sp_spider(최강 CP)")
+	assert_true(found, "흡수된 유닛 = sp_sawblade(최강 CP)")
 
 
 # ================================================================

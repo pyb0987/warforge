@@ -9,8 +9,8 @@ cards:
     theme: druid
     timing: RS
     comp:
-      - {unit: dr_treant_y, n: 1}
-      - {unit: dr_wolf, n: 1}
+      - {unit: dr_turtle, n: 1}
+      - {unit: dr_vine, n: 1}
     tags: [druid, creation]
     impl: theme_system
     stars:
@@ -36,8 +36,8 @@ cards:
     theme: druid
     timing: BS
     comp:
-      - {unit: dr_boar, n: 1}
-      - {unit: dr_wolf, n: 1}
+      - {unit: dr_rootguard, n: 1}
+      - {unit: dr_vine, n: 1}
     tags: [druid, guardian]
     impl: theme_system
     stars:
@@ -78,7 +78,7 @@ cards:
     theme: druid
     timing: RS
     comp:
-      - {unit: dr_turtle, n: 1}
+      - {unit: dr_boar, n: 1}
       - {unit: dr_vine, n: 1}
     tags: [druid, growth]
     impl: theme_system
@@ -149,7 +149,7 @@ cards:
     theme: druid
     timing: RS
     comp:
-      - {unit: dr_turtle, n: 1}
+      - {unit: dr_rootguard, n: 1}
       - {unit: dr_wolf, n: 1}
     tags: [druid, prune]
     impl: theme_system
@@ -189,7 +189,7 @@ cards:
     timing: RS
     comp:
       - {unit: dr_treant_a, n: 1}
-      - {unit: dr_rootguard, n: 1}
+      - {unit: dr_wolf, n: 1}
     tags: [druid, time]
     impl: theme_system
     stars:
@@ -236,7 +236,7 @@ cards:
     theme: druid
     timing: BS
     comp:
-      - {unit: dr_spore, n: 1}
+      - {unit: dr_spore, n: 2}
       - {unit: dr_toad, n: 1}
     tags: [druid, combat]
     impl: theme_system
@@ -270,6 +270,7 @@ cards:
     comp:
       - {unit: dr_spore, n: 1}
       - {unit: dr_boar, n: 1}
+      - {unit: dr_wolf, n: 1}
     tags: [druid, combat]
     impl: theme_system
     stars:
@@ -312,6 +313,7 @@ cards:
     comp:
       - {unit: dr_treant_a, n: 1}
       - {unit: dr_turtle, n: 1}
+      - {unit: dr_wolf, n: 1}
     tags: [druid, ancient]
     impl: theme_system
     stars:
@@ -355,8 +357,7 @@ cards:
     theme: druid
     timing: RS
     comp:
-      - {unit: dr_treant_a, n: 1}
-      - {unit: dr_turtle, n: 1}
+      - {unit: dr_treant_a, n: 2}
       - {unit: dr_spirit, n: 1}
     tags: [druid, worldtree]
     impl: theme_system

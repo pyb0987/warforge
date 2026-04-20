@@ -134,7 +134,7 @@ func _register_steampunk() -> void:
 	var MF := Enums.Layer2.MANUFACTURE
 	var UP := Enums.Layer2.UPGRADE
 	var EN := Enums.Layer1.ENHANCED
-	var ass_comp := [{"unit_id":"sp_spider","count":2},{"unit_id":"sp_rat","count":1}]
+	var ass_comp := [{"unit_id":"sp_spider","count":2},{"unit_id":"sp_sawblade","count":1},{"unit_id":"sp_rat","count":1}]
 	var ass_tags := PackedStringArray(["steampunk", "production"])
 	_c("sp_assembly", "증기 조립소", 1, T,
 		ass_comp, RS, -1,
@@ -182,7 +182,7 @@ func _register_steampunk() -> void:
 					 _spawn("both_adj", 1, UA, MF)], wor_tags, UA, MF),
 		})
 
-	var cir_comp := [{"unit_id":"sp_sawblade","count":1},{"unit_id":"sp_scout","count":1}]
+	var cir_comp := [{"unit_id":"sp_sawblade","count":2},{"unit_id":"sp_scout","count":2}]
 	var cir_tags := PackedStringArray(["steampunk", "cycle"])
 	_c("sp_circulator", "증기 순환기", 2, T,
 		cir_comp, OE, 1,
@@ -192,7 +192,7 @@ func _register_steampunk() -> void:
 			3: _star("증기 순환기 ★3", cir_comp, OE, 3, [{"action": "spawn", "target": "event_target", "spawn_count": 1, "output_layer1": UA, "output_layer2": MF, "breed_strongest": true}], cir_tags, -1, UP),
 		})
 
-	var int_comp := [{"unit_id":"sp_scout","count":2},{"unit_id":"sp_rat","count":1}]
+	var int_comp := [{"unit_id":"sp_scout","count":2},{"unit_id":"sp_sawblade","count":1},{"unit_id":"sp_rat","count":2}]
 	var int_tags := PackedStringArray(["steampunk", "economy"])
 	_c("sp_interest", "증기 이자기", 2, T,
 		int_comp, REROLL, 3,
@@ -206,7 +206,7 @@ func _register_steampunk() -> void:
 					 _enhance("self", 0.05, 0.0, "", -1, -1)], int_tags),
 		})
 
-	var lin_comp := [{"unit_id":"sp_sawblade","count":2},{"unit_id":"sp_spider","count":1}]
+	var lin_comp := [{"unit_id":"sp_sawblade","count":2},{"unit_id":"sp_spider","count":1},{"unit_id":"sp_scorpion","count":1}]
 	var lin_tags := PackedStringArray(["steampunk", "production"])
 	_c("sp_line", "조립 라인", 3, T,
 		lin_comp, OE, 3,
@@ -216,7 +216,7 @@ func _register_steampunk() -> void:
 			3: _star("조립 라인 ★3", lin_comp, OE, 4, [{"action": "spawn", "target": "both_adj", "spawn_count": 2, "output_layer1": UA, "output_layer2": MF, "breed_strongest": true}], lin_tags, UA, MF, true),
 		})
 
-	var bar_comp := [{"unit_id":"sp_titan","count":1},{"unit_id":"sp_crab","count":1}]
+	var bar_comp := [{"unit_id":"sp_titan","count":2},{"unit_id":"sp_crab","count":1}]
 	var bar_tags := PackedStringArray(["steampunk", "defense"])
 	_c("sp_barrier", "증기 방벽", 3, T,
 		bar_comp, BS, -1,
@@ -226,7 +226,7 @@ func _register_steampunk() -> void:
 			3: _star("증기 방벽 ★3", bar_comp, BS, -1, [_shield("all_allies", 0.4)], bar_tags),
 		})
 
-	var war_comp := [{"unit_id":"sp_turret","count":1},{"unit_id":"sp_cannon","count":1},{"unit_id":"sp_drone","count":2}]
+	var war_comp := [{"unit_id":"sp_turret","count":2},{"unit_id":"sp_cannon","count":2},{"unit_id":"sp_drone","count":2}]
 	var war_tags := PackedStringArray(["steampunk", "combat"])
 	_c("sp_warmachine", "전쟁 기계", 4, T,
 		war_comp, PERSISTENT, -1,
@@ -245,7 +245,7 @@ func _register_steampunk() -> void:
 		],
 	}
 
-	var cha_comp := [{"unit_id":"sp_titan","count":1},{"unit_id":"sp_turret","count":1}]
+	var cha_comp := [{"unit_id":"sp_titan","count":2},{"unit_id":"sp_turret","count":2},{"unit_id":"sp_cannon","count":1}]
 	var cha_tags := PackedStringArray(["steampunk", "power"])
 	_c("sp_charger", "태엽 과급기", 4, T,
 		cha_comp, OE, -1,
@@ -269,7 +269,7 @@ func _register_steampunk() -> void:
 		],
 	}
 
-	var ars_comp := [{"unit_id":"sp_titan","count":1},{"unit_id":"sp_scorpion","count":1},{"unit_id":"sp_crab","count":1}]
+	var ars_comp := [{"unit_id":"sp_titan","count":2},{"unit_id":"sp_scorpion","count":2},{"unit_id":"sp_crab","count":1}]
 	var ars_tags := PackedStringArray(["steampunk", "arsenal"])
 	_c("sp_arsenal", "제국 병기창", 5, T,
 		ars_comp, SELL, -1,
@@ -324,7 +324,7 @@ func _register_neutral() -> void:
 					 _enhance("both_adj", 0.03)], wp_tags),
 		})
 
-	var rr_comp := [{"unit_id":"ne_guardian","count":1},{"unit_id":"ne_scrap","count":1}]
+	var rr_comp := [{"unit_id":"ne_guardian","count":1},{"unit_id":"ne_scrap","count":2}]
 	var rr_tags := PackedStringArray(["neutral", "ancient"])
 	_c("ne_ruin_resonance", "유적의 공명", 2, T,
 		rr_comp, RS, -1,
@@ -361,7 +361,7 @@ func _register_neutral() -> void:
 					 _spawn("self")], wan_tags, UA, -1),
 		})
 
-	var ma_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_mutant","count":1}]
+	var ma_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_archer","count":1}]
 	var ma_tags := PackedStringArray(["neutral", "mutant"])
 	_c("ne_mutant_adapt", "돌연변이 적응", 3, T,
 		ma_comp, OE, 2,
@@ -384,7 +384,7 @@ func _register_neutral() -> void:
 			},
 		})
 
-	var mc_comp := [{"unit_id":"ne_spirit","count":1},{"unit_id":"ne_scrap","count":1}]
+	var mc_comp := [{"unit_id":"ne_spirit","count":2},{"unit_id":"ne_scrap","count":2}]
 	var mc_tags := PackedStringArray(["neutral", "mana"])
 	_c("ne_mana_crystal", "마력 결정", 2, T,
 		mc_comp, OE, 2,
@@ -395,7 +395,7 @@ func _register_neutral() -> void:
 					 _spawn("both_adj", 2)], mc_tags, UA, -1),
 		})
 
-	var ac_comp := [{"unit_id":"ne_guardian","count":1},{"unit_id":"ne_spirit","count":1}]
+	var ac_comp := [{"unit_id":"ne_guardian","count":2},{"unit_id":"ne_spirit","count":2}]
 	var ac_tags := PackedStringArray(["neutral", "ancient"])
 	_c("ne_ancient_catalyst", "고대 촉매", 3, T,
 		ac_comp, OE, 2,
@@ -418,7 +418,7 @@ func _register_neutral() -> void:
 					 _spawn("self")], mer_tags),
 		})
 
-	var sb_comp := [{"unit_id":"ne_spirit","count":2},{"unit_id":"ne_archer","count":1}]
+	var sb_comp := [{"unit_id":"ne_spirit","count":2},{"unit_id":"ne_archer","count":2},{"unit_id":"ne_eagle","count":1}]
 	var sb_tags := PackedStringArray(["neutral", "mana"])
 	_c("ne_spirit_blessing", "정령의 축복", 3, T,
 		sb_comp, MERGE, 1,
@@ -434,7 +434,7 @@ func _register_neutral() -> void:
 					 _spawn("all_allies")], sb_tags),
 		})
 
-	var scr_comp := [{"unit_id":"ne_scrap","count":3}]
+	var scr_comp := [{"unit_id":"ne_scrap","count":5}]
 	var scr_tags := PackedStringArray(["neutral", "economy", "scrap"])
 	_c("ne_scrapyard", "폐품 상회", 2, T,
 		scr_comp, RS, -1,
@@ -444,7 +444,7 @@ func _register_neutral() -> void:
 			3: _star("폐품 상회 ★3", scr_comp, RS, -1, [{"action": "scrap_adjacent", "target": "both_adj", "scrap_count": 2, "reroll_gain": 2, "gold_per_unit": 1}], scr_tags),
 		})
 
-	var dm_comp := [{"unit_id":"ne_merc","count":1},{"unit_id":"ne_guardian","count":1}]
+	var dm_comp := [{"unit_id":"ne_merc","count":2},{"unit_id":"ne_guardian","count":2}]
 	var dm_tags := PackedStringArray(["neutral", "economy"])
 	_c("ne_dim_merchant", "차원 행상인", 4, T,
 		dm_comp, RS, -1,
@@ -454,7 +454,7 @@ func _register_neutral() -> void:
 			3: _star("차원 행상인 ★3", dm_comp, RS, -1, [{"action": "diversity_gold", "target": "self", "gold_per_theme": 3, "terazin_threshold": 3, "terazin_per_theme": 1, "mercenary_spawn": 1}], dm_tags),
 		})
 
-	var wil_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_chimera","count":1}]
+	var wil_comp := [{"unit_id":"ne_archer","count":1},{"unit_id":"ne_chimera","count":1}]
 	var wil_tags := PackedStringArray(["neutral", "combat"])
 	_c("ne_wildforce", "야생의 힘", 2, T,
 		wil_comp, BS, -1,
@@ -489,7 +489,7 @@ func _register_neutral() -> void:
 					 _shield("self", 0.15)], cc_tags),
 		})
 
-	var rui_comp := [{"unit_id":"ne_golem","count":1},{"unit_id":"ne_spirit","count":1}]
+	var rui_comp := [{"unit_id":"ne_golem","count":2},{"unit_id":"ne_spirit","count":1}]
 	var rui_tags := PackedStringArray(["neutral", "time"])
 	_c("ne_ruins", "고대의 잔해", 2, T,
 		rui_comp, RS, -1,
@@ -515,7 +515,7 @@ func _register_neutral() -> void:
 			},
 		})
 
-	var awa_comp := [{"unit_id":"ne_guardian","count":1},{"unit_id":"ne_golem","count":1}]
+	var awa_comp := [{"unit_id":"ne_guardian","count":2},{"unit_id":"ne_golem","count":2},{"unit_id":"ne_spirit","count":2}]
 	var awa_tags := PackedStringArray(["neutral", "ancient"])
 	_c("ne_awakening", "고대의 각성", 4, T,
 		awa_comp, RS, -1,
@@ -550,7 +550,7 @@ func _register_druid() -> void:
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
 	var RS := Enums.TriggerTiming.ROUND_START
-	var cra_comp := [{"unit_id":"dr_treant_y","count":1},{"unit_id":"dr_wolf","count":1}]
+	var cra_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_vine","count":1}]
 	var cra_tags := PackedStringArray(["druid", "creation"])
 	_c("dr_cradle", "숲의 요람", 1, T,
 		cra_comp, RS, -1,
@@ -574,7 +574,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var lif_comp := [{"unit_id":"dr_boar","count":1},{"unit_id":"dr_wolf","count":1}]
+	var lif_comp := [{"unit_id":"dr_rootguard","count":1},{"unit_id":"dr_vine","count":1}]
 	var lif_tags := PackedStringArray(["druid", "guardian"])
 	_c("dr_lifebeat", "생명의 맥동", 1, T,
 		lif_comp, BS, -1,
@@ -598,7 +598,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var ori_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_vine","count":1}]
+	var ori_comp := [{"unit_id":"dr_boar","count":1},{"unit_id":"dr_vine","count":1}]
 	var ori_tags := PackedStringArray(["druid", "growth"])
 	_c("dr_origin", "오래된 근원", 2, T,
 		ori_comp, RS, -1,
@@ -647,7 +647,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var pru_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_wolf","count":1}]
+	var pru_comp := [{"unit_id":"dr_rootguard","count":1},{"unit_id":"dr_wolf","count":1}]
 	var pru_tags := PackedStringArray(["druid", "prune"])
 	_c("dr_prune", "가지치기", 2, T,
 		pru_comp, RS, -1,
@@ -671,7 +671,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var dee_comp := [{"unit_id":"dr_treant_a","count":1},{"unit_id":"dr_rootguard","count":1}]
+	var dee_comp := [{"unit_id":"dr_treant_a","count":1},{"unit_id":"dr_wolf","count":1}]
 	var dee_tags := PackedStringArray(["druid", "time"])
 	_c("dr_deep", "뿌리깊은 자", 3, T,
 		dee_comp, RS, -1,
@@ -695,7 +695,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var sc_comp := [{"unit_id":"dr_spore","count":1},{"unit_id":"dr_toad","count":1}]
+	var sc_comp := [{"unit_id":"dr_spore","count":2},{"unit_id":"dr_toad","count":1}]
 	var sc_tags := PackedStringArray(["druid", "combat"])
 	_c("dr_spore_cloud", "포자 구름", 3, T,
 		sc_comp, BS, -1,
@@ -719,7 +719,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var wra_comp := [{"unit_id":"dr_spore","count":1},{"unit_id":"dr_boar","count":1}]
+	var wra_comp := [{"unit_id":"dr_spore","count":1},{"unit_id":"dr_boar","count":1},{"unit_id":"dr_wolf","count":1}]
 	var wra_tags := PackedStringArray(["druid", "combat"])
 	_c("dr_wrath", "태고의 분노", 4, T,
 		wra_comp, PERSISTENT, -1,
@@ -740,7 +740,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var wr_comp := [{"unit_id":"dr_treant_a","count":1},{"unit_id":"dr_turtle","count":1}]
+	var wr_comp := [{"unit_id":"dr_treant_a","count":1},{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_wolf","count":1}]
 	var wr_tags := PackedStringArray(["druid", "ancient"])
 	_c("dr_wt_root", "세계수의 뿌리", 4, T,
 		wr_comp, RS, -1,
@@ -765,7 +765,7 @@ func _register_druid() -> void:
 		],
 	}
 
-	var wor_comp := [{"unit_id":"dr_treant_a","count":1},{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_spirit","count":1}]
+	var wor_comp := [{"unit_id":"dr_treant_a","count":2},{"unit_id":"dr_spirit","count":1}]
 	var wor_tags := PackedStringArray(["druid", "worldtree"])
 	_c("dr_world", "세계수", 5, T,
 		wor_comp, RS, -1,
@@ -829,7 +829,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var far_comp := [{"unit_id":"pr_sniper","count":1},{"unit_id":"pr_spider","count":1}]
+	var far_comp := [{"unit_id":"pr_sniper","count":1},{"unit_id":"pr_spider","count":1},{"unit_id":"pr_larva","count":1}]
 	var far_tags := PackedStringArray(["predator", "economy"])
 	_c("pr_farm", "독 양식장", 1, T,
 		far_comp, RS, -1,
@@ -871,7 +871,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var ss_comp := [{"unit_id":"pr_spider","count":2},{"unit_id":"pr_larva","count":1}]
+	var ss_comp := [{"unit_id":"pr_spider","count":3},{"unit_id":"pr_larva","count":3}]
 	var ss_tags := PackedStringArray(["predator", "combat"])
 	_c("pr_swarm_sense", "군체 감각", 2, T,
 		ss_comp, BS, -1,
@@ -894,7 +894,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var har_comp := [{"unit_id":"pr_spider","count":1},{"unit_id":"pr_sniper","count":1}]
+	var har_comp := [{"unit_id":"pr_charger","count":1},{"unit_id":"pr_warrior","count":2},{"unit_id":"pr_sniper","count":1}]
 	var har_tags := PackedStringArray(["predator", "economy"])
 	_c("pr_harvest", "변태 수확", 2, T,
 		har_comp, OE, 1,
@@ -920,7 +920,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var que_comp := [{"unit_id":"pr_queen","count":1},{"unit_id":"pr_worker","count":2},{"unit_id":"pr_larva","count":2}]
+	var que_comp := [{"unit_id":"pr_queen","count":1},{"unit_id":"pr_guardian","count":1},{"unit_id":"pr_charger","count":2},{"unit_id":"pr_worker","count":2}]
 	var que_tags := PackedStringArray(["predator", "hatch"])
 	_c("pr_queen", "여왕의 산란", 3, T,
 		que_comp, RS, -1,
@@ -945,7 +945,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var car_comp := [{"unit_id":"pr_charger","count":1},{"unit_id":"pr_warrior","count":1},{"unit_id":"pr_worker","count":1}]
+	var car_comp := [{"unit_id":"pr_charger","count":2},{"unit_id":"pr_warrior","count":2},{"unit_id":"pr_guardian","count":1}]
 	var car_tags := PackedStringArray(["predator", "enhance"])
 	_c("pr_carapace", "적응 갑각", 3, T,
 		car_comp, OE, 2,
@@ -970,7 +970,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var par_comp := [{"unit_id":"pr_flyer","count":2},{"unit_id":"pr_sniper","count":1}]
+	var par_comp := [{"unit_id":"pr_apex","count":2},{"unit_id":"pr_flyer","count":3},{"unit_id":"pr_sniper","count":1}]
 	var par_tags := PackedStringArray(["predator", "combat"])
 	_c("pr_parasite", "기생 진화", 4, T,
 		par_comp, PC, -1,
@@ -994,7 +994,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var ah_comp := [{"unit_id":"pr_apex","count":1},{"unit_id":"pr_charger","count":1}]
+	var ah_comp := [{"unit_id":"pr_apex","count":3},{"unit_id":"pr_guardian","count":1}]
 	var ah_tags := PackedStringArray(["predator", "predation"])
 	_c("pr_apex_hunt", "포식자의 사냥", 4, T,
 		ah_comp, OE, 1,
@@ -1018,7 +1018,7 @@ func _register_predator() -> void:
 		],
 	}
 
-	var tra_comp := [{"unit_id":"pr_apex","count":1},{"unit_id":"pr_queen","count":1},{"unit_id":"pr_guardian","count":1}]
+	var tra_comp := [{"unit_id":"pr_apex","count":4},{"unit_id":"pr_guardian","count":2},{"unit_id":"pr_queen","count":2}]
 	var tra_tags := PackedStringArray(["predator", "swarm"])
 	_c("pr_transcend", "군체 초월", 5, T,
 		tra_comp, RS, -1,
@@ -1059,7 +1059,7 @@ func _register_military() -> void:
 	var RS := Enums.TriggerTiming.ROUND_START
 	var CO := Enums.Layer2.CONSCRIPT
 	var TR := Enums.Layer2.TRAIN
-	var bar_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_infantry","count":1}]
+	var bar_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1}]
 	var bar_tags := PackedStringArray(["military", "training"])
 	_c("ml_barracks", "신병 훈련소", 1, T,
 		bar_comp, RS, -1,
@@ -1090,7 +1090,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var con_comp := [{"unit_id":"ml_recruit","count":3},{"unit_id":"ml_drone","count":1}]
+	var con_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_drone","count":1}]
 	var con_tags := PackedStringArray(["military", "conscript"])
 	_c("ml_conscript", "징병국", 1, T,
 		con_comp, RS, -1,
@@ -1120,7 +1120,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var out_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1}]
+	var out_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1},{"unit_id":"ml_drone","count":1}]
 	var out_tags := PackedStringArray(["military", "frontline"])
 	_c("ml_outpost", "전진 기지", 2, T,
 		out_comp, OE, 2,
@@ -1147,7 +1147,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var aca_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_infantry","count":1}]
+	var aca_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_infantry","count":1},{"unit_id":"ml_drone","count":1}]
 	var aca_tags := PackedStringArray(["military", "training"])
 	_c("ml_academy", "군사 학교", 2, T,
 		aca_comp, OE, 2,
@@ -1176,7 +1176,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var sup_comp := [{"unit_id":"ml_drone","count":1},{"unit_id":"ml_biker","count":1}]
+	var sup_comp := [{"unit_id":"ml_drone","count":2},{"unit_id":"ml_biker","count":1}]
 	var sup_tags := PackedStringArray(["military", "supply"])
 	_c("ml_supply", "보급 부대", 2, T,
 		sup_comp, PC, -1,
@@ -1203,7 +1203,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var tac_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_plasma","count":1}]
+	var tac_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_plasma","count":1},{"unit_id":"ml_biker","count":1}]
 	var tac_tags := PackedStringArray(["military", "command"])
 	_c("ml_tactical", "전술 사령부", 3, T,
 		tac_comp, BS, -1,
@@ -1230,7 +1230,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var ass_comp := [{"unit_id":"ml_biker","count":2},{"unit_id":"ml_recruit","count":1}]
+	var ass_comp := [{"unit_id":"ml_biker","count":2},{"unit_id":"ml_drone","count":1}]
 	var ass_tags := PackedStringArray(["military", "assault"])
 	_c("ml_assault", "돌격 편대", 3, T,
 		ass_comp, RS, -1,
@@ -1257,7 +1257,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var so_comp := [{"unit_id":"ml_sniper","count":1},{"unit_id":"ml_walker","count":1}]
+	var so_comp := [{"unit_id":"ml_sniper","count":2},{"unit_id":"ml_walker","count":1},{"unit_id":"ml_biker","count":1}]
 	var so_tags := PackedStringArray(["military", "elite"])
 	_c("ml_special_ops", "특수 작전대", 4, T,
 		so_comp, RS, -1,
@@ -1286,7 +1286,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var fac_comp := [{"unit_id":"ml_artillery","count":1},{"unit_id":"ml_sniper","count":1}]
+	var fac_comp := [{"unit_id":"ml_artillery","count":2},{"unit_id":"ml_sniper","count":1},{"unit_id":"ml_biker","count":1}]
 	var fac_tags := PackedStringArray(["military", "supply"])
 	_c("ml_factory", "군수 공장", 4, T,
 		fac_comp, OE, -1,
@@ -1313,7 +1313,7 @@ func _register_military() -> void:
 		],
 	}
 
-	var com_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_walker","count":1},{"unit_id":"ml_artillery","count":1}]
+	var com_comp := [{"unit_id":"ml_commander","count":1},{"unit_id":"ml_walker","count":1},{"unit_id":"ml_artillery","count":1},{"unit_id":"ml_biker","count":1}]
 	var com_tags := PackedStringArray(["military", "headquarters"])
 	_c("ml_command", "통합 사령부", 5, T,
 		com_comp, RS, -1,

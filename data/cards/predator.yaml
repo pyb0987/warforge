@@ -39,6 +39,7 @@ cards:
     comp:
       - {unit: pr_sniper, n: 1}
       - {unit: pr_spider, n: 1}
+      - {unit: pr_larva, n: 1}
     tags: [predator, economy]
     impl: theme_system
     stars:
@@ -90,8 +91,8 @@ cards:
     theme: predator
     timing: BS
     comp:
-      - {unit: pr_spider, n: 2}
-      - {unit: pr_larva, n: 1}
+      - {unit: pr_spider, n: 3}
+      - {unit: pr_larva, n: 3}
     tags: [predator, combat]
     impl: theme_system
     stars:
@@ -124,7 +125,8 @@ cards:
     timing: OE
     listen: {l2: MT}
     comp:
-      - {unit: pr_spider, n: 1}
+      - {unit: pr_charger, n: 1}
+      - {unit: pr_warrior, n: 2}
       - {unit: pr_sniper, n: 1}
     tags: [predator, economy]
     impl: theme_system
@@ -154,8 +156,9 @@ cards:
     timing: RS
     comp:
       - {unit: pr_queen, n: 1}
+      - {unit: pr_guardian, n: 1}
+      - {unit: pr_charger, n: 2}
       - {unit: pr_worker, n: 2}
-      - {unit: pr_larva, n: 2}
     tags: [predator, hatch]
     impl: theme_system
     stars:
@@ -183,9 +186,9 @@ cards:
     timing: OE
     listen: {l2: MT}
     comp:
-      - {unit: pr_charger, n: 1}
-      - {unit: pr_warrior, n: 1}
-      - {unit: pr_worker, n: 1}
+      - {unit: pr_charger, n: 2}
+      - {unit: pr_warrior, n: 2}
+      - {unit: pr_guardian, n: 1}
     tags: [predator, enhance]
     impl: theme_system
     stars:
@@ -212,7 +215,8 @@ cards:
     theme: predator
     timing: PC
     comp:
-      - {unit: pr_flyer, n: 2}
+      - {unit: pr_apex, n: 2}
+      - {unit: pr_flyer, n: 3}
       - {unit: pr_sniper, n: 1}
     tags: [predator, combat]
     impl: theme_system
@@ -249,8 +253,8 @@ cards:
     timing: OE
     listen: {l2: MT}
     comp:
-      - {unit: pr_apex, n: 1}
-      - {unit: pr_charger, n: 1}
+      - {unit: pr_apex, n: 3}
+      - {unit: pr_guardian, n: 1}
     tags: [predator, predation]
     impl: theme_system
     stars:
@@ -285,9 +289,9 @@ cards:
     theme: predator
     timing: RS
     comp:
-      - {unit: pr_apex, n: 1}
-      - {unit: pr_queen, n: 1}
-      - {unit: pr_guardian, n: 1}
+      - {unit: pr_apex, n: 4}
+      - {unit: pr_guardian, n: 2}
+      - {unit: pr_queen, n: 2}
     tags: [predator, swarm]
     impl: theme_system
     stars:

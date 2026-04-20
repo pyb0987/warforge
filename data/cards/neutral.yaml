@@ -58,7 +58,7 @@ cards:
     timing: RS
     comp:
       - {unit: ne_guardian, n: 1}
-      - {unit: ne_scrap, n: 1}
+      - {unit: ne_scrap, n: 2}
     tags: [neutral, ancient]
     stars:
       1:
@@ -114,7 +114,7 @@ cards:
     listen: {l1: EN}
     comp:
       - {unit: ne_beast, n: 1}
-      - {unit: ne_mutant, n: 1}
+      - {unit: ne_archer, n: 1}
     tags: [neutral, mutant]
     stars:
       1:
@@ -141,8 +141,8 @@ cards:
     timing: OE
     listen: {l1: UA}
     comp:
-      - {unit: ne_spirit, n: 1}
-      - {unit: ne_scrap, n: 1}
+      - {unit: ne_spirit, n: 2}
+      - {unit: ne_scrap, n: 2}
     tags: [neutral, mana]
     stars:
       1:
@@ -166,8 +166,8 @@ cards:
     timing: OE
     listen: {l1: EN}
     comp:
-      - {unit: ne_guardian, n: 1}
-      - {unit: ne_spirit, n: 1}
+      - {unit: ne_guardian, n: 2}
+      - {unit: ne_spirit, n: 2}
     tags: [neutral, ancient]
     stars:
       1:
@@ -217,7 +217,8 @@ cards:
     timing: MERGE
     comp:
       - {unit: ne_spirit, n: 2}
-      - {unit: ne_archer, n: 1}
+      - {unit: ne_archer, n: 2}
+      - {unit: ne_eagle, n: 1}
     tags: [neutral, mana]
     stars:
       1:
@@ -245,7 +246,7 @@ cards:
     theme: neutral
     timing: RS
     comp:
-      - {unit: ne_scrap, n: 3}
+      - {unit: ne_scrap, n: 5}
     tags: [neutral, economy, scrap]
     stars:
       1:
@@ -267,8 +268,8 @@ cards:
     theme: neutral
     timing: RS
     comp:
-      - {unit: ne_merc, n: 1}
-      - {unit: ne_guardian, n: 1}
+      - {unit: ne_merc, n: 2}
+      - {unit: ne_guardian, n: 2}
     tags: [neutral, economy]
     stars:
       1:
@@ -290,7 +291,7 @@ cards:
     theme: neutral
     timing: BS
     comp:
-      - {unit: ne_beast, n: 1}
+      - {unit: ne_archer, n: 1}
       - {unit: ne_chimera, n: 1}
     tags: [neutral, combat]
     stars:
@@ -344,7 +345,7 @@ cards:
     timing: RS
     require_tenure: 2
     comp:
-      - {unit: ne_golem, n: 1}
+      - {unit: ne_golem, n: 2}
       - {unit: ne_spirit, n: 1}
     tags: [neutral, time]
     stars:
@@ -376,8 +377,9 @@ cards:
     require_tenure: 4
     is_threshold: true
     comp:
-      - {unit: ne_guardian, n: 1}
-      - {unit: ne_golem, n: 1}
+      - {unit: ne_guardian, n: 2}
+      - {unit: ne_golem, n: 2}
+      - {unit: ne_spirit, n: 2}
     tags: [neutral, ancient]
     stars:
       1:

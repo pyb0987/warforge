@@ -24,7 +24,7 @@ cards:
     timing: RS
     comp:
       - {unit: ml_recruit, n: 2}
-      - {unit: ml_infantry, n: 1}
+      - {unit: ml_shield, n: 1}
     tags: [military, training]
     impl: theme_system
     stars:
@@ -82,7 +82,7 @@ cards:
     theme: military
     timing: RS
     comp:
-      - {unit: ml_recruit, n: 3}
+      - {unit: ml_recruit, n: 2}
       - {unit: ml_drone, n: 1}
     tags: [military, conscript]
     impl: theme_system
@@ -142,6 +142,7 @@ cards:
     comp:
       - {unit: ml_recruit, n: 2}
       - {unit: ml_shield, n: 1}
+      - {unit: ml_drone, n: 1}
     tags: [military, frontline]
     impl: theme_system
     # conscript는 ★↑ 시 enhanced 옵션이 강화되는 의도된 스케일링 (none→partial→all).
@@ -201,6 +202,7 @@ cards:
     comp:
       - {unit: ml_commander, n: 1}
       - {unit: ml_infantry, n: 1}
+      - {unit: ml_drone, n: 1}
     tags: [military, training]
     impl: theme_system
     stars:
@@ -252,7 +254,7 @@ cards:
     theme: military
     timing: PC
     comp:
-      - {unit: ml_drone, n: 1}
+      - {unit: ml_drone, n: 2}
       - {unit: ml_biker, n: 1}
     tags: [military, supply]
     impl: theme_system
@@ -322,6 +324,7 @@ cards:
     comp:
       - {unit: ml_commander, n: 1}
       - {unit: ml_plasma, n: 1}
+      - {unit: ml_biker, n: 1}
     tags: [military, command]
     impl: theme_system
     stars:
@@ -372,7 +375,7 @@ cards:
     timing: RS   # BS → RS (구조 B 재정의: 생산 카드로 전환)
     comp:
       - {unit: ml_biker, n: 2}
-      - {unit: ml_recruit, n: 1}
+      - {unit: ml_drone, n: 1}
     tags: [military, assault]
     impl: theme_system
     # swarm_buff는 ★↑ 시 unit_thresh가 낮아지는 의도된 스케일링 (15→12→10).
@@ -436,8 +439,9 @@ cards:
     theme: military
     timing: RS
     comp:
-      - {unit: ml_sniper, n: 1}
+      - {unit: ml_sniper, n: 2}
       - {unit: ml_walker, n: 1}
+      - {unit: ml_biker, n: 1}
     tags: [military, elite]
     impl: theme_system
     # crit_buff는 ★↑ 시 mult가 커지는 의도된 스케일링 (2.0→3.0→6.0).
@@ -498,8 +502,9 @@ cards:
     timing: OE
     listen: {l2: CO}
     comp:
-      - {unit: ml_artillery, n: 1}
+      - {unit: ml_artillery, n: 2}
       - {unit: ml_sniper, n: 1}
+      - {unit: ml_biker, n: 1}
     tags: [military, supply]
     impl: theme_system
     stars:
@@ -552,6 +557,7 @@ cards:
       - {unit: ml_commander, n: 1}
       - {unit: ml_walker, n: 1}
       - {unit: ml_artillery, n: 1}
+      - {unit: ml_biker, n: 1}
     tags: [military, headquarters]
     impl: theme_system
     stars:

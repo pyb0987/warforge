@@ -290,12 +290,14 @@ func test_sp_assembly_template() -> void:
 
 func test_sp_assembly_composition() -> void:
 	var t: Dictionary = CardDB.get_template("sp_assembly")
-	## sp_spider×2 + sp_rat×1
-	assert_eq(t["composition"].size(), 2)
+	## sp_spider×2 + sp_sawblade×1 + sp_rat×1
+	assert_eq(t["composition"].size(), 3)
 	assert_eq(t["composition"][0]["unit_id"], "sp_spider")
 	assert_eq(t["composition"][0]["count"], 2)
-	assert_eq(t["composition"][1]["unit_id"], "sp_rat")
+	assert_eq(t["composition"][1]["unit_id"], "sp_sawblade")
 	assert_eq(t["composition"][1]["count"], 1)
+	assert_eq(t["composition"][2]["unit_id"], "sp_rat")
+	assert_eq(t["composition"][2]["count"], 1)
 
 
 func test_sp_workshop_listens_on_event() -> void:

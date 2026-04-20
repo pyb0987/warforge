@@ -102,10 +102,10 @@ func test_three_layer_combined() -> void:
 # 유닛 관리
 # ================================================================
 
-func test_get_total_units_initial_3() -> void:
-	## sp_assembly: spider×2 + rat×1 = 3
+func test_get_total_units_initial_4() -> void:
+	## sp_assembly: spider×2 + sawblade×1 + rat×1 = 4
 	var card: CardInstance = CardInstance.create("sp_assembly")
-	assert_eq(card.get_total_units(), 3, "초기 3기")
+	assert_eq(card.get_total_units(), 4, "초기 4기")
 
 
 func test_spawn_random_increases_by_1() -> void:
@@ -113,15 +113,15 @@ func test_spawn_random_increases_by_1() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	card.spawn_random(rng)
-	assert_eq(card.get_total_units(), 4, "spawn 후 4기")
+	assert_eq(card.get_total_units(), 5, "spawn 후 5기")
 
 
 func test_spawn_random_respects_60_cap() -> void:
 	var card: CardInstance = CardInstance.create("sp_assembly")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
-	# 3기 → 60기까지 57번 spawn
-	for i in 57:
+	# 4기 → 60기까지 56번 spawn
+	for i in 56:
 		card.spawn_random(rng)
 	assert_eq(card.get_total_units(), 60, "60기 도달")
 	var result: bool = card.spawn_random(rng)
@@ -145,36 +145,35 @@ func test_add_specific_unit_existing_stack() -> void:
 
 
 func test_breed_strongest_picks_highest_cp_unit() -> void:
-	## sp_spider CP=2/0.5×20=80, sp_rat CP=2/0.5×15=60
+	## sp_spider CP=80, sp_sawblade CP=160, sp_rat CP=60 → sawblade 최강
 	var card: CardInstance = CardInstance.create("sp_assembly")
-	# spider 초기 2기
-	var spider_before := 0
+	var sawblade_before := 0
 	for s in card.stacks:
-		if s["unit_type"]["id"] == "sp_spider":
-			spider_before = s["count"]
+		if s["unit_type"]["id"] == "sp_sawblade":
+			sawblade_before = s["count"]
 	card.breed_strongest()
-	var spider_after := 0
+	var sawblade_after := 0
 	for s in card.stacks:
-		if s["unit_type"]["id"] == "sp_spider":
-			spider_after = s["count"]
-	assert_eq(spider_after, spider_before + 1, "최강 CP 유닛(spider) +1")
+		if s["unit_type"]["id"] == "sp_sawblade":
+			sawblade_after = s["count"]
+	assert_eq(sawblade_after, sawblade_before + 1, "최강 CP 유닛(sawblade) +1")
 
 
 func test_metamorphosis_reduces_units_correctly() -> void:
-	## 초기 3기, metamorphosis(2) → 2기 소비 + 최강 1기 추가
+	## 초기 4기, metamorphosis(2) → 2기 소비 + 최강 1기 추가
 	var card: CardInstance = CardInstance.create("sp_assembly")
-	assert_eq(card.get_total_units(), 3, "전: 3기")
+	assert_eq(card.get_total_units(), 4, "전: 4기")
 	var result: bool = card.metamorphosis(2)
 	assert_true(result, "성공")
-	assert_eq(card.get_total_units(), 2, "후: 3-2+1=2기")
+	assert_eq(card.get_total_units(), 3, "후: 4-2+1=3기")
 
 
 func test_metamorphosis_fails_if_not_enough() -> void:
-	## 3기에서 metamorphosis(3) → 3소비+1생존=4 필요, 현재 3 → 부족
+	## 4기에서 metamorphosis(4) → 4소비+1생존=5 필요, 현재 4 → 부족
 	var card: CardInstance = CardInstance.create("sp_assembly")
-	var result: bool = card.metamorphosis(3)
+	var result: bool = card.metamorphosis(4)
 	assert_false(result, "유닛 부족 시 false")
-	assert_eq(card.get_total_units(), 3, "변화 없음")
+	assert_eq(card.get_total_units(), 4, "변화 없음")
 
 
 # ================================================================
@@ -199,10 +198,10 @@ func test_remove_weakest_zero_count_noop() -> void:
 
 
 func test_remove_weakest_more_than_total_caps() -> void:
-	## 3기에서 10기 제거 요청 → 실제 3기만 제거됨
+	## 4기에서 10기 제거 요청 → 실제 4기만 제거됨
 	var card: CardInstance = CardInstance.create("sp_assembly")
 	var removed: int = card.remove_weakest(10)
-	assert_eq(removed, 3, "최대 보유 수까지만")
+	assert_eq(removed, 4, "최대 보유 수까지만")
 	assert_eq(card.get_total_units(), 0, "0기로 비워짐")
 
 
