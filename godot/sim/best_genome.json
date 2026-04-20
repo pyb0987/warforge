@@ -41,7 +41,7 @@
     "terazin_lose": 1,
     "levelup_cost": {
       "2": 7,
-      "3": 10,
+      "3": 8,
       "4": 11,
       "5": 12,
       "6": 13
@@ -95,7 +95,7 @@
   "enemy_composition": {
     "swarm": {
       "swarm_base": 7,
-      "swarm_per_r": 2.6,
+      "swarm_per_r": 2.7,
       "ranged_base": 1,
       "ranged_per_r": 0.3
     },
@@ -103,23 +103,23 @@
       "heavy_base": 3,
       "heavy_per_r": 0.7,
       "melee_base": 4,
-      "melee_per_r": 0.8,
+      "melee_per_r": 0.7,
       "ranged_base": 2,
-      "ranged_per_r": 0.4
+      "ranged_per_r": 0.3
     },
     "sniper": {
       "sniper_base": 1,
       "sniper_per_r": 0.6,
-      "melee_base": 3,
-      "melee_per_r": 1.5
+      "melee_base": 1,
+      "melee_per_r": 1.8
     },
     "balanced": {
-      "melee_base": 6,
-      "melee_per_r": 0.7,
-      "ranged_base": 5,
-      "ranged_per_r": 0.9,
+      "melee_base": 8,
+      "melee_per_r": 0.5,
+      "ranged_base": 7,
+      "ranged_per_r": 1.1,
       "swarm_base": 3,
-      "swarm_per_r": 0.6
+      "swarm_per_r": 0.7
     }
   },
   "enemy_stats": {
