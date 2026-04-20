@@ -95,12 +95,21 @@ func on_sell_trigger(arsenal: CardInstance, sold_card: CardInstance) -> void:
 # --- Internal ---
 
 
+## First-match lookup on theme_effects by (action, target). See predator_system
+## for the rationale — duplicates indicate either a copy-paste bug or a
+## consumer that should be iterating instead.
 func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
+	var first := {}
+	var matches := 0
 	for e in effs:
 		if e.get("action") == action:
 			if target == "" or e.get("target", "") == target:
-				return e
-	return {}
+				matches += 1
+				if matches == 1:
+					first = e
+	if matches > 1:
+		push_error("_find_eff shadowed duplicates: action=%s target=%s matches=%d — use explicit loop" % [action, target, matches])
+	return first
 
 
 func _charger(card: CardInstance, idx: int) -> Dictionary:
