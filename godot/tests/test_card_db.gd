@@ -309,4 +309,10 @@ func test_sp_workshop_listens_on_event() -> void:
 func test_sp_warmachine_is_persistent() -> void:
 	var t: Dictionary = CardDB.get_template("sp_warmachine")
 	assert_eq(t["trigger_timing"], Enums.TriggerTiming.PERSISTENT)
-	assert_eq(t["effects"].size(), 0, "PERSISTENT 효과는 테마 시스템에서 처리")
+	# v2 block format: theme-system cards keep their actions in the block's
+	# `actions` list, not dropped to [] at the template top level.
+	var blocks: Array = t["effects"]
+	assert_eq(blocks.size(), 1, "PERSISTENT 카드 1 block")
+	assert_eq(
+		blocks[0]["trigger_timing"], Enums.TriggerTiming.PERSISTENT,
+		"block timing = PERSISTENT")

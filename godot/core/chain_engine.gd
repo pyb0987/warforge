@@ -53,6 +53,31 @@ func set_seed(seed_val: int) -> void:
 	_rng.seed = seed_val
 
 
+# ── Block access helpers ─────────────────────────────────────────
+
+## Return the first block whose trigger_timing matches, or {} if absent.
+## v2 schema: effects is a list of timing-block dicts.
+func _find_block(tmpl: Dictionary, timing: int) -> Dictionary:
+	for block in tmpl.get("effects", []):
+		if block.get("trigger_timing", -1) == timing:
+			return block
+	return {}
+
+
+## Return true if the card's block at `timing` exists and listen/require filters match.
+func _trigger_matches_block(block: Dictionary, event: Dictionary, card_idx: int) -> bool:
+	var listen_l1: int = block.get("trigger_layer1", -1)
+	if listen_l1 != -1 and event.get("layer1", -1) != listen_l1:
+		return false
+	var listen_l2: int = block.get("trigger_layer2", -1)
+	if listen_l2 != -1 and event.get("layer2", -1) != listen_l2:
+		return false
+	if block.get("require_other_card", false):
+		if event.get("source_idx", -1) == card_idx:
+			return false
+	return true
+
+
 ## Execute one round's growth chain.
 ## Returns {"chain_count": int, "gold_earned": int, "terazin_earned": int}.
 func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
@@ -72,19 +97,18 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		var timing: int = tmpl.get("trigger_timing", -1)
-
-		if timing != Enums.TriggerTiming.ROUND_START:
+		var block := _find_block(tmpl, Enums.TriggerTiming.ROUND_START)
+		if block.is_empty():
 			continue
 
-		var req_tenure: int = tmpl.get("require_tenure", 0)
+		var req_tenure: int = block.get("require_tenure", 0)
 		if req_tenure > 0 and card.tenure < req_tenure:
 			continue
 
-		var is_thresh: bool = tmpl.get("is_threshold", false)
+		var is_thresh: bool = block.get("is_threshold", false)
 		var _using_post_threshold := false
 		if is_thresh and card.threshold_fired:
-			if tmpl.has("post_threshold_effects"):
+			if block.has("post_threshold_effects"):
 				_using_post_threshold = true
 			else:
 				continue
@@ -99,28 +123,25 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 				_flint_applied = true
 
 		var saved_enhance := enhance_multiplier
-		var saved_spawn := bonus_spawn_chance
 		if flint_mult > 1.0:
 			enhance_multiplier *= flint_mult
-			# spawn 효과량 2배는 _execute_effects의 spawn_count에서 처리
+			# spawn 효과량 2배는 _execute_actions의 spawn_count에서 처리
 
-		var effects: Array = tmpl.get("effects", [])
+		var actions: Array = block.get("actions", [])
 		var theme: int = tmpl.get("theme", -1)
+		var impl: String = tmpl.get("impl", "card_db")
 		var result: Dictionary
 
-		# Post-threshold: swap effects temporarily
 		if _using_post_threshold:
-			var saved_effects: Array = card.template.get("effects", [])
-			card.template["effects"] = tmpl.get("post_threshold_effects", [])
-			result = _execute_effects(card, i, board, -1, 0, flint_mult)
-			card.template["effects"] = saved_effects
-		elif effects.is_empty() and theme in _theme_systems:
+			var post_actions: Array = block.get("post_threshold_effects", [])
+			result = _execute_actions(card, i, board, -1, 0, flint_mult, post_actions)
+		elif impl == "theme_system" and theme in _theme_systems:
 			result = _theme_systems[theme].process_rs_card(card, i, board, _rng)
 		else:
-			result = _execute_effects(card, i, board, -1, 0, flint_mult)
+			result = _execute_actions(card, i, board, -1, 0, flint_mult, actions)
 
 		# conditional_effects: 기본 효과 실행 후 조건 충족 시 추가 효과
-		var cond_effects: Array = tmpl.get("conditional_effects", [])
+		var cond_effects: Array = block.get("conditional_effects", [])
 		for cond in cond_effects:
 			if _check_condition(cond, card, i, board):
 				var cond_result := _execute_conditional(cond, card, i, board, flint_mult)
@@ -150,27 +171,28 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 		for i in board.size():
 			var card: CardInstance = board[i]
 			var tmpl := card.template
-			var timing: int = tmpl.get("trigger_timing", -1)
-
-			if timing != Enums.TriggerTiming.ON_EVENT:
+			var block := _find_block(tmpl, Enums.TriggerTiming.ON_EVENT)
+			if block.is_empty():
 				continue
-			if not _trigger_matches(tmpl, event, i):
+			if not _trigger_matches_block(block, event, i):
 				continue
-			if not card.can_activate(activation_bonus):
+			var max_act: int = block.get("max_activations", -1)
+			if not card.can_activate_with(max_act, activation_bonus):
 				continue
 			card.activations_used += 1
 
-			var effects: Array = tmpl.get("effects", [])
+			var actions: Array = block.get("actions", [])
 			var theme: int = tmpl.get("theme", -1)
+			var impl: String = tmpl.get("impl", "card_db")
 			var result: Dictionary
 
-			if effects.is_empty() and theme in _theme_systems:
+			if impl == "theme_system" and theme in _theme_systems:
 				result = _theme_systems[theme].process_event_card(card, i, board, event, _rng)
 			else:
-				result = _execute_effects(card, i, board, event["target_idx"], 0)
+				result = _execute_actions(card, i, board, event["target_idx"], 0, 1.0, actions)
 
 			# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과
-			var cond_effects: Array = tmpl.get("conditional_effects", [])
+			var cond_effects: Array = block.get("conditional_effects", [])
 			for cond in cond_effects:
 				if _check_condition(cond, card, i, board):
 					var cond_result := _execute_conditional(cond, card, i, board, 1.0)
@@ -211,13 +233,16 @@ func process_merge_triggers(board: Array, merged_card: CardInstance) -> Dictiona
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		if tmpl.get("trigger_timing", -1) != Enums.TriggerTiming.ON_MERGE:
+		var block := _find_block(tmpl, Enums.TriggerTiming.ON_MERGE)
+		if block.is_empty():
 			continue
-		if not card.can_activate(activation_bonus):
+		var max_act: int = block.get("max_activations", -1)
+		if not card.can_activate_with(max_act, activation_bonus):
 			continue
 		card.activations_used += 1
 
-		var result := _execute_effects(card, i, board, merged_idx, 0)
+		var actions: Array = block.get("actions", [])
+		var result := _execute_actions(card, i, board, merged_idx, 0, 1.0, actions)
 		terazin += result["terazin"]
 		gold += result["gold"]
 		events.append_array(result["events"])
@@ -241,7 +266,7 @@ func process_sell_triggers(board: Array, sold_card: CardInstance) -> void:
 		var c := card as CardInstance
 		if c == null:
 			continue
-		if c.template.get("trigger_timing", -1) != Enums.TriggerTiming.ON_SELL:
+		if _find_block(c.template, Enums.TriggerTiming.ON_SELL).is_empty():
 			continue
 		sp_sys.on_sell_trigger(c, sold_card)
 
@@ -257,13 +282,16 @@ func process_reroll_triggers(board: Array) -> Dictionary:
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		if tmpl.get("trigger_timing", -1) != Enums.TriggerTiming.ON_REROLL:
+		var block := _find_block(tmpl, Enums.TriggerTiming.ON_REROLL)
+		if block.is_empty():
 			continue
-		if not card.can_activate(activation_bonus):
+		var max_act: int = block.get("max_activations", -1)
+		if not card.can_activate_with(max_act, activation_bonus):
 			continue
 		card.activations_used += 1
 
-		var result := _execute_effects(card, i, board, -1, 0)
+		var actions: Array = block.get("actions", [])
+		var result := _execute_actions(card, i, board, -1, 0, 1.0, actions)
 		terazin += result["terazin"]
 		gold += result["gold"]
 		events.append_array(result["events"])
@@ -277,7 +305,7 @@ func process_persistent(board: Array) -> void:
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		if tmpl.get("trigger_timing", -1) != Enums.TriggerTiming.PERSISTENT:
+		if _find_block(tmpl, Enums.TriggerTiming.PERSISTENT).is_empty():
 			continue
 		var theme: int = tmpl.get("theme", -1)
 		if theme in _theme_systems:
@@ -294,20 +322,22 @@ func process_battle_start(board: Array) -> Dictionary:
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		if tmpl.get("trigger_timing", -1) != Enums.TriggerTiming.BATTLE_START:
+		var block := _find_block(tmpl, Enums.TriggerTiming.BATTLE_START)
+		if block.is_empty():
 			continue
 
-		var effs: Array = tmpl.get("effects", [])
+		var actions: Array = block.get("actions", [])
 		var theme: int = tmpl.get("theme", -1)
+		var impl: String = tmpl.get("impl", "card_db")
 
 		var result: Dictionary
-		if effs.is_empty() and theme in _theme_systems:
+		if impl == "theme_system" and theme in _theme_systems:
 			result = _theme_systems[theme].apply_battle_start(card, i, board)
 		else:
-			result = _execute_effects(card, i, board, -1, 0)
+			result = _execute_actions(card, i, board, -1, 0, 1.0, actions)
 
 		# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과
-		var cond_effects: Array = tmpl.get("conditional_effects", [])
+		var cond_effects: Array = block.get("conditional_effects", [])
 		for cond in cond_effects:
 			if _check_condition(cond, card, i, board):
 				var cond_result := _execute_conditional(cond, card, i, board, 1.0)
@@ -329,12 +359,29 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 	var terazin := 0
 	var events: Array = []
 
+	# Try each PC-family timing per card (one block matches at most).
+	var pc_timings := [
+		Enums.TriggerTiming.POST_COMBAT,
+		Enums.TriggerTiming.POST_COMBAT_DEFEAT,
+		Enums.TriggerTiming.POST_COMBAT_VICTORY,
+	]
+
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		var timing: int = tmpl.get("trigger_timing", -1)
-		var should_fire := false
 
+		var block: Dictionary = {}
+		var timing: int = -1
+		for t in pc_timings:
+			var b := _find_block(tmpl, t)
+			if not b.is_empty():
+				block = b
+				timing = t
+				break
+		if block.is_empty():
+			continue
+
+		var should_fire := false
 		match timing:
 			Enums.TriggerTiming.POST_COMBAT:
 				should_fire = true
@@ -342,24 +389,25 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 				should_fire = not won
 			Enums.TriggerTiming.POST_COMBAT_VICTORY:
 				should_fire = won
-
 		if not should_fire:
 			continue
-		if not card.can_activate(activation_bonus):
+		var max_act: int = block.get("max_activations", -1)
+		if not card.can_activate_with(max_act, activation_bonus):
 			continue
 		card.activations_used += 1
 
-		var effects: Array = tmpl.get("effects", [])
+		var actions: Array = block.get("actions", [])
 		var theme: int = tmpl.get("theme", -1)
+		var impl: String = tmpl.get("impl", "card_db")
 
-		if effects.is_empty() and theme in _theme_systems:
+		if impl == "theme_system" and theme in _theme_systems:
 			var result: Dictionary = _theme_systems[theme].apply_post_combat(
 				card, i, board, won)
 			gold += result["gold"]
 			terazin += result["terazin"]
 			events.append_array(result["events"])
 		else:
-			var result := _execute_effects(card, i, board, -1, 0)
+			var result := _execute_actions(card, i, board, -1, 0, 1.0, actions)
 			gold += result["gold"]
 			terazin += result["terazin"]
 			events.append_array(result["events"])
@@ -388,16 +436,16 @@ func process_combat_event(board: Array, event_type: String,
 	for i in board.size():
 		var card: CardInstance = board[i]
 		var tmpl := card.template
-		var timing: int = tmpl.get("trigger_timing", -1)
-
-		if timing != expected_timing:
+		var block := _find_block(tmpl, expected_timing)
+		if block.is_empty():
 			continue
-		if not card.can_activate(activation_bonus):
+		var max_act: int = block.get("max_activations", -1)
+		if not card.can_activate_with(max_act, activation_bonus):
 			continue
 		card.activations_used += 1
 
-		var effects: Array = tmpl.get("effects", [])
-		for eff in effects:
+		var actions: Array = block.get("actions", [])
+		for eff in actions:
 			var action: String = eff.get("action", "")
 			if action == "combat_buff_pct":
 				var target: String = eff.get("target", "self")
@@ -431,25 +479,6 @@ func _resolve_combat_targets(target: String, card_idx: int,
 # ── Internal helpers ─────────────────────────────────────────────
 
 
-func _trigger_matches(tmpl: Dictionary, event: Dictionary, card_idx: int) -> bool:
-	var listen_l1: int = tmpl.get("trigger_layer1", -1)
-	if listen_l1 != -1:
-		if event.get("layer1", -1) != listen_l1:
-			return false
-
-	var listen_l2: int = tmpl.get("trigger_layer2", -1)
-	if listen_l2 != -1:
-		if event.get("layer2", -1) != listen_l2:
-			return false
-
-	var require_other: bool = tmpl.get("require_other_card", false)
-	if require_other:
-		if event.get("source_idx", -1) == card_idx:
-			return false
-
-	return true
-
-
 func _resolve_targets(target: String, card_idx: int,
 		event_target_idx: int, board_len: int) -> Array[int]:
 	var result: Array[int] = []
@@ -476,16 +505,17 @@ func _resolve_targets(target: String, card_idx: int,
 	return result
 
 
-func _execute_effects(card: CardInstance, card_idx: int,
+## Execute a list of action dicts. Replaces the old _execute_effects which read
+## effects off `card.template.effects`; now callers pass the list explicitly
+## (e.g. from a matching block, a post_threshold clause, or a conditional).
+func _execute_actions(card: CardInstance, card_idx: int,
 		board: Array, event_target_idx: int,
-		depth: int, flint_mult: float = 1.0) -> Dictionary:
+		depth: int, flint_mult: float, actions: Array) -> Dictionary:
 	var events: Array = []
 	var gold := 0
 	var terazin := 0
 
-	var effects: Array = card.template.get("effects", [])
-
-	for eff in effects:
+	for eff in actions:
 		var action: String = eff.get("action", "")
 		var target: String = eff.get("target", "self")
 		var targets := _resolve_targets(target, card_idx, event_target_idx, board.size())
@@ -552,7 +582,10 @@ func _execute_effects(card: CardInstance, card_idx: int,
 
 				"retrigger":
 					if depth < MAX_RETRIGGER_DEPTH:
-						var sub := _execute_effects(target_card, ti, board, -1, depth + 1)
+						# Retrigger re-runs the target card's current-block actions.
+						var tc_block := _find_block(target_card.template, Enums.TriggerTiming.ROUND_START)
+						var sub_actions: Array = tc_block.get("actions", [])
+						var sub := _execute_actions(target_card, ti, board, -1, depth + 1, 1.0, sub_actions)
 						events.append_array(sub["events"])
 						gold += sub["gold"]
 						terazin += sub["terazin"]
@@ -662,12 +695,8 @@ func _check_condition(cond: Dictionary, card: CardInstance,
 
 func _execute_conditional(cond: Dictionary, card: CardInstance,
 		card_idx: int, board: Array, flint_mult: float) -> Dictionary:
-	var effects: Array = cond.get("effects", [])
-	var saved: Array = card.template.get("effects", [])
-	card.template["effects"] = effects
-	var result := _execute_effects(card, card_idx, board, -1, 0, flint_mult)
-	card.template["effects"] = saved
-	return result
+	var actions: Array = cond.get("effects", [])
+	return _execute_actions(card, card_idx, board, -1, 0, flint_mult, actions)
 
 
 func _layer2_name(l2: int) -> String:
