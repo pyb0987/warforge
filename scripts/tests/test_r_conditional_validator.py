@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from codegen_card_db import (  # noqa: E402
-    load_all_cards,
     validate_r_conditional_star_parity,
 )
 
@@ -37,11 +36,9 @@ def _card(r_conditional_by_star: dict, star_scalable: list | None = None) -> dic
 
 
 class TestRConditionalValidator(unittest.TestCase):
-    def test_clean_military_yaml_passes(self):
-        """The real military.yaml must pass without violations."""
-        all_cards = load_all_cards()
-        errors = validate_r_conditional_star_parity(all_cards)
-        self.assertEqual(errors, [], f"military.yaml should be clean, got: {errors}")
+    # Real-YAML clean check is performed by `python3 scripts/codegen_v2.py`
+    # (runs validators on all cards). This unit-test file covers the validator
+    # logic with synthetic card dicts.
 
     def test_identical_across_stars_passes(self):
         rc = [{

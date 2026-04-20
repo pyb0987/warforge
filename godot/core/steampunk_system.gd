@@ -8,18 +8,19 @@ extends "res://core/theme_system.gd"
 # --- Chain integration ---
 
 
-func process_rs_card(card: CardInstance, idx: int, _board: Array,
+func process_rs_card(card: CardInstance, idx: int, board: Array,
 		rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
 		"sp_warmachine":
-			return _warmachine_manufacture(card, idx, rng)
+			return _warmachine_manufacture(card, idx, board, rng)
 	# Other steampunk cards use generic card_db effects or other hooks.
 	return Enums.empty_result()
 
 
 ## sp_warmachine RS 블록: comp 유닛 중 랜덤 N기 제조.
 ## ★1=1기, ★2=2기, ★3=4기. 각 제조마다 UA+MF 이벤트 emit (sp_charger 등 체인).
-func _warmachine_manufacture(card: CardInstance, idx: int,
+## 보드 전체 유닛 MAX_BOARD_UNITS 초과 시 중단 (chain_engine.gd spawn 과 일관).
+func _warmachine_manufacture(card: CardInstance, idx: int, board: Array,
 		rng: RandomNumberGenerator) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "manufacture")
@@ -32,6 +33,8 @@ func _warmachine_manufacture(card: CardInstance, idx: int,
 
 	var events: Array = []
 	for _n in count:
+		if _count_board_units(board) >= Enums.MAX_BOARD_UNITS:
+			break
 		var pick: Dictionary = comp[rng.randi_range(0, comp.size() - 1)]
 		var unit_id: String = pick.get("unit_id", "")
 		if unit_id == "":
@@ -44,6 +47,14 @@ func _warmachine_manufacture(card: CardInstance, idx: int,
 			"target_idx": idx,
 		})
 	return {"events": events, "gold": 0, "terazin": 0}
+
+
+func _count_board_units(board: Array) -> int:
+	var total := 0
+	for c in board:
+		if c != null:
+			total += (c as CardInstance).get_total_units()
+	return total
 
 
 func process_event_card(card: CardInstance, idx: int, _board: Array,

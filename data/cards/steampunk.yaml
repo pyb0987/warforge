@@ -1,272 +1,483 @@
-# data/cards/steampunk.yaml
-# Source of truth for Steampunk cards.
-# Generated YAML — edit here, run codegen to update card_db.gd.
-
 cards:
   sp_assembly:
     name: 증기 조립소
     tier: 1
     theme: steampunk
-    timing: RS
     comp:
-      - {unit: sp_spider, n: 2}
-      - {unit: sp_sawblade, n: 1}
-      - {unit: sp_rat, n: 1}
-    tags: [steampunk, production]
+    - unit: sp_spider
+      n: 2
+    - unit: sp_sawblade
+      n: 1
+    - unit: sp_rat
+      n: 1
+    tags:
+    - steampunk
+    - production
     stars:
       1:
-        max_act: -1
         effects:
-          - spawn: {target: right_adj, ol2: MF}
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: right_adj
+            ol2: MF
       2:
-        max_act: -1
         effects:
-          - spawn: {target: both_adj, ol2: MF}
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: both_adj
+            ol2: MF
       3:
-        max_act: -1
         effects:
-          - spawn: {target: both_adj, count: 2, ol2: MF}
-          - enhance: {target: both_adj, atk_pct: 0.05, ol2: UP}
-
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: both_adj
+            count: 2
+            ol2: MF
+          enhance:
+            target: both_adj
+            atk_pct: 0.05
+            ol2: UP
   sp_furnace:
     name: 증기 용광로
     tier: 1
     theme: steampunk
-    timing: RS
     comp:
-      - {unit: sp_crab, n: 1}
-      - {unit: sp_sawblade, n: 1}
-    tags: [steampunk, focus]
+    - unit: sp_crab
+      n: 1
+    - unit: sp_sawblade
+      n: 1
+    tags:
+    - steampunk
+    - focus
     stars:
       1:
-        max_act: -1
         effects:
-          - spawn: {target: self, ol2: MF}
-          - enhance: {target: self, atk_pct: 0.03}
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: self
+            ol2: MF
+          enhance:
+            target: self
+            atk_pct: 0.03
       2:
-        max_act: -1
         effects:
-          - spawn: {target: self, count: 2, ol2: MF}
-          - enhance: {target: self, atk_pct: 0.05}
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: self
+            count: 2
+            ol2: MF
+          enhance:
+            target: self
+            atk_pct: 0.05
       3:
-        max_act: -1
         effects:
-          - spawn: {target: self, count: 2, ol2: MF}
-          - enhance: {target: self, atk_pct: 0.05}
-        conditional:
-          - when: {unit_count_gte: 8}
+        - trigger_timing: RS
+          max_act: -1
+          conditional:
+          - when:
+              unit_count_gte: 8
             effects:
-              - enhance: {target: self, atk_pct: 0.03}
-
+            - enhance:
+                target: self
+                atk_pct: 0.03
+          spawn:
+            target: self
+            count: 2
+            ol2: MF
+          enhance:
+            target: self
+            atk_pct: 0.05
   sp_workshop:
     name: 태엽 공방
     tier: 1
     theme: steampunk
-    timing: OE
-    listen: {l1: UA, l2: MF}
     comp:
-      - {unit: sp_spider, n: 2}
-      - {unit: sp_sawblade, n: 1}
-    tags: [steampunk, enhance]
+    - unit: sp_spider
+      n: 2
+    - unit: sp_sawblade
+      n: 1
+    tags:
+    - steampunk
+    - enhance
     stars:
       1:
-        max_act: 2
         effects:
-          - enhance: {target: event_target, atk_pct: 0.05, tag: gear, ol2: UP}
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+            l2: MF
+          enhance:
+            target: event_target
+            atk_pct: 0.05
+            tag: gear
+            ol2: UP
       2:
-        max_act: 2
         effects:
-          - enhance: {target: event_target, atk_pct: 0.075, tag: "gear,electric", ol2: UP}
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+            l2: MF
+          enhance:
+            target: event_target
+            atk_pct: 0.075
+            tag: gear,electric
+            ol2: UP
       3:
-        max_act: 4
         effects:
-          - enhance: {target: event_target, atk_pct: 0.075, tag: "gear,electric", ol2: UP}
-          - spawn: {target: both_adj, ol2: MF}
-
+        - trigger_timing: OE
+          max_act: 4
+          listen:
+            l1: UA
+            l2: MF
+          enhance:
+            target: event_target
+            atk_pct: 0.075
+            tag: gear,electric
+            ol2: UP
+          spawn:
+            target: both_adj
+            ol2: MF
   sp_circulator:
     name: 증기 순환기
     tier: 2
     theme: steampunk
-    timing: OE
-    listen: {l2: UP}
     comp:
-      - {unit: sp_sawblade, n: 2}
-      - {unit: sp_scout, n: 2}
-    tags: [steampunk, cycle]
+    - unit: sp_sawblade
+      n: 2
+    - unit: sp_scout
+      n: 2
+    tags:
+    - steampunk
+    - cycle
     stars:
       1:
-        max_act: 1
         effects:
-          - spawn: {target: event_target, ol2: MF}
+        - trigger_timing: OE
+          max_act: 1
+          listen:
+            l2: UP
+          spawn:
+            target: event_target
+            ol2: MF
       2:
-        max_act: 2
         effects:
-          - spawn: {target: event_target, ol2: MF}
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l2: UP
+          spawn:
+            target: event_target
+            ol2: MF
       3:
-        max_act: 3
         effects:
-          - spawn: {target: event_target, ol2: MF, strongest: true}
-
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l2: UP
+          spawn:
+            target: event_target
+            ol2: MF
+            strongest: true
   sp_interest:
     name: 증기 이자기
     tier: 2
     theme: steampunk
-    timing: REROLL
     comp:
-      - {unit: sp_scout, n: 2}
-      - {unit: sp_sawblade, n: 1}
-      - {unit: sp_rat, n: 2}
-    tags: [steampunk, economy]
+    - unit: sp_scout
+      n: 2
+    - unit: sp_sawblade
+      n: 1
+    - unit: sp_rat
+      n: 2
+    tags:
+    - steampunk
+    - economy
     stars:
       1:
-        max_act: 3
         effects:
-          - spawn: {target: self, ol1: null}
-          - enhance: {target: self, atk_pct: 0.03, ol1: null}
+        - trigger_timing: REROLL
+          max_act: 3
+          spawn:
+            target: self
+            ol1: null
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
       2:
-        max_act: 3
-        # NOTE(trace 015): ★2 리롤 횟수 비례 ATK 전투 버프(+5%/reroll, cap 5)는
-        # game_manager._materialize_army의 sp_interest 하드코딩 경로에서 처리.
-        # 향후 YAML 주도로 전환하려면 reroll_buff action + handler 추가 필요.
         effects:
-          - spawn: {target: self, count: 2, ol1: null}
-          - enhance: {target: self, atk_pct: 0.05, ol1: null}
+        - trigger_timing: REROLL
+          max_act: 3
+          spawn:
+            target: self
+            count: 2
+            ol1: null
+          enhance:
+            target: self
+            atk_pct: 0.05
+            ol1: null
       3:
-        max_act: 3
-        # NOTE(trace 015): ★3 리롤 버프(+8%/reroll, cap 5)도 ★2와 동일 경로.
         effects:
-          - spawn: {target: self, count: 2, ol1: null}
-          - spawn: {target: both_adj, ol1: null}
-          - enhance: {target: self, atk_pct: 0.05, ol1: null}
-
+        - trigger_timing: REROLL
+          max_act: 3
+          spawn:
+          - target: self
+            count: 2
+            ol1: null
+          - target: both_adj
+            ol1: null
+          enhance:
+            target: self
+            atk_pct: 0.05
+            ol1: null
   sp_line:
     name: 조립 라인
     tier: 3
     theme: steampunk
-    timing: OE
-    listen: {l1: UA, l2: MF}
     comp:
-      - {unit: sp_sawblade, n: 2}
-      - {unit: sp_spider, n: 1}
-      - {unit: sp_scorpion, n: 1}
-    tags: [steampunk, production]
-    require_other: true
+    - unit: sp_sawblade
+      n: 2
+    - unit: sp_spider
+      n: 1
+    - unit: sp_scorpion
+      n: 1
+    tags:
+    - steampunk
+    - production
     stars:
       1:
-        max_act: 3
         effects:
-          - spawn: {target: both_adj, ol2: MF}
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l1: UA
+            l2: MF
+          require_other: true
+          spawn:
+            target: both_adj
+            ol2: MF
       2:
-        max_act: 4
         effects:
-          - spawn: {target: both_adj, count: 2, ol2: MF}
+        - trigger_timing: OE
+          max_act: 4
+          listen:
+            l1: UA
+            l2: MF
+          require_other: true
+          spawn:
+            target: both_adj
+            count: 2
+            ol2: MF
       3:
-        max_act: 4
-        # NOTE(trace 015): 이전 YAML에 있던 `persistent: {all_spawn_strongest: true}`
-        # ("모든 스팀펑크 제조가 가장 강한 유닛")는 런타임 구현이 전무한 dead
-        # declaration이어서 제거. 복원하려면 steampunk_system.apply_persistent
-        # 혹은 chain_engine의 spawn dispatch에 flag 전파 로직 추가 필요.
         effects:
-          - spawn: {target: both_adj, count: 2, ol2: MF, strongest: true}
-
+        - trigger_timing: OE
+          max_act: 4
+          listen:
+            l1: UA
+            l2: MF
+          require_other: true
+          spawn:
+            target: both_adj
+            count: 2
+            ol2: MF
+            strongest: true
   sp_barrier:
     name: 증기 방벽
     tier: 3
     theme: steampunk
-    timing: BS
     comp:
-      - {unit: sp_titan, n: 2}
-      - {unit: sp_crab, n: 1}
-    tags: [steampunk, defense]
+    - unit: sp_titan
+      n: 2
+    - unit: sp_crab
+      n: 1
+    tags:
+    - steampunk
+    - defense
     stars:
       1:
-        max_act: -1
         effects:
-          - shield: {target: self, hp_pct: 0.20}
+        - trigger_timing: BS
+          max_act: -1
+          shield:
+            target: self
+            hp_pct: 0.2
       2:
-        max_act: -1
         effects:
-          - shield: {target: self, hp_pct: 0.40}
+        - trigger_timing: BS
+          max_act: -1
+          shield:
+            target: self
+            hp_pct: 0.4
       3:
-        max_act: -1
         effects:
-          - shield: {target: all_allies, hp_pct: 0.40}
-
+        - trigger_timing: BS
+          max_act: -1
+          shield:
+            target: all_allies
+            hp_pct: 0.4
   sp_warmachine:
     name: 전쟁 기계
     tier: 4
     theme: steampunk
-    timing: PERSISTENT
     comp:
-      - {unit: sp_turret, n: 2}
-      - {unit: sp_cannon, n: 2}
-      - {unit: sp_drone, n: 2}
-    tags: [steampunk, combat]
+    - unit: sp_turret
+      n: 2
+    - unit: sp_cannon
+      n: 2
+    - unit: sp_drone
+      n: 2
+    tags:
+    - steampunk
+    - combat
     impl: theme_system
     stars:
       1:
-        max_act: -1
         effects:
-          - range_bonus: {tag: firearm, unit_thresh: 8}
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          range_bonus:
+            tag: firearm
+            unit_thresh: 8
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 1
       2:
-        max_act: -1
         effects:
-          - range_bonus: {tag: firearm, unit_thresh: 6, atk_buff_pct: 0.30}
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          range_bonus:
+            tag: firearm
+            unit_thresh: 6
+            atk_buff_pct: 0.3
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 2
       3:
-        max_act: -1
         effects:
-          - range_bonus: {tag: firearm, unit_thresh: 4, atk_buff_pct: 0.30, attack_stack_pct: 0.12}
-
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          range_bonus:
+            tag: firearm
+            unit_thresh: 4
+            atk_buff_pct: 0.3
+            attack_stack_pct: 0.12
+        - trigger_timing: RS
+          max_act: -1
+          manufacture:
+            target: self
+            count: 4
   sp_charger:
     name: 태엽 과급기
     tier: 4
     theme: steampunk
-    timing: OE
-    listen: {l1: UA, l2: MF}
     comp:
-      - {unit: sp_titan, n: 2}
-      - {unit: sp_turret, n: 2}
-      - {unit: sp_cannon, n: 1}
-    tags: [steampunk, power]
+    - unit: sp_titan
+      n: 2
+    - unit: sp_turret
+      n: 2
+    - unit: sp_cannon
+      n: 1
+    tags:
+    - steampunk
+    - power
     impl: theme_system
     stars:
       1:
-        max_act: -1
         effects:
-          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
+        - trigger_timing: OE
+          max_act: -1
+          listen:
+            l1: UA
+            l2: MF
+          counter_produce:
+            event: MF
+            threshold: 10
+            rewards:
+              terazin: 1
+              enhance_atk_pct: 0.05
       2:
-        max_act: -1
         effects:
-          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
+        - trigger_timing: OE
+          max_act: -1
+          listen:
+            l1: UA
+            l2: MF
+          counter_produce:
+            event: MF
+            threshold: 10
+            rewards:
+              terazin: 1
+              enhance_atk_pct: 0.05
+          rare_counter:
+            threshold: 20
+            reward: pending_rare_upgrade
       3:
-        max_act: -1
         effects:
-          - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - epic_counter: {threshold: 15, reward: pending_epic_upgrade}
-          - total_counter: {per_manufacture: 10, reward_terazin: 1}
-
+        - trigger_timing: OE
+          max_act: -1
+          listen:
+            l1: UA
+            l2: MF
+          counter_produce:
+            event: MF
+            threshold: 10
+            rewards:
+              terazin: 1
+              enhance_atk_pct: 0.05
+          epic_counter:
+            threshold: 15
+            reward: pending_epic_upgrade
+          total_counter:
+            per_manufacture: 10
+            reward_terazin: 1
   sp_arsenal:
     name: 제국 병기창
     tier: 5
     theme: steampunk
-    timing: SELL
-    impl: theme_system
     comp:
-      - {unit: sp_titan, n: 2}
-      - {unit: sp_scorpion, n: 2}
-      - {unit: sp_crab, n: 1}
-    tags: [steampunk, arsenal]
+    - unit: sp_titan
+      n: 2
+    - unit: sp_scorpion
+      n: 2
+    - unit: sp_crab
+      n: 1
+    tags:
+    - steampunk
+    - arsenal
+    impl: theme_system
     stars:
       1:
-        max_act: -1
         effects:
-          - absorb: {target: self, count: 3}
+        - trigger_timing: SELL
+          max_act: -1
+          absorb:
+            target: self
+            count: 3
       2:
-        max_act: -1
         effects:
-          - absorb: {target: self, count: 5, transfer_upgrades: true}
+        - trigger_timing: SELL
+          max_act: -1
+          absorb:
+            target: self
+            count: 5
+            transfer_upgrades: true
       3:
-        max_act: -1
         effects:
-          - absorb: {target: self, count: 7, transfer_upgrades: true, majority_atk_bonus: 0.30}
+        - trigger_timing: SELL
+          max_act: -1
+          absorb:
+            target: self
+            count: 7
+            transfer_upgrades: true
+            majority_atk_bonus: 0.3

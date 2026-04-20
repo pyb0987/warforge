@@ -1,5 +1,5 @@
-# AUTO-GENERATED from data/cards_v2/*.yaml — DO NOT EDIT
-# Run: python3 scripts/codegen_v2.py
+# AUTO-GENERATED from data/cards/*.yaml — DO NOT EDIT
+# Run: python3 scripts/codegen_card_db.py
 extends Node
 ## Card database. Autoloaded as "CardDB".
 ##
