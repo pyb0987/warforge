@@ -59,6 +59,32 @@ sp_warmachine:
    - (b) `conditional` / `r_conditional` / `post_threshold` 는 **primary(첫) block에만** — non-primary block의 이들은 desc_gen이 말없이 드롭 (`validate_multiblock_nonprimary_conditional`)
    - (c) Scalar action (`gold: 5` 같이 dict 아닌 값)은 primary block 에만 — non-primary에 두면 설명 오배치 (`validate_multiblock_scalar_actions`)
 4. **codegen 실행 후 카드 설명 확인** — multi-block은 `[지속] ... 라운드 시작: ...` 식으로 섹션 분리됨
+5. **conditional / r_conditional / post_threshold depth-reduced 형태 (2026-04-21)**:
+   - v1 의 `effects:` 키를 **제거**. conditional 항목은 `{when, ...actions}` 의 mini-block 형태. post_threshold 는 `{...actions}` 단일 dict.
+   - Block 수준과 **같은 규약** (dict-of-actions + 동일 action 중복은 params list)
+   - 구 `effects:` 키 또는 list 형태의 post_threshold 발견 시 codegen hard-fail (`validate_conditional_effects_key_removed`)
+
+   ```yaml
+   # depth-reduced (현재)
+   conditional:
+     - when: {unit_count_gte: 8}
+       spawn: {target: both_adj}
+       enhance: {target: self, atk_pct: 0.03}
+   post_threshold:
+     spawn: {target: all_allies}
+     shield: {target: all_allies, hp_pct: 0.1}
+   ```
+
+   ```yaml
+   # ❌ v1 레거시 (금지)
+   conditional:
+     - when: {unit_count_gte: 8}
+       effects:                           # 이 키 금지
+         - spawn: {target: both_adj}
+         - enhance: {target: self, atk_pct: 0.03}
+   post_threshold:                        # 리스트 금지
+     - spawn: {target: all_allies}
+   ```
 
 ### 기존 §2–§4는 Enum 매핑/필드 규칙 참고용
 아래 섹션들의 "카드 상단 timing" 예시는 v1 잔재. 실제 카드 작성 시 무시하고 위 v2 형태를 따를 것.
