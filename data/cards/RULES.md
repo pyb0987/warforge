@@ -54,7 +54,10 @@ sp_warmachine:
 ### v2 핵심 규칙
 1. **카드 상단에 `timing` 금지** — 반드시 block의 `trigger_timing`으로
 2. **`impl: theme_system` 누락 주의** — theme action(hatch, train, range_bonus 등) 쓰면서 `impl: theme_system` 없으면 codegen hard-fail
-3. **Multi-block 카드**: 첫 block의 `trigger_timing`이 "대표 timing"으로 취급. UI/테스트가 카드 주 timing을 물으면 이 값. 두 번째 block 작성 시 장기 backlog의 "primary timing validator 부재"(현재 경고 없음) 유의
+3. **Multi-block 카드 제약 (codegen hard-fail로 강제, 2026-04-21)**:
+   - (a) 첫 block의 `trigger_timing` = 카드 "대표 timing" (flat hoist → UI/sim AI evaluator 참조). 모든 ★에서 **첫 block 순서 일관** — ★별 뒤바뀌면 codegen 차단 (`validate_multiblock_primary_timing_consistency`)
+   - (b) `conditional` / `r_conditional` / `post_threshold` 는 **primary(첫) block에만** — non-primary block의 이들은 desc_gen이 말없이 드롭 (`validate_multiblock_nonprimary_conditional`)
+   - (c) Scalar action (`gold: 5` 같이 dict 아닌 값)은 primary block 에만 — non-primary에 두면 설명 오배치 (`validate_multiblock_scalar_actions`)
 4. **codegen 실행 후 카드 설명 확인** — multi-block은 `[지속] ... 라운드 시작: ...` 식으로 섹션 분리됨
 
 ### 기존 §2–§4는 Enum 매핑/필드 규칙 참고용

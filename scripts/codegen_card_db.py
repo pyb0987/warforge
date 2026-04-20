@@ -1399,6 +1399,77 @@ def validate_no_retrigger(all_cards: dict) -> list[str]:
     return errors
 
 
+## Guard: non-primary blocks of a multi-block card cannot carry
+## conditional / r_conditional / post_threshold. _project_to_desc_gen_input
+## only lifts those fields from the primary (first) block, so anything in
+## later blocks is silently dropped from the card description.
+## Backlog #11 resolution.
+def validate_multiblock_nonprimary_conditional(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+    forbidden = ("conditional", "r_conditional", "post_threshold")
+    for _theme, cards in all_cards.items():
+        for card_id, card in cards.items():
+            for star_n, star in (card.get("stars") or {}).items():
+                blocks = star.get("effects", []) or []
+                if len(blocks) < 2:
+                    continue
+                for block_idx, block in enumerate(blocks[1:], start=1):
+                    if not isinstance(block, dict):
+                        continue
+                    for key in forbidden:
+                        if key in block:
+                            errors.append(
+                                f"{card_id} ★{star_n}: non-primary block #{block_idx} "
+                                f"(trigger_timing={block.get('trigger_timing')!r}) "
+                                f"has '{key}' — desc_gen only projects this from the "
+                                f"primary (first) block. Move it to the primary block, "
+                                f"or restructure so the block carrying '{key}' is first."
+                            )
+    return errors
+
+
+## Guard: a card's representative timing (first block's trigger_timing)
+## must be identical across ★1/★2/★3. The flat hoist in _c() copies the
+## first block's metadata to template top-level; if that changes between
+## stars, legacy readers (sim AI evaluator, UI) see the timing flip on ★↑
+## with no visible trigger.
+## Backlog #12 resolution.
+def validate_multiblock_primary_timing_consistency(all_cards: dict) -> list[str]:
+    # Only applies to cards that have a multi-block star — single-block
+    # cards are free to change their sole timing across ★ (legitimate
+    # star-level timing override, e.g. ne_merchant PCD→PC at ★3).
+    errors: list[str] = []
+    for _theme, cards in all_cards.items():
+        for card_id, card in cards.items():
+            stars = card.get("stars") or {}
+            is_multiblock = any(
+                len(star.get("effects", []) or []) >= 2
+                for star in stars.values()
+            )
+            if not is_multiblock:
+                continue
+            timing_by_star: dict[int, str] = {}
+            for star_n, star in stars.items():
+                blocks = star.get("effects", []) or []
+                if not blocks:
+                    continue
+                first_timing = blocks[0].get("trigger_timing")
+                if first_timing is not None:
+                    timing_by_star[star_n] = first_timing
+            distinct = set(timing_by_star.values())
+            if len(distinct) > 1:
+                stars_list = ", ".join(
+                    f"★{s}={timing_by_star[s]}" for s in sorted(timing_by_star)
+                )
+                errors.append(
+                    f"{card_id}: multi-block card's primary (first block) "
+                    f"trigger_timing differs across stars — {stars_list}. "
+                    f"Keep block ordering consistent so flat-hoist accessors "
+                    f"don't flip between ★."
+                )
+    return errors
+
+
 def run_validators(all_cards: dict) -> None:
     projected = _project_to_desc_gen_input(all_cards)
     ec_errors = validate_conscript_enhanced_count(projected)
@@ -1435,6 +1506,18 @@ def run_validators(all_cards: dict) -> None:
     if rt_errors:
         print("❌ retrigger action not ready for YAML use:")
         for e in rt_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    nonprimary_cond_errors = validate_multiblock_nonprimary_conditional(all_cards)
+    if nonprimary_cond_errors:
+        print("❌ multi-block non-primary block carries conditional-family:")
+        for e in nonprimary_cond_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    primary_timing_errors = validate_multiblock_primary_timing_consistency(all_cards)
+    if primary_timing_errors:
+        print("❌ multi-block primary timing flips across ★:")
+        for e in primary_timing_errors:
             print(f"  - {e}")
         sys.exit(2)
 
