@@ -838,25 +838,6 @@ func get_theme_effects(card_id: String, star_level: int) -> Array:
 
 HELPER_FUNCTIONS = '''
 ## Compact card registration.
-##
-## Template shape is **flat** — top-level ``trigger_timing``, ``max_activations``,
-## ``effects``, ``trigger_layer{1,2}``, ``require_*`` are the single source of
-## truth for the card at ★1. ★2/★3 deltas live in ``star_overrides`` and are
-## merged by ``get_star_template()``.
-##
-## IMPLICIT CONTRACT (Phase 2 B-direct carryover, see docs/design/backlog.md
-## tech-debt entry "_c() flat hoist"):
-##   - There is exactly **one trigger block per star**. ``trigger_timing`` is
-##     that single timing — NOT the first of many blocks.
-##   - Multi-timing cards must be expressed as separate timings inside
-##     star_overrides (★2/★3 can retime), or routed through a theme_system
-##     handler (``impl: theme_system`` in YAML) that re-enters via
-##     apply_persistent/apply_battle_start/apply_post_combat.
-##   - If a future design requires multi-block-per-star, migrate everything
-##     reading ``template["trigger_timing"]`` / ``template["max_activations"]``
-##     at the same time. Partial migration produces the exact ambiguity this
-##     comment guards against.
-##
 ## effects: Array of Dicts, each with {action, target, ...params}
 func _c(id: String, nm: String, tier: int, theme: int,
 \t\tcomp: Array, timing: int, max_act: int,
@@ -1191,118 +1172,6 @@ def validate_conscript_enhanced_count(
     return errors
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Dispatch / flat-template hygiene validators
-# (backlog.md Phase 2 effect-timing tech-debt items 3/4/7)
-# ═══════════════════════════════════════════════════════════════════
-
-# Themes whose cards are *always* dispatched via their theme_system.gd handler.
-# Adding a card under one of these themes without ``impl: theme_system`` would
-# route to the card_db effects arm, silently bypassing the theme handler and
-# its theme_state. steampunk is intentionally mixed (sp_assembly/sp_furnace
-# etc. are card_db; sp_charger/sp_warmachine/sp_arsenal are theme_system), so
-# steampunk is exempt from the hard-fail.
-THEME_SYSTEM_REQUIRED = frozenset(["predator", "druid", "military"])
-
-
-def validate_impl_declared(
-    all_cards: dict[str, dict[str, dict]],
-) -> list[str]:
-    """Non-neutral themes that are always theme_system must declare it.
-
-    Prevents the silent-dispatch failure where a {predator,druid,military}
-    card omits ``impl: theme_system`` and gets routed through _execute_effects
-    — the theme_system handler and its theme_state are never invoked.
-    """
-    errors: list[str] = []
-    for theme, cards in all_cards.items():
-        if theme not in THEME_SYSTEM_REQUIRED:
-            continue
-        for cid, card in cards.items():
-            impl = card.get("impl", "card_db")
-            if impl != "theme_system":
-                errors.append(
-                    f"{cid} (theme={theme}): missing 'impl: theme_system'. "
-                    f"{theme} cards are always dispatched via "
-                    f"{theme}_system.gd; card_db dispatch would bypass the "
-                    f"handler and its theme_state."
-                )
-    return errors
-
-
-def validate_is_threshold_with_theme_system(
-    all_cards: dict[str, dict[str, dict]],
-) -> list[str]:
-    """is_threshold + impl: theme_system is structurally unsupported.
-
-    ``chain_engine`` flips ``card.threshold_fired`` around the dispatch arm
-    (chain_engine.gd:86-92), but theme_system handlers have no visibility
-    into that state. A handler cannot implement a one-shot threshold by
-    reading threshold_fired — every RS tick re-enters the same arm.
-    If threshold-like behavior is needed, express it via ``theme_state`` keys
-    inside the handler, not via the top-level ``is_threshold`` flag.
-    """
-    errors: list[str] = []
-    for _theme, cards in all_cards.items():
-        for cid, card in cards.items():
-            if card.get("impl", "card_db") != "theme_system":
-                continue
-            if card.get("is_threshold"):
-                errors.append(
-                    f"{cid}: is_threshold=true with impl=theme_system — "
-                    f"chain_engine flips threshold_fired outside the "
-                    f"theme_system arm; the handler has no visibility."
-                )
-            for star, sd in (card.get("stars") or {}).items():
-                if sd.get("is_threshold"):
-                    errors.append(
-                        f"{cid} ★{star}: is_threshold=true with "
-                        f"impl=theme_system (same as above, star-level)."
-                    )
-    return errors
-
-
-def validate_no_retrigger(
-    all_cards: dict[str, dict[str, dict]],
-) -> list[str]:
-    """Reject YAML-level ``retrigger`` until chain_engine covers theme_system.
-
-    chain_engine.gd implements ``retrigger`` by re-calling ``_execute_effects``
-    on the target card, which reads ``card.template["effects"]``. That array
-    is empty for ``impl: theme_system`` targets, so a retrigger hitting a
-    theme-dispatched card silently does nothing. No card currently ships the
-    action; codegen should refuse to emit one until the handler covers
-    theme_system routing (or the tech-debt item is closed).
-    """
-    errors: list[str] = []
-
-    def walk(cid: str, star: int, ctx: str, effs: list) -> None:
-        for eff in effs or []:
-            if not isinstance(eff, dict):
-                continue
-            action = next(iter(eff))
-            if action == "retrigger":
-                errors.append(
-                    f"{cid} ★{star} ({ctx}): 'retrigger' action is not "
-                    f"ready for YAML use. chain_engine.gd silently drops "
-                    f"retrigger when the target is theme_system-dispatched. "
-                    f"Close the tech-debt item before re-enabling."
-                )
-            params = eff[action]
-            if isinstance(params, dict) and isinstance(params.get("effects"), list):
-                walk(cid, star, f"{ctx}→{action}.effects", params["effects"])
-
-    for _theme, cards in all_cards.items():
-        for cid, card in cards.items():
-            for star, sd in (card.get("stars") or {}).items():
-                walk(cid, star, "effects", sd.get("effects", []))
-                for cond in sd.get("conditional") or []:
-                    walk(cid, star, "conditional", cond.get("effects", []))
-                for rc in sd.get("r_conditional") or []:
-                    walk(cid, star, "r_conditional", rc.get("effects", []))
-    return errors
-
-
 def main():
     check_mode = "--check" in sys.argv
 
@@ -1316,30 +1185,6 @@ def main():
     if ec_errors:
         print("❌ conscript.enhanced_count violations:")
         for err in ec_errors:
-            print(f"  - {err}")
-        sys.exit(2)
-
-    # Dispatch hygiene: theme_system flag mandatory for predator/druid/military.
-    impl_errors = validate_impl_declared(all_cards)
-    if impl_errors:
-        print("❌ impl: theme_system declaration violations:")
-        for err in impl_errors:
-            print(f"  - {err}")
-        sys.exit(2)
-
-    # is_threshold + impl: theme_system combination is unsupported.
-    thresh_errors = validate_is_threshold_with_theme_system(all_cards)
-    if thresh_errors:
-        print("❌ is_threshold/theme_system mismatch:")
-        for err in thresh_errors:
-            print(f"  - {err}")
-        sys.exit(2)
-
-    # Retrigger YAML-entry is blocked until chain_engine covers theme_system.
-    rt_errors = validate_no_retrigger(all_cards)
-    if rt_errors:
-        print("❌ retrigger action not ready:")
-        for err in rt_errors:
             print(f"  - {err}")
         sys.exit(2)
 

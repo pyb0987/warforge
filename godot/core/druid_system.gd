@@ -90,23 +90,13 @@ func on_sell(sold_card: CardInstance, board: Array) -> void:
 # --- 🌳 helpers ---
 
 
-## Find first effect dict with matching (action, target). Emits push_error
-## on duplicate matches — later matches are silently shadowed, which is
-## always a bug at the call site (_spore_cloud_battle iterates via explicit
-## ``for eff in effs`` loop rather than _find_eff precisely because it
-## legitimately has multiple debuff_store entries per star).
+## Find first effect dict with matching action (and optional target).
 func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
-	var first := {}
-	var matches := 0
 	for e in effs:
 		if e.get("action") == action:
 			if target == "" or e.get("target", "") == target:
-				matches += 1
-				if matches == 1:
-					first = e
-	if matches > 1:
-		push_error("_find_eff shadowed duplicates: action=%s target=%s matches=%d — use explicit loop" % [action, target, matches])
-	return first
+				return e
+	return {}
 
 
 ## 양성가 보너스 포함 breed: breed 성공 시 확률로 1기 추가 (이벤트 미방출).

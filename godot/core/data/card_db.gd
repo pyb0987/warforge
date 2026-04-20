@@ -60,25 +60,6 @@ func get_theme_effects(card_id: String, star_level: int) -> Array:
 
 
 ## Compact card registration.
-##
-## Template shape is **flat** — top-level ``trigger_timing``, ``max_activations``,
-## ``effects``, ``trigger_layer{1,2}``, ``require_*`` are the single source of
-## truth for the card at ★1. ★2/★3 deltas live in ``star_overrides`` and are
-## merged by ``get_star_template()``.
-##
-## IMPLICIT CONTRACT (Phase 2 B-direct carryover, see docs/design/backlog.md
-## tech-debt entry "_c() flat hoist"):
-##   - There is exactly **one trigger block per star**. ``trigger_timing`` is
-##     that single timing — NOT the first of many blocks.
-##   - Multi-timing cards must be expressed as separate timings inside
-##     star_overrides (★2/★3 can retime), or routed through a theme_system
-##     handler (``impl: theme_system`` in YAML) that re-enters via
-##     apply_persistent/apply_battle_start/apply_post_combat.
-##   - If a future design requires multi-block-per-star, migrate everything
-##     reading ``template["trigger_timing"]`` / ``template["max_activations"]``
-##     at the same time. Partial migration produces the exact ambiguity this
-##     comment guards against.
-##
 ## effects: Array of Dicts, each with {action, target, ...params}
 func _c(id: String, nm: String, tier: int, theme: int,
 		comp: Array, timing: int, max_act: int,

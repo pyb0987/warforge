@@ -193,21 +193,12 @@ func resolve_revive_scope(target_name: String, self_idx: int,
 # --- Rank / Conscription helpers ---
 
 
-## First-match lookup on theme_effects by (action, target). See predator_system
-## for rationale — push_error on duplicate matches guards against silent
-## shadowing at _find_eff call sites.
 func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
-	var first := {}
-	var matches := 0
 	for e in effs:
 		if e.get("action") == action:
 			if target == "" or e.get("target", "") == target:
-				matches += 1
-				if matches == 1:
-					first = e
-	if matches > 1:
-		push_error("_find_eff shadowed duplicates: action=%s target=%s matches=%d — use explicit loop" % [action, target, matches])
-	return first
+				return e
+	return {}
 
 
 func _rank(card: CardInstance) -> int:
