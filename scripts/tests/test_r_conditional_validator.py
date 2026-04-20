@@ -36,7 +36,7 @@ def _card(r_conditional_by_star: dict, star_scalable: list | None = None) -> dic
 
 
 class TestRConditionalValidator(unittest.TestCase):
-    # Real-YAML clean check is performed by `python3 scripts/codegen_v2.py`
+    # Real-YAML clean check is performed by `python3 scripts/codegen_card_db.py`
     # (runs validators on all cards). This unit-test file covers the validator
     # logic with synthetic card dicts.
 

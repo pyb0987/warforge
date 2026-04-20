@@ -60,7 +60,9 @@ scripts/
 
 ## YAML 스키마
 
-### 카드 엔트리 (전체 구조)
+### 카드 엔트리 (v2 block 구조)
+
+2026-04-20 Phase 2: **timing이 effect 블록 안으로 이관**. 카드 상단에서 `timing` 필드 제거, 각 효과 블록이 자신의 `trigger_timing`을 가진다. 한 카드가 여러 timing(RS+PERSISTENT 등)을 동시에 가질 수 있는 multi-block 지원 (예: sp_warmachine).
 
 ```yaml
 cards:
@@ -68,47 +70,68 @@ cards:
     name: string                   # 카드 이름 (한글)
     tier: int                      # 1-5
     theme: string                  # neutral | steampunk | druid | predator | military
-    timing: string                 # RS | OE | BS | CA | PC | PCD | PCV | REROLL | MERGE | SELL | DEATH | PERSISTENT
     comp:                          # 구성 유닛 배열
       - unit: string               # unit_id
         n: int                     # 유닛 수
     tags: [string]                 # 카드 태그 배열
 
-    # OE 카드만 (timing == OE)
-    listen:                        # 생략 시 둘 다 null
-      l1: string|null              # UA | EN | null
-      l2: string|null              # MF | UP | TG | BR | HA | MT | TR | CO | MERGE | REROLL | SELL | null
-
-    # 선택 필드 (해당 카드만, 기본값 있으면 생략 가능)
-    require_other: bool            # 기본 false — 인접 다른 카드 필요
-    require_tenure: int            # 기본 0 — 최소 보유 라운드
-    is_threshold: bool             # 기본 false — 임계점 카드
-
     # 구현 위치 (기본 card_db)
     impl: string                   # card_db | theme_system
+    # star_scalable_actions: r_conditional 내부에서 ★별 수치 차이를 허용할 action 이름 (선택)
+    star_scalable_actions: [string]
 
     # ★ 레벨별 데이터
     stars:
       1:
-        max_act: int               # -1 = 무제한, 양수 = 라운드당 상한
-        effects: [Effect]          # 효과 배열 (아래 Effect DSL 참조)
-        conditional: [Conditional] # 조건부 효과 (선택)
-        post_threshold: [Effect]   # 임계점 초과 시 추가 효과 (선택)
+        effects:                   # ← 이제 timing 블록의 리스트
+          - trigger_timing: string # RS | OE | BS | CA | PC | PCD | PCV | REROLL | MERGE | SELL | DEATH | PERSISTENT
+            max_act: int           # -1 = 무제한, 양수 = 라운드당 상한
+            # OE timing일 때만
+            listen:
+              l1: string|null      # UA | EN | null
+              l2: string|null      # MF | UP | TG | BR | HA | MT | TR | CO | null
+            # 선택 (카드 전역 상태 — 블록별 설정 가능)
+            require_other: bool    # 기본 false — 인접 다른 카드 필요
+            require_tenure: int    # 기본 0 — 최소 보유 라운드
+            is_threshold: bool     # 기본 false — 임계점 카드
+            conditional: [...]     # 이 block의 timing에 종속된 조건부 effect (선택)
+            r_conditional: [...]   # rank milestone 조건부 (선택, 주로 military)
+            post_threshold: [...]  # is_threshold 돌파 후 effect (선택)
+            # actions — 블록 안의 나머지 key 전부가 action. 이름별 dict 또는 list-of-dict
+            {action_name}: {params}           # 단일 호출
+            {action_name}: [{params}, {...}]  # 동일 action 여러 번 (중복 허용, dict 아닌 list)
       2:
-        max_act: int
-        effects: [Effect]
-        conditional: [Conditional]
+        effects: [...]             # ★2 효과 (완전 명시, ★1과 독립)
       3:
-        max_act: int
-        effects: [Effect]
-        conditional: [Conditional]
+        effects: [...]             # ★3 효과
+```
+
+### Multi-block 카드 예시 (sp_warmachine)
+
+```yaml
+sp_warmachine:
+  tier: 4
+  theme: steampunk
+  impl: theme_system
+  comp: [...]
+  stars:
+    1:
+      effects:
+        - trigger_timing: PERSISTENT       # ★ 대표 timing = 첫 block (flat hoist)
+          max_act: -1
+          range_bonus: {tag: firearm, unit_thresh: 8}
+        - trigger_timing: RS               # 같은 카드의 두 번째 block
+          max_act: -1
+          manufacture: {target: self, count: 1}
 ```
 
 ### ★ 레벨 데이터 규칙
 
 - 모든 ★ 레벨은 **완전 명시** (상속/병합 없음). ★2가 ★1과 동일해도 전부 적는다.
 - 코드젠은 ★1을 base로, ★2/★3에서 차이가 있는 필드만 `star_overrides`로 생성한다.
-- `impl: theme_system` 카드는 YAML에 full effects 배열을 작성한다. 코드젠은 card_db.gd에서 `effects=[]`로 변환하되, `_theme_effects` dict에 per-star 효과 배열을 별도 저장한다.
+- Multi-block 카드: YAML 첫 block의 `trigger_timing`이 카드의 "대표 timing"으로 flat hoist 됨 (backward-compat). `template["trigger_timing"]` top-level 접근자는 이 값을 가리킨다.
+- `impl: theme_system` 카드는 YAML에 full effects 배열을 작성. 코드젠은 `_templates[id]["effects"]`에 block 리스트 그대로 저장. theme_system에서 `_find_eff(CardDB.get_theme_effects(id, star), action_name)`으로 action 탐색.
+- `impl: theme_system` 누락 시 codegen에서 hard-fail (theme 카드가 `CARD_DB_ACTIONS` 외 action을 쓰는 경우).
 
 ---
 

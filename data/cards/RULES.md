@@ -7,6 +7,61 @@
 
 ---
 
+## 🔄 v2 스키마 변경 (2026-04-20)
+
+**중요**: Phase 2에서 YAML 스키마가 block 구조로 이관됨. 이 문서의 §5 이전 섹션(§1–§4)은 v1 기반이므로 **카드 스키마 예시는 아래 v2 규칙을 우선 참조**.
+
+### 핵심 변경
+- `timing`이 카드 상단 → **각 effect block 안**으로 이관 (`trigger_timing` 필드)
+- `listen`, `require_other`, `require_tenure`, `is_threshold`, `max_act`, `conditional`, `r_conditional`, `post_threshold`도 block 안으로
+- 한 카드가 여러 block 보유 가능 (multi-block — 예: sp_warmachine의 PERSISTENT + RS)
+- 동일 action을 한 block에서 여러 번 쓸 때 params를 **리스트**로 (`spawn: [{...}, {...}]`)
+
+### v2 YAML 형태 (최소 예시)
+
+```yaml
+sp_furnace:
+  name: 증기 용광로
+  tier: 1
+  theme: steampunk
+  comp: [{unit: sp_crab, n: 1}, {unit: sp_sawblade, n: 1}]
+  tags: [steampunk, focus]
+  stars:
+    1:
+      effects:
+        - trigger_timing: RS          # ← block 단위
+          max_act: -1                  # ← block 단위
+          spawn: {target: self, ol2: MF}
+          enhance: {target: self, atk_pct: 0.03}
+```
+
+### Multi-block 예시 (sp_warmachine)
+
+```yaml
+sp_warmachine:
+  impl: theme_system
+  stars:
+    1:
+      effects:
+        - trigger_timing: PERSISTENT   # ← 첫 block = 대표 timing (flat hoist)
+          max_act: -1
+          range_bonus: {tag: firearm, unit_thresh: 8}
+        - trigger_timing: RS           # ← 두 번째 block, 같은 ★에서 공존
+          max_act: -1
+          manufacture: {target: self, count: 1}
+```
+
+### v2 핵심 규칙
+1. **카드 상단에 `timing` 금지** — 반드시 block의 `trigger_timing`으로
+2. **`impl: theme_system` 누락 주의** — theme action(hatch, train, range_bonus 등) 쓰면서 `impl: theme_system` 없으면 codegen hard-fail
+3. **Multi-block 카드**: 첫 block의 `trigger_timing`이 "대표 timing"으로 취급. UI/테스트가 카드 주 timing을 물으면 이 값. 두 번째 block 작성 시 장기 backlog의 "primary timing validator 부재"(현재 경고 없음) 유의
+4. **codegen 실행 후 카드 설명 확인** — multi-block은 `[지속] ... 라운드 시작: ...` 식으로 섹션 분리됨
+
+### 기존 §2–§4는 Enum 매핑/필드 규칙 참고용
+아래 섹션들의 "카드 상단 timing" 예시는 v1 잔재. 실제 카드 작성 시 무시하고 위 v2 형태를 따를 것.
+
+---
+
 ## 1. 데이터 소스 우선순위
 
 | 우선순위 | 소스 | 용도 |

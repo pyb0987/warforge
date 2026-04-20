@@ -561,7 +561,7 @@ BLOCK_META_KEYS = frozenset({
 # v2 YAML loader
 # ═══════════════════════════════════════════════════════════════════
 
-def load_v2_cards() -> "dict[str, dict[str, dict]]":
+def load_cards() -> "dict[str, dict[str, dict]]":
     """Load all v2 YAMLs. Returns {theme: {card_id: card_v2}}."""
     all_cards: "dict[str, dict[str, dict]]" = {}
     for theme in THEME_ORDER:
@@ -1155,7 +1155,7 @@ def generate_card_db(all_cards: dict) -> str:
 # projection just for desc generation.
 # ═══════════════════════════════════════════════════════════════════
 
-def _project_v2_to_desc_gen_input(all_cards: dict) -> dict:
+def _project_to_desc_gen_input(all_cards: dict) -> dict:
     """card_desc_gen expects v1 layout. Reconstruct the minimum fields it reads."""
     out: dict = {}
     for theme, cards in all_cards.items():
@@ -1234,8 +1234,72 @@ def _project_v2_to_desc_gen_input(all_cards: dict) -> dict:
 # Validators (reuse from v1 codegen, fed the projected v1 layout)
 # ═══════════════════════════════════════════════════════════════════
 
-def run_validators(all_cards_v2: dict) -> None:
-    projected = _project_v2_to_desc_gen_input(all_cards_v2)
+## Guard: a theme card (druid/military/predator/steampunk) that uses an
+## action outside CARD_DB_ACTIONS MUST declare `impl: theme_system`. Otherwise
+## chain_engine dispatches to _execute_actions (card_db path) which cannot
+## handle theme actions — silent drop with no runtime error.
+## Backlog #4 (Phase 2 이월) resolution.
+def validate_impl_theme_system(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+    theme_themes = {"druid", "military", "predator", "steampunk"}
+    for theme, cards in all_cards.items():
+        if theme not in theme_themes:
+            continue
+        for card_id, card in cards.items():
+            impl = card.get("impl", "card_db")
+            if impl == "theme_system":
+                continue
+            for star_n, star in card.get("stars", {}).items():
+                for block in star.get("effects", []):
+                    if not isinstance(block, dict):
+                        continue
+                    for key in block:
+                        if key in BLOCK_META_KEYS:
+                            continue
+                        if key not in CARD_DB_ACTIONS:
+                            errors.append(
+                                f"{card_id} ★{star_n}: action '{key}' not in "
+                                f"CARD_DB_ACTIONS, but impl='card_db' (default). "
+                                f"Add 'impl: theme_system' to the card, or use a "
+                                f"built-in action from: {sorted(CARD_DB_ACTIONS)}"
+                            )
+    return errors
+
+
+## Guard: scalar-valued actions (e.g. `gold: 3`, `terazin: 2`) in a
+## NON-PRIMARY block cannot carry `timing_override`, so their description
+## would mis-render under the primary timing. Require dict form in that case.
+## Backlog #10 (Phase 2 이월) resolution.
+def validate_multiblock_scalar_actions(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+    for theme, cards in all_cards.items():
+        for card_id, card in cards.items():
+            for star_n, star in card.get("stars", {}).items():
+                blocks = star.get("effects", []) or []
+                if len(blocks) < 2:
+                    continue
+                primary_timing = blocks[0].get("trigger_timing")
+                for block in blocks[1:]:
+                    block_timing = block.get("trigger_timing")
+                    if block_timing == primary_timing:
+                        continue  # same timing: scalar desc renders correctly
+                    for key, val in block.items():
+                        if key in BLOCK_META_KEYS:
+                            continue
+                        if not isinstance(val, (dict, list)):
+                            errors.append(
+                                f"{card_id} ★{star_n}: scalar action "
+                                f"'{key}: {val}' lives in a non-primary block "
+                                f"({block_timing}). Scalar actions cannot carry "
+                                f"timing_override — use dict form: "
+                                f"'{key}: {{value: {val}}}' or move to the "
+                                f"primary block."
+                            )
+    return errors
+
+
+def run_validators(all_cards: dict) -> None:
+    projected = _project_to_desc_gen_input(all_cards)
     ec_errors = validate_conscript_enhanced_count(projected)
     if ec_errors:
         print("❌ conscript.enhanced_count violations:")
@@ -1246,6 +1310,18 @@ def run_validators(all_cards_v2: dict) -> None:
     if parity_errors:
         print("❌ r_conditional ★ parity violations:")
         for e in parity_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    impl_errors = validate_impl_theme_system(all_cards)
+    if impl_errors:
+        print("❌ impl: theme_system flag violations:")
+        for e in impl_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    scalar_errors = validate_multiblock_scalar_actions(all_cards)
+    if scalar_errors:
+        print("❌ multi-block scalar action violations:")
+        for e in scalar_errors:
             print(f"  - {e}")
         sys.exit(2)
 
@@ -1281,7 +1357,7 @@ def _check_file(output_path: Path, generated: str, label: str) -> bool:
 def main() -> None:
     check_mode = "--check" in sys.argv
 
-    all_cards = load_v2_cards()
+    all_cards = load_cards()
     if not all_cards:
         print("ERROR: no YAML files loaded")
         sys.exit(1)
@@ -1289,7 +1365,7 @@ def main() -> None:
     run_validators(all_cards)
 
     card_db_src = generate_card_db(all_cards)
-    projected = _project_v2_to_desc_gen_input(all_cards)
+    projected = _project_to_desc_gen_input(all_cards)
     descs = generate_all_descs(projected)
     descs_src = generate_descs_gd(projected, descs)
 
