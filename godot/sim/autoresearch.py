@@ -292,10 +292,10 @@ def mutate_enemy_comp(genome, strength=0.15):
             val = comp[preset][key]
             if key.endswith("_base"):
                 delta = max(1, int(val * strength))
-                comp[preset][key] = max(1, min(20, val + delta * random.choice([-1, 1])))
+                comp[preset][key] = max(1, min(40, val + delta * random.choice([-1, 1])))
             elif key.endswith("_per_r"):
                 delta = val * strength * random.uniform(-1, 1)
-                comp[preset][key] = round(max(0.1, min(8.0, val + delta)), 1)
+                comp[preset][key] = round(max(0.1, min(15.0, val + delta)), 1)
     return g
 
 
