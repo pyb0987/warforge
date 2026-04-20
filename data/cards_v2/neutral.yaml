@@ -1,0 +1,625 @@
+cards:
+  ne_earth_echo:
+    name: 대지의 울림
+    tier: 1
+    theme: neutral
+    comp:
+    - unit: ne_scrap
+      n: 2
+    - unit: ne_eagle
+      n: 1
+    tags:
+    - neutral
+    - production
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: right_adj
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: right_adj
+            count: 2
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: both_adj
+            count: 2
+  ne_wild_pulse:
+    name: 야생의 맥동
+    tier: 1
+    theme: neutral
+    comp:
+    - unit: ne_archer
+      n: 1
+    - unit: ne_golem
+      n: 1
+    tags:
+    - neutral
+    - production
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: right_adj
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: right_adj
+          enhance:
+            target: right_adj
+            atk_pct: 0.02
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: both_adj
+          enhance:
+            target: both_adj
+            atk_pct: 0.03
+  ne_ruin_resonance:
+    name: 유적의 공명
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_guardian
+      n: 1
+    - unit: ne_scrap
+      n: 2
+    tags:
+    - neutral
+    - ancient
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: self
+          enhance:
+            target: self
+            atk_pct: 0.02
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          spawn:
+            target: self
+          enhance:
+            target: self
+            atk_pct: 0.04
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          conditional:
+          - when:
+              unit_count_gte: 8
+            effects:
+            - enhance:
+                target: both_adj
+                atk_pct: 0.02
+          spawn:
+            target: self
+            count: 2
+          enhance:
+            target: self
+            atk_pct: 0.04
+  ne_wanderers:
+    name: 떠돌이 무리
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_merc
+      n: 1
+    - unit: ne_scrap
+      n: 2
+    tags:
+    - neutral
+    - versatile
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+          enhance:
+            target: event_target
+            atk_pct: 0.03
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+          enhance:
+            target: event_target
+            atk_pct: 0.05
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l1: UA
+          enhance:
+            target: event_target
+            atk_pct: 0.05
+          spawn:
+            target: self
+  ne_mutant_adapt:
+    name: 돌연변이 적응
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_beast
+      n: 1
+    - unit: ne_archer
+      n: 1
+    tags:
+    - neutral
+    - mutant
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: EN
+          spawn:
+            target: self
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: EN
+          spawn:
+            target: self
+            count: 2
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: EN
+          conditional:
+          - when:
+              unit_count_gte: 10
+            effects:
+            - spawn:
+                target: both_adj
+          spawn:
+            target: self
+            count: 2
+  ne_mana_crystal:
+    name: 마력 결정
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_spirit
+      n: 2
+    - unit: ne_scrap
+      n: 2
+    tags:
+    - neutral
+    - mana
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+          spawn:
+            target: both_adj
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+          spawn:
+            target: both_adj
+            count: 2
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l1: UA
+          spawn:
+          - target: event_target
+          - target: both_adj
+            count: 2
+  ne_ancient_catalyst:
+    name: 고대 촉매
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_guardian
+      n: 2
+    - unit: ne_spirit
+      n: 2
+    tags:
+    - neutral
+    - ancient
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: EN
+          enhance:
+            target: both_adj
+            atk_pct: 0.02
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: EN
+          enhance:
+            target: both_adj
+            atk_pct: 0.03
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l1: EN
+          enhance:
+          - target: both_adj
+            atk_pct: 0.03
+          - target: self
+            atk_pct: 0.03
+  ne_merchant:
+    name: 방랑 상인
+    tier: 1
+    theme: neutral
+    comp:
+    - unit: ne_archer
+      n: 1
+    - unit: ne_scrap
+      n: 1
+    tags:
+    - neutral
+    - economy
+    stars:
+      1:
+        effects:
+        - trigger_timing: PCD
+          max_act: 1
+          gold: 3
+      2:
+        effects:
+        - trigger_timing: PCD
+          max_act: 1
+          gold: 4
+          terazin: 1
+      3:
+        effects:
+        - trigger_timing: PC
+          max_act: 1
+          gold: 3
+          spawn:
+            target: self
+  ne_spirit_blessing:
+    name: 정령의 축복
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_spirit
+      n: 2
+    - unit: ne_archer
+      n: 2
+    - unit: ne_eagle
+      n: 1
+    tags:
+    - neutral
+    - mana
+    stars:
+      1:
+        effects:
+        - trigger_timing: MERGE
+          max_act: 1
+          terazin: 1
+          spawn:
+            target: event_target
+            count: 2
+      2:
+        effects:
+        - trigger_timing: MERGE
+          max_act: 1
+          terazin: 1
+          gold: 2
+          spawn:
+            target: event_target
+            count: 3
+      3:
+        effects:
+        - trigger_timing: MERGE
+          max_act: 1
+          terazin: 1
+          gold: 2
+          spawn:
+          - target: event_target
+            count: 3
+          - target: all_allies
+  ne_scrapyard:
+    name: 폐품 상회
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_scrap
+      n: 5
+    tags:
+    - neutral
+    - economy
+    - scrap
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          scrap:
+            target: both_adj
+            count: 1
+            reroll_gain: 1
+            gold_per_unit: 0
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          scrap:
+            target: both_adj
+            count: 2
+            reroll_gain: 2
+            gold_per_unit: 0
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          scrap:
+            target: both_adj
+            count: 2
+            reroll_gain: 2
+            gold_per_unit: 1
+  ne_dim_merchant:
+    name: 차원 행상인
+    tier: 4
+    theme: neutral
+    comp:
+    - unit: ne_merc
+      n: 2
+    - unit: ne_guardian
+      n: 2
+    tags:
+    - neutral
+    - economy
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          diversity_gold: {}
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          diversity_gold:
+            gold_per_theme: 2
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          diversity_gold:
+            gold_per_theme: 3
+            terazin_threshold: 3
+            terazin_per_theme: 1
+            mercenary_spawn: 1
+  ne_wildforce:
+    name: 야생의 힘
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_archer
+      n: 1
+    - unit: ne_chimera
+      n: 1
+    tags:
+    - neutral
+    - combat
+    stars:
+      1:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          buff:
+            target: self
+            atk_pct: 0.1
+      2:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          buff:
+            target: self
+            atk_pct: 0.15
+      3:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          conditional:
+          - when:
+              unit_count_lte: 3
+            effects:
+            - buff:
+                target: self
+                atk_pct: 0.15
+          buff:
+            target: self
+            atk_pct: 0.15
+  ne_chimera_cry:
+    name: 키메라의 울부짖음
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_chimera
+      n: 1
+    - unit: ne_mutant
+      n: 1
+    tags:
+    - neutral
+    - reversal
+    stars:
+      1:
+        effects:
+        - trigger_timing: PCD
+          max_act: 1
+          enhance:
+            target: self
+            atk_pct: 0.08
+            hp_pct: 0.08
+      2:
+        effects:
+        - trigger_timing: PCD
+          max_act: 1
+          enhance:
+            target: self
+            atk_pct: 0.12
+            hp_pct: 0.12
+      3:
+        effects:
+        - trigger_timing: PC
+          max_act: 1
+          enhance:
+            target: self
+            atk_pct: 0.12
+            hp_pct: 0.12
+          spawn:
+            target: both_adj
+            count: 2
+          shield:
+            target: self
+            hp_pct: 0.15
+  ne_ruins:
+    name: 고대의 잔해
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_golem
+      n: 2
+    - unit: ne_spirit
+      n: 1
+    tags:
+    - neutral
+    - time
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 2
+          gold: 2
+          spawn:
+            target: right_adj
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 2
+          gold: 3
+          spawn:
+            target: right_adj
+            count: 2
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 2
+          conditional:
+          - when:
+              tenure_gte: 4
+            effects:
+            - spawn:
+                target: both_adj
+          gold: 3
+          spawn:
+            target: both_adj
+            count: 2
+  ne_awakening:
+    name: 고대의 각성
+    tier: 4
+    theme: neutral
+    comp:
+    - unit: ne_guardian
+      n: 2
+    - unit: ne_golem
+      n: 2
+    - unit: ne_spirit
+      n: 2
+    tags:
+    - neutral
+    - ancient
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 4
+          is_threshold: true
+          spawn:
+            target: all_allies
+            count: 2
+          enhance:
+            target: all_allies
+            atk_pct: 0.1
+          shield:
+            target: all_allies
+            hp_pct: 0.2
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 4
+          is_threshold: true
+          spawn:
+            target: all_allies
+            count: 3
+          enhance:
+            target: all_allies
+            atk_pct: 0.15
+          shield:
+            target: all_allies
+            hp_pct: 0.3
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          require_tenure: 4
+          is_threshold: true
+          post_threshold:
+          - spawn:
+              target: all_allies
+          - shield:
+              target: all_allies
+              hp_pct: 0.1
+          spawn:
+            target: all_allies
+            count: 3
+          shield:
+            target: all_allies
+            hp_pct: 0.3
