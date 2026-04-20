@@ -69,11 +69,12 @@ func run_game(args: Dictionary) -> void:
 		state.round_num = round_num
 		Talisman.init_round_state(state)
 
-		# -1 clears any prior override (see headless_runner for rationale).
 		for card in state.get_active_board():
 			var c: CardInstance = card as CardInstance
 			c.reset_round()
-			c.max_activation_override = genome.get_activation_cap(c.get_base_id())
+			var cap: int = genome.get_activation_cap(c.get_base_id())
+			if cap >= 0:
+				c.template["max_activations"] = cap
 		for card in state.bench:
 			if card != null:
 				(card as CardInstance).reset_round()
@@ -131,9 +132,13 @@ func run_game(args: Dictionary) -> void:
 		_print_board(state)
 
 		# --- Propagate boss reward effects before chain ---
-		# Activation bonus routed through chain_engine.activation_bonus (matches
-		# game_manager.gd:632 and headless_runner) — no template mutation.
-		chain_engine.activation_bonus = BossReward.get_activation_bonus(state)
+		var act_bonus: int = BossReward.get_activation_bonus(state)
+		if act_bonus > 0:
+			for card in state.get_active_board():
+				var c: CardInstance = card as CardInstance
+				var base_cap: int = c.template.get("max_activations", -1)
+				if base_cap > 0:
+					c.template["max_activations"] = base_cap + act_bonus
 		var enh_amp: float = BossReward.get_enhance_amp(state)
 		if enh_amp > 1.0:
 			chain_engine.enhance_multiplier = enh_amp
@@ -160,7 +165,7 @@ func run_game(args: Dictionary) -> void:
 		_print_section("STATS after chain (delta)")
 		for i in active.size():
 			var c: CardInstance = active[i] as CardInstance
-			var ma: int = c.get_max_activations()
+			var ma: int = c.template.get("max_activations", -1)
 			var pre: Dictionary = pre_stats[i]
 			var d_units: int = c.get_total_units() - pre["units"]
 			var d_atk: float = c.get_total_atk() - pre["atk"]

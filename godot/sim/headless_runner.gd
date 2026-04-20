@@ -114,14 +114,13 @@ func run() -> Dictionary:
 		state.round_num = round_num
 		Talisman.init_round_state(state)
 
-		# Reset round state for all cards + apply genome activation cap overrides.
-		# Override is assigned unconditionally so a later round whose genome
-		# returns -1 for this card clears the prior cap (previous template-
-		# mutation path inherited stale values). -1 = fall back to template.
+		# Reset round state for all cards + apply genome activation cap overrides
 		for card in state.get_active_board():
 			var c: CardInstance = card as CardInstance
 			c.reset_round()
-			c.max_activation_override = _genome.get_activation_cap(c.get_base_id())
+			var cap: int = _genome.get_activation_cap(c.get_base_id())
+			if cap >= 0:
+				c.template["max_activations"] = cap
 		for card in state.bench:
 			if card != null:
 				(card as CardInstance).reset_round()
@@ -137,10 +136,14 @@ func run() -> Dictionary:
 			_upgrades_purchased.append_array(bought)
 
 		# ---- Propagate boss reward effects before chain ----
-		# Activation bonus from r8_3/r12_3 — match game_manager.gd:632 by
-		# routing through chain_engine.activation_bonus instead of mutating
-		# the template (backlog Phase 2 tech-debt "sim의 이중 쓰기").
-		chain_engine.activation_bonus = BossReward.get_activation_bonus(state)
+		# Activation bonus from r8_3/r12_3
+		var act_bonus: int = BossReward.get_activation_bonus(state)
+		if act_bonus > 0:
+			for card in state.get_active_board():
+				var c: CardInstance = card as CardInstance
+				var base_max: int = c.template.get("max_activations", -1)
+				if base_max > 0:
+					c.template["max_activations"] = base_max + act_bonus
 		# Enhance amp from r4_5
 		var enhance_amp: float = BossReward.get_enhance_amp(state)
 		if enhance_amp > 1.0:
@@ -258,7 +261,7 @@ func run() -> Dictionary:
 			card_cps.append(cp)
 			total_units += c.get_total_units()
 			round_activations += c.activations_used
-			var max_act: int = c.get_max_activations()
+			var max_act: int = c.template.get("max_activations", -1)
 			if max_act > 0:
 				round_max_activations += max_act
 

@@ -24,13 +24,6 @@ var activations_used: int = 0
 var tenure: int = 0
 var threshold_fired: bool = false
 
-## Per-instance max_activations override (sim genome cap).
-## -1 = no override, fall back to template["max_activations"]. Introduced to
-## stop mutating ``template`` from sim runners (backlog Phase 2 tech-debt
-## "sim의 이중 쓰기"). Real boss activation bonus flows through
-## ``chain_engine.activation_bonus`` instead, matching game_manager.gd.
-var max_activation_override: int = -1
-
 # --- Layer 1: card-level growth modifier ---
 var growth_atk_pct: float = 0.0
 var growth_hp_pct: float = 0.0
@@ -406,15 +399,8 @@ func reset_round() -> void:
 	tenure += 1
 
 
-## Resolved max_activations for this instance: override wins if set, else template.
-func get_max_activations() -> int:
-	if max_activation_override >= 0:
-		return max_activation_override
-	return template.get("max_activations", -1)
-
-
 func can_activate(bonus: int = 0) -> bool:
-	var max_act := get_max_activations()
+	var max_act: int = template.get("max_activations", -1)
 	if max_act == -1:
 		return true
 	return activations_used < max_act + bonus
