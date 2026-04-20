@@ -69,15 +69,11 @@ func run_game(args: Dictionary) -> void:
 		state.round_num = round_num
 		Talisman.init_round_state(state)
 
+		# Unconditional assignment — -1 clears any prior override.
 		for card in state.get_active_board():
 			var c: CardInstance = card as CardInstance
 			c.reset_round()
-			var cap: int = genome.get_activation_cap(c.get_base_id())
-			if cap >= 0:
-				# v2 block format: chain_engine reads from the block array.
-				c.template["max_activations"] = cap
-				for block in c.template.get("effects", []):
-					block["max_activations"] = cap
+			c.max_activation_override = genome.get_activation_cap(c.get_base_id())
 		for card in state.bench:
 			if card != null:
 				(card as CardInstance).reset_round()
@@ -135,16 +131,9 @@ func run_game(args: Dictionary) -> void:
 		_print_board(state)
 
 		# --- Propagate boss reward effects before chain ---
-		var act_bonus: int = BossReward.get_activation_bonus(state)
-		if act_bonus > 0:
-			for card in state.get_active_board():
-				var c: CardInstance = card as CardInstance
-				var base_cap: int = c.template.get("max_activations", -1)
-				if base_cap > 0:
-					c.template["max_activations"] = base_cap + act_bonus
-					for block in c.template.get("effects", []):
-						if block.get("max_activations", -1) == base_cap:
-							block["max_activations"] = base_cap + act_bonus
+		# Boss activation bonus routed through chain_engine.activation_bonus
+		# (matches game_manager.gd and headless_runner) — no template mutation.
+		chain_engine.activation_bonus = BossReward.get_activation_bonus(state)
 		var enh_amp: float = BossReward.get_enhance_amp(state)
 		if enh_amp > 1.0:
 			chain_engine.enhance_multiplier = enh_amp

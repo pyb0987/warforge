@@ -24,6 +24,13 @@ var activations_used: int = 0
 var tenure: int = 0
 var threshold_fired: bool = false
 
+## Per-instance max_activations override (sim genome cap).
+## -1 = no override; chain_engine uses the block's max_activations directly.
+## Introduced to stop mutating ``template`` from sim runners (backlog Phase 2
+## tech-debt "sim의 이중 쓰기"). Real boss activation bonus flows through
+## ``chain_engine.activation_bonus`` instead, matching game_manager.gd.
+var max_activation_override: int = -1
+
 # --- Layer 1: card-level growth modifier ---
 var growth_atk_pct: float = 0.0
 var growth_hp_pct: float = 0.0
@@ -399,19 +406,33 @@ func reset_round() -> void:
 	tenure += 1
 
 
+## Resolved max_activations for this instance: override wins if set, else
+## the hoisted top-level value (first block, backward-compat).
+## For per-block semantics (multi-block cards), chain_engine calls
+## can_activate_with() directly with the block's max_activations.
+func get_max_activations() -> int:
+	if max_activation_override >= 0:
+		return max_activation_override
+	return template.get("max_activations", -1)
+
+
 ## v2 block format: max_activations lives inside each timing block, not at the
 ## card top level. Chain engine looks up the matching block and passes max_act.
+## Option A: max_activation_override (sim genome cap) wins over the block's
+## own max_activations — sim tuning sees a single resolved value regardless
+## of which block fires.
 func can_activate_with(max_act: int, bonus: int = 0) -> bool:
-	if max_act == -1:
+	var effective: int = max_activation_override if max_activation_override >= 0 else max_act
+	if effective == -1:
 		return true
-	return activations_used < max_act + bonus
+	return activations_used < effective + bonus
 
 
-## Legacy accessor — reads the hoisted top-level max_activations from the
-## first block (populated by _c()'s backward-compat hoist). Callers that need
-## per-block semantics (multi-block cards) should use can_activate_with().
+## Legacy accessor — reads via get_max_activations() so the override path
+## stays consistent with can_activate_with(). Top-level hoist is the
+## first-block value (multi-block cards read through can_activate_with).
 func can_activate(bonus: int = 0) -> bool:
-	var max_act: int = template.get("max_activations", -1)
+	var max_act := get_max_activations()
 	if max_act == -1:
 		return true
 	return activations_used < max_act + bonus

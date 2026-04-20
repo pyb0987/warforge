@@ -38,7 +38,7 @@
 | 항목 | 종류 | 설명 |
 |------|------|------|
 | `_c()` flat hoist | 암묵적 계약 | `template["trigger_timing"]` 등 top-level accessor가 "첫 block의 hoist". multi-block 카드에서 대표 timing 개념이 암묵화. 주석 보강으로 완화, 장기적으론 전면 제거 |
-| sim의 이중 쓰기 (max_activations) | 단일 진실 소스 위반 | `headless_runner.gd` / `diagnostic_game.gd`가 `template["max_activations"]` + block 양쪽에 쓰기. sim per-card cap override를 별도 메커니즘(예: `game_state` 맵)으로 이관 필요 |
+| sim의 이중 쓰기 (max_activations) | ~~단일 진실 소스 위반~~ **해결** | `CardInstance.max_activation_override` 필드 + `get_max_activations()` + `can_activate_with` Option A 도입 (Task 4, 2026-04-21). `headless_runner` / `diagnostic_game` 의 template mutation 제거, 보스 `activation_bonus` 는 `chain_engine.activation_bonus` 일원화. `grep 'template\["max_activations"\]\s*='` 결과 0건 (test fixture 제외). |
 | `retrigger` action 하드코드 | ~~latent~~ **해결** | ~~`chain_engine.gd:585-588`에서 `ROUND_START` 블록만 찾음. theme_system 타겟이면 actions 빈 리스트.~~ `validate_no_retrigger` codegen hard-fail 추가 (Task 2, 2026-04-20). YAML에 retrigger 등장 시 즉시 차단. |
 | `impl: theme_system` 누락 validator 부재 | ~~사람 실수 방어~~ **해결** | `validate_impl_theme_system` (d18d1ce, v2 codegen)으로 해결. action 기반 검사. |
 | `_find_block` first-match | ~~latent~~ **해결** | `_find_eff` push_error 강화 (Task 2, 2026-04-20). 4개 theme_system.gd에서 중복 매칭 시 runtime push_error 방출. |

@@ -114,17 +114,14 @@ func run() -> Dictionary:
 		state.round_num = round_num
 		Talisman.init_round_state(state)
 
-		# Reset round state for all cards + apply genome activation cap overrides
+		# Reset round state for all cards + apply genome activation cap overrides.
+		# Unconditional assignment so a later round whose genome returns -1 for
+		# this card clears the prior cap (previous template-mutation path
+		# inherited stale values).
 		for card in state.get_active_board():
 			var c: CardInstance = card as CardInstance
 			c.reset_round()
-			var cap: int = _genome.get_activation_cap(c.get_base_id())
-			if cap >= 0:
-				# v2 block format: chain_engine reads max_activations from the
-				# block array, not the hoisted top-level. Keep both in sync.
-				c.template["max_activations"] = cap
-				for block in c.template.get("effects", []):
-					block["max_activations"] = cap
+			c.max_activation_override = _genome.get_activation_cap(c.get_base_id())
 		for card in state.bench:
 			if card != null:
 				(card as CardInstance).reset_round()
@@ -140,17 +137,9 @@ func run() -> Dictionary:
 			_upgrades_purchased.append_array(bought)
 
 		# ---- Propagate boss reward effects before chain ----
-		# Activation bonus from r8_3/r12_3
-		var act_bonus: int = BossReward.get_activation_bonus(state)
-		if act_bonus > 0:
-			for card in state.get_active_board():
-				var c: CardInstance = card as CardInstance
-				var base_max: int = c.template.get("max_activations", -1)
-				if base_max > 0:
-					c.template["max_activations"] = base_max + act_bonus
-					for block in c.template.get("effects", []):
-						if block.get("max_activations", -1) == base_max:
-							block["max_activations"] = base_max + act_bonus
+		# Activation bonus from r8_3/r12_3 — route through chain_engine.activation_bonus
+		# (matches game_manager.gd), no template mutation.
+		chain_engine.activation_bonus = BossReward.get_activation_bonus(state)
 		# Enhance amp from r4_5
 		var enhance_amp: float = BossReward.get_enhance_amp(state)
 		if enhance_amp > 1.0:
