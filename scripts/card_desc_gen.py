@@ -414,7 +414,11 @@ def desc_hatch_enhance(p: dict) -> str:
     return f"부화 유닛 ATK +{pct}% 성장"
 
 def desc_meta_consume(p: dict) -> str:
-    return f"변태({p['consume']}기 소모)"
+    base = f"변태({p['consume']}기 소모)"
+    count = p.get("count", 1)
+    if count > 1:
+        return f"{base} × {count}회"
+    return base
 
 def desc_hatch_scaled(p: dict) -> str:
     per = p["per_units"]

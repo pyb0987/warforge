@@ -209,20 +209,23 @@ func test_parasite_hatches_on_post_combat() -> void:
 
 func test_parasite_s2_hatch_per_2_max_5() -> void:
 	## ★2: hatch_per=2, max=5. 3유닛 → min(3*2, 5) = 5 hatch
-	## 승리 → meta(2): 2소비+1최강 = net -1. 총 +5 -1 = +4
+	## 승리 → meta(2) × 2회: (2소비+1최강) × 2 = net -2. 총 +5 -2 = +3
+	## 변태 성공 시 HP +15% 성장
 	var card := _make_star("pr_parasite", 2)
 	var before: int = card.get_total_units()
 	_sys.apply_post_combat(card, 0, [card], true)
-	assert_eq(card.get_total_units(), before + 4, "★2 hatch 5 + meta(2) → net +4")
+	assert_eq(card.get_total_units(), before + 3, "★2 hatch 5 + meta(2)×2 → net +3")
+	assert_almost_eq(card.growth_hp_pct, 0.15, 0.001, "★2 승리 시 HP +15% 성장")
 
 
 func test_parasite_s3_meta_on_loss_too() -> void:
-	## ★3: 승패 무관 meta 발동 + shield 30%
+	## ★3: 승패 무관 meta 1기 소모 × 2회 + HP +20% 성장 + shield 30%
 	var card := _make_star("pr_parasite", 3)
 	var before: int = card.get_total_units()
 	_sys.apply_post_combat(card, 0, [card], false)  # 패배
-	# ★3: hatch min(3*2, 5)=5, meta on loss too, shield 30%
-	assert_gt(card.get_total_units(), before, "★3 패배에도 hatch+meta 발동")
+	# ★3: hatch min(3*2, 5)=5, meta(1)×2 = net 0, 총 +5. HP +20%. shield 30%
+	assert_eq(card.get_total_units(), before + 5, "★3 hatch 5 + meta(1)×2 → net +5")
+	assert_almost_eq(card.growth_hp_pct, 0.20, 0.001, "★3 패배에도 HP +20% 성장")
 	assert_almost_eq(card.shield_hp_pct, 0.30, 0.001, "★3 shield 30%")
 
 

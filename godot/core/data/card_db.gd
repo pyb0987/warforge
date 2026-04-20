@@ -986,11 +986,11 @@ func _register_predator() -> void:
 		],
 		2: [
 			{"action": "hatch_scaled", "target": "self", "per_units": 2, "cap": 5},
-			{"action": "on_combat_result", "condition": "victory", "effects": [{"action": "meta_consume", "consume": 2}, {"action": "enhance", "target": "self", "hp_pct": 0.15}]},
+			{"action": "on_combat_result", "condition": "victory", "effects": [{"action": "meta_consume", "consume": 2, "count": 2}, {"action": "enhance", "target": "self", "hp_pct": 0.15}]},
 		],
 		3: [
 			{"action": "hatch_scaled", "target": "self", "per_units": 2, "cap": 5},
-			{"action": "on_combat_result", "condition": "always", "effects": [{"action": "meta_consume", "consume": 2}, {"action": "enhance", "target": "self", "hp_pct": 0.2}, {"action": "shield", "target": "self", "hp_pct": 0.3}]},
+			{"action": "on_combat_result", "condition": "always", "effects": [{"action": "meta_consume", "consume": 1, "count": 2}, {"action": "enhance", "target": "self", "hp_pct": 0.2}, {"action": "shield", "target": "self", "hp_pct": 0.3}]},
 		],
 	}
 

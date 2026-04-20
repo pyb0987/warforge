@@ -233,7 +233,7 @@ cards:
           - on_combat_result:
               condition: victory
               effects:
-                - meta_consume: {consume: 2}
+                - meta_consume: {consume: 2, count: 2}
                 - enhance: {target: self, hp_pct: 0.15, ol1: null}
       3:
         max_act: -1
@@ -242,7 +242,7 @@ cards:
           - on_combat_result:
               condition: always
               effects:
-                - meta_consume: {consume: 2}
+                - meta_consume: {consume: 1, count: 2}
                 - enhance: {target: self, hp_pct: 0.20, ol1: null}
                 - shield: {target: self, hp_pct: 0.30}
 
