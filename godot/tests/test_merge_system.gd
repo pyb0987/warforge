@@ -59,15 +59,16 @@ func test_merge_absorbs_donor_units() -> void:
 # ★1→★2 보너스: multiply_stats(0.30)
 # ================================================================
 
-func test_star2_merge_applies_130_multiplier() -> void:
+func test_star2_merge_absorbs_units_no_stat_bonus() -> void:
+	# 2026-04-20: 합성 ×1.30 스탯 보너스 제거 (사용자 의도 외). 유닛 흡수(3배)만 적용.
 	_state.board[0] = CardInstance.create("sp_assembly")
 	_state.board[1] = CardInstance.create("sp_assembly")
 	_state.board[2] = CardInstance.create("sp_assembly")
 	var atk_before: float = _state.board[0].get_total_atk()
 	_state.try_merge("sp_assembly")
-	# ★2 보너스: ×1.30 ATK + 유닛 흡수(3배) → ATK = base_atk * 3 * 1.30
-	var expected: float = atk_before * 3.0 * 1.30
-	assert_almost_eq(_state.board[0].get_total_atk(), expected, expected * 0.01, "★2 ATK ×1.30 적용")
+	# ★2 유닛 흡수(3배)만 — 스탯 배수 없음 → ATK = base_atk * 3
+	var expected: float = atk_before * 3.0
+	assert_almost_eq(_state.board[0].get_total_atk(), expected, expected * 0.01, "★2 유닛 3배 (스탯 배수 없음)")
 
 
 # ================================================================

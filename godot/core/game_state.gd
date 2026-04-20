@@ -240,11 +240,9 @@ func _try_merge_once(template_id: String) -> Dictionary:
 	# Evolve to next star level
 	survivor.evolve_star()
 
-	# ★2 bonus: ×1.30 ATK/HP (합성 보상의 스탯 증가 부분)
-	# 🔄 이중 합성 (r12_4): 보너스 2배 (0.30→0.60)
-	var merge_mult := 2.0 if "r12_4" in boss_rewards else 1.0
-	if old_star == 1:
-		survivor.multiply_stats(0.30 * merge_mult, 0.30 * merge_mult)
+	# 2026-04-20: 합성 보너스 ×1.30 ATK/HP 제거 (사용자 의도 외 — 업그레이드와 이중 스택으로
+	# ★2 쏠림 유발). ★합성의 매력은 카드 효과 강화(★1→★2→★3 effect)만으로 확보.
+	# r12_4 이중 합성 보스 보상은 별도 효과 없음 (기획 재검토 필요 시 episodes 기록).
 
 	# OBS-060: 태엽 과급기 ★3 합성 시 1회 보너스 — 에픽 업그레이드 + 3 테라진
 	if survivor.get_base_id() == "sp_charger" and survivor.star_level == 3:

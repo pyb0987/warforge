@@ -182,9 +182,9 @@ func test_try_merge_applies_130_stat_boost() -> void:
 		_gs.board[i] = CardInstance.create("sp_assembly")
 	var steps: Array = _gs.try_merge("sp_assembly")
 	var merged: CardInstance = steps[0]["card"]
-	# 유닛 3배 흡수 (3장 × 3기 = 9기) + ×1.30 스탯
+	# 2026-04-20: ×1.30 스탯 보너스 제거. 유닛 3배 흡수(3장 × 3기 = 9기)만.
 	assert_eq(merged.get_total_units(), base_units * 3, "유닛 3배 흡수")
-	assert_gt(merged.get_total_atk(), base_atk * 3.0 * 1.29, "ATK > base×3×1.29")
+	assert_almost_eq(merged.get_total_atk(), base_atk * 3.0, base_atk * 0.01, "ATK = base × 3 (스탯 배수 없음)")
 
 
 func test_try_merge_below_3_returns_empty() -> void:
