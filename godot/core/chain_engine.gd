@@ -352,17 +352,26 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 		var effects: Array = tmpl.get("effects", [])
 		var theme: int = tmpl.get("theme", -1)
 
+		var result: Dictionary
 		if effects.is_empty() and theme in _theme_systems:
-			var result: Dictionary = _theme_systems[theme].apply_post_combat(
-				card, i, board, won)
-			gold += result["gold"]
-			terazin += result["terazin"]
-			events.append_array(result["events"])
+			result = _theme_systems[theme].apply_post_combat(card, i, board, won)
 		else:
-			var result := _execute_effects(card, i, board, -1, 0)
-			gold += result["gold"]
-			terazin += result["terazin"]
-			events.append_array(result["events"])
+			result = _execute_effects(card, i, board, -1, 0)
+
+		# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과.
+		# RS/OE/BS 페이즈와 동일 패턴. 이전엔 PC에만 누락되어 있었음
+		# (backlog Phase 2 tech-debt "POST_COMBAT phase conditional_effects 누락").
+		var cond_effects: Array = tmpl.get("conditional_effects", [])
+		for cond in cond_effects:
+			if _check_condition(cond, card, i, board):
+				var cond_result := _execute_conditional(cond, card, i, board, 1.0)
+				result["events"].append_array(cond_result["events"])
+				result["gold"] += cond_result["gold"]
+				result["terazin"] += cond_result["terazin"]
+
+		gold += result["gold"]
+		terazin += result["terazin"]
+		events.append_array(result["events"])
 
 	return {"gold": gold, "terazin": terazin, "events": events}
 
