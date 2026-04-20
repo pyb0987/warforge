@@ -81,10 +81,9 @@ cards:
           conditional:
           - when:
               unit_count_gte: 8
-            effects:
-            - enhance:
-                target: self
-                atk_pct: 0.03
+            enhance:
+              target: self
+              atk_pct: 0.03
           spawn:
             target: self
             count: 2

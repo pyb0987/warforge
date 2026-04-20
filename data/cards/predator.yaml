@@ -172,12 +172,11 @@ cards:
           conditional:
           - when:
               unit_count_gte: 10
-            effects:
-            - debuff_store:
-                stat: as
-                target: all_enemy
-                base_pct: 0.15
-                cap: 0.3
+            debuff_store:
+              stat: as
+              target: all_enemy
+              base_pct: 0.15
+              cap: 0.3
           swarm_buff:
             target: all_predator
             atk_per_unit: 0.12
@@ -189,17 +188,15 @@ cards:
           conditional:
           - when:
               unit_count_gte: 10
-            effects:
-            - debuff_store:
-                stat: as
-                target: all_enemy
-                base_pct: 0.2
-                cap: 0.4
-            - debuff_store:
-                stat: atk
-                target: all_enemy
-                base_pct: 0.15
-                cap: 0.3
+            debuff_store:
+            - stat: as
+              target: all_enemy
+              base_pct: 0.2
+              cap: 0.4
+            - stat: atk
+              target: all_enemy
+              base_pct: 0.15
+              cap: 0.3
           swarm_buff:
             target: all_predator
             atk_per_unit: 0.12
@@ -459,10 +456,9 @@ cards:
           conditional:
           - when:
               unit_count_lte: 5
-            effects:
-            - buff:
-                target: self
-                atk_pct: 0.3
+            buff:
+              target: self
+              atk_pct: 0.3
           meta_consume:
             consume: 2
       2:
@@ -474,10 +470,9 @@ cards:
           conditional:
           - when:
               unit_count_lte: 5
-            effects:
-            - buff:
-                target: self
-                atk_pct: 0.5
+            buff:
+              target: self
+              atk_pct: 0.5
           meta_consume:
             consume: 2
       3:
@@ -489,11 +484,10 @@ cards:
           conditional:
           - when:
               unit_count_lte: 5
-            effects:
-            - buff:
-                target: self
-                atk_mult: 2.0
-                kill_hp_recover: true
+            buff:
+              target: self
+              atk_mult: 2.0
+              kill_hp_recover: true
           meta_consume:
             consume: 1
   pr_transcend:

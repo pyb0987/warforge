@@ -633,13 +633,48 @@ def gen_action_dict(action: str, params: Any, impl: str = "card_db") -> str:
     return _gen_raw_dict(d)
 
 
+## Conditional / r_conditional entries in v2 YAML use a depth-reduced
+## {when, ...actions} shape — the `effects:` key was removed so there is a
+## single action-dict convention across block / conditional / post_threshold.
+## This helper normalizes a cond entry back to a v1-style flat action list
+## for downstream consumers (desc_gen, runtime dict emission).
+def _cond_actions(cond: dict) -> list[dict]:
+    result: list[dict] = []
+    for key, val in cond.items():
+        if key == "when":
+            continue
+        if isinstance(val, list) and val and all(isinstance(v, dict) for v in val):
+            for p in val:
+                result.append({key: p})
+        else:
+            result.append({key: val})
+    return result
+
+
+## post_threshold is now a single dict-of-actions (no `when`). Convert to
+## v1-style flat action list for desc_gen / runtime.
+def _post_threshold_actions(pt: Any) -> list[dict]:
+    if isinstance(pt, list):
+        return pt  # idempotent: already flat
+    if not isinstance(pt, dict):
+        return []
+    result: list[dict] = []
+    for key, val in pt.items():
+        if isinstance(val, list) and val and all(isinstance(v, dict) for v in val):
+            for p in val:
+                result.append({key: p})
+        else:
+            result.append({key: val})
+    return result
+
+
 def gen_conditional_entry(cond: dict, indent: str, impl: str) -> str:
     """Generate one conditional/r_conditional entry as a GDScript dict."""
     when = cond["when"]
     cond_type = next(iter(when))
     threshold = when[cond_type]
     inner_actions = []
-    for e in cond.get("effects", []):
+    for e in _cond_actions(cond):
         # Inner effects are v1-style {action: params} dicts
         action = next(iter(e))
         params = e[action]
@@ -651,10 +686,10 @@ def gen_conditional_entry(cond: dict, indent: str, impl: str) -> str:
     )
 
 
-def gen_post_threshold_list(effects: list, impl: str) -> str:
-    """Post-threshold is a flat list of action dicts."""
+def gen_post_threshold_list(effects: Any, impl: str) -> str:
+    """Post-threshold emits as a flat GDScript action list (runtime contract)."""
     parts = []
-    for e in effects:
+    for e in _post_threshold_actions(effects):
         action = next(iter(e))
         params = e[action]
         parts.append(gen_action_dict(action, params, impl))
@@ -1208,9 +1243,19 @@ def _project_to_desc_gen_input(all_cards: dict) -> dict:
                 proj_star["max_act"] = first_block["max_act"]
                 if first_block["trigger_timing"] != base_timing:
                     proj_star["timing"] = first_block["trigger_timing"]
-                for f in ("conditional", "r_conditional", "post_threshold"):
+                # conditional/r_conditional: depth-reduced {when, ...actions}
+                # form in YAML → project to v1 shape {when, effects: [...]}
+                # for legacy desc_gen / runtime dict emission.
+                # post_threshold: dict-of-actions in YAML → project to v1 flat list.
+                for f in ("conditional", "r_conditional"):
                     if f in first_block:
-                        proj_star[f] = first_block[f]
+                        proj_star[f] = [
+                            {"when": c["when"], "effects": _cond_actions(c)}
+                            for c in first_block[f]
+                        ]
+                if "post_threshold" in first_block:
+                    proj_star["post_threshold"] = _post_threshold_actions(
+                        first_block["post_threshold"])
 
                 # Flatten actions across all blocks. Non-primary block actions
                 # carry `timing_override` so card_desc_gen splits them into a
@@ -1378,13 +1423,23 @@ def validate_no_retrigger(all_cards: dict) -> list[str]:
                             walk_block_actions(cid, star, f"{ctx}→{key}.effects", nested_block)
 
     def walk_cond_list(cid: str, star: int, ctx: str, conds: list) -> None:
-        """Walk effects inside conditional / r_conditional / post_threshold entries."""
+        """Walk actions inside depth-reduced conditional / r_conditional entries."""
         for entry in conds or []:
             if not isinstance(entry, dict):
                 continue
-            for blk in entry.get("effects", []) or []:
+            # Entry shape is {when, ...actions} — extract actions as pseudo-block.
+            actions_only = {k: v for k, v in entry.items() if k != "when"}
+            walk_block_actions(cid, star, ctx, actions_only)
+
+    def walk_post_threshold(cid: str, star: int, pt: Any) -> None:
+        """post_threshold is now a single dict-of-actions."""
+        if isinstance(pt, dict):
+            walk_block_actions(cid, star, "post_threshold", pt)
+        elif isinstance(pt, list):
+            # idempotent: old flat-list shape
+            for blk in pt:
                 if isinstance(blk, dict):
-                    walk_block_actions(cid, star, ctx, blk)
+                    walk_block_actions(cid, star, "post_threshold", blk)
 
     for _theme, cards in all_cards.items():
         for cid, card in cards.items():
@@ -1395,7 +1450,39 @@ def validate_no_retrigger(all_cards: dict) -> list[str]:
                     walk_block_actions(cid, star, "effects", block)
                     walk_cond_list(cid, star, "conditional", block.get("conditional"))
                     walk_cond_list(cid, star, "r_conditional", block.get("r_conditional"))
-                    walk_cond_list(cid, star, "post_threshold", block.get("post_threshold"))
+                    walk_post_threshold(cid, star, block.get("post_threshold"))
+    return errors
+
+
+## Guard: after the conditional-depth migration (2026-04-21), conditional /
+## r_conditional entries use {when, ...actions} shape and post_threshold is a
+## dict-of-actions. A stray `effects:` key would mean an old v1-shape that
+## this codegen expects to have been migrated away. Reject it so stale YAML
+## never reaches downstream emission quietly.
+def validate_conditional_effects_key_removed(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+    for _theme, cards in all_cards.items():
+        for card_id, card in cards.items():
+            for star_n, star in (card.get("stars") or {}).items():
+                for block_idx, block in enumerate(star.get("effects", []) or []):
+                    if not isinstance(block, dict):
+                        continue
+                    for f in ("conditional", "r_conditional"):
+                        for entry_idx, entry in enumerate(block.get(f, []) or []):
+                            if isinstance(entry, dict) and "effects" in entry:
+                                errors.append(
+                                    f"{card_id} ★{star_n} block[{block_idx}] "
+                                    f"{f}[{entry_idx}]: legacy 'effects:' key "
+                                    f"found. Migrate to depth-reduced "
+                                    f"{{when, ...actions}} shape."
+                                )
+                    pt = block.get("post_threshold")
+                    if isinstance(pt, list):
+                        errors.append(
+                            f"{card_id} ★{star_n} block[{block_idx}] "
+                            f"post_threshold: legacy list form. Migrate to "
+                            f"dict-of-actions."
+                        )
     return errors
 
 
@@ -1506,6 +1593,12 @@ def run_validators(all_cards: dict) -> None:
     if rt_errors:
         print("❌ retrigger action not ready for YAML use:")
         for e in rt_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    legacy_cond_errors = validate_conditional_effects_key_removed(all_cards)
+    if legacy_cond_errors:
+        print("❌ legacy 'effects:' key in conditional / post_threshold (depth should be reduced):")
+        for e in legacy_cond_errors:
             print(f"  - {e}")
         sys.exit(2)
     nonprimary_cond_errors = validate_multiblock_nonprimary_conditional(all_cards)

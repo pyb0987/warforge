@@ -107,10 +107,9 @@ cards:
           conditional:
           - when:
               unit_count_gte: 8
-            effects:
-            - enhance:
-                target: both_adj
-                atk_pct: 0.02
+            enhance:
+              target: both_adj
+              atk_pct: 0.02
           spawn:
             target: self
             count: 2
@@ -198,9 +197,8 @@ cards:
           conditional:
           - when:
               unit_count_gte: 10
-            effects:
-            - spawn:
-                target: both_adj
+            spawn:
+              target: both_adj
           spawn:
             target: self
             count: 2
@@ -465,10 +463,9 @@ cards:
           conditional:
           - when:
               unit_count_lte: 3
-            effects:
-            - buff:
-                target: self
-                atk_pct: 0.15
+            buff:
+              target: self
+              atk_pct: 0.15
           buff:
             target: self
             atk_pct: 0.15
@@ -553,9 +550,8 @@ cards:
           conditional:
           - when:
               tenure_gte: 4
-            effects:
-            - spawn:
-                target: both_adj
+            spawn:
+              target: both_adj
           gold: 3
           spawn:
             target: both_adj
@@ -612,9 +608,9 @@ cards:
           require_tenure: 4
           is_threshold: true
           post_threshold:
-          - spawn:
+            spawn:
               target: all_allies
-          - shield:
+            shield:
               target: all_allies
               hp_pct: 0.1
           spawn:
