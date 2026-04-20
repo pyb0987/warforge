@@ -39,11 +39,11 @@
 |------|------|------|
 | `_c()` flat hoist | 암묵적 계약 | `template["trigger_timing"]` 등 top-level accessor가 "첫 block의 hoist". multi-block 카드에서 대표 timing 개념이 암묵화. 주석 보강으로 완화, 장기적으론 전면 제거 |
 | sim의 이중 쓰기 (max_activations) | 단일 진실 소스 위반 | `headless_runner.gd` / `diagnostic_game.gd`가 `template["max_activations"]` + block 양쪽에 쓰기. sim per-card cap override를 별도 메커니즘(예: `game_state` 맵)으로 이관 필요 |
-| `retrigger` action 하드코드 | latent | `chain_engine.gd:585-588`에서 `ROUND_START` 블록만 찾음. theme_system 타겟이면 actions 빈 리스트. 현재 사용 카드 없음 |
-| `impl: theme_system` 누락 validator 부재 | 사람 실수 방어 | theme 카드가 `impl` 플래그 빠뜨려도 codegen 통과. chain_engine이 잘못된 arm으로 dispatch. codegen에 hard-fail 추가 필요 |
-| `_find_block` first-match | latent | 중복 timing block 생성 시 두 번째 block silent shadow. 현재 YAML 구조상 발생 불가지만 수작업 편집 시 위험 |
+| `retrigger` action 하드코드 | ~~latent~~ **해결** | ~~`chain_engine.gd:585-588`에서 `ROUND_START` 블록만 찾음. theme_system 타겟이면 actions 빈 리스트.~~ `validate_no_retrigger` codegen hard-fail 추가 (Task 2, 2026-04-20). YAML에 retrigger 등장 시 즉시 차단. |
+| `impl: theme_system` 누락 validator 부재 | ~~사람 실수 방어~~ **해결** | `validate_impl_theme_system` (d18d1ce, v2 codegen)으로 해결. action 기반 검사. |
+| `_find_block` first-match | ~~latent~~ **해결** | `_find_eff` push_error 강화 (Task 2, 2026-04-20). 4개 theme_system.gd에서 중복 매칭 시 runtime push_error 방출. |
 | steampunk_system에 `apply_battle_start`/`apply_post_combat` 부재 | theme_system 완결성 | 미래 BS/PC 타이밍 스팀펑크 카드 시 base class no-op으로 silent drop. druid/military/predator는 오버라이드 있음 |
-| `is_threshold` + `impl: theme_system` mismatch | latent | `chain_engine.gd:110-141`에서 `threshold_fired` 플립이 theme_system dispatch 전에 발생. theme_system이 threshold 상태 모름. 현재 조합 사용 카드 없음 |
+| `is_threshold` + `impl: theme_system` mismatch | ~~latent~~ **해결** | ~~`chain_engine.gd:110-141`에서 `threshold_fired` 플립이 theme_system dispatch 전에 발생.~~ `validate_is_threshold_with_theme_system` codegen hard-fail 추가 (Task 2, 2026-04-20). |
 | POST_COMBAT phase conditional_effects 누락 | phase 비대칭 | RS/OE/BS는 `conditional_effects` 순회, PC만 누락 (chain_engine.gd:399-413). 현재 PC+conditional 카드 없음 |
 | flat hoist 전면 제거 | 장기 리팩터링 | 위 flat hoist 의 전면 제거 = sim + AI evaluator + game_manager + tests의 수십 곳 마이그레이션. 현재 "v2 공식 backward-compat"으로 문서화한 상태. Phase 2 scope 초과 |
 | multi-block projection: scalar action timing_override 누락 | latent | `codegen_card_db._project_v2_to_desc_gen_input`가 dict 값 actions에만 `timing_override` 주입. scalar 값(`gold: 5` 등)이 non-primary block에 있으면 설명에서 primary timing으로 오배치. 현재 multi-block 카드 1장(sp_warmachine)에 scalar 없음 |

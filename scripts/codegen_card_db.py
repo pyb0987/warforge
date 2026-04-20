@@ -1063,12 +1063,27 @@ HELPER_FUNCTIONS = '''
 ##     # Legacy read sites (tests, UI, sim harness, AI evaluator, some
 ##     # game_manager paths) still expect these top-level fields. They are
 ##     # a "first-block hoist": for a multi-block card, these reflect the
-##     # representative timing (first block in YAML order) only. Tech debt
-##     # tracked in docs/design/backlog.md.
+##     # FIRST block in YAML order (representative timing) only.
+##     # Multi-block cards (e.g. sp_warmachine with RS + BS blocks) have
+##     # these flat fields pointing to block[0]; block[1..n] are only
+##     # reachable via template["effects"]. This is intentional backward-
+##     # compat — see docs/design/backlog.md "flat hoist 전면 제거".
 ##     trigger_timing, max_activations,
 ##     trigger_layer1, trigger_layer2,
 ##     require_tenure, require_other_card, is_threshold,
 ##   }
+##
+## IMPLICIT CONTRACT (v2 multi-block, see docs/design/backlog.md):
+##   - ``effects[0]`` is the *representative* block used for flat-hoist
+##     fields above. Its trigger_timing is what the UI and descriptions
+##     label as "the card's timing".
+##   - A card may have **multiple blocks per star** (v2 supports this).
+##     All blocks fire independently via chain_engine's block loop.
+##   - ``impl: theme_system`` cards route to their *.gd handler; the
+##     handler reads ``get_theme_effects()`` directly — the flat accessors
+##     are irrelevant for dispatch but still present for UI compatibility.
+##   - If a read site must know ALL timings, iterate template["effects"],
+##     not just the flat ``trigger_timing`` field.
 func _c(id: String, nm: String, tier: int, theme: int,
 \t\tcomp: Array, effects: Array, tags: PackedStringArray,
 \t\tstar_overrides: Dictionary = {},
@@ -1298,6 +1313,92 @@ def validate_multiblock_scalar_actions(all_cards: dict) -> list[str]:
     return errors
 
 
+## Guard: `impl: theme_system` cards must not set `is_threshold: true`.
+## chain_engine flips `card.threshold_fired` around the dispatch arm
+## (before the theme_system branch is entered), so the handler has no
+## visibility into threshold state. Expressing one-shot threshold-like
+## behaviour must be done via theme_state keys inside the handler.
+## Backlog #7 (Phase 2 이월) resolution.
+def validate_is_threshold_with_theme_system(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+    for _theme, cards in all_cards.items():
+        for cid, card in cards.items():
+            if card.get("impl", "card_db") != "theme_system":
+                continue
+            # card-level is_threshold (v1 compat field)
+            if card.get("is_threshold"):
+                errors.append(
+                    f"{cid}: is_threshold=true with impl=theme_system — "
+                    f"chain_engine flips threshold_fired before the "
+                    f"theme_system arm; the handler has no visibility. "
+                    f"Use theme_state instead."
+                )
+            # block-level is_threshold (v2 canonical location)
+            for star, sd in (card.get("stars") or {}).items():
+                for block in sd.get("effects", []) or []:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("is_threshold"):
+                        errors.append(
+                            f"{cid} ★{star}: is_threshold=true in a block "
+                            f"with impl=theme_system (same structural "
+                            f"issue — handler cannot see threshold_fired)."
+                        )
+    return errors
+
+
+## Guard: YAML-level `retrigger` action is blocked until chain_engine
+## covers theme_system routing. chain_engine._execute_actions implements
+## retrigger by re-reading template["effects"] on the target card; that
+## array is empty for impl=theme_system targets, so the retrigger silently
+## does nothing. No card currently ships this action; this validator is
+## preventive. Walk all blocks + conditional/r_conditional/post_threshold.
+## Backlog #3 (Phase 2 이월) resolution.
+def validate_no_retrigger(all_cards: dict) -> list[str]:
+    errors: list[str] = []
+
+    def walk_block_actions(cid: str, star: int, ctx: str, block: dict) -> None:
+        """Walk action keys in a v2 block dict."""
+        for key, val in block.items():
+            if key in BLOCK_META_KEYS:
+                continue
+            if key == "retrigger":
+                errors.append(
+                    f"{cid} ★{star} ({ctx}): 'retrigger' action is not "
+                    f"ready for YAML use — chain_engine silently drops "
+                    f"retrigger when the target is theme_system-dispatched. "
+                    f"Close backlog #3 before re-enabling."
+                )
+            # dict-valued action may have nested `effects` list (e.g. on_combat_result)
+            params_list = val if isinstance(val, list) else [val]
+            for p in params_list:
+                if isinstance(p, dict) and isinstance(p.get("effects"), list):
+                    for nested_block in p["effects"]:
+                        if isinstance(nested_block, dict):
+                            walk_block_actions(cid, star, f"{ctx}→{key}.effects", nested_block)
+
+    def walk_cond_list(cid: str, star: int, ctx: str, conds: list) -> None:
+        """Walk effects inside conditional / r_conditional / post_threshold entries."""
+        for entry in conds or []:
+            if not isinstance(entry, dict):
+                continue
+            for blk in entry.get("effects", []) or []:
+                if isinstance(blk, dict):
+                    walk_block_actions(cid, star, ctx, blk)
+
+    for _theme, cards in all_cards.items():
+        for cid, card in cards.items():
+            for star, sd in (card.get("stars") or {}).items():
+                for block in sd.get("effects", []) or []:
+                    if not isinstance(block, dict):
+                        continue
+                    walk_block_actions(cid, star, "effects", block)
+                    walk_cond_list(cid, star, "conditional", block.get("conditional"))
+                    walk_cond_list(cid, star, "r_conditional", block.get("r_conditional"))
+                    walk_cond_list(cid, star, "post_threshold", block.get("post_threshold"))
+    return errors
+
+
 def run_validators(all_cards: dict) -> None:
     projected = _project_to_desc_gen_input(all_cards)
     ec_errors = validate_conscript_enhanced_count(projected)
@@ -1322,6 +1423,18 @@ def run_validators(all_cards: dict) -> None:
     if scalar_errors:
         print("❌ multi-block scalar action violations:")
         for e in scalar_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    thresh_errors = validate_is_threshold_with_theme_system(all_cards)
+    if thresh_errors:
+        print("❌ is_threshold + theme_system violations:")
+        for e in thresh_errors:
+            print(f"  - {e}")
+        sys.exit(2)
+    rt_errors = validate_no_retrigger(all_cards)
+    if rt_errors:
+        print("❌ retrigger action not ready for YAML use:")
+        for e in rt_errors:
             print(f"  - {e}")
         sys.exit(2)
 

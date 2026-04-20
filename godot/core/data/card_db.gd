@@ -128,12 +128,27 @@ func get_theme_effects(card_id: String, star_level: int) -> Array:
 ##     # Legacy read sites (tests, UI, sim harness, AI evaluator, some
 ##     # game_manager paths) still expect these top-level fields. They are
 ##     # a "first-block hoist": for a multi-block card, these reflect the
-##     # representative timing (first block in YAML order) only. Tech debt
-##     # tracked in docs/design/backlog.md.
+##     # FIRST block in YAML order (representative timing) only.
+##     # Multi-block cards (e.g. sp_warmachine with RS + BS blocks) have
+##     # these flat fields pointing to block[0]; block[1..n] are only
+##     # reachable via template["effects"]. This is intentional backward-
+##     # compat — see docs/design/backlog.md "flat hoist 전면 제거".
 ##     trigger_timing, max_activations,
 ##     trigger_layer1, trigger_layer2,
 ##     require_tenure, require_other_card, is_threshold,
 ##   }
+##
+## IMPLICIT CONTRACT (v2 multi-block, see docs/design/backlog.md):
+##   - ``effects[0]`` is the *representative* block used for flat-hoist
+##     fields above. Its trigger_timing is what the UI and descriptions
+##     label as "the card's timing".
+##   - A card may have **multiple blocks per star** (v2 supports this).
+##     All blocks fire independently via chain_engine's block loop.
+##   - ``impl: theme_system`` cards route to their *.gd handler; the
+##     handler reads ``get_theme_effects()`` directly — the flat accessors
+##     are irrelevant for dispatch but still present for UI compatibility.
+##   - If a read site must know ALL timings, iterate template["effects"],
+##     not just the flat ``trigger_timing`` field.
 func _c(id: String, nm: String, tier: int, theme: int,
 		comp: Array, effects: Array, tags: PackedStringArray,
 		star_overrides: Dictionary = {},
