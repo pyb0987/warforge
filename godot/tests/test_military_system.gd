@@ -427,39 +427,9 @@ func test_command_s3_revive_hp_100_yaml() -> void:
 	assert_eq(int(eff.get("limit_per_combat", 0)), 1, "★3: 1회")
 
 
-# ================================================================
-# 공통 R4/R10: enhance_convert_card (모든 카드)
-# ================================================================
-
-func test_barracks_r4_converts_half_to_enhanced() -> void:
-	## rank 4 도달 시 비(강화) 유닛 절반이 (강화)로 변환.
-	## ml_barracks comp: 신병×2 보병×1 (총 3 비강화).
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 4
-	# R4 효과는 r_conditional에서 매 실행 시 발동.
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# 비(강화) 절반(floor 3*0.5=1) 변환. (강화) 유닛 1기 이상 존재해야 함.
-	var has_enhanced := false
-	for s in card.stacks:
-		var ut_tags: PackedStringArray = s["unit_type"].get("tags", PackedStringArray())
-		if "enhanced" in ut_tags:
-			has_enhanced = true
-			break
-	assert_true(has_enhanced, "R4: (강화) 유닛 존재")
-
-
-func test_barracks_r10_converts_all_to_enhanced() -> void:
-	## rank 10 도달 시 모든 비(강화) 유닛이 (강화)로 변환.
-	var card: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["rank"] = 10
-	_sys.process_rs_card(card, 0, [card], _rng)
-	# 전원 (강화) 또는 엘리트(변환 불가 유닛). ENHANCED_MAP에 있는 unit은 남으면 안 됨.
-	var base_remaining := 0
-	for s in card.stacks:
-		var uid: String = s["unit_type"].get("id", "")
-		if MilitarySystem.ENHANCED_MAP.has(uid):
-			base_remaining += s["count"]
-	assert_eq(base_remaining, 0, "R10: 변환 가능한 비(강화) 유닛 잔존 없어야 함")
+# ml_barracks R4/R10 enhance_convert_card 테스트 제거 (2026-04-21).
+# enhance_convert_card action 폐기 — ml_barracks 는 train 만 하고 유닛 추가
+# 안 함. 따라서 R4/R10 에서 카드 내 유닛 구성에 영향 없음.
 
 
 # ================================================================
@@ -988,105 +958,10 @@ func test_assault_biker_rebirth_triggers_extra_pick() -> void:
 	assert_lte(added, 120, "biker_rebirth 가 무한 루프로 터지지 않음")
 
 
-# ================================================================
-# 공통 R4/R10 enhance_convert_card 전 카드 검증 (iter 5 Critic 1 gap 해결)
-# _process_r_conditional을 직접 호출해 각 카드의 공통 R 효과 발동 확인.
-# ================================================================
-
-func _count_non_enhanced(card: CardInstance) -> int:
-	var n := 0
-	for s in card.stacks:
-		var uid: String = s["unit_type"].get("id", "")
-		if MilitarySystem.ENHANCED_MAP.has(uid):
-			n += s["count"]
-	return n
-
-
-func _assert_r4_converts_half(card_id: String) -> void:
-	var card: CardInstance = CardInstance.create(card_id)
-	card.theme_state["rank"] = 4
-	var non_enhanced_before: int = _count_non_enhanced(card)
-	_sys._process_r_conditional(card, 0, [card])
-	var non_enhanced_after: int = _count_non_enhanced(card)
-	var expected_converted: int = int(floor(float(non_enhanced_before) * 0.5))
-	assert_eq(non_enhanced_before - non_enhanced_after, expected_converted,
-		"%s R4: 비(강화) %d → %d (변환 %d, floor 절반, 0이면 no-op)" % [card_id,
-		non_enhanced_before, non_enhanced_after, expected_converted])
-
-
-func _assert_r10_converts_all(card_id: String) -> void:
-	var card: CardInstance = CardInstance.create(card_id)
-	card.theme_state["rank"] = 10
-	_sys._process_r_conditional(card, 0, [card])
-	assert_eq(_count_non_enhanced(card), 0,
-		"%s R10: 변환 가능한 비(강화) 유닛 잔존 없어야 함" % card_id)
-
-
-func test_common_r4_conscript() -> void:
-	_assert_r4_converts_half("ml_conscript")
-
-
-func test_common_r4_outpost() -> void:
-	_assert_r4_converts_half("ml_outpost")
-
-
-func test_common_r4_academy() -> void:
-	_assert_r4_converts_half("ml_academy")
-
-
-func test_common_r4_supply() -> void:
-	_assert_r4_converts_half("ml_supply")
-
-
-func test_common_r4_tactical() -> void:
-	_assert_r4_converts_half("ml_tactical")
-
-
-func test_common_r4_assault() -> void:
-	_assert_r4_converts_half("ml_assault")
-
-
-func test_common_r4_special_ops() -> void:
-	## 특수작전대 comp는 저격드론×1 + 워커×1 (둘 다 엘리트, ENHANCED_MAP에 없음).
-	## → 변환 대상 0. 테스트는 no-op 검증.
-	_assert_r4_converts_half("ml_special_ops")
-
-
-func test_common_r4_command() -> void:
-	## 통합사령부 comp는 지휘관×1 + 워커×1 + 포대×1 (모두 엘리트). no-op.
-	_assert_r4_converts_half("ml_command")
-
-
-func test_common_r10_conscript() -> void:
-	_assert_r10_converts_all("ml_conscript")
-
-
-func test_common_r10_outpost() -> void:
-	_assert_r10_converts_all("ml_outpost")
-
-
-func test_common_r10_academy() -> void:
-	_assert_r10_converts_all("ml_academy")
-
-
-func test_common_r10_supply() -> void:
-	_assert_r10_converts_all("ml_supply")
-
-
-func test_common_r10_tactical() -> void:
-	_assert_r10_converts_all("ml_tactical")
-
-
-func test_common_r10_assault() -> void:
-	_assert_r10_converts_all("ml_assault")
-
-
-func test_common_r10_special_ops() -> void:
-	_assert_r10_converts_all("ml_special_ops")
-
-
-func test_common_r10_command() -> void:
-	_assert_r10_converts_all("ml_command")
+# 공통 R4/R10 enhance_convert_card 테스트 (18 개) 및 헬퍼
+# (_assert_r4_converts_half / _assert_r10_converts_all / _count_non_enhanced)
+# 제거 (2026-04-21): enhance_convert_card action 폐기됨. 신규 유닛 강화는
+# conscript rank_upgrade 경로로 일원화.
 
 
 # ================================================================

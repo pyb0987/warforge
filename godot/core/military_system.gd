@@ -13,7 +13,8 @@ extends "res://core/theme_system.gd"
 const PoolData = preload("res://core/data/conscript_pool_data.gd")
 
 # Base → Enhanced 유닛 ID 매핑 (6쌍, units-military.md 참조).
-# R4 변환 + enhance_convert_card handler 에서 사용.
+# _conscript 의 R4 자동 변환 (해석 B) 에서 사용. 2026-04-21 이후로
+# enhance_convert_card action 은 폐기됨 (카드 내 기존 유닛 소급 변환 기능).
 const ENHANCED_MAP: Dictionary = {
 	"ml_recruit":  "ml_recruit_enhanced",
 	"ml_infantry": "ml_infantry_enhanced",
@@ -456,10 +457,6 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 					_conscript(board[ti] as CardInstance, count, rng,
 							null, enh_count)
 				events.append(_conscript_evt(idx, ti))
-		"enhance_convert_card":
-			# 이 카드의 비(강화) 유닛 중 fraction 비율을 (강화)로 변환.
-			var fraction: float = eff.get("fraction", 0.5)
-			_enhance_convert_card(card, fraction)
 		"swarm_buff":
 			# BS 타이밍에 발동 (돌격편대 R4). 전군 유닛 수 × ATK%.
 			_apply_swarm_buff(eff, board)
@@ -722,61 +719,10 @@ func _collect_r_grants(card: CardInstance) -> Dictionary:
 	return {"gold": gold, "terazin": terazin}
 
 
-## 카드의 비(강화) 유닛 중 fraction 비율(floor)을 (강화)로 변환.
-## 가장 약한(CP) 유닛부터 변환. ENHANCED_MAP에 매핑된 유닛만 대상.
-## 엘리트 유닛(sniper/artillery/commander/walker)은 매핑 없어 변환 불가.
-## Returns: 실제 변환된 유닛 수.
-func _enhance_convert_card(card: CardInstance, fraction: float) -> int:
-	# 비(강화) 유닛 stack 수집 (ENHANCED_MAP에 매핑된 것만)
-	var candidates: Array = []
-	for i in card.stacks.size():
-		var s: Dictionary = card.stacks[i]
-		var uid: String = s["unit_type"].get("id", "")
-		if not ENHANCED_MAP.has(uid):
-			continue
-		var ut: Dictionary = s["unit_type"]
-		var as_val: float = maxf(ut["attack_speed"], 0.01)
-		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
-		candidates.append({"stack_idx": i, "uid": uid, "count": s["count"], "cp": cp})
-
-	# 총 비(강화) 유닛 수
-	var total_non_enhanced: int = 0
-	for c in candidates:
-		total_non_enhanced += c["count"]
-	if total_non_enhanced == 0:
-		return 0
-
-	# 변환 대상 수 (floor). fraction 1.0이면 전원.
-	var to_convert: int = int(floor(float(total_non_enhanced) * fraction))
-	if fraction >= 1.0:
-		to_convert = total_non_enhanced
-	if to_convert <= 0:
-		return 0
-
-	# CP 오름차순 정렬 (약한 것부터)
-	candidates.sort_custom(func(a, b): return a["cp"] < b["cp"])
-
-	# 변환 실행: 원본 stack에서 제거 + enhanced 유닛 추가
-	var converted := 0
-	for c in candidates:
-		if to_convert <= 0:
-			break
-		var stack_idx: int = c["stack_idx"]
-		var s: Dictionary = card.stacks[stack_idx]
-		var take: int = mini(s["count"], to_convert)
-		if take <= 0:
-			continue
-		s["count"] -= take
-		to_convert -= take
-		converted += take
-		var enhanced_id: String = ENHANCED_MAP[c["uid"]]
-		card.add_specific_unit(enhanced_id, take)
-
-	# 빈 stack 제거
-	card.stacks = card.stacks.filter(func(s): return s["count"] > 0)
-	if converted > 0:
-		card.stats_changed.emit()
-	return converted
+# _enhance_convert_card 함수 제거 (2026-04-21).
+# "카드 내 기존 비(강화) 유닛을 강화로 소급 변환" 기능 폐기.
+# 신규 징집 유닛의 강화는 conscript rank_upgrade 플래그 + _conscript 내부
+# ENHANCED_MAP 변환으로 일원화됨 (해석 B).
 
 
 # --- RS cards ---

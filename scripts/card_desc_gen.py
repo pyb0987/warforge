@@ -496,22 +496,28 @@ def desc_conscript(p: dict) -> str:
     ## 2026-04-21 해석 B:
     ##   count = "뽑기 횟수" (이전엔 "유닛 수"). 각 뽑기 = base pool uniform
     ##   1 선택 → 유닛별 count (3/2/2/1/1/1) 만큼 추가. 평균 1.67 기/뽑기.
+    ##   rank_upgrade: 이 징집이 호출 카드의 rank 에 따라 자동 강화/엘리트
+    ##                 보너스를 받는지 여부 (self RS 경로만 true, 반응형은 false).
     ##   enhanced_count: 앞 N 회 뽑기는 강화 변환 강제 (ml_outpost 용).
     ##   biker_rebirth: 바이커 뽑히면 즉시 추가 뽑기 연쇄 (ml_assault 용).
     t = resolve_target(p["target"])
     n = p["count"]
     text = f"{t}에 징집 {n}회"
+    modifiers: list = []
+    if p.get("rank_upgrade"):
+        modifiers.append("이 카드 계급 4+: 강화 변환, 계급 10+: 엘리트 1기 추가")
     if p.get("biker_rebirth"):
-        text += " (바이커 뽑으면 재징집)"
+        modifiers.append("바이커 뽑으면 재징집")
     eh = int(p.get("enhanced_count", 0))
     if "enhanced" in p and not eh:
         eh = 1 if p["enhanced"] == "partial" else (n if p["enhanced"] == "all" else 0)
-    if eh <= 0:
-        return text
-    if eh >= n:
-        text += " (전원 강화 변환)" if n > 1 else " (강화 변환)"
-    else:
-        text += f" (앞 {eh}회 강화 변환)"
+    if eh > 0:
+        if eh >= n:
+            modifiers.append("전원 강화 변환" if n > 1 else "강화 변환")
+        else:
+            modifiers.append(f"앞 {eh}회 강화 변환")
+    if modifiers:
+        text += " (" + ", ".join(modifiers) + ")"
     return text
 
 def desc_rank_threshold(p: dict) -> str:
@@ -623,15 +629,10 @@ def desc_spawn_enhanced_random(p: dict) -> str:
         text += f" (라운드당 {cap}회, 랭크 4 효과 대체)"
     return text
 
-def desc_enhance_convert_card(p: dict) -> str:
-    ## 군대 10장 × 3★ = 30 entries에 반복되는 R4/R10 공통 전환 효과.
-    ## 2026-04-19: '부대' 키워드 제거 — '유닛'과 중복되어 혼란 유발. 전원 '유닛'으로 통일.
-    frac = p.get("fraction", 0.5)
-    if frac >= 1.0:
-        return "비(강화) 유닛 전원 → (강화)"
-    if frac == 0.5:
-        return "비(강화) 유닛 절반 → (강화)"
-    return f"비(강화) 유닛 {fmt_pct(frac)}% → (강화)"
+# desc_enhance_convert_card 제거 (2026-04-21):
+# enhance_convert_card action 이 모든 r_conditional 에서 제거됨 (사용자 결정).
+# "카드 내 기존 비(강화) 유닛 소급 변환" 효과는 폐기.
+# 신규 유닛의 강화는 conscript rank_upgrade 플래그로 일원화.
 
 def desc_enhance_convert_target(p: dict) -> str:
     n = p.get("count", 1)
@@ -810,7 +811,6 @@ EFFECT_HANDLERS: dict[str, Any] = {
     # Military R4/R10 재설계 (trace 012)
     "spawn_unit":              desc_spawn_unit,
     "spawn_enhanced_random":   desc_spawn_enhanced_random,
-    "enhance_convert_card":    desc_enhance_convert_card,
     "enhance_convert_target":  desc_enhance_convert_target,
     "crit_buff":               desc_crit_buff,
     "crit_splash":             desc_crit_splash,

@@ -51,15 +51,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             train:
               target: left_adj
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             train:
               target: far_military
               amount: 1
@@ -75,15 +71,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             train:
               target: left_adj
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             train:
               target: far_military
               amount: 1
@@ -99,15 +91,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             train:
               target: left_adj
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             train:
               target: far_military
               amount: 1
@@ -143,36 +131,21 @@ cards:
         effects:
         - trigger_timing: RS
           max_act: -1
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
           conscript:
             target: self
             count: 1
+            rank_upgrade: true
       2:
         effects:
         - trigger_timing: RS
           max_act: -1
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
           conscript:
           - target: self
             count: 2
+            rank_upgrade: true
           - target: both_adj
             count: 1
+            rank_upgrade: true
       3:
         effects:
         - trigger_timing: RS
@@ -183,20 +156,13 @@ cards:
             buff:
               target: all_military
               atk_pct: 0.1
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
           conscript:
           - target: self
             count: 3
+            rank_upgrade: true
           - target: both_adj
             count: 1
+            rank_upgrade: true
   ml_outpost:
     name: 전진 기지
     tier: 2
@@ -224,15 +190,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             conscript:
               target: event_target_adj
               count: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             conscript:
               target: far_event_military
               count: 1
@@ -248,16 +210,12 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             conscript:
               target: event_target_adj
               count: 1
               enhanced_count: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             conscript:
               target: far_event_military
               count: 1
@@ -275,16 +233,12 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             conscript:
               target: event_target_adj
               count: 1
               enhanced_count: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             conscript:
               target: far_event_military
               count: 1
@@ -318,15 +272,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             enhance_convert_target:
               count: 1
               max_per_round: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             spawn_enhanced_random:
               target: event_target
               count: 2
@@ -343,15 +293,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             enhance_convert_target:
               count: 1
               max_per_round: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             spawn_enhanced_random:
               target: event_target
               count: 2
@@ -372,15 +318,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             enhance_convert_target:
               count: 1
               max_per_round: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             spawn_enhanced_random:
               target: event_target
               count: 2
@@ -413,14 +355,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             grant_terazin:
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             grant_terazin:
               amount: 1
             grant_gold:
@@ -437,14 +375,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             grant_terazin:
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             grant_terazin:
               amount: 1
             grant_gold:
@@ -461,14 +395,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             grant_terazin:
               amount: 1
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             grant_terazin:
               amount: 1
             grant_gold:
@@ -501,15 +431,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             rank_buff_hp:
               target: all_military
               hp_per_rank: 0.03
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             buff:
               target: all_military
               as_bonus: 0.15
@@ -525,15 +451,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             rank_buff_hp:
               target: all_military
               hp_per_rank: 0.03
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             buff:
               target: all_military
               as_bonus: 0.15
@@ -549,15 +471,11 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             rank_buff_hp:
               target: all_military
               hp_per_rank: 0.03
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             buff:
               target: all_military
               as_bonus: 0.15
@@ -589,8 +507,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             swarm_buff:
               target: all_military
               atk_per_unit: 0.005
@@ -600,14 +516,13 @@ cards:
               enhanced_count: 2
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             lifesteal:
               target: all_military
               pct: 0.1
           conscript:
             target: self
             count: 1
+            rank_upgrade: true
             biker_rebirth: true
       2:
         effects:
@@ -616,8 +531,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             swarm_buff:
               target: all_military
               atk_per_unit: 0.005
@@ -627,14 +540,13 @@ cards:
               enhanced_count: 2
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             lifesteal:
               target: all_military
               pct: 0.1
           conscript:
             target: self
             count: 2
+            rank_upgrade: true
             biker_rebirth: true
       3:
         effects:
@@ -643,8 +555,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             swarm_buff:
               target: all_military
               atk_per_unit: 0.005
@@ -654,14 +564,13 @@ cards:
               enhanced_count: 2
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             lifesteal:
               target: all_military
               pct: 0.1
           conscript:
             target: self
             count: 4
+            rank_upgrade: true
             biker_rebirth: true
   ml_special_ops:
     name: 특수 작전대
@@ -688,8 +597,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             crit_buff:
               target: self
               chance: 0.2
@@ -699,8 +606,6 @@ cards:
               splash_pct: 0.25
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             crit_buff:
               target: self
               chance: 0.3
@@ -719,8 +624,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             crit_buff:
               target: self
               chance: 0.2
@@ -730,8 +633,6 @@ cards:
               splash_pct: 0.25
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             crit_buff:
               target: self
               chance: 0.3
@@ -746,6 +647,7 @@ cards:
           conscript:
             target: self
             count: 1
+            rank_upgrade: true
       3:
         effects:
         - trigger_timing: RS
@@ -753,8 +655,6 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             crit_buff:
               target: self
               chance: 0.2
@@ -764,8 +664,6 @@ cards:
               splash_pct: 0.25
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             crit_buff:
               target: self
               chance: 0.3
@@ -780,6 +678,7 @@ cards:
           conscript:
             target: self
             count: 3
+            rank_upgrade: true
   ml_factory:
     name: 군수 공장
     tier: 4
@@ -866,14 +765,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             revive_scope_override:
               target: self_all
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             revive_scope_override:
               target: self_and_adj_all
           train:
@@ -890,14 +785,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             revive_scope_override:
               target: self_all
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             revive_scope_override:
               target: self_and_adj_all
           train:
@@ -914,14 +805,10 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
             revive_scope_override:
               target: self_all
           - when:
               rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
             revive_scope_override:
               target: self_and_adj_all
           train:

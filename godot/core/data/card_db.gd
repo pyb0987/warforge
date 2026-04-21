@@ -2587,8 +2587,8 @@ func _register_military() -> void:
 					{"action": "train", "target": "right_adj", "amount": 1}
 				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "left_adj", "amount": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "far_military", "amount": 1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "train", "target": "left_adj", "amount": 1}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "train", "target": "far_military", "amount": 1}]}
 				],
 			}
 		],
@@ -2608,8 +2608,8 @@ func _register_military() -> void:
 						{"action": "train", "target": "right_adj", "amount": 1}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "left_adj", "amount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "far_military", "amount": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "train", "target": "left_adj", "amount": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "train", "target": "far_military", "amount": 1}]}
 					],
 				}
 			],
@@ -2629,8 +2629,8 @@ func _register_military() -> void:
 						{"action": "high_rank_mult", "rank": 15, "atk_mult": 1.3}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "train", "target": "left_adj", "amount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "train", "target": "far_military", "amount": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "train", "target": "left_adj", "amount": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "train", "target": "far_military", "amount": 1}]}
 					],
 				}
 			],
@@ -2647,11 +2647,7 @@ func _register_military() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "conscript", "target": "self", "count": 1}],
-				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
-				],
+				"actions": [{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true}],
 			}
 		],
 		con_tags,
@@ -2666,12 +2662,8 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "self", "count": 2},
-						{"action": "conscript", "target": "both_adj", "count": 1}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
+						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true},
+						{"action": "conscript", "target": "both_adj", "count": 1, "rank_upgrade": true}
 					],
 				}
 			],
@@ -2686,15 +2678,11 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "self", "count": 3},
-						{"action": "conscript", "target": "both_adj", "count": 1}
+						{"action": "conscript", "target": "self", "count": 3, "rank_upgrade": true},
+						{"action": "conscript", "target": "both_adj", "count": 1, "rank_upgrade": true}
 					],
 					"conditional_effects": [
 						{"condition": "unit_count_gte", "threshold": 12, "effects": [{"action": "buff", "target": "all_military", "atk_pct": 0.1}]}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
 					],
 				}
 			],
@@ -2713,8 +2701,8 @@ func _register_military() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "conscript", "target": "event_target", "count": 1}],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1}]}
 				],
 			}
 		],
@@ -2733,8 +2721,8 @@ func _register_military() -> void:
 						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 1}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
 					],
 				}
 			],
@@ -2752,8 +2740,8 @@ func _register_military() -> void:
 						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 2}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
 					],
 				}
 			],
@@ -2772,8 +2760,8 @@ func _register_military() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "train", "target": "event_target", "amount": 1}],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
 				],
 			}
 		],
@@ -2793,8 +2781,8 @@ func _register_military() -> void:
 						{"action": "enhance", "target": "event_target", "atk_pct": 0.02}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
 					],
 				}
 			],
@@ -2813,8 +2801,8 @@ func _register_military() -> void:
 						{"action": "enhance", "target": "event_target", "atk_pct": 0.03}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_target", "count": 1, "max_per_round": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "spawn_enhanced_random", "target": "event_target", "count": 2, "max_per_round": 1}]}
 					],
 				}
 			],
@@ -2835,8 +2823,8 @@ func _register_military() -> void:
 					{"action": "economy", "gold_base": 1, "gold_per": 0.5, "gold_per_unit": "cards", "halve_on_loss": true}
 				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "grant_terazin", "amount": 1}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
 				],
 			}
 		],
@@ -2855,8 +2843,8 @@ func _register_military() -> void:
 						{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "grant_terazin", "amount": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
 					],
 				}
 			],
@@ -2874,8 +2862,8 @@ func _register_military() -> void:
 						{"action": "economy", "gold_base": 2, "gold_per": 1.0, "gold_per_unit": "cards", "halve_on_loss": false}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "grant_terazin", "amount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "grant_terazin", "amount": 1}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "grant_terazin", "amount": 1}, {"action": "grant_gold", "amount": 1}]}
 					],
 				}
 			],
@@ -2896,8 +2884,8 @@ func _register_military() -> void:
 					{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.02, "atk_per_unit": 0.005, "enhanced_shield_bonus": 0.03}
 				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
 				],
 			}
 		],
@@ -2916,8 +2904,8 @@ func _register_military() -> void:
 						{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.03, "atk_per_unit": 0.008, "enhanced_shield_bonus": 0.05}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
 					],
 				}
 			],
@@ -2935,8 +2923,8 @@ func _register_military() -> void:
 						{"action": "rank_buff", "target": "all_military", "shield_per_rank": 0.04, "atk_per_unit": 0.01, "enhanced_shield_bonus": 0.08}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "rank_buff_hp", "target": "all_military", "hp_per_rank": 0.03}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "buff", "target": "all_military", "as_bonus": 0.15}]}
 					],
 				}
 			],
@@ -2953,10 +2941,12 @@ func _register_military() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "conscript", "target": "self", "count": 1, "biker_rebirth": true}],
+				"actions": [
+					{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true, "biker_rebirth": true}
+				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
 				],
 			}
 		],
@@ -2971,10 +2961,12 @@ func _register_military() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "conscript", "target": "self", "count": 2, "biker_rebirth": true}],
+					"actions": [
+						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true, "biker_rebirth": true}
+					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
 					],
 				}
 			],
@@ -2988,10 +2980,12 @@ func _register_military() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "conscript", "target": "self", "count": 4, "biker_rebirth": true}],
+					"actions": [
+						{"action": "conscript", "target": "self", "count": 4, "rank_upgrade": true, "biker_rebirth": true}
+					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
 					],
 				}
 			],
@@ -3010,8 +3004,8 @@ func _register_military() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 2.0}],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 2.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
 				],
 			}
 		],
@@ -3028,11 +3022,11 @@ func _register_military() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0},
-						{"action": "conscript", "target": "self", "count": 1}
+						{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
 					],
 				}
 			],
@@ -3048,11 +3042,11 @@ func _register_military() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0},
-						{"action": "conscript", "target": "self", "count": 3}
+						{"action": "conscript", "target": "self", "count": 3, "rank_upgrade": true}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
 					],
 				}
 			],
@@ -3141,8 +3135,8 @@ func _register_military() -> void:
 					{"action": "revive", "target": "self_enhanced", "hp_pct": 0.25, "limit_per_combat": 1}
 				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "revive_scope_override", "target": "self_all"}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "revive_scope_override", "target": "self_and_adj_all"}]}
 				],
 			}
 		],
@@ -3162,8 +3156,8 @@ func _register_military() -> void:
 						{"action": "revive", "target": "self_enhanced", "hp_pct": 0.5, "limit_per_combat": 1}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "revive_scope_override", "target": "self_all"}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "revive_scope_override", "target": "self_and_adj_all"}]}
 					],
 				}
 			],
@@ -3182,8 +3176,8 @@ func _register_military() -> void:
 						{"action": "revive", "target": "self_enhanced", "hp_pct": 1.0, "limit_per_combat": 1}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "revive_scope_override", "target": "self_all"}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "revive_scope_override", "target": "self_and_adj_all"}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "revive_scope_override", "target": "self_all"}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "revive_scope_override", "target": "self_and_adj_all"}]}
 					],
 				}
 			],

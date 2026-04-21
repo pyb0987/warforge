@@ -67,8 +67,12 @@
         `elite_units` 섹션).
 
 (강화) 변환 경로:
-  - 공통 R 효과 (모든 카드 R4+ 에서 뽑기 자동 강화 변환)
-  - 통합사령부/군사학교 효과 기반 개별 변환 (YAML r_conditional)
+  - conscript 액션 rank_upgrade 플래그 (해당 카드 rank 기반 자동 변환).
+    2026-04-21 재설계 이후 유일한 공통 경로.
+  - 통합사령부/군사학교 효과 기반 개별 변환 (YAML r_conditional enhance_
+    convert_target / spawn_enhanced_random 등)
+  - ※ 제거됨: enhance_convert_card (카드 내 기존 유닛 소급 변환) —
+        2026-04-21 에 사용자 결정으로 폐기.
 
 ★합성 시 계급: 3장 중 최고 계급을 승계 (max, 합산 아님).
 ```
