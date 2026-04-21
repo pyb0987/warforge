@@ -15,9 +15,18 @@ func before_each() -> void:
 	_rng.seed = 42
 
 
+## 기본 fixture: 다른 카드(source=1) 가 다른 카드(target=1) 에 제조한 이벤트.
+## sp_charger idx=0 과 다른 target_idx 로 **non-self** 시나리오 보장.
+## self-target 전용 검증은 `_make_self_target_mf_event` 사용.
 func _make_manufacture_event() -> Dictionary:
 	return {"layer1": Enums.Layer1.UNIT_ADDED, "layer2": Enums.Layer2.MANUFACTURE,
-			"source_idx": 0, "target_idx": 0}
+			"source_idx": 1, "target_idx": 1}
+
+
+## sp_charger 자기 카드에 제조된 이벤트 (self-target 2배 트리거).
+func _make_self_target_mf_event() -> Dictionary:
+	return {"layer1": Enums.Layer1.UNIT_ADDED, "layer2": Enums.Layer2.MANUFACTURE,
+			"source_idx": 1, "target_idx": 0}
 
 
 # ================================================================
@@ -50,6 +59,38 @@ func test_charger_at_10_also_enhances_atk() -> void:
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
 	assert_gt(card.get_total_atk(), atk_before, "enhance(0.05) → ATK 증가")
+
+
+# ================================================================
+# sp_charger self-target 2배 bonus (2026-04-21)
+# ================================================================
+
+func test_charger_self_target_counts_twice() -> void:
+	## target_idx == sp_charger idx 면 카운터 +2 (self_target_multiplier: 2).
+	var card: CardInstance = CardInstance.create("sp_charger")
+	_sys.process_event_card(card, 0, [card], _make_self_target_mf_event(), _rng)
+	assert_eq(card.theme_state.get("manufacture_counter", 0), 2,
+		"self-target MF → counter 0→2")
+
+
+func test_charger_self_target_crosses_threshold_in_one_event() -> void:
+	## counter=9, self-target +2 → 11. threshold 10 초과 → 1 라운드 테라진+1 & 남은 1.
+	var card: CardInstance = CardInstance.create("sp_charger")
+	card.theme_state["manufacture_counter"] = 9
+	var result: Dictionary = _sys.process_event_card(
+		card, 0, [card], _make_self_target_mf_event(), _rng)
+	assert_eq(result["terazin"], 1,
+		"self-target 이벤트로 counter 9+2=11 → threshold 1회 넘음")
+	assert_eq(card.theme_state.get("manufacture_counter", -1), 1,
+		"counter 11-10=1 잔여")
+
+
+func test_charger_non_self_target_counts_once() -> void:
+	## non-self (target_idx != 0) 는 기존대로 +1.
+	var card: CardInstance = CardInstance.create("sp_charger")
+	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
+	assert_eq(card.theme_state.get("manufacture_counter", 0), 1,
+		"non-self MF → counter +1 (기존 동작 유지)")
 
 
 # ================================================================
@@ -384,12 +425,12 @@ func test_warmachine_s3_threshold_4() -> void:
 # ★2/★3 태엽 과급기 (OE counter threshold)
 # ================================================================
 
-func test_charger_s2_base_fires_at_10() -> void:
-	## ★2: 기본 10-threshold 정상 발동 (★1과 동일)
+func test_charger_s2_base_fires_at_8() -> void:
+	## ★2: threshold 8 (2026-04-21 하향)
 	var card := _make_star("sp_charger", 2)
-	card.theme_state["manufacture_counter"] = 9
+	card.theme_state["manufacture_counter"] = 7
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "★2 counter 9→10 → terazin=1")
+	assert_eq(result["terazin"], 1, "★2 counter 7→8 → terazin=1")
 	assert_eq(card.theme_state.get("manufacture_counter", -1), 0, "counter reset")
 
 
@@ -417,12 +458,12 @@ func test_charger_s1_no_rare_counter() -> void:
 	assert_false(card.theme_state.has("rare_counter"), "★1 → rare_counter 없음")
 
 
-func test_charger_s3_base_fires_at_10() -> void:
-	## ★3: 기본 10-threshold 정상 발동
+func test_charger_s3_base_fires_at_6() -> void:
+	## ★3: threshold 6 (2026-04-21 하향)
 	var card := _make_star("sp_charger", 3)
-	card.theme_state["manufacture_counter"] = 9
+	card.theme_state["manufacture_counter"] = 5
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "★3 counter 9→10 → terazin=1")
+	assert_eq(result["terazin"], 1, "★3 counter 5→6 → terazin=1")
 
 
 func test_charger_s3_has_epic_counter() -> void:

@@ -935,6 +935,16 @@ def counter_prefix_for(card: dict, star_data: dict) -> str:
         "BR": "번식",
         "TG": "나무 성장",
     }.get(l2, "발동")
+    # self_target_multiplier — counter_produce 의 self-target bonus 표시.
+    self_mult = None
+    for e in star_data.get("effects", []) or []:
+        if isinstance(e, dict) and next(iter(e)) == "counter_produce":
+            params = e["counter_produce"]
+            if isinstance(params, dict) and params.get("self_target_multiplier"):
+                self_mult = params["self_target_multiplier"]
+            break
+    if self_mult and self_mult > 1:
+        return f"{event_name} 1회당 카운터 +1 (자기 카드 대상이면 +{self_mult})."
     return f"{event_name} 1회당 카운터 +1."
 
 

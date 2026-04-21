@@ -402,6 +402,7 @@ cards:
           counter_produce:
             event: MF
             threshold: 10
+            self_target_multiplier: 2
             rewards:
               terazin: 1
               enhance_atk_pct: 0.05
@@ -414,10 +415,11 @@ cards:
             l2: MF
           counter_produce:
             event: MF
-            threshold: 10
+            threshold: 8
+            self_target_multiplier: 2
             rewards:
               terazin: 1
-              enhance_atk_pct: 0.05
+              enhance_atk_pct: 0.07
           rare_counter:
             threshold: 20
             reward: pending_rare_upgrade
@@ -430,10 +432,11 @@ cards:
             l2: MF
           counter_produce:
             event: MF
-            threshold: 10
+            threshold: 6
+            self_target_multiplier: 2
             rewards:
               terazin: 1
-              enhance_atk_pct: 0.05
+              enhance_atk_pct: 0.1
           epic_counter:
             threshold: 15
             reward: pending_epic_upgrade

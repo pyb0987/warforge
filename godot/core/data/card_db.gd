@@ -631,7 +631,7 @@ func _register_steampunk() -> void:
 				"trigger_layer1": UA, "trigger_layer2": MF,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "counter_produce", "event": "MF", "threshold": 10, "rewards": {"terazin": 1, "enhance_atk_pct": 0.05}}
+					{"action": "counter_produce", "event": "MF", "threshold": 10, "self_target_multiplier": 2, "rewards": {"terazin": 1, "enhance_atk_pct": 0.05}}
 				],
 			}
 		],
@@ -647,7 +647,7 @@ func _register_steampunk() -> void:
 					"trigger_layer1": UA, "trigger_layer2": MF,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "counter_produce", "event": "MF", "threshold": 10, "rewards": {"terazin": 1, "enhance_atk_pct": 0.05}},
+						{"action": "counter_produce", "event": "MF", "threshold": 8, "self_target_multiplier": 2, "rewards": {"terazin": 1, "enhance_atk_pct": 0.07}},
 						{"action": "rare_counter", "threshold": 20, "reward": "pending_rare_upgrade"}
 					],
 				}
@@ -663,7 +663,7 @@ func _register_steampunk() -> void:
 					"trigger_layer1": UA, "trigger_layer2": MF,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "counter_produce", "event": "MF", "threshold": 10, "rewards": {"terazin": 1, "enhance_atk_pct": 0.05}},
+						{"action": "counter_produce", "event": "MF", "threshold": 6, "self_target_multiplier": 2, "rewards": {"terazin": 1, "enhance_atk_pct": 0.1}},
 						{"action": "epic_counter", "threshold": 15, "reward": "pending_epic_upgrade"},
 						{"action": "total_counter", "per_manufacture": 10, "reward_terazin": 1}
 					],
