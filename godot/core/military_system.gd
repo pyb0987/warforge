@@ -39,8 +39,8 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"ml_barracks": return _barracks(card, idx, board)
 		"ml_conscript": return _outpost(card, idx, board, rng)
-		"ml_assault": return _assault_rs(card, idx, board)
-		"ml_special_ops": return _special_ops(card, idx, board)
+		"ml_assault": return _assault_rs(card, idx, board, rng)
+		"ml_special_ops": return _special_ops(card, idx, board, rng)
 		"ml_command": return _command(card, idx, board)
 	return Enums.empty_result()
 
@@ -237,13 +237,19 @@ func _add_with_bonus(target: CardInstance, unit_id: String, count: int) -> int:
 ## 2026-04-21 재설계 (해석 B):
 ##   tries: 뽑기 반복 횟수 (이전 인터페이스의 count 재해석 — "count=2 라면
 ##          2 회 뽑기" 의미. 각 뽑기마다 선택된 pool 항목의 count 만큼 유닛 추가).
-##   target_card: 이 카드의 rank 기반으로 R4/R10 변환/엘리트 보너스 적용.
+##   source_card: 이 카드의 rank 기반으로 R4/R10 변환/엘리트 보너스 적용.
 ##                null 이면 변환 미적용 (ml_outpost 인접 징집 단순 케이스).
 ##   enhanced_tries: 앞 N 회 뽑기는 rank 무관 강화 변환 **강제** (ml_outpost
 ##                   enhanced_count 경로). 기본 0.
+##   biker_rebirth: ml_biker 가 뽑힐 때마다 "추가 뽑기" 연쇄 (ml_assault 용).
+##                  안전장치: MAX_BIKER_REBIRTH_DEPTH 회 초과 시 강제 중단
+##                  (P(20연속 biker) = (1/6)^20 ≈ 10^-15, 사실상 도달 불가).
 ## 반환: 실제로 추가된 총 유닛 수 (cap 반영, 보너스 포함).
+const MAX_BIKER_REBIRTH_DEPTH: int = 20
+
 func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
-		source_card: CardInstance = null, enhanced_tries: int = 0) -> int:
+		source_card: CardInstance = null, enhanced_tries: int = 0,
+		biker_rebirth: bool = false) -> int:
 	var added := 0
 	var source_rank: int = _rank(source_card) if source_card != null else 0
 	var transform_all: bool = source_rank >= 4
@@ -251,19 +257,8 @@ func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 	var forced_enhance: int = clampi(enhanced_tries, 0, tries)
 
 	for i in tries:
-		var picked: Dictionary = _uniform_pick(rng)
-		var uid: String = picked.get("id", "")
-		var count: int = int(picked.get("count", 1))
-		if uid == "":
-			continue
-		if transform_all or i < forced_enhance:
-			uid = ENHANCED_MAP.get(uid, uid)
-		var n := target.add_specific_unit(uid, count)
-		added += n
-		# 양성가 보너스: 징집 1 회당 확률로 1 기 추가 (이벤트 미방출).
-		if n > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
-			if bonus_rng.randf() < bonus_spawn_chance:
-				added += target.add_specific_unit(uid, 1)
+		added += _conscript_single_try(target, rng,
+				transform_all or i < forced_enhance, biker_rebirth)
 
 	# R10: 엘리트 유닛 1 기 보너스 (base 뽑기와 별개).
 	if elite_bonus and PoolData.ELITE_UNITS.size() > 0:
@@ -272,6 +267,36 @@ func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 		added += target.add_specific_unit(elite_id, 1)
 
 	return added
+
+
+## 단일 뽑기 1 회 + biker_rebirth 연쇄 처리.
+## 반환: 이 뽑기 (재뽑기 포함) 로 추가된 총 유닛 수.
+func _conscript_single_try(target: CardInstance, rng: RandomNumberGenerator,
+		transform: bool, biker_rebirth: bool) -> int:
+	var added := 0
+	var depth := 0
+	while true:
+		var picked: Dictionary = _uniform_pick(rng)
+		var uid: String = picked.get("id", "")
+		var count: int = int(picked.get("count", 1))
+		if uid == "":
+			return added
+		var picked_id: String = uid  # biker 판정용 (변환 전 원본 id)
+		if transform:
+			uid = ENHANCED_MAP.get(uid, uid)
+		var n := target.add_specific_unit(uid, count)
+		added += n
+		# 양성가 보너스: 징집 1 회당 확률로 1 기 추가 (이벤트 미방출).
+		if n > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
+			if bonus_rng.randf() < bonus_spawn_chance:
+				added += target.add_specific_unit(uid, 1)
+		# biker_rebirth: 뽑힌 base 유닛이 ml_biker 면 즉시 추가 뽑기.
+		# 안전장치: 최대 MAX_BIKER_REBIRTH_DEPTH 회까지만 연쇄.
+		if biker_rebirth and picked_id == "ml_biker" and depth < MAX_BIKER_REBIRTH_DEPTH:
+			depth += 1
+			continue
+		return added
+	return added  # unreachable
 
 
 ## Base pool 에서 동등 확률 (uniform) 1 항목 선택.
@@ -825,20 +850,21 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _assault_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# 돌격편대 재설계(trace 012): timing BS → RS, 구조 B.
-	# ★ 기본 효과: 매 RS 바이커 N기 생산 (spawn_unit).
-	# R4에서 swarm_buff 해금, R10에서 lifesteal 해금 (BS 타이밍, Phase 2 I에서 연결).
+func _assault_rs(card: CardInstance, idx: int, board: Array,
+		rng: RandomNumberGenerator) -> Dictionary:
+	# 돌격편대 재설계 (2026-04-21): spawn_unit(biker fixed) → conscript +
+	# biker_rebirth. 각 RS 마다 base pool 에서 N 회 뽑기 (★별 1/2/4) + biker
+	# 뽑히면 재도전. 이제 CO 이벤트 방출 (ml_outpost 체인 활성화).
+	# R4 swarm_buff / R10 lifesteal 은 BS 타이밍에서 별도 처리.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var events: Array = []
-	var spawn_eff := _find_eff(effs, "spawn_unit", "self")
-	if not spawn_eff.is_empty():
-		var uid: String = spawn_eff.get("unit", "")
-		var count: int = spawn_eff.get("count", 1)
-		if uid != "" and count > 0:
-			card.add_specific_unit(uid, count)
-			# NOTE: spawn_unit은 CONSCRIPT 이벤트 방출하지 않음 (체인 독립).
-			# 이벤트 필요 시 여기 추가.
+	var con_eff := _find_eff(effs, "conscript", "self")
+	if not con_eff.is_empty():
+		var tries: int = int(con_eff.get("count", 1))
+		var rebirth: bool = bool(con_eff.get("biker_rebirth", false))
+		if tries > 0:
+			_conscript(card, tries, rng, card, 0, rebirth)
+			events.append(_conscript_evt(idx, idx))
 
 	# R4/R10 milestone (enhance_convert_card; swarm_buff/lifesteal는 BS 타이밍)
 	events.append_array(_process_r_conditional(card, idx, board))
@@ -846,9 +872,13 @@ func _assault_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# 특수작전대 재설계(trace 012): 훈련 전파 제거, 치명타 중심으로 전환.
-	# ★ 기본 효과: 치명타 버프(crit_buff) + 저격 드론 생산 (★2/★3, spawn_unit).
+func _special_ops(card: CardInstance, idx: int, board: Array,
+		rng: RandomNumberGenerator) -> Dictionary:
+	# 특수작전대 재설계:
+	#   trace 012: 훈련 전파 제거, 치명타 중심 전환.
+	#   2026-04-21: ★2/★3 spawn_unit(sniper fixed) → conscript (base pool 뽑기 +
+	#               CO 이벤트 방출, ml_outpost 체인 활성화). biker_rebirth 없음
+	#               (특작은 정예 컨셉, base pool 랜덤이어도 R4/R10 로 질적 보상).
 	# R4/R10: crit_buff 확률 교체 + crit_splash 해금. 매 RS 실행 시 덮어쓰기.
 	# 이전 전투의 theme_state 잔류 방지를 위해 매번 초기화 후 재적용.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
@@ -864,13 +894,13 @@ func _special_ops(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	if not crit_eff.is_empty():
 		_apply_crit_buff(crit_eff, card)
 
-	# spawn_unit (★2/★3: 저격 드론)
-	var spawn_eff := _find_eff(effs, "spawn_unit", "self")
-	if not spawn_eff.is_empty():
-		var uid: String = spawn_eff.get("unit", "")
-		var count: int = spawn_eff.get("count", 1)
-		if uid != "" and count > 0:
-			card.add_specific_unit(uid, count)
+	# conscript (★2: 1 회, ★3: 3 회 뽑기)
+	var con_eff := _find_eff(effs, "conscript", "self")
+	if not con_eff.is_empty():
+		var tries: int = int(con_eff.get("count", 1))
+		if tries > 0:
+			_conscript(card, tries, rng, card)
+			events.append(_conscript_evt(idx, idx))
 
 	# R4/R10 milestone (enhance_convert_card + crit_buff chance 덮어쓰기 + crit_splash)
 	events.append_array(_process_r_conditional(card, idx, board))

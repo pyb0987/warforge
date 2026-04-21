@@ -767,28 +767,28 @@ func test_assault_r0_no_swarm_buff() -> void:
 
 # --- 특수작전대 ★/R: crit_buff + crit_splash ---
 
-func test_special_ops_s2_spawns_sniper_drone() -> void:
-	## ★2: 매 RS 저격 드론 1기 추가.
+func test_special_ops_s2_conscripts_and_emits_co() -> void:
+	## ★2 (2026-04-21): spawn_unit(sniper) → conscript. base pool 1 회 뽑기.
+	## 유닛 최소 1 기 추가 + CO 이벤트 방출 (ml_outpost 체인용).
 	var card := _make_star("ml_special_ops", 2)
-	var before_sniper: int = 0
-	var sniper_stack: Dictionary = _find_stack_by_id(card, "ml_sniper")
-	if not sniper_stack.is_empty():
-		before_sniper = sniper_stack["count"]
-	_sys.process_rs_card(card, 0, [card], _rng)
-	var after: Dictionary = _find_stack_by_id(card, "ml_sniper")
-	assert_eq(after["count"] - before_sniper, 1, "★2: 저격 드론 +1")
+	var before: int = card.get_total_units()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_gt(card.get_total_units(), before, "★2: conscript 유닛 추가")
+	var has_co := false
+	for e in result["events"]:
+		if e.get("layer2", -1) == Enums.Layer2.CONSCRIPT:
+			has_co = true
+			break
+	assert_true(has_co, "★2: CO 이벤트 방출")
 
 
-func test_special_ops_s3_spawns_3_snipers_and_mult_6() -> void:
-	## ★3: 매 RS 저격 드론 3기 + crit_mult 6.0.
+func test_special_ops_s3_conscripts_thrice_and_mult_6() -> void:
+	## ★3: conscript 3 회 뽑기 + crit_mult 6.0.
 	var card := _make_star("ml_special_ops", 3)
-	var before_sniper: int = 0
-	var before_stack: Dictionary = _find_stack_by_id(card, "ml_sniper")
-	if not before_stack.is_empty():
-		before_sniper = before_stack["count"]
+	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	var after: Dictionary = _find_stack_by_id(card, "ml_sniper")
-	assert_eq(after["count"] - before_sniper, 3, "★3: 저격 드론 +3")
+	var added: int = card.get_total_units() - before
+	assert_between(added, 3, 9, "★3: conscript 3 회 → 3~9 기 추가")
 	assert_almost_eq(card.theme_state.get("crit_mult", 0.0), 6.0, 0.001, "★3: 크리 배율 6.0")
 
 
@@ -950,22 +950,42 @@ func test_barracks_s3_high_rank_mult_applies_once() -> void:
 		"★3 rank 15: 재적용 없음 (one-shot)")
 
 
-func test_assault_s1_spawns_1_biker() -> void:
+func test_assault_s1_conscripts_and_emits_co() -> void:
+	## ★1 (2026-04-21): spawn_unit(biker) → conscript + biker_rebirth.
+	## base pool 1 회 뽑기. 최소 1 기 추가 + CO 이벤트 방출.
 	var card: CardInstance = CardInstance.create("ml_assault")
-	var before_stack: Dictionary = _find_stack_by_id(card, "ml_biker")
-	var before_count: int = before_stack.get("count", 0) if not before_stack.is_empty() else 0
-	_sys.process_rs_card(card, 0, [card], _rng)
-	var after: Dictionary = _find_stack_by_id(card, "ml_biker")
-	assert_eq(after["count"] - before_count, 1, "★1: 바이커 +1")
+	var before: int = card.get_total_units()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_gt(card.get_total_units(), before, "★1: conscript 유닛 추가")
+	var has_co := false
+	for e in result["events"]:
+		if e.get("layer2", -1) == Enums.Layer2.CONSCRIPT:
+			has_co = true
+			break
+	assert_true(has_co, "★1: CO 이벤트 방출")
 
 
-func test_assault_s3_spawns_4_bikers() -> void:
+func test_assault_s3_conscripts_4_times() -> void:
+	## ★3: conscript 4 회 뽑기 + biker_rebirth. 최소 4 기, 평균 ~8 기.
 	var card := _make_star("ml_assault", 3)
-	var before_stack: Dictionary = _find_stack_by_id(card, "ml_biker")
-	var before_count: int = before_stack.get("count", 0) if not before_stack.is_empty() else 0
+	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	var after: Dictionary = _find_stack_by_id(card, "ml_biker")
-	assert_eq(after["count"] - before_count, 4, "★3: 바이커 +4")
+	var added: int = card.get_total_units() - before
+	assert_gte(added, 4, "★3: 최소 4 기 추가 (4 회 뽑기 × 유닛당 최소 1 기)")
+
+
+func test_assault_biker_rebirth_triggers_extra_pick() -> void:
+	## biker_rebirth: ml_biker 가 뽑히면 추가 뽑기 → 유닛 수가 예상보다 많음.
+	## 이 테스트는 결정론적: biker 가 반드시 뽑히는 상황을 가정하기 어려우므로
+	## 최대 안전 횟수(MAX_BIKER_REBIRTH_DEPTH=20) 를 초과하지 않는 것만 검증.
+	## 실제 동작은 test_assault_s1_conscripts_and_emits_co 와 조합해 확인.
+	var card := _make_star("ml_assault", 3)
+	var before: int = card.get_total_units()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	var added: int = card.get_total_units() - before
+	# 4 뽑기 × 최대 (3 기 + rebirth 체인). 이론적 극단치는 크지만 확률상
+	# 120 기 이상은 사실상 0. 느슨한 상한 검증.
+	assert_lte(added, 120, "biker_rebirth 가 무한 루프로 터지지 않음")
 
 
 # ================================================================

@@ -497,9 +497,12 @@ def desc_conscript(p: dict) -> str:
     ##   count = "뽑기 횟수" (이전엔 "유닛 수"). 각 뽑기 = base pool uniform
     ##   1 선택 → 유닛별 count (3/2/2/1/1/1) 만큼 추가. 평균 1.67 기/뽑기.
     ##   enhanced_count: 앞 N 회 뽑기는 강화 변환 강제 (ml_outpost 용).
+    ##   biker_rebirth: 바이커 뽑히면 즉시 추가 뽑기 연쇄 (ml_assault 용).
     t = resolve_target(p["target"])
     n = p["count"]
     text = f"{t}에 징집 {n}회"
+    if p.get("biker_rebirth"):
+        text += " (바이커 뽑으면 재징집)"
     eh = int(p.get("enhanced_count", 0))
     if "enhanced" in p and not eh:
         eh = 1 if p["enhanced"] == "partial" else (n if p["enhanced"] == "all" else 0)

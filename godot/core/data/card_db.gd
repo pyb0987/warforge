@@ -2953,7 +2953,7 @@ func _register_military() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 1}],
+				"actions": [{"action": "conscript", "target": "self", "count": 1, "biker_rebirth": true}],
 				"r_conditional_effects": [
 					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2}]},
 					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
@@ -2971,7 +2971,7 @@ func _register_military() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 2}],
+					"actions": [{"action": "conscript", "target": "self", "count": 2, "biker_rebirth": true}],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2}]},
 						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
@@ -2988,7 +2988,7 @@ func _register_military() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "spawn_unit", "target": "self", "unit": "ml_biker", "count": 4}],
+					"actions": [{"action": "conscript", "target": "self", "count": 4, "biker_rebirth": true}],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2}]},
 						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
@@ -3028,7 +3028,7 @@ func _register_military() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0},
-						{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 1}
+						{"action": "conscript", "target": "self", "count": 1}
 					],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
@@ -3048,7 +3048,7 @@ func _register_military() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0},
-						{"action": "spawn_unit", "target": "self", "unit": "ml_sniper", "count": 3}
+						{"action": "conscript", "target": "self", "count": 3}
 					],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
