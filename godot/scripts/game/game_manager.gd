@@ -24,7 +24,6 @@ var _game_over: bool = false
 @onready var game_over_popup: ColorRect = $UILayer/GameOverPopup
 @onready var upgrade_choice_popup: ColorRect = $UILayer/UpgradeChoicePopup
 @onready var boss_reward_popup: ColorRect = $UILayer/BossRewardPopup
-@onready var conscript_popup: ColorRect = $UILayer/ConscriptChoicePopup
 
 
 func _ready() -> void:
@@ -173,19 +172,9 @@ func _run_chain() -> void:
 	game_state.terazin += result["terazin_earned"]
 	game_state.state_changed.emit()
 
-	# Deferred conscription: 3-pick-1 UI for outpost self-conscription
-	var pending: Array = result.get("pending_conscriptions", [])
-	for req in pending:
-		var card_ref: CardInstance = req["card_ref"]
-		var count: int = req["count"]
-		var mil_sys: MilitarySystem = chain_engine._theme_systems[Enums.CardTheme.MILITARY]
-		for _i in count:
-			# card_ref 전달 → 징병국 R4/R10 pool 확장 반영 (enhanced/elite tier)
-			var options: Array[String] = mil_sys.pick_conscript_options(_battle_rng, 3, card_ref)
-			conscript_popup.show_choices(options)
-			var chosen_id: String = await conscript_popup.unit_chosen
-			mil_sys.apply_conscript(card_ref, chosen_id)
-		print("[Conscript] %s: %d picks done" % [card_ref.get_name(), count])
+	# Deferred conscription UI 제거 (2026-04-21): ml_conscript self 징집이
+	# 3택1 팝업이었으나 실전에서 UI 트리거 안 되던 상태 (dead feature).
+	# 자동 랜덤 징집으로 전환 — military_system._outpost() 가 인라인 처리.
 
 	build_phase.visible = true
 	await get_tree().create_timer(1.0).timeout

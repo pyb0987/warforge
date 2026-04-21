@@ -65,9 +65,9 @@ const ENHANCED_MAP: Dictionary = {
 	"ml_plasma":   "ml_plasma_enhanced",
 }
 
-## Deferred conscription requests — filled by _outpost(), consumed by game_manager.
-## Each entry: {card_ref: CardInstance, card_idx: int, count: int}
-var pending_conscriptions: Array = []
+# pending_conscriptions / clear_pending / pick_conscript_options / apply_conscript
+# 제거됨 (2026-04-21): 3택1 UI 가 실전 트리거 되지 않아 dead feature 였음.
+# ml_conscript self 징집은 이제 _outpost() 가 자동 랜덤으로 즉시 처리.
 
 
 # --- Chain integration ---
@@ -855,8 +855,10 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 	var count: int = self_eff.get("count", 2)
 
 	var events: Array = []
-	# Self-conscription deferred for player choice (3-pick-1 UI)
-	pending_conscriptions.append({"card_ref": card, "card_idx": idx, "count": count})
+	# Self-conscription: 자동 랜덤 (2026-04-21 UI 제거).
+	# 징병국 R4/R10 pool 확장은 _pool_for_card 가 처리.
+	var self_pool := _pool_for_card(card)
+	_conscript(card, count, rng, self_pool)
 	events.append(_conscript_evt(idx, idx))
 
 	# ★2+: adjacent army cards get random units (stays random)
@@ -1154,27 +1156,6 @@ func _supply_post(card: CardInstance, idx: int, board: Array, won: bool) -> Dict
 	return {"events": [], "gold": gold, "terazin": terazin}
 
 
-# --- Deferred conscription helpers (3-pick-1 UI) ---
-
-
-func clear_pending() -> void:
-	pending_conscriptions.clear()
-
-
-## 3택1 UI용 options 반환. 기본 base pool.
-## card가 지정되면 해당 카드의 rank 기반 pool 사용 (징병국 R4/R10 반영).
-func pick_conscript_options(rng: RandomNumberGenerator, count: int = 3,
-		card: CardInstance = null) -> Array[String]:
-	var pool: Array = _pool_for_card(card) if card != null else CONSCRIPT_POOL
-	var result: Array[String] = []
-	for _i in count:
-		result.append(_weighted_pick(rng, pool))
-	return result
-
-
-func apply_conscript(card: CardInstance, unit_id: String) -> int:
-	var added := card.add_specific_unit(unit_id, 1)
-	if added > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
-		if bonus_rng.randf() < bonus_spawn_chance:
-			added += card.add_specific_unit(unit_id, 1)
-	return added
+# Deferred conscription helpers 제거됨 (2026-04-21):
+#   clear_pending / pick_conscript_options / apply_conscript —
+#   3택1 UI 폐기. 모든 conscript 는 _conscript() 자동 처리.

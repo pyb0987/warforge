@@ -217,13 +217,9 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 
 	chain_completed.emit(chain_count, gold_earned)
 
-	var ret := {"chain_count": chain_count, "gold_earned": gold_earned, "terazin_earned": terazin_earned}
-	# Collect deferred conscription requests from military system
-	var mil_sys = _theme_systems.get(Enums.CardTheme.MILITARY)
-	if mil_sys and not mil_sys.pending_conscriptions.is_empty():
-		ret["pending_conscriptions"] = mil_sys.pending_conscriptions.duplicate()
-		mil_sys.clear_pending()
-	return ret
+	# pending_conscriptions 플럼빙 제거 (2026-04-21): 3택1 UI 폐기, 모든
+	# conscript 가 military_system 내에서 즉시 자동 처리.
+	return {"chain_count": chain_count, "gold_earned": gold_earned, "terazin_earned": terazin_earned}
 
 
 ## Process ON_MERGE triggers (e.g., ne_spirit_blessing).

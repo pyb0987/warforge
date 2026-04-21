@@ -9,7 +9,6 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/card_tooltip.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/upgrade_choice_popup.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/boss_reward_popup.tscn" id="9"]
-[ext_resource type="PackedScene" path="res://scenes/ui/conscript_choice_popup.tscn" id="10"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1")
@@ -30,8 +29,6 @@ layer = 10
 [node name="UpgradeChoicePopup" parent="UILayer" instance=ExtResource("8")]
 
 [node name="BossRewardPopup" parent="UILayer" instance=ExtResource("9")]
-
-[node name="ConscriptChoicePopup" parent="UILayer" instance=ExtResource("10")]
 
 [node name="CardTooltip" parent="UILayer" instance=ExtResource("7")]
 groups = ["card_tooltip"]

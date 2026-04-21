@@ -71,57 +71,27 @@ func test_barracks_no_train_to_non_military_adj() -> void:
 
 
 # ================================================================
-# ml_conscript (T1 RS self 징집, 스왑 후 이전 _outpost 역할)
+# ml_conscript (T1 RS self 징집).
+# 2026-04-21: 3택1 UI 제거. _outpost() 가 자동 랜덤으로 즉시 처리.
+# pending_conscriptions / clear_pending / pick_conscript_options /
+# apply_conscript 관련 테스트 (6개) 제거됨.
 # ================================================================
 
-func test_conscript_defers_self_conscription() -> void:
+func test_conscript_self_adds_units_immediately() -> void:
+	## ★1: RS 실행 즉시 self 에 conscript count=2 반영 (2기 추가).
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	# Self-conscription is deferred — units NOT added yet
-	assert_eq(card.get_total_units(), before, "deferred: 유닛 미추가")
-	assert_eq(_sys.pending_conscriptions.size(), 1, "pending 1건")
-	assert_eq(_sys.pending_conscriptions[0]["count"], 2, "count=2")
+	assert_eq(card.get_total_units(), before + 2, "★1 RS 즉시 self +2기")
 
 
-func test_conscript_pending_has_card_ref() -> void:
-	var card: CardInstance = CardInstance.create("ml_conscript")
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(_sys.pending_conscriptions[0]["card_ref"], card, "card_ref 일치")
-	assert_eq(_sys.pending_conscriptions[0]["card_idx"], 0, "card_idx=0")
-
-
-func test_conscript_star3_defers_3() -> void:
+func test_conscript_star3_self_count_3() -> void:
+	## ★3: RS 실행 즉시 self 에 3기 추가 (both_adj 는 별도 카드 필요).
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	card.star_level = 3
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(_sys.pending_conscriptions[0]["count"], 3, "★3: count=3")
-
-
-func test_pick_conscript_options_returns_3() -> void:
-	var options: Array[String] = _sys.pick_conscript_options(_rng, 3)
-	assert_eq(options.size(), 3, "3개 옵션")
-	var pool_ids: Array = []
-	for entry in MilitarySystem.CONSCRIPT_POOL:
-		pool_ids.append(entry["id"])
-	for uid in options:
-		assert_true(uid in pool_ids, "옵션 '%s'이 CONSCRIPT_POOL에 있어야 함" % uid)
-
-
-func test_apply_conscript_adds_unit() -> void:
-	var card: CardInstance = CardInstance.create("ml_conscript")
 	var before: int = card.get_total_units()
-	var added: int = _sys.apply_conscript(card, "ml_recruit")
-	assert_eq(added, 1, "1기 추가")
-	assert_eq(card.get_total_units(), before + 1, "총 유닛 +1")
-
-
-func test_clear_pending() -> void:
-	var card: CardInstance = CardInstance.create("ml_conscript")
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(_sys.pending_conscriptions.size(), 0, "pending 있음")
-	_sys.clear_pending()
-	assert_eq(_sys.pending_conscriptions.size(), 0, "clear 후 비어있음")
+	assert_eq(card.get_total_units(), before + 3, "★3 RS 즉시 self +3기")
 
 
 # ================================================================
