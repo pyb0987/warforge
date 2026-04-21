@@ -790,6 +790,7 @@ cards:
             target: conscripted_this_round
             atk_pct_per_rank: 0.02
             r4_hp_pct_per_rank: 0.02
+            r10_as_pct_per_rank: 0.02
       2:
         effects:
         - trigger_timing: OE
@@ -802,6 +803,7 @@ cards:
             target: conscripted_this_round
             atk_pct_per_rank: 0.03
             r4_hp_pct_per_rank: 0.03
+            r10_as_pct_per_rank: 0.03
       3:
         effects:
         - trigger_timing: OE
@@ -812,8 +814,9 @@ cards:
           max_act: -1
           rank_scaled_enhance:
             target: conscripted_this_round
-            atk_pct_per_rank: 0.04
-            r4_hp_pct_per_rank: 0.04
+            atk_pct_per_rank: 0.05
+            r4_hp_pct_per_rank: 0.05
+            r10_as_pct_per_rank: 0.05
   ml_command:
     name: 통합 사령부
     tier: 5

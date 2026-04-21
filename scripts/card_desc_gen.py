@@ -582,13 +582,20 @@ def desc_rank_scaled_enhance(p: dict) -> str:
     ## ml_factory (2026-04-21 재설계). PC 타이밍에 "이번 라운드 징집된"
     ## (= 이번 라운드에 CO 이벤트가 1회+ 발생한) 군대 카드들 각각에
     ## (그 카드의 계급) × atk_pct_per_rank 만큼 ATK 영구 강화.
-    ## ml_factory 자신 rank 4+ 일 때 동일 비율 HP 강화가 붙는다.
+    ## ml_factory 자신 rank 4+ 일 때 동일 비율 HP 강화, rank 10+ 일 때
+    ## 동일 비율 AS 강화(공격 속도 향상) 가 붙는다.
     target = resolve_target(p.get("target", ""))
     atk_pct = p.get("atk_pct_per_rank", 0.0)
     r4_hp_pct = p.get("r4_hp_pct_per_rank", 0.0)
+    r10_as_pct = p.get("r10_as_pct_per_rank", 0.0)
     s = f"{target}에 (그 카드의 계급) × {fmt_pct(atk_pct)}% ATK 영구 강화"
+    gates = []
     if r4_hp_pct > 0.0:
-        s += f" (이 카드 계급 4+ 도달 시: 동일 비율 HP 도 영구 강화)"
+        gates.append(f"이 카드 계급 4+: HP 도 동일 비율")
+    if r10_as_pct > 0.0:
+        gates.append(f"계급 10+: AS 도 동일 비율")
+    if gates:
+        s += f" ({', '.join(gates)})"
     return s
 
 

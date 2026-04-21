@@ -231,7 +231,7 @@ func test_factory_pc_resets_collection_after_apply() -> void:
 
 
 func test_factory_pc_star_scaling() -> void:
-	## ★2 = 3%, ★3 = 4% per rank.
+	## ★2 = 3%, ★3 = 5% per rank.
 	var factory2 := _make_star("ml_factory", 2)
 	var target2: CardInstance = CardInstance.create("ml_barracks")
 	target2.theme_state["rank"] = 10
@@ -247,8 +247,48 @@ func test_factory_pc_star_scaling() -> void:
 	factory3.theme_state["conscripted_this_round"] = {1: true}
 	var atk_before3: float = target3.get_total_atk()
 	_sys.apply_post_combat(factory3, 0, [factory3, target3], true)
-	assert_almost_eq(target3.get_total_atk() / atk_before3, 1.40, 0.01,
-		"★3: rank 10 × 4% = 40%")
+	assert_almost_eq(target3.get_total_atk() / atk_before3, 1.50, 0.01,
+		"★3: rank 10 × 5% = 50%")
+
+
+func test_factory_pc_r10_applies_as_buff() -> void:
+	## ml_factory rank 10+ 이면 대상 카드에 AS 도 강화. ★1=2%/rank.
+	## upgrade_as_mult /= (1 + rank × 0.02). target rank 10 → /1.20.
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 10
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 10
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var as_before: float = target.upgrade_as_mult
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_almost_eq(target.upgrade_as_mult, as_before / 1.20, 0.001,
+		"★1 R10: upgrade_as_mult /= (1 + rank×2%) = /1.20")
+
+
+func test_factory_pc_r9_no_as_buff() -> void:
+	## ml_factory rank 9 이면 AS 미강화 (R10 게이트 미충족).
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 9
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 10
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var as_before: float = target.upgrade_as_mult
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_almost_eq(target.upgrade_as_mult, as_before, 0.001,
+		"ml_factory rank 9 (< 10) → AS 변화 없음")
+
+
+func test_factory_pc_star3_r10_as_rate() -> void:
+	## ★3 R10: AS 비율 5%/rank. target rank 10 → /1.50.
+	var factory := _make_star("ml_factory", 3)
+	factory.theme_state["rank"] = 10
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 10
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var as_before: float = target.upgrade_as_mult
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_almost_eq(target.upgrade_as_mult, as_before / 1.50, 0.001,
+		"★3 R10: upgrade_as_mult /= 1.50")
 
 
 func test_factory_pc_rank_zero_no_enhance() -> void:

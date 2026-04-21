@@ -3058,7 +3058,7 @@ func _register_military() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.02, "r4_hp_pct_per_rank": 0.02}
+					{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.02, "r4_hp_pct_per_rank": 0.02, "r10_as_pct_per_rank": 0.02}
 				],
 			}
 		],
@@ -3080,7 +3080,7 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.03, "r4_hp_pct_per_rank": 0.03}
+						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.03, "r4_hp_pct_per_rank": 0.03, "r10_as_pct_per_rank": 0.03}
 					],
 				}
 			],
@@ -3101,7 +3101,7 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.04, "r4_hp_pct_per_rank": 0.04}
+						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.05, "r4_hp_pct_per_rank": 0.05, "r10_as_pct_per_rank": 0.05}
 					],
 				}
 			],

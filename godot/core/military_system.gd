@@ -1018,6 +1018,7 @@ func _factory_collect_co(card: CardInstance, event: Dictionary) -> Dictionary:
 
 ## ml_factory PC 블록: 수집된 카드에 그 카드의 계급 × atk_pct_per_rank 만큼
 ## ATK 영구 강화. ml_factory 자신 rank 4+ 이면 동일 비율로 HP 도 강화.
+## rank 10+ 이면 동일 비율로 AS 도 강화 (공격 속도 = upgrade_as_mult 값 감소).
 ## 적용 후 집합은 초기화 (다음 라운드 수집 준비).
 func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
@@ -1026,7 +1027,10 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 		return Enums.empty_result()
 	var atk_per_rank: float = eff.get("atk_pct_per_rank", 0.0)
 	var r4_hp_per_rank: float = eff.get("r4_hp_pct_per_rank", 0.0)
-	var apply_hp: bool = _rank(card) >= 4 and r4_hp_per_rank > 0.0
+	var r10_as_per_rank: float = eff.get("r10_as_pct_per_rank", 0.0)
+	var self_rank: int = _rank(card)
+	var apply_hp: bool = self_rank >= 4 and r4_hp_per_rank > 0.0
+	var apply_as: bool = self_rank >= 10 and r10_as_per_rank > 0.0
 
 	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
 	for key in coll.keys():
@@ -1047,6 +1051,13 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 		var hp_pct: float = float(tgt_rank) * r4_hp_per_rank if apply_hp else 0.0
 		if atk_pct > 0.0 or hp_pct > 0.0:
 			target.enhance(null, atk_pct, hp_pct)
+		if apply_as:
+			# AS 강화 = upgrade_as_mult 값 감소 (낮을수록 빠름).
+			# 1 / (1 + rank × pct) 형태로 안전하게 나눈다 (음수 걱정 없음).
+			var as_divisor: float = 1.0 + float(tgt_rank) * r10_as_per_rank
+			if as_divisor > 0.0:
+				target.upgrade_as_mult /= as_divisor
+				target.stats_changed.emit()
 	# 라운드 단위로 초기화 — 다음 라운드의 수집이 누수 없이 시작.
 	card.theme_state["conscripted_this_round"] = {}
 	return Enums.empty_result()
