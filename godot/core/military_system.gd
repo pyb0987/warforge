@@ -4,58 +4,16 @@ extends "res://core/theme_system.gd"
 ## RS cards (barracks, outpost, special_ops, command) train/conscript;
 ## OE cards (academy, conscript_react, factory) chain off TRAIN/CONSCRIPT events.
 
-# Conscription unit pool (growth chain uses weighted random)
-# 등급별 풀 (징병국 R4/R10 conscript_pool_tier 지원):
-# - base: 기본 6종 (신병 다수 / 화력 소수 기수 차등)
-# - enhanced: (강화) 6종 추가 (weight는 상응 base의 절반, 후반 접근)
-# - elite: enhanced + 엘리트 4종 (저격드론/궤도포대/지휘관/워커) 소수 weight
-const CONSCRIPT_POOL: Array = [
-	{"id": "ml_recruit", "weight": 3},
-	{"id": "ml_drone", "weight": 2},
-	{"id": "ml_biker", "weight": 2},
-	{"id": "ml_infantry", "weight": 1},
-	{"id": "ml_shield", "weight": 1},
-	{"id": "ml_plasma", "weight": 1},
-]
-
-const CONSCRIPT_POOL_ENHANCED: Array = [
-	{"id": "ml_recruit", "weight": 3},
-	{"id": "ml_drone", "weight": 2},
-	{"id": "ml_biker", "weight": 2},
-	{"id": "ml_infantry", "weight": 1},
-	{"id": "ml_shield", "weight": 1},
-	{"id": "ml_plasma", "weight": 1},
-	# (강화) 버전 — weight 절반으로 낮게 (후반 접근)
-	{"id": "ml_recruit_enhanced", "weight": 1.5},
-	{"id": "ml_drone_enhanced", "weight": 1},
-	{"id": "ml_biker_enhanced", "weight": 1},
-	{"id": "ml_infantry_enhanced", "weight": 0.5},
-	{"id": "ml_shield_enhanced", "weight": 0.5},
-	{"id": "ml_plasma_enhanced", "weight": 0.5},
-]
-
-const CONSCRIPT_POOL_ELITE: Array = [
-	{"id": "ml_recruit", "weight": 3},
-	{"id": "ml_drone", "weight": 2},
-	{"id": "ml_biker", "weight": 2},
-	{"id": "ml_infantry", "weight": 1},
-	{"id": "ml_shield", "weight": 1},
-	{"id": "ml_plasma", "weight": 1},
-	{"id": "ml_recruit_enhanced", "weight": 1.5},
-	{"id": "ml_drone_enhanced", "weight": 1},
-	{"id": "ml_biker_enhanced", "weight": 1},
-	{"id": "ml_infantry_enhanced", "weight": 0.5},
-	{"id": "ml_shield_enhanced", "weight": 0.5},
-	{"id": "ml_plasma_enhanced", "weight": 0.5},
-	# 엘리트 유닛 — 매우 낮은 weight (희소)
-	{"id": "ml_sniper", "weight": 0.3},
-	{"id": "ml_artillery", "weight": 0.2},
-	{"id": "ml_commander", "weight": 0.3},
-	{"id": "ml_walker", "weight": 0.2},
-]
+# Conscription pool (2026-04-21 해석 B 재설계):
+#   base pool 에서 **동등 확률** 1종 뽑기 → 해당 항목의 count 만큼 유닛 추가.
+#   R4 도달 카드: ENHANCED_MAP 으로 변환 (base → enhanced 동일 slot 교체).
+#   R10 도달 카드: 위 + ELITE_UNITS 에서 1기 보너스 추가.
+# Data source: data/cards/military.yaml 최상단 conscript_pool + elite_units.
+# codegen_card_db.py 가 godot/core/data/conscript_pool_data.gd 로 생성.
+const PoolData = preload("res://core/data/conscript_pool_data.gd")
 
 # Base → Enhanced 유닛 ID 매핑 (6쌍, units-military.md 참조).
-# enhance_convert_card handler에서 사용.
+# R4 변환 + enhance_convert_card handler 에서 사용.
 const ENHANCED_MAP: Dictionary = {
 	"ml_recruit":  "ml_recruit_enhanced",
 	"ml_infantry": "ml_infantry_enhanced",
@@ -276,65 +234,53 @@ func _add_with_bonus(target: CardInstance, unit_id: String, count: int) -> int:
 	return added
 
 
-func _conscript(target: CardInstance, count: int, rng: RandomNumberGenerator,
-		pool: Array = CONSCRIPT_POOL, enhanced_count: int = 0) -> int:
-	## 유닛 `count`기를 `target` 카드에 징집한다.
-	## `enhanced_count > 0`이면 앞 N기는 ENHANCED 전용 풀에서 pick하고 나머지는
-	## 기본 `pool`에서 pick한다. enhanced_count >= count 이면 전원 강화.
-	## (P1-1 migration, 2026-04-17: 기존 `enhanced: partial/all` 문자열 필드를
-	##  수량 기반 정량 필드로 교체. partial=1, all=count로 마이그레이션됨.)
+## 2026-04-21 재설계 (해석 B):
+##   tries: 뽑기 반복 횟수 (이전 인터페이스의 count 재해석 — "count=2 라면
+##          2 회 뽑기" 의미. 각 뽑기마다 선택된 pool 항목의 count 만큼 유닛 추가).
+##   target_card: 이 카드의 rank 기반으로 R4/R10 변환/엘리트 보너스 적용.
+##                null 이면 변환 미적용 (ml_outpost 인접 징집 단순 케이스).
+##   enhanced_tries: 앞 N 회 뽑기는 rank 무관 강화 변환 **강제** (ml_outpost
+##                   enhanced_count 경로). 기본 0.
+## 반환: 실제로 추가된 총 유닛 수 (cap 반영, 보너스 포함).
+func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
+		source_card: CardInstance = null, enhanced_tries: int = 0) -> int:
 	var added := 0
-	var enhanced_remaining: int = clampi(enhanced_count, 0, count)
-	for i in count:
-		var active_pool: Array = (
-			CONSCRIPT_POOL_ENHANCED if enhanced_remaining > 0 else pool)
-		var uid := _weighted_pick(rng, active_pool)
-		var n := target.add_specific_unit(uid, 1)
+	var source_rank: int = _rank(source_card) if source_card != null else 0
+	var transform_all: bool = source_rank >= 4
+	var elite_bonus: bool = source_rank >= 10
+	var forced_enhance: int = clampi(enhanced_tries, 0, tries)
+
+	for i in tries:
+		var picked: Dictionary = _uniform_pick(rng)
+		var uid: String = picked.get("id", "")
+		var count: int = int(picked.get("count", 1))
+		if uid == "":
+			continue
+		if transform_all or i < forced_enhance:
+			uid = ENHANCED_MAP.get(uid, uid)
+		var n := target.add_specific_unit(uid, count)
 		added += n
-		if enhanced_remaining > 0:
-			enhanced_remaining -= 1
-		# 양성가 보너스: 징집 유닛 각각 확률로 1기 추가 (이벤트 미방출)
+		# 양성가 보너스: 징집 1 회당 확률로 1 기 추가 (이벤트 미방출).
 		if n > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
 			if bonus_rng.randf() < bonus_spawn_chance:
 				added += target.add_specific_unit(uid, 1)
+
+	# R10: 엘리트 유닛 1 기 보너스 (base 뽑기와 별개).
+	if elite_bonus and PoolData.ELITE_UNITS.size() > 0:
+		var eidx: int = rng.randi_range(0, PoolData.ELITE_UNITS.size() - 1)
+		var elite_id: String = PoolData.ELITE_UNITS[eidx]
+		added += target.add_specific_unit(elite_id, 1)
+
 	return added
 
 
-func _weighted_pick(rng: RandomNumberGenerator, pool: Array = CONSCRIPT_POOL) -> String:
-	var total := 0.0
-	for entry in pool:
-		total += entry["weight"]
-	var r := rng.randf() * total
-	var cum := 0.0
-	for entry in pool:
-		cum += entry["weight"]
-		if r <= cum:
-			return entry["id"]
-	return pool[0]["id"]
-
-
-## 카드의 rank를 기반으로 적합한 conscript pool 반환.
-## YAML의 r_conditional에서 conscript_pool_tier 선언을 직접 평가:
-## 가장 높은 활성 milestone의 tier 우선 (R10 > R4 > base).
-## 징병국 R4: enhanced, R10: elite.
-func _pool_for_card(card: CardInstance) -> Array:
-	var rank := _rank(card)
-	var tier := "base"
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	for eff in effs:
-		if eff.get("action", "") != "r_conditional":
-			continue
-		if eff.get("condition", "") != "rank_gte":
-			continue
-		if rank < int(eff.get("threshold", 0)):
-			continue
-		for inner in eff.get("effects", []):
-			if inner.get("action", "") == "conscript_pool_tier":
-				tier = str(inner.get("tier", "base"))
-	match tier:
-		"enhanced": return CONSCRIPT_POOL_ENHANCED
-		"elite": return CONSCRIPT_POOL_ELITE
-		_: return CONSCRIPT_POOL
+## Base pool 에서 동등 확률 (uniform) 1 항목 선택.
+## 반환: {id: String, count: int}.
+func _uniform_pick(rng: RandomNumberGenerator) -> Dictionary:
+	if PoolData.BASE.is_empty():
+		return {}
+	var idx: int = rng.randi_range(0, PoolData.BASE.size() - 1)
+	return PoolData.BASE[idx]
 
 
 func _military_indices(board: Array) -> Array[int]:
@@ -479,13 +425,11 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 			var enh_count: int = int(eff.get("enhanced_count", 0))
 			for ti in targets:
 				if rng != null:
-					# r_conditional 내부 conscript는 이 카드 카드 자체의 rank-gated
-					# pool이 아닌 기본 pool + enhanced_count 파라미터로 동작.
-					# 전달된 pool은 (호출자 카드 자체의) _pool_for_card 결과일 때만
-					# 별도 확장 적용되지만, r_conditional dispatch 시점엔 call-site가
-					# event reactor(ml_outpost)이므로 기본 pool 사용이 적절.
+					# r_conditional 내부 conscript: source_card (호출자) 의 rank
+					# 는 무시하고 enhanced_tries 파라미터로 앞 N 회 뽑기만 강화
+					# 변환 강제. R10 엘리트 보너스 미적용 (source_card=null).
 					_conscript(board[ti] as CardInstance, count, rng,
-							CONSCRIPT_POOL, enh_count)
+							null, enh_count)
 				events.append(_conscript_evt(idx, ti))
 		"enhance_convert_card":
 			# 이 카드의 비(강화) 유닛 중 fraction 비율을 (강화)로 변환.
@@ -505,10 +449,6 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 		"crit_splash":
 			# 특수작전대 R4/R10: 치명타 발동 시 인접 적 스플래시.
 			_apply_crit_splash(eff, card)
-		"conscript_pool_tier":
-			# 징병국 R4/R10: pool 확장은 _pool_for_card가 YAML을 직접 평가하므로
-			# 이 dispatch는 no-op. action은 YAML 선언(설계 의도 문서화) 목적.
-			pass
 		"revive_scope_override":
 			# 통합사령부 R4/R10: revive scope 확장은 game_manager._materialize_army가
 			# 통합사령부 카드의 rank를 직접 읽어 scope를 결정하므로 dispatch는 no-op.
@@ -855,13 +795,12 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 	var count: int = self_eff.get("count", 2)
 
 	var events: Array = []
-	# Self-conscription: 자동 랜덤 (2026-04-21 UI 제거).
-	# 징병국 R4/R10 pool 확장은 _pool_for_card 가 처리.
-	var self_pool := _pool_for_card(card)
-	_conscript(card, count, rng, self_pool)
+	# Self-conscription: 자동 랜덤 (2026-04-21 UI 제거, 해석 B).
+	# source_card=card → ml_conscript 자신의 rank 가 R4/R10 변환/엘리트 보너스 적용.
+	_conscript(card, count, rng, card)
 	events.append(_conscript_evt(idx, idx))
 
-	# ★2+: adjacent army cards get random units (stays random)
+	# ★2+: adjacent army cards 징집 (ml_conscript rank 기준 R4/R10 확장 공유)
 	var adj_eff := _find_eff(effs, "conscript", "right_adj")
 	var both_adj_eff := _find_eff(effs, "conscript", "both_adj")
 	var has_adj := not adj_eff.is_empty() or not both_adj_eff.is_empty()
@@ -874,15 +813,13 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 		else:
 			if idx + 1 < board.size(): adj_list.append(idx + 1)
 
-		# 징병국 R4/R10 pool 확장: 양쪽 인접 징집도 같은 pool 사용.
-		var pool := _pool_for_card(card)
 		for ni in adj_list:
 			var adj: CardInstance = board[ni]
 			if adj.template.get("theme", -1) == Enums.CardTheme.MILITARY:
-				_conscript(adj, 1, rng, pool)
+				_conscript(adj, 1, rng, card)  # source_card=card: R4/R10 확장 적용
 				events.append(_conscript_evt(idx, ni))
 
-	# R4/R10 milestone (enhance_convert_card 등; conscript_pool_tier는 _pool_for_card 경로로 처리됨)
+	# R4/R10 milestone (enhance_convert_card 등; conscript_pool_tier 는 제거됨 2026-04-21)
 	events.append_array(_process_r_conditional(card, idx, board, {}, rng))
 
 	return {"events": events, "gold": 0, "terazin": 0}
@@ -995,7 +932,9 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 	var enh_n: int = int(con_eff.get("enhanced_count", 0))
 
 	var target: CardInstance = board[target_idx]
-	_conscript(target, add_n, rng, CONSCRIPT_POOL, enh_n)
+	# ml_outpost OE 반응: source_card=null (호출자 rank 반영 안 함, enhanced_count
+	# 로 앞 N 회 뽑기만 강화 변환).
+	_conscript(target, add_n, rng, null, enh_n)
 	var events: Array = [_conscript_evt(idx, target_idx)]
 
 	# R4/R10 milestone (enhance_convert_card + 반응 범위 확장 event_target_adj/far_event_military)

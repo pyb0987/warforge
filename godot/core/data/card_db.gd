@@ -2647,10 +2647,10 @@ func _register_military() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "conscript", "target": "self", "count": 2}],
+				"actions": [{"action": "conscript", "target": "self", "count": 1}],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
 				],
 			}
 		],
@@ -2670,8 +2670,8 @@ func _register_military() -> void:
 						{"action": "conscript", "target": "both_adj", "count": 1}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
 					],
 				}
 			],
@@ -2693,8 +2693,8 @@ func _register_military() -> void:
 						{"condition": "unit_count_gte", "threshold": 12, "effects": [{"action": "buff", "target": "all_military", "atk_pct": 0.1}]}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "conscript_pool_tier", "tier": "enhanced"}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "conscript_pool_tier", "tier": "elite"}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}]}
 					],
 				}
 			],

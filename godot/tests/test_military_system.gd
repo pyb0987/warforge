@@ -78,20 +78,23 @@ func test_barracks_no_train_to_non_military_adj() -> void:
 # ================================================================
 
 func test_conscript_self_adds_units_immediately() -> void:
-	## ★1: RS 실행 즉시 self 에 conscript count=2 반영 (2기 추가).
+	## ★1: RS 즉시 self 에 뽑기 1 회 (base pool uniform). 유닛 1~3 기 범위로
+	## 추가 (pool 의 최소 count=1, 최대 count=3). 정확 수치는 RNG 종속.
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 2, "★1 RS 즉시 self +2기")
+	var added: int = card.get_total_units() - before
+	assert_between(added, 1, 3, "★1 RS: 뽑기 1 회 → 1~3 기 추가")
 
 
-func test_conscript_star3_self_count_3() -> void:
-	## ★3: RS 실행 즉시 self 에 3기 추가 (both_adj 는 별도 카드 필요).
+func test_conscript_star3_self_adds_more() -> void:
+	## ★3: RS self 뽑기 3 회 (각 뽑기 1~3 기). 최소 3 기, 최대 9 기 추가.
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	card.star_level = 3
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 3, "★3 RS 즉시 self +3기")
+	var added: int = card.get_total_units() - before
+	assert_between(added, 3, 9, "★3 RS: 뽑기 3 회 → 3~9 기 추가")
 
 
 # ================================================================
@@ -499,42 +502,52 @@ func test_barracks_r10_trains_far_military() -> void:
 	assert_eq(board[3].theme_state.get("rank", 0), 1, "R10: far_military 카드도 훈련")
 
 
-# --- 징병국 R4/R10: conscript_pool_tier ---
+# --- 징병국 R4/R10 변환·엘리트 보너스 (2026-04-21 해석 B) ---
+# conscript_pool_tier 제거. _conscript(source_card=card) 에 source 의
+# rank 를 전달 → R4 이상이면 ENHANCED_MAP 변환, R10 이상이면 엘리트 1 기
+# 추가. _pool_for_card 헬퍼도 제거됨.
 
-func test_conscript_r4_pool_includes_enhanced() -> void:
-	## R4 도달 시 _pool_for_card가 CONSCRIPT_POOL_ENHANCED 반환.
+func test_conscript_r4_transforms_to_enhanced() -> void:
+	## R4 도달 카드로 self 징집하면 뽑힌 base 유닛이 (강화) 버전으로 변환.
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	card.theme_state["rank"] = 4
-	var pool: Array = _sys._pool_for_card(card)
+	_sys.process_rs_card(card, 0, [card], _rng)
+	# 변환 확인: stacks 안에 _enhanced suffix 유닛 존재해야 함.
 	var has_enhanced := false
-	for entry in pool:
-		if (entry["id"] as String).ends_with("_enhanced"):
+	for s in card.stacks:
+		if (s["unit_type"].get("id", "") as String).ends_with("_enhanced"):
 			has_enhanced = true
 			break
-	assert_true(has_enhanced, "R4: pool에 (강화) 유닛 포함")
+	assert_true(has_enhanced,
+		"R4 conscript: base 유닛이 (강화) 버전으로 변환되어 추가")
 
 
-func test_conscript_r10_pool_includes_elite() -> void:
-	## R10 도달 시 엘리트 유닛(저격/포대/지휘관/워커) 풀 해금.
+func test_conscript_r10_adds_elite_bonus() -> void:
+	## R10 도달 카드로 self 징집 시 엘리트 유닛(sniper/artillery/walker/commander)
+	## 중 1 기 보너스 추가. 확인: stacks 안에 엘리트 ID 존재.
 	var card: CardInstance = CardInstance.create("ml_conscript")
 	card.theme_state["rank"] = 10
-	var pool: Array = _sys._pool_for_card(card)
-	var ids: Array = []
-	for entry in pool:
-		ids.append(entry["id"])
-	assert_true("ml_sniper" in ids, "R10: 저격 드론 포함")
-	assert_true("ml_artillery" in ids, "R10: 궤도 포대 포함")
-	assert_true("ml_commander" in ids, "R10: 전술 지휘관 포함")
-	assert_true("ml_walker" in ids, "R10: 중장갑 워커 포함")
+	_sys.process_rs_card(card, 0, [card], _rng)
+	var has_elite := false
+	for s in card.stacks:
+		var uid: String = s["unit_type"].get("id", "")
+		if uid in ["ml_sniper", "ml_artillery", "ml_walker", "ml_commander"]:
+			has_elite = true
+			break
+	assert_true(has_elite, "R10 conscript: 엘리트 1 기 보너스 추가")
 
 
-func test_conscript_r0_pool_is_base() -> void:
-	## rank 4 미만: 기본 풀만.
+func test_conscript_r0_no_enhanced_no_elite() -> void:
+	## rank 4 미만: base 유닛만 추가. (강화) / 엘리트 없음.
 	var card: CardInstance = CardInstance.create("ml_conscript")
-	var pool: Array = _sys._pool_for_card(card)
-	for entry in pool:
-		assert_false((entry["id"] as String).ends_with("_enhanced"),
-			"R0: (강화) 포함 안 됨 (%s)" % entry["id"])
+	card.star_level = 3  # 더 많이 뽑게 해서 통계적 확신 ↑ (3 회 뽑기)
+	_sys.process_rs_card(card, 0, [card], _rng)
+	for s in card.stacks:
+		var uid: String = s["unit_type"].get("id", "")
+		assert_false(uid.ends_with("_enhanced"),
+			"R0: (강화) 유닛 없음 (%s)" % uid)
+		assert_false(uid in ["ml_sniper", "ml_artillery", "ml_walker", "ml_commander"],
+			"R0: 엘리트 유닛 없음 (%s)" % uid)
 
 
 # --- 전진기지 R4/R10: 반응 범위 확장 ---

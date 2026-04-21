@@ -493,23 +493,22 @@ def desc_train(p: dict) -> str:
     return f"{t} 훈련(계급+{n})"
 
 def desc_conscript(p: dict) -> str:
+    ## 2026-04-21 해석 B:
+    ##   count = "뽑기 횟수" (이전엔 "유닛 수"). 각 뽑기 = base pool uniform
+    ##   1 선택 → 유닛별 count (3/2/2/1/1/1) 만큼 추가. 평균 1.67 기/뽑기.
+    ##   enhanced_count: 앞 N 회 뽑기는 강화 변환 강제 (ml_outpost 용).
     t = resolve_target(p["target"])
     n = p["count"]
-    text = f"{t}에 징집 {n}기"
-    # enhanced_count: 강화 버전 유닛 수 (0 ≤ enhanced_count ≤ count).
-    # P1-1 migration (2026-04-17): 기존 'enhanced: partial/all' 문자열 필드를
-    # 이 수량 필드로 교체. 0이면 표기 생략, count와 같으면 '(전원 (강화))',
-    # 그 외엔 '(그중 N기는 (강화))'로 관계 명시.
-    # 호환: 기존 'enhanced: partial/all' entry가 남아있으면 관습대로 해석.
+    text = f"{t}에 징집 {n}회"
     eh = int(p.get("enhanced_count", 0))
     if "enhanced" in p and not eh:
         eh = 1 if p["enhanced"] == "partial" else (n if p["enhanced"] == "all" else 0)
     if eh <= 0:
         return text
     if eh >= n:
-        text += " (전원 (강화))" if n > 1 else " (강화)"
+        text += " (전원 강화 변환)" if n > 1 else " (강화 변환)"
     else:
-        text += f" (그중 {eh}기는 (강화))"
+        text += f" (앞 {eh}회 강화 변환)"
     return text
 
 def desc_rank_threshold(p: dict) -> str:
@@ -679,11 +678,6 @@ def desc_upgrade_shop_bonus(p: dict) -> str:
         parts.append(f"업그레이드 비용 -{disc} 테라진")
     return ", ".join(parts) if parts else "(효과 없음)"
 
-def desc_conscript_pool_tier(p: dict) -> str:
-    tier = p.get("tier", "enhanced")
-    tier_kr = {"enhanced": "(강화)", "elite": "정예"}.get(tier, tier)
-    return f"징집 풀에 {tier_kr} 유닛 추가"
-
 def desc_revive_scope_override(p: dict) -> str:
     t = resolve_target(p["target"])
     return f"부활 대상 확장 → {t}"
@@ -823,7 +817,6 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "grant_gold":              desc_grant_gold,
     "grant_terazin":           desc_grant_terazin,
     "upgrade_shop_bonus":      desc_upgrade_shop_bonus,
-    "conscript_pool_tier":     desc_conscript_pool_tier,
     "revive_scope_override":   desc_revive_scope_override,
     # ml_factory PC 재설계 (2026-04-21)
     "rank_scaled_enhance":     desc_rank_scaled_enhance,

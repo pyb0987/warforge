@@ -1,3 +1,34 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Conscript pool (2026-04-21 재설계, 해석 B):
+#   - 모든 징집은 이 base pool 에서 **동등 확률** 1종 뽑기 (이전 weight 가중
+#     랜덤 → uniform).
+#   - 뽑힌 유닛은 각 항목의 `count` 만큼 한번에 추가 (이전엔 항상 1기).
+#     즉 "신병 뽑히면 3기 (물량)", "바이커 뽑히면 2기", "저격 등 단일 유닛 1기".
+#   - R4 도달 카드 징집: ENHANCED_MAP 통해 강화 버전으로 자동 변환.
+#   - R10 도달 카드 징집: 기본 뽑기 + 엘리트 유닛 1기 보너스 (elite_units 에서).
+#   - 디자이너 튜닝 지점: 여기 count 값을 조정하면 유닛 공급량이 직접 변함.
+# ═══════════════════════════════════════════════════════════════════════════
+conscript_pool:
+- id: ml_recruit
+  count: 3
+- id: ml_drone
+  count: 2
+- id: ml_biker
+  count: 2
+- id: ml_infantry
+  count: 1
+- id: ml_shield
+  count: 1
+- id: ml_plasma
+  count: 1
+
+# R10 도달 시 기본 뽑기에 더해 이 목록에서 랜덤 1기 추가. 동등 확률.
+elite_units:
+- ml_sniper
+- ml_artillery
+- ml_walker
+- ml_commander
+
 cards:
   ml_barracks:
     name: 신병 훈련소
@@ -101,6 +132,12 @@ cards:
     - military
     - conscript
     impl: theme_system
+    # 2026-04-21 해석 B 재설계:
+    #   conscript.count = "뽑기 횟수" (이전 "유닛 수"). 각 뽑기는 base pool
+    #   uniform 1 선택 → 유닛별 count 만큼 추가. 평균 1.67 기/뽑기.
+    #   R4/R10 변환·엘리트 보너스는 runtime 이 source_card rank 로 자동 적용
+    #   (conscript_pool_tier action 제거됨 — pool tier 개념 사라짐).
+    #   ★별 self 뽑기 횟수: ★1 1 / ★2 2 / ★3 3.
     stars:
       1:
         effects:
@@ -111,17 +148,13 @@ cards:
               rank_gte: 4
             enhance_convert_card:
               fraction: 0.5
-            conscript_pool_tier:
-              tier: enhanced
           - when:
               rank_gte: 10
             enhance_convert_card:
               fraction: 1.0
-            conscript_pool_tier:
-              tier: elite
           conscript:
             target: self
-            count: 2
+            count: 1
       2:
         effects:
         - trigger_timing: RS
@@ -131,14 +164,10 @@ cards:
               rank_gte: 4
             enhance_convert_card:
               fraction: 0.5
-            conscript_pool_tier:
-              tier: enhanced
           - when:
               rank_gte: 10
             enhance_convert_card:
               fraction: 1.0
-            conscript_pool_tier:
-              tier: elite
           conscript:
           - target: self
             count: 2
@@ -159,14 +188,10 @@ cards:
               rank_gte: 4
             enhance_convert_card:
               fraction: 0.5
-            conscript_pool_tier:
-              tier: enhanced
           - when:
               rank_gte: 10
             enhance_convert_card:
               fraction: 1.0
-            conscript_pool_tier:
-              tier: elite
           conscript:
           - target: self
             count: 3
