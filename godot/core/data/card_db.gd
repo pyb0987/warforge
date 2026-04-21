@@ -3051,12 +3051,14 @@ func _register_military() -> void:
 				"trigger_timing": OE, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": CO,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [],
+			},
+			{
+				"trigger_timing": PC, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "counter_produce", "event": "CO", "threshold": 10, "rewards": {"global_military_atk_pct": 0.05}}
-				],
-				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]}
+					{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.02, "r4_hp_pct_per_rank": 0.02}
 				],
 			}
 		],
@@ -3071,12 +3073,14 @@ func _register_military() -> void:
 					"trigger_timing": OE, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": CO,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [],
+				},
+				{
+					"trigger_timing": PC, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "counter_produce", "event": "CO", "threshold": 8, "rewards": {"global_military_atk_pct": 0.07}}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]}
+						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.03, "r4_hp_pct_per_rank": 0.03}
 					],
 				}
 			],
@@ -3090,12 +3094,14 @@ func _register_military() -> void:
 					"trigger_timing": OE, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": CO,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [],
+				},
+				{
+					"trigger_timing": PC, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "counter_produce", "event": "CO", "threshold": 6, "rewards": {"global_military_atk_pct": 0.1, "global_military_range_bonus": 1}}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "enhance_convert_card", "fraction": 0.5}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "enhance_convert_card", "fraction": 1.0}, {"action": "upgrade_shop_bonus", "slot_delta": 1, "terazin_discount": 1}]}
+						{"action": "rank_scaled_enhance", "target": "conscripted_this_round", "atk_pct_per_rank": 0.04, "r4_hp_pct_per_rank": 0.04}
 					],
 				}
 			],

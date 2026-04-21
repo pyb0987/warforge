@@ -92,7 +92,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"ml_academy": return _academy(card, idx, board, event, rng)
 		"ml_outpost": return _conscript_react(card, idx, board, event, rng)
-		"ml_factory": return _factory(card, idx, board)
+		"ml_factory": return _factory_collect_co(card, event)
 	return Enums.empty_result()
 
 
@@ -108,8 +108,9 @@ func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionar
 
 func apply_post_combat(card: CardInstance, idx: int, board: Array,
 		won: bool) -> Dictionary:
-	if card.get_base_id() == "ml_supply":
-		return _supply_post(card, idx, board, won)
+	match card.get_base_id():
+		"ml_supply": return _supply_post(card, idx, board, won)
+		"ml_factory": return _factory_pc(card, board)
 	return Enums.empty_result()
 
 
@@ -1001,39 +1002,54 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _factory(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# 재설계(trace 012): rewards 구조 변경.
-	# 구 버전: {terazin: N, enhance_atk_pct: N} — 이 카드만 enhance.
-	# 신 버전: {global_military_atk_pct: N, global_military_range_bonus: N}
-	#          — 모든 군대 카드에 영구 ATK/Range 증가.
+## ml_factory OE 블록 (2026-04-21 재설계): CO 이벤트 발생 시 target 군대 카드를
+## `theme_state["conscripted_this_round"]` 집합에 기록. 카운터 누적은 제거.
+## 이 집합은 PC 블록에서 소비 후 초기화된다.
+func _factory_collect_co(card: CardInstance, event: Dictionary) -> Dictionary:
+	var target_idx: int = event.get("target_idx", -1)
+	if target_idx < 0:
+		return Enums.empty_result()
+	# Dictionary-as-set (GDScript 관용): key=target_idx, value=true.
+	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	coll[target_idx] = true
+	card.theme_state["conscripted_this_round"] = coll
+	return Enums.empty_result()
+
+
+## ml_factory PC 블록: 수집된 카드에 그 카드의 계급 × atk_pct_per_rank 만큼
+## ATK 영구 강화. ml_factory 자신 rank 4+ 이면 동일 비율로 HP 도 강화.
+## 적용 후 집합은 초기화 (다음 라운드 수집 준비).
+func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var prod_eff := _find_eff(effs, "counter_produce")
-	var threshold: int = prod_eff.get("threshold", 10)
-	var rewards: Dictionary = prod_eff.get("rewards", {})
+	var eff := _find_eff(effs, "rank_scaled_enhance")
+	if eff.is_empty():
+		return Enums.empty_result()
+	var atk_per_rank: float = eff.get("atk_pct_per_rank", 0.0)
+	var r4_hp_per_rank: float = eff.get("r4_hp_pct_per_rank", 0.0)
+	var apply_hp: bool = _rank(card) >= 4 and r4_hp_per_rank > 0.0
 
-	var counter: int = card.theme_state.get("conscript_counter", 0)
-	counter += 1
-
-	if counter >= threshold:
-		counter -= threshold
-		# 모든 군대 카드에 ATK 영구 증강 (card.enhance → growth_atk_pct 누적)
-		var global_atk: float = rewards.get("global_military_atk_pct", 0.0)
-		if global_atk > 0.0:
-			for mi in _military_indices(board):
-				(board[mi] as CardInstance).enhance(null, global_atk, 0.0)
-		# Range +N 영구 (★3 전용). card.upgrade_range는 업그레이드 시스템이
-		# 쓰는 필드이므로, 별도 theme_state["range_bonus"]에 누적해 _materialize_army에서 반영.
-		var range_bonus: int = int(rewards.get("global_military_range_bonus", 0))
-		if range_bonus > 0:
-			for mi in _military_indices(board):
-				var mc: CardInstance = board[mi]
-				mc.theme_state["range_bonus"] = mc.theme_state.get("range_bonus", 0) + range_bonus
-
-	card.theme_state["conscript_counter"] = counter
-
-	# R4/R10 milestone (enhance_convert_card; upgrade_shop_bonus는 Phase 4)
-	var r_events := _process_r_conditional(card, idx, board)
-	return {"events": r_events, "gold": 0, "terazin": 0}
+	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	for key in coll.keys():
+		var tgt_idx: int = int(key)
+		if tgt_idx < 0 or tgt_idx >= board.size():
+			continue
+		var target: CardInstance = board[tgt_idx] as CardInstance
+		if target == null:
+			continue
+		# Safety: CO 이벤트 대상은 군대 카드여야 함 (현재 파이프라인은 항상 그러하지만
+		# future-proofing: 다른 테마가 CO layer2 를 재사용할 경우 영향 격리).
+		if target.template.get("theme", -1) != Enums.CardTheme.MILITARY:
+			continue
+		var tgt_rank: int = _rank(target)
+		if tgt_rank <= 0:
+			continue
+		var atk_pct: float = float(tgt_rank) * atk_per_rank
+		var hp_pct: float = float(tgt_rank) * r4_hp_per_rank if apply_hp else 0.0
+		if atk_pct > 0.0 or hp_pct > 0.0:
+			target.enhance(null, atk_pct, hp_pct)
+	# 라운드 단위로 초기화 — 다음 라운드의 수집이 누수 없이 시작.
+	card.theme_state["conscripted_this_round"] = {}
+	return Enums.empty_result()
 
 
 # --- Battle hooks ---

@@ -772,6 +772,11 @@ cards:
     - military
     - supply
     impl: theme_system
+    # 2026-04-21 재설계: sp_charger 류 counter_produce 제거.
+    # 라운드 중 징집된 군대 카드를 OE block 이 수집 → PC block 이 각 카드의
+    # rank × atk_pct_per_rank 만큼 영구 증강. ml_factory 자신 rank 4+ 면
+    # 동일 비율로 HP 도 증강. r_conditional(R10 상점 보너스) 은 "정예 제조"
+    # 정체성에 집중하기 위해 제거.
     stars:
       1:
         effects:
@@ -779,79 +784,36 @@ cards:
           max_act: -1
           listen:
             l2: CO
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          counter_produce:
-            event: CO
-            threshold: 10
-            rewards:
-              global_military_atk_pct: 0.05
+        - trigger_timing: PC
+          max_act: -1
+          rank_scaled_enhance:
+            target: conscripted_this_round
+            atk_pct_per_rank: 0.02
+            r4_hp_pct_per_rank: 0.02
       2:
         effects:
         - trigger_timing: OE
           max_act: -1
           listen:
             l2: CO
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          counter_produce:
-            event: CO
-            threshold: 8
-            rewards:
-              global_military_atk_pct: 0.07
+        - trigger_timing: PC
+          max_act: -1
+          rank_scaled_enhance:
+            target: conscripted_this_round
+            atk_pct_per_rank: 0.03
+            r4_hp_pct_per_rank: 0.03
       3:
         effects:
         - trigger_timing: OE
           max_act: -1
           listen:
             l2: CO
-          r_conditional:
-          - when:
-              rank_gte: 4
-            enhance_convert_card:
-              fraction: 0.5
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          - when:
-              rank_gte: 10
-            enhance_convert_card:
-              fraction: 1.0
-            upgrade_shop_bonus:
-              slot_delta: 1
-              terazin_discount: 1
-          counter_produce:
-            event: CO
-            threshold: 6
-            rewards:
-              global_military_atk_pct: 0.1
-              global_military_range_bonus: 1
+        - trigger_timing: PC
+          max_act: -1
+          rank_scaled_enhance:
+            target: conscripted_this_round
+            atk_pct_per_rank: 0.04
+            r4_hp_pct_per_rank: 0.04
   ml_command:
     name: 통합 사령부
     tier: 5

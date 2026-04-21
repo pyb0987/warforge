@@ -158,34 +158,109 @@ func test_academy_star1_no_enhance() -> void:
 
 
 # ================================================================
-# ml_factory (OE): CONSCRIPT 카운터 누적, rewards 구조 변경 (terazin 제거)
+# ml_factory (OE+PC 2-block, 2026-04-21 재설계):
+#   OE: CO 이벤트의 target_idx 를 theme_state["conscripted_this_round"] 집합에 기록
+#   PC: 수집된 각 군대 카드에 (그 카드 rank) × atk_pct_per_rank 만큼 ATK 영구 강화
+#       ml_factory rank 4+ 이면 동일 비율로 HP 도 강화. 적용 후 집합 초기화.
 # ================================================================
 
-func test_factory_counter_increments() -> void:
+func test_factory_oe_collects_co_target_idx() -> void:
+	## OE: CO 이벤트의 target_idx 를 집합에 기록 (중복 제거는 Dictionary key 의 idempotence).
 	var card: CardInstance = CardInstance.create("ml_factory")
-	var event: Dictionary = _make_conscript_event(0, 0)
-	_sys.process_event_card(card, 0, [card], event, _rng)
-	assert_eq(card.theme_state.get("conscript_counter", 0), 1, "counter=1")
+	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 1), _rng)
+	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 2), _rng)
+	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 1), _rng)  # 중복
+	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	assert_eq(coll.size(), 2, "중복 제거 후 2개 idx 기록")
+	assert_true(coll.has(1), "target_idx=1 기록됨")
+	assert_true(coll.has(2), "target_idx=2 기록됨")
 
 
-func test_factory_at_10_resets_counter() -> void:
-	## 재설계: terazin 제거, global_military_atk_pct 적용. counter는 리셋만 확인.
-	var card: CardInstance = CardInstance.create("ml_factory")
-	card.theme_state["conscript_counter"] = 9
-	var event: Dictionary = _make_conscript_event(0, 0)
-	var result: Dictionary = _sys.process_event_card(card, 0, [card], event, _rng)
-	assert_eq(result["terazin"], 0, "재설계: terazin 지급 없음")
-	assert_eq(card.theme_state.get("conscript_counter", 0), 0, "counter 리셋 (10→0)")
+func test_factory_pc_enhances_conscripted_by_rank() -> void:
+	## ★1: rank 5 카드에 5 × 2% = 10% ATK 영구 강화.
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 5
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var board: Array = [factory, target]
+	var atk_before: float = target.get_total_atk()
+	_sys.apply_post_combat(factory, 0, board, true)
+	var atk_after: float = target.get_total_atk()
+	assert_almost_eq(atk_after / atk_before, 1.10, 0.01,
+		"rank 5 × 2% = 10% ATK 증강 비율")
 
 
-func test_factory_at_10_buffs_all_military_atk() -> void:
-	## ★1: counter 10 → global_military_atk_pct 0.05 → 모든 군대 카드 ATK +5% 영구.
-	var board: Array = [CardInstance.create("ml_factory"), CardInstance.create("ml_barracks")]
-	board[0].theme_state["conscript_counter"] = 9
-	var atk_before_board1: float = board[1].get_total_atk()
-	var event: Dictionary = _make_conscript_event(0, 0)
-	_sys.process_event_card(board[0], 0, board, event, _rng)
-	assert_gt(board[1].get_total_atk(), atk_before_board1, "군대 카드 ATK 증가")
+func test_factory_pc_r4_applies_hp_too() -> void:
+	## ml_factory rank 4+ 이면 대상 카드에 HP 도 rank × 2% 영구 강화.
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 4
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 10
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var board: Array = [factory, target]
+	var hp_before: float = target.get_total_hp()
+	_sys.apply_post_combat(factory, 0, board, true)
+	var hp_after: float = target.get_total_hp()
+	assert_almost_eq(hp_after / hp_before, 1.20, 0.01,
+		"rank 10 × 2% = 20% HP 증강 (ml_factory R4+ 조건 충족)")
+
+
+func test_factory_pc_r3_no_hp_buff() -> void:
+	## ml_factory rank 3 이면 HP 미증강 (ATK 만).
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 3
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 5
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var board: Array = [factory, target]
+	var hp_before: float = target.get_total_hp()
+	_sys.apply_post_combat(factory, 0, board, true)
+	assert_almost_eq(target.get_total_hp(), hp_before, 0.01,
+		"ml_factory rank 3 (< 4) → HP 증강 없음")
+
+
+func test_factory_pc_resets_collection_after_apply() -> void:
+	## PC 적용 후 집합 초기화 — 다음 라운드의 수집이 누수 없이 시작.
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 5
+	factory.theme_state["conscripted_this_round"] = {1: true, 2: true}
+	_sys.apply_post_combat(factory, 0, [factory, target, target], true)
+	var coll: Dictionary = factory.theme_state.get("conscripted_this_round", {})
+	assert_eq(coll.size(), 0, "PC 후 집합 초기화")
+
+
+func test_factory_pc_star_scaling() -> void:
+	## ★2 = 3%, ★3 = 4% per rank.
+	var factory2 := _make_star("ml_factory", 2)
+	var target2: CardInstance = CardInstance.create("ml_barracks")
+	target2.theme_state["rank"] = 10
+	factory2.theme_state["conscripted_this_round"] = {1: true}
+	var atk_before2: float = target2.get_total_atk()
+	_sys.apply_post_combat(factory2, 0, [factory2, target2], true)
+	assert_almost_eq(target2.get_total_atk() / atk_before2, 1.30, 0.01,
+		"★2: rank 10 × 3% = 30%")
+
+	var factory3 := _make_star("ml_factory", 3)
+	var target3: CardInstance = CardInstance.create("ml_barracks")
+	target3.theme_state["rank"] = 10
+	factory3.theme_state["conscripted_this_round"] = {1: true}
+	var atk_before3: float = target3.get_total_atk()
+	_sys.apply_post_combat(factory3, 0, [factory3, target3], true)
+	assert_almost_eq(target3.get_total_atk() / atk_before3, 1.40, 0.01,
+		"★3: rank 10 × 4% = 40%")
+
+
+func test_factory_pc_rank_zero_no_enhance() -> void:
+	## rank 0 대상은 증강 없음 (곱연산 결과 0).
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	# rank 설정 안 함 → 0
+	factory.theme_state["conscripted_this_round"] = {1: true}
+	var atk_before: float = target.get_total_atk()
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_almost_eq(target.get_total_atk(), atk_before, 0.01,
+		"rank 0 → 증강 없음")
 
 
 # ================================================================
@@ -683,43 +758,9 @@ func test_special_ops_r10_crit_chance_30_splash_50() -> void:
 		"R10: 스플래시 0.50")
 
 
-# --- 군수공장 ★ + R: counter reward + shop bonus ---
-
-func test_factory_r4_shop_bonus() -> void:
-	## R4: slot +1, -1 테라진.
-	var card: CardInstance = CardInstance.create("ml_factory")
-	card.theme_state["rank"] = 4
-	var bonus: Dictionary = MilitarySystem.get_factory_shop_bonus([card])
-	assert_eq(bonus["slot_delta"], 1, "R4: 상점 슬롯 +1")
-	assert_eq(bonus["terazin_discount"], 1, "R4: 할인 -1 테라진")
-
-
-func test_factory_r10_shop_bonus_cumulative() -> void:
-	## R10: slot +2 누적 (R4 +1 + R10 +1), -2 테라진 누적.
-	var card: CardInstance = CardInstance.create("ml_factory")
-	card.theme_state["rank"] = 10
-	var bonus: Dictionary = MilitarySystem.get_factory_shop_bonus([card])
-	assert_eq(bonus["slot_delta"], 2, "R10: 슬롯 +2 누적")
-	assert_eq(bonus["terazin_discount"], 2, "R10: 할인 -2 누적")
-
-
-func test_factory_r0_no_shop_bonus() -> void:
-	## R4 미만: 보너스 없음.
-	var card: CardInstance = CardInstance.create("ml_factory")
-	var bonus: Dictionary = MilitarySystem.get_factory_shop_bonus([card])
-	assert_eq(bonus["slot_delta"], 0, "R0: 슬롯 보너스 없음")
-	assert_eq(bonus["terazin_discount"], 0, "R0: 할인 없음")
-
-
-func test_factory_s3_counter_gives_range_bonus() -> void:
-	## ★3: counter 임계 도달 시 모든 군대 카드에 range +1 영구.
-	var card := _make_star("ml_factory", 3)
-	var ally: CardInstance = CardInstance.create("ml_barracks")
-	card.theme_state["conscript_counter"] = 5  # 다음 이벤트에 6 → threshold 도달
-	var event: Dictionary = _make_conscript_event(0, 0)
-	_sys.process_event_card(card, 0, [card, ally], event, _rng)
-	assert_eq(ally.theme_state.get("range_bonus", 0), 1, "★3: range_bonus +1")
-
+# 군수공장 R4/R10 shop bonus + counter_produce range bonus 테스트 제거
+# (2026-04-21 재설계). shop_bonus / range_bonus / global_military_atk_pct 모두
+# 신 메카닉(rank_scaled_enhance)으로 대체됨.
 
 # --- 통합사령부 R4/R10 (YAML scope override — _materialize_army에서 평가) ---
 
@@ -937,11 +978,6 @@ func test_common_r4_special_ops() -> void:
 	_assert_r4_converts_half("ml_special_ops")
 
 
-func test_common_r4_factory() -> void:
-	## 군수공장 comp는 궤도포대×1 + 저격드론×1 (둘 다 엘리트). no-op.
-	_assert_r4_converts_half("ml_factory")
-
-
 func test_common_r4_command() -> void:
 	## 통합사령부 comp는 지휘관×1 + 워커×1 + 포대×1 (모두 엘리트). no-op.
 	_assert_r4_converts_half("ml_command")
@@ -973,10 +1009,6 @@ func test_common_r10_assault() -> void:
 
 func test_common_r10_special_ops() -> void:
 	_assert_r10_converts_all("ml_special_ops")
-
-
-func test_common_r10_factory() -> void:
-	_assert_r10_converts_all("ml_factory")
 
 
 func test_common_r10_command() -> void:
