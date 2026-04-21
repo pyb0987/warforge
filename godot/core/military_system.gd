@@ -930,25 +930,47 @@ func _academy(card: CardInstance, idx: int, board: Array,
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
+## ml_outpost OE 반응 (2026-04-21 재설계):
+##   r_conditional (R4/R10 확장 + enhanced_count 강제 변환) 제거.
+##   ★1: event_target 에 징집 1 회 (강화 없음)
+##   ★2: self 에 징집 1 회 (rank_upgrade) + event_target 에 징집 1 회
+##   ★3: self 에 징집 2 회 + 훈련 1 회, event_target 에 징집 2 회 + 훈련 1 회
+##   (require_other: true 로 자기 CO 체인 차단, C6)
 func _conscript_react(card: CardInstance, idx: int, board: Array,
 		event: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var target_idx: int = event.get("target_idx", -1)
 	if target_idx < 0 or target_idx >= board.size():
 		return Enums.empty_result()
-
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var con_eff := _find_eff(effs, "conscript", "event_target")
-	var add_n: int = con_eff.get("count", 1)
-	var enh_n: int = int(con_eff.get("enhanced_count", 0))
-
 	var target: CardInstance = board[target_idx]
-	# ml_outpost OE 반응: source_card=null (호출자 rank 반영 안 함, enhanced_count
-	# 로 앞 N 회 뽑기만 강화 변환).
-	_conscript(target, add_n, rng, null, enh_n)
-	var events: Array = [_conscript_evt(idx, target_idx)]
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var events: Array = []
 
-	# R4/R10 milestone (enhance_convert_card + 반응 범위 확장 event_target_adj/far_event_military)
-	events.append_array(_process_r_conditional(card, idx, board, event, rng))
+	# 모든 conscript action 순회 (self + event_target 두 target 가능).
+	for eff in effs:
+		if eff.get("action", "") != "conscript":
+			continue
+		var t_name: String = eff.get("target", "")
+		var tries: int = int(eff.get("count", 1))
+		var rank_up: bool = bool(eff.get("rank_upgrade", false))
+		var enh_n: int = int(eff.get("enhanced_count", 0))
+		var src = card if rank_up else null
+		if t_name == "self":
+			_conscript(card, tries, rng, src, enh_n)
+			events.append(_conscript_evt(idx, idx))
+		elif t_name == "event_target":
+			_conscript(target, tries, rng, src, enh_n)
+			events.append(_conscript_evt(idx, target_idx))
+
+	# 모든 train action 순회 (★3 self + event_target 훈련).
+	for eff in effs:
+		if eff.get("action", "") != "train":
+			continue
+		var t_name: String = eff.get("target", "")
+		var amount: int = int(eff.get("amount", 1))
+		if t_name == "self":
+			events.append_array(_train_card(card, idx, amount))
+		elif t_name == "event_target":
+			events.append_array(_train_card(target, target_idx, amount))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 

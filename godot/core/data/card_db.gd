@@ -2662,7 +2662,7 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true},
+						{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true},
 						{"action": "conscript", "target": "both_adj", "count": 1, "rank_upgrade": true}
 					],
 				}
@@ -2700,10 +2700,6 @@ func _register_military() -> void:
 				"trigger_layer1": -1, "trigger_layer2": CO,
 				"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 				"actions": [{"action": "conscript", "target": "event_target", "count": 1}],
-				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1}]}
-				],
 			}
 		],
 		out_tags,
@@ -2714,15 +2710,12 @@ func _register_military() -> void:
 				"card_tags": out_tags,
 				"effects": [
 				{
-					"trigger_timing": OE, "max_activations": 3,
+					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": CO,
 					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 1}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
+						{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true},
+						{"action": "conscript", "target": "event_target", "count": 1}
 					],
 				}
 			],
@@ -2733,15 +2726,14 @@ func _register_military() -> void:
 				"card_tags": out_tags,
 				"effects": [
 				{
-					"trigger_timing": OE, "max_activations": 3,
+					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": CO,
 					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 2}
-					],
-					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1, "enhanced_count": 1}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "conscript", "target": "far_event_military", "count": 1, "enhanced_count": 1}]}
+						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true},
+						{"action": "conscript", "target": "event_target", "count": 2},
+						{"action": "train", "target": "self", "amount": 1},
+						{"action": "train", "target": "event_target", "amount": 1}
 					],
 				}
 			],

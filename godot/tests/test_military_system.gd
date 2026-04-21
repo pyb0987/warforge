@@ -101,13 +101,36 @@ func test_conscript_star3_self_adds_more() -> void:
 # ml_outpost (T2 OE 반응 증폭, 스왑 후 이전 _conscript_react 역할)
 # ================================================================
 
-func test_outpost_react_adds_unit_to_target() -> void:
-	## ★1: CONSCRIPT 이벤트 감지 → event_target에 1기 징집 추가.
+func test_outpost_s1_react_adds_units_to_target() -> void:
+	## ★1: CO 이벤트 감지 → event_target 에 징집 1 회. 해석 B 로 유닛 1~3 기 추가.
 	var board: Array = [CardInstance.create("ml_outpost"), CardInstance.create("ml_conscript")]
 	var before: int = board[1].get_total_units()
-	var event: Dictionary = _make_conscript_event(0, 1)
+	var event: Dictionary = _make_conscript_event(9, 1)  # 외부 source idx=9
 	_sys.process_event_card(board[0], 0, board, event, _rng)
-	assert_eq(board[1].get_total_units(), before + 1, "target +1 징집")
+	var added: int = board[1].get_total_units() - before
+	assert_between(added, 1, 3, "★1 event_target 징집 1 회 → 1~3 기 추가")
+
+
+func test_outpost_s2_reacts_with_self_and_event_target() -> void:
+	## ★2: self 에도 징집 (rank_upgrade) + event_target 에도 징집.
+	var board: Array = [_make_star("ml_outpost", 2), CardInstance.create("ml_conscript")]
+	var before_self: int = board[0].get_total_units()
+	var before_target: int = board[1].get_total_units()
+	var event: Dictionary = _make_conscript_event(9, 1)
+	_sys.process_event_card(board[0], 0, board, event, _rng)
+	assert_gt(board[0].get_total_units(), before_self, "★2 self 징집 발동")
+	assert_gt(board[1].get_total_units(), before_target, "★2 event_target 징집 발동")
+
+
+func test_outpost_s3_adds_train_events() -> void:
+	## ★3: self 에 훈련 1 회 (+ event_target 도 훈련 1). rank 증가 확인.
+	var board: Array = [_make_star("ml_outpost", 3), CardInstance.create("ml_conscript")]
+	var before_self_rank: int = board[0].theme_state.get("rank", 0)
+	var before_target_rank: int = board[1].theme_state.get("rank", 0)
+	var event: Dictionary = _make_conscript_event(9, 1)
+	_sys.process_event_card(board[0], 0, board, event, _rng)
+	assert_eq(board[0].theme_state.get("rank", 0), before_self_rank + 1, "★3 self rank +1")
+	assert_eq(board[1].theme_state.get("rank", 0), before_target_rank + 1, "★3 target rank +1")
 
 
 # ================================================================
@@ -522,41 +545,10 @@ func test_conscript_r0_no_enhanced_no_elite() -> void:
 			"R0: 엘리트 유닛 없음 (%s)" % uid)
 
 
-# --- 전진기지 R4/R10: 반응 범위 확장 ---
-
-func test_outpost_r4_reinforces_event_target_adj() -> void:
-	## R4: event_target + 그 양옆 인접도 증원.
-	var board: Array = [
-		CardInstance.create("ml_barracks"),   # target 양옆
-		CardInstance.create("ml_supply"),     # event_target (idx=1)
-		CardInstance.create("ml_outpost"),    # 반응자 (idx=2)
-		CardInstance.create("ml_conscript"),  # target 양옆
-	]
-	board[2].theme_state["rank"] = 4
-	var before_left: int = board[0].get_total_units()
-	var before_right: int = board[3].get_total_units()  # 거리 멀어도 event_target_adj이면 OK. 이 경우 idx 0,2.
-	# event_target=1, adjacents=0,2. outpost(2) 자체도 adj. 0(=barracks)이 event_target_adj.
-	var event: Dictionary = _make_conscript_event(1, 1)
-	_sys.process_event_card(board[2], 2, board, event, _rng)
-	var added_left: int = board[0].get_total_units() - before_left
-	# event_target_adj → board[0] 은 adj, board[2]도 adj이지만 self이므로 제외 여부는 resolve에 따름.
-	assert_gte(added_left, 1, "R4: event_target의 양옆 (board[0]) 증원")
-
-
-func test_outpost_r10_reinforces_far_event_military() -> void:
-	## R10: event_target/인접 제외한 나머지 군대 카드에 증원.
-	var board: Array = [
-		CardInstance.create("ml_barracks"),   # idx=0 (far)
-		CardInstance.create("ml_supply"),     # idx=1 (event_target)
-		CardInstance.create("ml_outpost"),    # idx=2 (반응자, event_target_adj)
-		CardInstance.create("ml_conscript"),  # idx=3 (far)
-	]
-	board[2].theme_state["rank"] = 10
-	var before_3: int = board[3].get_total_units()
-	var event: Dictionary = _make_conscript_event(1, 1)
-	_sys.process_event_card(board[2], 2, board, event, _rng)
-	# far_event_military = event_target(1)과 그 인접(0,2) 제외 → board[3]만 포함.
-	assert_gt(board[3].get_total_units(), before_3, "R10: far 카드(board[3]) 증원")
+# ml_outpost R4/R10 확장 범위 테스트 제거 (2026-04-21 C7).
+# r_conditional (event_target_adj / far_event_military) 폐기됨 — 이제 ★별
+# 단일 구조 (★1 event_target, ★2 self+event_target, ★3 상기 + 훈련 1회).
+# 새 ★별 테스트는 위 test_outpost_s{1,2,3}_* 에 있음.
 
 
 # --- 군사학교 R4/R10: 훈련 이벤트 반응 ---
