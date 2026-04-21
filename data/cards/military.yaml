@@ -773,21 +773,22 @@ cards:
     - supply
     impl: theme_system
     # 2026-04-21 재설계: sp_charger 류 counter_produce 제거.
-    # 라운드 중 징집된 군대 카드를 OE block 이 수집 → PC block 이 각 카드의
-    # rank × atk_pct_per_rank 만큼 영구 증강. ml_factory 자신 rank 4+ 면
-    # 동일 비율로 HP 도 증강. r_conditional(R10 상점 보너스) 은 "정예 제조"
-    # 정체성에 집중하기 위해 제거.
+    # 라운드 중 훈련된 군대 카드를 OE block(listen TR) 이 수집 → PC block 이
+    # 각 카드의 rank × atk_pct_per_rank 만큼 영구 증강. ml_factory 자신
+    # rank 4+ 면 HP, rank 10+ 면 AS 도 동일 비율. PC 시점에 자신 rank +1
+    # (self-train, 이벤트 재방출 없음). r_conditional(R10 상점 보너스) 은
+    # "정예 제조" 정체성에 집중하기 위해 제거.
     stars:
       1:
         effects:
         - trigger_timing: OE
           max_act: -1
           listen:
-            l2: CO
+            l2: TR
         - trigger_timing: PC
           max_act: -1
           rank_scaled_enhance:
-            target: conscripted_this_round
+            target: trained_this_round
             atk_pct_per_rank: 0.02
             r4_hp_pct_per_rank: 0.02
             r10_as_pct_per_rank: 0.02
@@ -796,11 +797,11 @@ cards:
         - trigger_timing: OE
           max_act: -1
           listen:
-            l2: CO
+            l2: TR
         - trigger_timing: PC
           max_act: -1
           rank_scaled_enhance:
-            target: conscripted_this_round
+            target: trained_this_round
             atk_pct_per_rank: 0.03
             r4_hp_pct_per_rank: 0.03
             r10_as_pct_per_rank: 0.03
@@ -809,11 +810,11 @@ cards:
         - trigger_timing: OE
           max_act: -1
           listen:
-            l2: CO
+            l2: TR
         - trigger_timing: PC
           max_act: -1
           rank_scaled_enhance:
-            target: conscripted_this_round
+            target: trained_this_round
             atk_pct_per_rank: 0.05
             r4_hp_pct_per_rank: 0.05
             r10_as_pct_per_rank: 0.05

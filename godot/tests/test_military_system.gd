@@ -159,21 +159,52 @@ func test_academy_star1_no_enhance() -> void:
 
 # ================================================================
 # ml_factory (OE+PC 2-block, 2026-04-21 재설계):
-#   OE: CO 이벤트의 target_idx 를 theme_state["conscripted_this_round"] 집합에 기록
+#   OE: TR 이벤트의 target_idx 를 theme_state["trained_this_round"] 집합에 기록
 #   PC: 수집된 각 군대 카드에 (그 카드 rank) × atk_pct_per_rank 만큼 ATK 영구 강화
-#       ml_factory rank 4+ 이면 동일 비율로 HP 도 강화. 적용 후 집합 초기화.
+#       ml_factory rank 4+ 이면 HP, rank 10+ 이면 AS 도 동일 비율. 적용 후 집합 초기화.
+#       추가로 자신 rank +1 (self-train, 이벤트 방출 없음).
 # ================================================================
 
-func test_factory_oe_collects_co_target_idx() -> void:
-	## OE: CO 이벤트의 target_idx 를 집합에 기록 (중복 제거는 Dictionary key 의 idempotence).
+func test_factory_oe_collects_tr_target_idx() -> void:
+	## OE: TR 이벤트의 target_idx 를 집합에 기록 (중복 제거는 Dictionary key 의 idempotence).
 	var card: CardInstance = CardInstance.create("ml_factory")
-	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 1), _rng)
-	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 2), _rng)
-	_sys.process_event_card(card, 0, [card], _make_conscript_event(0, 1), _rng)  # 중복
-	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	_sys.process_event_card(card, 0, [card], _make_train_event(0, 1), _rng)
+	_sys.process_event_card(card, 0, [card], _make_train_event(0, 2), _rng)
+	_sys.process_event_card(card, 0, [card], _make_train_event(0, 1), _rng)  # 중복
+	var coll: Dictionary = card.theme_state.get("trained_this_round", {})
 	assert_eq(coll.size(), 2, "중복 제거 후 2개 idx 기록")
 	assert_true(coll.has(1), "target_idx=1 기록됨")
 	assert_true(coll.has(2), "target_idx=2 기록됨")
+
+
+func test_factory_pc_self_trains_rank_plus_one() -> void:
+	## PC 마다 자신 rank +1 (self-train, 이벤트 방출 없음).
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 3
+	_sys.apply_post_combat(factory, 0, [factory], true)
+	assert_eq(factory.theme_state.get("rank", 0), 4,
+		"PC 후 rank 3 → 4 (+1)")
+
+
+func test_factory_pc_self_train_crosses_r4_gate_next_round() -> void:
+	## 자체 rank +1 이 R4 게이트 충족으로 이어지는지 (rank 3 → 4 → 다음 라운드 HP 활성화).
+	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 3
+	# Round N PC: rank 3 상태로 수집된 카드에 ATK 만 적용 → 자신 rank 3→4
+	var target: CardInstance = CardInstance.create("ml_barracks")
+	target.theme_state["rank"] = 5
+	factory.theme_state["trained_this_round"] = {1: true}
+	var hp_before_r3: float = target.get_total_hp()
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_almost_eq(target.get_total_hp(), hp_before_r3, 0.01,
+		"Round N: 자신 rank 3 — HP 증강 없음 (PC 중 self-train 은 target 증강 후에 실행)")
+	assert_eq(factory.theme_state.get("rank", 0), 4, "PC 후 rank 4 승격")
+	# Round N+1 PC: rank 4 로 HP 도 적용
+	factory.theme_state["trained_this_round"] = {1: true}
+	var hp_before_r4: float = target.get_total_hp()
+	_sys.apply_post_combat(factory, 0, [factory, target], true)
+	assert_gt(target.get_total_hp(), hp_before_r4,
+		"Round N+1: rank 4 — HP 도 증강 활성화")
 
 
 func test_factory_pc_enhances_conscripted_by_rank() -> void:
@@ -181,7 +212,7 @@ func test_factory_pc_enhances_conscripted_by_rank() -> void:
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 5
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var atk_before: float = target.get_total_atk()
 	_sys.apply_post_combat(factory, 0, board, true)
@@ -196,7 +227,7 @@ func test_factory_pc_r4_applies_hp_too() -> void:
 	factory.theme_state["rank"] = 4
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 10
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var hp_before: float = target.get_total_hp()
 	_sys.apply_post_combat(factory, 0, board, true)
@@ -211,7 +242,7 @@ func test_factory_pc_r3_no_hp_buff() -> void:
 	factory.theme_state["rank"] = 3
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 5
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var hp_before: float = target.get_total_hp()
 	_sys.apply_post_combat(factory, 0, board, true)
@@ -224,9 +255,9 @@ func test_factory_pc_resets_collection_after_apply() -> void:
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 5
-	factory.theme_state["conscripted_this_round"] = {1: true, 2: true}
+	factory.theme_state["trained_this_round"] = {1: true, 2: true}
 	_sys.apply_post_combat(factory, 0, [factory, target, target], true)
-	var coll: Dictionary = factory.theme_state.get("conscripted_this_round", {})
+	var coll: Dictionary = factory.theme_state.get("trained_this_round", {})
 	assert_eq(coll.size(), 0, "PC 후 집합 초기화")
 
 
@@ -235,7 +266,7 @@ func test_factory_pc_star_scaling() -> void:
 	var factory2 := _make_star("ml_factory", 2)
 	var target2: CardInstance = CardInstance.create("ml_barracks")
 	target2.theme_state["rank"] = 10
-	factory2.theme_state["conscripted_this_round"] = {1: true}
+	factory2.theme_state["trained_this_round"] = {1: true}
 	var atk_before2: float = target2.get_total_atk()
 	_sys.apply_post_combat(factory2, 0, [factory2, target2], true)
 	assert_almost_eq(target2.get_total_atk() / atk_before2, 1.30, 0.01,
@@ -244,7 +275,7 @@ func test_factory_pc_star_scaling() -> void:
 	var factory3 := _make_star("ml_factory", 3)
 	var target3: CardInstance = CardInstance.create("ml_barracks")
 	target3.theme_state["rank"] = 10
-	factory3.theme_state["conscripted_this_round"] = {1: true}
+	factory3.theme_state["trained_this_round"] = {1: true}
 	var atk_before3: float = target3.get_total_atk()
 	_sys.apply_post_combat(factory3, 0, [factory3, target3], true)
 	assert_almost_eq(target3.get_total_atk() / atk_before3, 1.50, 0.01,
@@ -258,7 +289,7 @@ func test_factory_pc_r10_applies_as_buff() -> void:
 	factory.theme_state["rank"] = 10
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 10
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.upgrade_as_mult, as_before / 1.20, 0.001,
@@ -271,7 +302,7 @@ func test_factory_pc_r9_no_as_buff() -> void:
 	factory.theme_state["rank"] = 9
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 10
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.upgrade_as_mult, as_before, 0.001,
@@ -284,7 +315,7 @@ func test_factory_pc_star3_r10_as_rate() -> void:
 	factory.theme_state["rank"] = 10
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	target.theme_state["rank"] = 10
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.upgrade_as_mult, as_before / 1.50, 0.001,
@@ -296,7 +327,7 @@ func test_factory_pc_rank_zero_no_enhance() -> void:
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	var target: CardInstance = CardInstance.create("ml_barracks")
 	# rank 설정 안 함 → 0
-	factory.theme_state["conscripted_this_round"] = {1: true}
+	factory.theme_state["trained_this_round"] = {1: true}
 	var atk_before: float = target.get_total_atk()
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.get_total_atk(), atk_before, 0.01,

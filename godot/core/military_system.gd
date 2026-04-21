@@ -92,7 +92,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"ml_academy": return _academy(card, idx, board, event, rng)
 		"ml_outpost": return _conscript_react(card, idx, board, event, rng)
-		"ml_factory": return _factory_collect_co(card, event)
+		"ml_factory": return _factory_collect_tr(card, event)
 	return Enums.empty_result()
 
 
@@ -1002,24 +1002,26 @@ func _conscript_react(card: CardInstance, idx: int, board: Array,
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-## ml_factory OE 블록 (2026-04-21 재설계): CO 이벤트 발생 시 target 군대 카드를
-## `theme_state["conscripted_this_round"]` 집합에 기록. 카운터 누적은 제거.
-## 이 집합은 PC 블록에서 소비 후 초기화된다.
-func _factory_collect_co(card: CardInstance, event: Dictionary) -> Dictionary:
+## ml_factory OE 블록 (2026-04-21 재설계): TR 이벤트 발생 시 target 군대 카드를
+## `theme_state["trained_this_round"]` 집합에 기록. 이 집합은 PC 블록에서
+## 소비 후 초기화된다. listen l2=TR 변경 배경: CO 소스가 2장뿐이라 활용도가
+## 낮았음. rank 기반 보상은 훈련(계급 축적)과 의미상 직결되므로 TR 수집이 정합.
+func _factory_collect_tr(card: CardInstance, event: Dictionary) -> Dictionary:
 	var target_idx: int = event.get("target_idx", -1)
 	if target_idx < 0:
 		return Enums.empty_result()
 	# Dictionary-as-set (GDScript 관용): key=target_idx, value=true.
-	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	var coll: Dictionary = card.theme_state.get("trained_this_round", {})
 	coll[target_idx] = true
-	card.theme_state["conscripted_this_round"] = coll
+	card.theme_state["trained_this_round"] = coll
 	return Enums.empty_result()
 
 
 ## ml_factory PC 블록: 수집된 카드에 그 카드의 계급 × atk_pct_per_rank 만큼
 ## ATK 영구 강화. ml_factory 자신 rank 4+ 이면 동일 비율로 HP 도 강화.
 ## rank 10+ 이면 동일 비율로 AS 도 강화 (공격 속도 = upgrade_as_mult 값 감소).
-## 적용 후 집합은 초기화 (다음 라운드 수집 준비).
+## 적용 후: 집합 초기화 + 자신 rank +1 (self-train, 이벤트 재방출 없음 —
+## 자기 참조 무한 체인 차단).
 func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "rank_scaled_enhance")
@@ -1032,7 +1034,7 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 	var apply_hp: bool = self_rank >= 4 and r4_hp_per_rank > 0.0
 	var apply_as: bool = self_rank >= 10 and r10_as_per_rank > 0.0
 
-	var coll: Dictionary = card.theme_state.get("conscripted_this_round", {})
+	var coll: Dictionary = card.theme_state.get("trained_this_round", {})
 	for key in coll.keys():
 		var tgt_idx: int = int(key)
 		if tgt_idx < 0 or tgt_idx >= board.size():
@@ -1040,8 +1042,8 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 		var target: CardInstance = board[tgt_idx] as CardInstance
 		if target == null:
 			continue
-		# Safety: CO 이벤트 대상은 군대 카드여야 함 (현재 파이프라인은 항상 그러하지만
-		# future-proofing: 다른 테마가 CO layer2 를 재사용할 경우 영향 격리).
+		# Safety: TR 이벤트 대상은 군대 카드여야 함 (현재 파이프라인은 항상 그러하지만
+		# future-proofing: 다른 테마가 TR layer2 를 재사용할 경우 영향 격리).
 		if target.template.get("theme", -1) != Enums.CardTheme.MILITARY:
 			continue
 		var tgt_rank: int = _rank(target)
@@ -1059,7 +1061,10 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 				target.upgrade_as_mult /= as_divisor
 				target.stats_changed.emit()
 	# 라운드 단위로 초기화 — 다음 라운드의 수집이 누수 없이 시작.
-	card.theme_state["conscripted_this_round"] = {}
+	card.theme_state["trained_this_round"] = {}
+	# Self-train: 전투 종료마다 자신 rank +1 (이벤트 방출 없음).
+	# 매 라운드 확정 +1 → R4 4R, R10 10R. 다른 카드의 훈련 대상이 되면 더 빠름.
+	_add_rank(card, 1)
 	return Enums.empty_result()
 
 

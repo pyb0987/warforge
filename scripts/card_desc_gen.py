@@ -110,8 +110,8 @@ TARGET = {
     "self_enhanced":     "이 카드 (강화) 유닛",
     "self_all":          "이 카드 모든 유닛",
     "self_and_adj_all":  "이 카드 + 양쪽 인접 카드 모든 유닛",
-    # Military factory PC target (2026-04-21): "이번 라운드 CO 이벤트가 있던 군대 카드들"
-    "conscripted_this_round": "이번 라운드 징집된 각 군대 카드",
+    # Military factory PC target (2026-04-21): "이번 라운드 TR 이벤트가 있던 군대 카드들"
+    "trained_this_round": "이번 라운드 훈련된 각 군대 카드",
 }
 
 TAG_KR = {
@@ -579,11 +579,12 @@ def desc_counter_produce(p: dict) -> str:
 
 
 def desc_rank_scaled_enhance(p: dict) -> str:
-    ## ml_factory (2026-04-21 재설계). PC 타이밍에 "이번 라운드 징집된"
-    ## (= 이번 라운드에 CO 이벤트가 1회+ 발생한) 군대 카드들 각각에
+    ## ml_factory (2026-04-21 재설계). PC 타이밍에 "이번 라운드 훈련된"
+    ## (= 이번 라운드에 TR 이벤트가 1회+ 발생한) 군대 카드들 각각에
     ## (그 카드의 계급) × atk_pct_per_rank 만큼 ATK 영구 강화.
     ## ml_factory 자신 rank 4+ 일 때 동일 비율 HP 강화, rank 10+ 일 때
     ## 동일 비율 AS 강화(공격 속도 향상) 가 붙는다.
+    ## 추가로 자신의 계급 +1 (self-train, 이벤트 방출 없음).
     target = resolve_target(p.get("target", ""))
     atk_pct = p.get("atk_pct_per_rank", 0.0)
     r4_hp_pct = p.get("r4_hp_pct_per_rank", 0.0)
@@ -596,6 +597,7 @@ def desc_rank_scaled_enhance(p: dict) -> str:
         gates.append(f"계급 10+: AS 도 동일 비율")
     if gates:
         s += f" ({', '.join(gates)})"
+    s += ". 이 카드 계급 +1"
     return s
 
 
