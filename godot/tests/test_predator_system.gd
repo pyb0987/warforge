@@ -166,21 +166,19 @@ func test_apex_hunt_metamorphosis_and_buff() -> void:
 
 
 # ================================================================
-# pr_transcend (RS): hatch 3 self + 전체 포식종 1기씩
+# pr_transcend (2026-04-21 개편): RS 부화 완전 제거, PERSISTENT 제거.
+# 다른 카드의 HA/MT 이벤트 OE 반응 + 반응 시 본카드 ATK +3% 영구 성장.
 # ================================================================
 
-func test_transcend_hatches_3_on_self() -> void:
+func test_transcend_no_rs_effect() -> void:
+	## RS 핸들러 제거. process_rs_card 호출해도 아무 변화 없어야.
 	var card: CardInstance = CardInstance.create("pr_transcend")
-	var before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 3, "self +3")
-
-
-func test_transcend_hatches_1_on_other_predators() -> void:
-	var board: Array = [CardInstance.create("pr_transcend"), CardInstance.create("pr_farm")]
-	var before: int = board[1].get_total_units()
-	_sys.process_rs_card(board[0], 0, board, _rng)
-	assert_eq(board[1].get_total_units(), before + 1, "다른 포식종 +1")
+	var board: Array = [card, CardInstance.create("pr_farm")]
+	var self_before: int = card.get_total_units()
+	var other_before: int = board[1].get_total_units()
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_eq(card.get_total_units(), self_before, "RS → self 변화 없음")
+	assert_eq(board[1].get_total_units(), other_before, "RS → 다른 카드 변화 없음")
 
 
 # ================================================================
@@ -259,25 +257,7 @@ func test_apex_hunt_s3_consume_1_mult_2x() -> void:
 # ★2/★3 군체 초월 (RS hatch amounts)
 # ================================================================
 
-func test_transcend_s2_hatch_4_self_2_other() -> void:
-	## ★2: self_n=4, all_n=2 (★1은 3/1)
-	var card := _make_star("pr_transcend", 2)
-	var other: CardInstance = CardInstance.create("pr_queen")
-	var self_before: int = card.get_total_units()
-	var other_before: int = other.get_total_units()
-	_sys.process_rs_card(card, 0, [card, other], _rng)
-	assert_eq(card.get_total_units(), self_before + 4, "★2 self hatch 4")
-	assert_eq(other.get_total_units(), other_before + 2, "★2 other hatch 2")
-
-
-func test_transcend_s3_no_auto_meta_on_rs() -> void:
-	## 2026-04-21 개편: ★3 RS 에서 자기 변태(meta_consume) 제거.
-	## hatch 4 self + 2 other 만. 자기 변태는 OE MT 반응으로 이관.
-	var card := _make_star("pr_transcend", 3)
-	var before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 4,
-		"★3 RS self +4 only (meta_consume 제거됨)")
+## (구 ★2/★3 RS 테스트 제거 — RS 효과 자체가 사라짐)
 
 
 # ================================================================
@@ -332,3 +312,42 @@ func test_transcend_s3_oe_meta_count_2() -> void:
 	_sys.process_event_card(card, 0, [card], event, _rng)
 	assert_eq(card.get_total_units(), before,
 		"★3 MT 이벤트 → 변태 2회 (net 0)")
+
+
+func test_transcend_oe_ha_grows_atk_3pct() -> void:
+	## HA 반응 → 본카드 ATK +3% 영구 성장.
+	var card: CardInstance = CardInstance.create("pr_transcend")
+	var event := {"layer1": Enums.Layer1.UNIT_ADDED,
+		"layer2": Enums.Layer2.HATCH,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001,
+		"HA 반응 1회 → growth_atk_pct = 0.03")
+
+
+func test_transcend_oe_mt_grows_atk_3pct() -> void:
+	## MT 반응 → 본카드 ATK +3% 영구 성장 (블록 1회 발동당 +3%,
+	## 변태 횟수와 무관).
+	var card: CardInstance = CardInstance.create("pr_transcend")
+	var event := {"layer1": Enums.Layer1.ENHANCED,
+		"layer2": Enums.Layer2.METAMORPHOSIS,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001,
+		"MT 반응 1회 → growth_atk_pct = 0.03")
+
+
+func test_transcend_oe_stacks_growth_across_events() -> void:
+	## HA + HA + MT = 총 3회 발동 → +9% 누적 (0.03 × 3).
+	var card: CardInstance = CardInstance.create("pr_transcend")
+	var ha_event := {"layer1": Enums.Layer1.UNIT_ADDED,
+		"layer2": Enums.Layer2.HATCH,
+		"source_idx": 1, "target_idx": 0}
+	var mt_event := {"layer1": Enums.Layer1.ENHANCED,
+		"layer2": Enums.Layer2.METAMORPHOSIS,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], ha_event, _rng)
+	_sys.process_event_card(card, 0, [card], ha_event, _rng)
+	_sys.process_event_card(card, 0, [card], mt_event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.09, 0.001,
+		"HA+HA+MT → 누적 0.09")

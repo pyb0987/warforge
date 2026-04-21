@@ -508,16 +508,6 @@ cards:
     stars:
       1:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          hatch:
-          - target: self
-            count: 3
-          - target: all_predator
-            count: 1
-          persistent:
-            death_atk_bonus: 0.03
-            kill_hp_recover: 0.1
         - trigger_timing: OE
           max_act: 3
           listen:
@@ -526,6 +516,10 @@ cards:
           hatch:
             target: self
             count: 1
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
         - trigger_timing: OE
           max_act: 3
           listen:
@@ -533,18 +527,12 @@ cards:
           require_other: true
           meta_consume:
             consume: 1
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
       2:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          hatch:
-          - target: self
-            count: 4
-          - target: all_predator
-            count: 2
-          persistent:
-            death_atk_bonus: 0.05
-            kill_hp_recover: 0.15
         - trigger_timing: OE
           max_act: 5
           listen:
@@ -553,6 +541,10 @@ cards:
           hatch:
             target: self
             count: 1
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
         - trigger_timing: OE
           max_act: 5
           listen:
@@ -560,18 +552,12 @@ cards:
           require_other: true
           meta_consume:
             consume: 1
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
       3:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          hatch:
-          - target: self
-            count: 4
-          - target: all_predator
-            count: 2
-          persistent:
-            death_atk_bonus: 0.05
-            kill_hp_recover: 0.15
         - trigger_timing: OE
           max_act: -1
           listen:
@@ -580,6 +566,10 @@ cards:
           hatch:
             target: self
             count: 2
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null
         - trigger_timing: OE
           max_act: -1
           listen:
@@ -588,3 +578,7 @@ cards:
           meta_consume:
             consume: 1
             count: 2
+          enhance:
+            target: self
+            atk_pct: 0.03
+            ol1: null

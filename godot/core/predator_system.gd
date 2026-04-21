@@ -16,7 +16,8 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 		"pr_nest": return _nest(card, idx, board)
 		"pr_farm": return _farm(card, idx)
 		"pr_queen": return _queen(card, idx, board)
-		"pr_transcend": return _transcend(card, idx, board)
+	# pr_transcend: RS 핸들러 제거 (2026-04-21). 자기 부화/변태 없음.
+	# 다른 카드의 HA/MT 이벤트에 OE 반응 (_transcend_event) 만.
 	return Enums.empty_result()
 
 
@@ -48,15 +49,12 @@ func apply_post_combat(card: CardInstance, idx: int, _board: Array,
 	return Enums.empty_result()
 
 
-## Persistent combat: pr_transcend death/kill tracking stored for combat engine.
-func apply_persistent(card: CardInstance) -> void:
-	if card.get_base_id() != "pr_transcend":
-		return
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var p := _find_eff(effs, "persistent")
-	var base_death_atk: float = card_effects.get("pr_transcend_death_atk", p.get("death_atk_bonus", 0.03))
-	card.theme_state["death_atk_bonus"] = base_death_atk
-	card.theme_state["kill_hp_recover"] = p.get("kill_hp_recover", 0.10)
+## Persistent combat hook — predator theme currently has no PERSISTENT
+## card after 2026-04-21 (pr_transcend 가 OE 기반으로 재설계, death_atk_bonus
+## / kill_hp_recover 효과 제거). base class no-op 이 충분하지만, combat_engine
+## 이 theme_state 값 없을 때 자동으로 스킵하므로 safe.
+func apply_persistent(_card: CardInstance) -> void:
+	pass
 
 
 # --- Helpers ---
@@ -193,38 +191,12 @@ func _queen(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# ★1: hatch 3 self, 1 each predator  |  ★2/★3: 4 self, 2 each.
-	# 자기 RS 변태 (구 ★3 meta_consume + ATK 영구 성장) 는 2026-04-21
-	# 제거. 자기 변태는 OE block (listen MT) 에서 다른 포식종의 변태
-	# 이벤트 반응으로 이관 (_transcend_event).
-	# RS block 만 참조 — get_theme_effects 는 모든 block action 합산이라
-	# OE block 의 hatch/meta 를 혼동할 수 있음.
-	var rs_block := CardDB.get_block_for_timing(
-		card.get_base_id(), card.star_level, Enums.TriggerTiming.ROUND_START)
-	var rs_actions: Array = rs_block.get("actions", [])
-	var self_eff := _find_eff(rs_actions, "hatch", "self")
-	var all_eff := _find_eff(rs_actions, "hatch", "all_predator")
-
-	var self_n: int = self_eff.get("count", 3)
-	var all_n: int = all_eff.get("count", 1)
-
-	var events: Array = []
-	_hatch(card, self_n)
-	events.append(_hatch_evt(idx, idx))
-
-	for pi in _predator_indices(board):
-		if pi != idx:
-			_hatch(board[pi], all_n)
-			events.append(_hatch_evt(idx, pi))
-
-	return {"events": events, "gold": 0, "terazin": 0}
-
-
-## pr_transcend OE 반응 (2026-04-21 신규):
-## 다른 포식종 카드가 부화(HA) / 변태(MT) 이벤트를 일으키면 본 카드에도
-## 동일 행동 발동. listen l2 로 이벤트 종류 분기. require_other 로 자기
-## 이벤트는 배제 (무한 루프 방지).
+## pr_transcend OE 반응 (2026-04-21):
+## 다른 카드가 부화(HA) / 변태(MT) 이벤트를 일으키면 본 카드에 동일 행동
+## 발동 + 영구 ATK 성장 (enhance self 3%). listen l2 로 이벤트 종류 분기.
+## require_other 로 자기 이벤트 배제 (무한 루프 방지).
+## 영구 성장은 "block 1회 발동 = +3% 1회" 규약 (hatch count 또는 meta
+## count 값과 무관, 이벤트 한 번당 한 번의 성장).
 func _transcend_event(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
 	var l2: int = event.get("layer2", -1)
 	var oe_block := _find_transcend_oe_block(card, l2)
@@ -232,6 +204,7 @@ func _transcend_event(card: CardInstance, idx: int, event: Dictionary) -> Dictio
 		return Enums.empty_result()
 	var actions: Array = oe_block.get("actions", [])
 	var events: Array = []
+	var triggered := false
 	match l2:
 		Enums.Layer2.HATCH:
 			var hatch_eff := _find_eff(actions, "hatch", "self")
@@ -240,6 +213,7 @@ func _transcend_event(card: CardInstance, idx: int, event: Dictionary) -> Dictio
 			var count: int = hatch_eff.get("count", 1)
 			_hatch(card, count)
 			events.append(_hatch_evt(idx, idx))
+			triggered = true
 		Enums.Layer2.METAMORPHOSIS:
 			var meta_eff := _find_eff(actions, "meta_consume")
 			if meta_eff.is_empty():
@@ -249,6 +223,15 @@ func _transcend_event(card: CardInstance, idx: int, event: Dictionary) -> Dictio
 			for _n in count:
 				if card.metamorphosis(consume):
 					events.append(_meta_evt(idx, idx))
+					triggered = true
+
+	# Block 발동 성공 시 영구 ATK 성장 (enhance self).
+	if triggered:
+		var enh_eff := _find_eff(actions, "enhance", "self")
+		if not enh_eff.is_empty():
+			card.enhance(null, enh_eff.get("atk_pct", 0.03),
+				enh_eff.get("hp_pct", 0.0))
+
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
