@@ -152,21 +152,36 @@ func test_swarm_sense_buffs_predator_cards() -> void:
 
 # ================================================================
 # pr_apex_hunt 2026-04-21 재설계:
-#   RS (primary): 자체 meta_consume(1) → 자기 MT 이벤트 방출
-#   OE (listen MT): 무조건 buff + meta_consume(★별) — 외부/self MT 무차별
-# 이전 unit_count_lte: 5 conditional 제거. conditional 이 실전에서 거의
-# 활성화되지 않던 문제 해결.
+#   RS (non-primary timing): 자체 meta_consume(1, net 0) → MT 이벤트 방출.
+#     이 MT 는 다른 카드의 OE 는 트리거하지만, 자기 OE 는 require_other 로 차단.
+#   OE (primary, listen MT, require_other: true): 다른 카드의 MT 에만 반응.
+#     조건 없이 buff + meta_consume(★별). 자기 MT 체인으로 max_act 자동 소진
+#     되는 기존 문제 해결.
 # ================================================================
 
-func test_apex_hunt_oe_unconditional_buff() -> void:
-	## ★1 OE: MT 이벤트 시 무조건 temp_buff(0.30) + meta(2).
-	## comp 4기 시작 → meta(2) 성공 (4-2+1=3기) + ATK buff 적용.
+func test_apex_hunt_oe_unconditional_buff_from_other_card() -> void:
+	## ★1 OE: 다른 카드의 MT 이벤트 (source_idx != self) 시 무조건 buff + meta(2).
 	var card: CardInstance = CardInstance.create("pr_apex_hunt")
-	var event: Dictionary = _make_metamorphosis_event(0, 0)
+	# source_idx=1 → 다른 카드가 방출한 MT
+	var event: Dictionary = _make_metamorphosis_event(1, 0)
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], event, _rng)
 	assert_gt(card.get_total_atk(), atk_before, "OE 반응 시 buff 적용 (조건 없음)")
 	assert_eq(card.get_total_units(), 3, "meta(2) 성공: 4-2+1=3기")
+
+
+func test_apex_hunt_oe_has_require_other_flag() -> void:
+	## OE 블록의 require_other_card flag 가 true 여야 chain_engine 에서
+	## 자기 MT 이벤트를 스킵함. YAML → 템플릿 흐름 검증.
+	var card: CardInstance = CardInstance.create("pr_apex_hunt")
+	var oe_block: Dictionary = {}
+	for block in card.template.get("effects", []):
+		if block.get("trigger_timing", -1) == Enums.TriggerTiming.ON_EVENT:
+			oe_block = block
+			break
+	assert_false(oe_block.is_empty(), "OE 블록 존재")
+	assert_true(oe_block.get("require_other_card", false),
+		"OE require_other_card=true (자기 MT 스킵용)")
 
 
 func test_apex_hunt_rs_self_fires_meta() -> void:
@@ -258,20 +273,20 @@ func test_parasite_s3_meta_on_loss_too() -> void:
 # ================================================================
 
 func test_apex_hunt_s2_consume_2_buff_50() -> void:
-	## ★2 OE: meta consume 2, ATK+50% 무조건.
+	## ★2 OE: 다른 카드 MT 시 meta consume 2, ATK+50% 무조건.
 	var card := _make_star("pr_apex_hunt", 2)
 	var meta_evt := {"layer1": -1, "layer2": Enums.Layer2.METAMORPHOSIS,
-		"source_idx": 0, "target_idx": 0}
+		"source_idx": 1, "target_idx": 0}
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], meta_evt, _rng)
 	assert_gt(card.get_total_atk(), atk_before, "★2 ATK+50% (조건 없음)")
 
 
 func test_apex_hunt_s3_consume_1_mult_2x() -> void:
-	## ★3 OE: meta consume 1 (★1/★2는 2), ATK×2 곱연산 무조건.
+	## ★3 OE: 다른 카드 MT 시 meta consume 1 (★1/★2는 2), ATK×2 곱연산 무조건.
 	var card := _make_star("pr_apex_hunt", 3)
 	var meta_evt := {"layer1": -1, "layer2": Enums.Layer2.METAMORPHOSIS,
-		"source_idx": 0, "target_idx": 0}
+		"source_idx": 1, "target_idx": 0}
 	var units_before: int = card.get_total_units()
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], meta_evt, _rng)

@@ -2420,7 +2420,7 @@ func _register_predator() -> void:
 			{
 				"trigger_timing": OE, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": MT,
-				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 				"actions": [
 					{"action": "buff", "target": "self", "atk_pct": 0.3},
 					{"action": "meta_consume", "consume": 2}
@@ -2443,7 +2443,7 @@ func _register_predator() -> void:
 				{
 					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": MT,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
 						{"action": "buff", "target": "self", "atk_pct": 0.5},
 						{"action": "meta_consume", "consume": 2}
@@ -2465,9 +2465,9 @@ func _register_predator() -> void:
 				{
 					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": MT,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
-						{"action": "buff", "target": "self", "atk_mult": 2.0, "kill_hp_recover": true},
+						{"action": "buff", "target": "self", "atk_mult": 2.0},
 						{"action": "meta_consume", "consume": 1}
 					],
 				},
