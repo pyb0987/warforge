@@ -256,7 +256,7 @@ enum ConscriptTransform { NONE, PROB_50, ALL }
 
 func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 		source_card: CardInstance = null, enhanced_tries: int = 0,
-		biker_rebirth: bool = false) -> int:
+		biker_rebirth: bool = false, forced_unit: String = "") -> int:
 	var added := 0
 	var source_rank: int = _rank(source_card) if source_card != null else 0
 	var rank_mode: int = ConscriptTransform.NONE
@@ -264,13 +264,21 @@ func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 		rank_mode = ConscriptTransform.ALL
 	elif source_rank >= 4:
 		rank_mode = ConscriptTransform.PROB_50
-	var elite_bonus: bool = source_rank >= 10
+	# forced_unit 일 때 elite_bonus 미적용 (R10 효과가 바이커 전원 강화로 이미
+	# 반영됨 + ml_assault 정체성상 엘리트 추가 부적합).
+	var elite_bonus: bool = source_rank >= 10 and forced_unit == ""
 	var forced_enhance: int = clampi(enhanced_tries, 0, tries)
 
+	# forced_unit 경로: pool 뽑기 없이 지정 유닛의 pool entry 를 재사용.
+	var forced_entry: Dictionary = _pool_entry_for(forced_unit) if forced_unit != "" else {}
+
 	for i in tries:
-		# forced_enhance 는 rank 무관 강제 전체 변환 (ml_outpost enhanced_count).
 		var mode: int = ConscriptTransform.ALL if i < forced_enhance else rank_mode
-		added += _conscript_single_try(target, rng, mode, biker_rebirth)
+		if not forced_entry.is_empty():
+			# 고정 유닛 경로: biker_rebirth 무관 (항상 같은 유닛이라 재도전 무의미).
+			added += _conscript_apply_entry(target, rng, forced_entry, mode)
+		else:
+			added += _conscript_single_try(target, rng, mode, biker_rebirth)
 
 	# R10: 엘리트 유닛 1 기 보너스 (base 뽑기와 별개).
 	if elite_bonus and PoolData.ELITE_UNITS.size() > 0:
@@ -278,6 +286,48 @@ func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 		var elite_id: String = PoolData.ELITE_UNITS[eidx]
 		added += target.add_specific_unit(elite_id, 1)
 
+	return added
+
+
+## Pool base 에서 id 매칭 entry 반환 ({id, count}). 미발견 시 {}.
+func _pool_entry_for(unit_id: String) -> Dictionary:
+	for entry in PoolData.BASE:
+		if entry.get("id", "") == unit_id:
+			return entry
+	return {}
+
+
+## _conscript_single_try 의 forced_unit 변형: pool 뽑기 건너뛰고 지정 entry
+## 로 변환 적용 + add. biker_rebirth 불지원 (고정 유닛이라 무의미).
+func _conscript_apply_entry(target: CardInstance, rng: RandomNumberGenerator,
+		entry: Dictionary, transform_mode: int) -> int:
+	var uid: String = entry.get("id", "")
+	var count: int = int(entry.get("count", 1))
+	if uid == "":
+		return 0
+	var enhanced_id: String = ENHANCED_MAP.get(uid, uid)
+
+	var enhanced_n: int = 0
+	match transform_mode:
+		ConscriptTransform.ALL:
+			enhanced_n = count
+		ConscriptTransform.PROB_50:
+			for _j in count:
+				if rng.randf() < 0.5:
+					enhanced_n += 1
+		_:
+			enhanced_n = 0
+	var base_n: int = count - enhanced_n
+
+	var added: int = 0
+	if enhanced_n > 0:
+		added += target.add_specific_unit(enhanced_id, enhanced_n)
+	if base_n > 0:
+		added += target.add_specific_unit(uid, base_n)
+	# 양성가 보너스.
+	if added > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
+		if bonus_rng.randf() < bonus_spawn_chance:
+			added += target.add_specific_unit(uid, 1)
 	return added
 
 
@@ -492,11 +542,20 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 							null, enh_count)
 				events.append(_conscript_evt(idx, ti))
 		"swarm_buff":
-			# BS 타이밍에 발동 (돌격편대 R4). 전군 유닛 수 × ATK%.
+			# BS 타이밍에 발동. 전군 유닛 수 × ATK%.
+			# (ml_assault 재설계 후 미사용 — 다른 카드 재활용 예비)
 			_apply_swarm_buff(eff, board)
+		"shield":
+			# 돌격편대 R4 (2026-04-21): 이 카드 유닛 방어막 ★별 %.
+			# target: self → 해당 카드의 shield_hp_pct 에 누적.
+			var hp_pct: float = eff.get("hp_pct", 0.0)
+			var sh_targets := _resolve_targets(eff.get("target", "self"), idx, board, event)
+			for ti in sh_targets:
+				(board[ti] as CardInstance).shield_hp_pct += hp_pct
 		"lifesteal":
-			# BS 타이밍 (돌격편대 R10). 전군에 라이프스틸 메커닉.
-			_apply_lifesteal(eff, board)
+			# 돌격편대 R10 (2026-04-21): target: self → 이 카드 lifesteal_pct.
+			# 기존 target: all_military 도 호환 유지.
+			_apply_lifesteal(eff, board, card)
 		"crit_buff":
 			# 특수작전대 ★/R: 이 카드 유닛에 치명타 mechanic.
 			# theme_state에 저장 → _materialize_army가 읽어 unit mechanics 주입.
@@ -585,16 +644,20 @@ func _apply_swarm_buff(eff: Dictionary, board: Array) -> void:
 			mc2.theme_state.erase("ms_bonus")
 
 
-## lifesteal 적용 (BS 타이밍). 모든 군대 카드 유닛에 "lifesteal" mechanic 추가.
-## pct만큼 가한 피해의 HP 회복. combat_engine mechanics_handler에 이미 구현됨.
-func _apply_lifesteal(eff: Dictionary, board: Array) -> void:
+## lifesteal 적용 (BS 타이밍). target 카드들의 theme_state["lifesteal_pct"] 에
+## pct 세팅. combat_engine 이 전투 시작 시 이를 읽어 유닛에 lifesteal mechanic 주입.
+## 2026-04-21: target 파라미터 지원 — "all_military" (기존) / "self" (신규, ml_assault R10).
+func _apply_lifesteal(eff: Dictionary, board: Array, source: CardInstance) -> void:
 	var pct: float = eff.get("pct", 0.10)
 	if pct <= 0:
 		return
+	var tgt_name: String = eff.get("target", "all_military")
+	if tgt_name == "self":
+		source.theme_state["lifesteal_pct"] = pct
+		return
+	# 기본: 전군 적용 (하위 호환)
 	for mi in _military_indices(board):
 		var mc: CardInstance = board[mi]
-		# 카드 수준 지속 mechanic. 전투 시작 시 유닛에 적용되도록 theme_state에 저장.
-		# combat_engine이 battle_start에 theme_state["lifesteal_pct"]를 읽어 unit mechanics에 주입.
 		mc.theme_state["lifesteal_pct"] = pct
 
 
@@ -832,21 +895,23 @@ func _outpost(card: CardInstance, idx: int, board: Array,
 
 func _assault_rs(card: CardInstance, idx: int, board: Array,
 		rng: RandomNumberGenerator) -> Dictionary:
-	# 돌격편대 재설계 (2026-04-21): spawn_unit(biker fixed) → conscript +
-	# biker_rebirth. 각 RS 마다 base pool 에서 N 회 뽑기 (★별 1/2/4) + biker
-	# 뽑히면 재도전. 이제 CO 이벤트 방출 (ml_outpost 체인 활성화).
-	# R4 swarm_buff / R10 lifesteal 은 BS 타이밍에서 별도 처리.
+	# 돌격편대 재설계 (2026-04-21):
+	#   conscript forced_unit: ml_biker — pool 랜덤 대신 고정 바이커 징집.
+	#   rank_upgrade: true → R4 50% / R10 100% 확률로 강화 바이커 전환.
+	#   biker_rebirth 제거 (고정 유닛이라 재도전 무의미).
+	#   R4: shield target self — 이 카드 유닛 방어막 ★별 20/40/90%.
+	#   R10: lifesteal target self — 이 카드 라이프스틸 ★별 10/20/30%.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var events: Array = []
 	var con_eff := _find_eff(effs, "conscript", "self")
 	if not con_eff.is_empty():
 		var tries: int = int(con_eff.get("count", 1))
-		var rebirth: bool = bool(con_eff.get("biker_rebirth", false))
+		var forced: String = con_eff.get("forced_unit", "")
 		if tries > 0:
-			_conscript(card, tries, rng, card, 0, rebirth)
+			_conscript(card, tries, rng, card, 0, false, forced)
 			events.append(_conscript_evt(idx, idx))
 
-	# R4/R10 milestone (enhance_convert_card; swarm_buff/lifesteal는 BS 타이밍)
+	# R4/R10 milestone: shield (self) / lifesteal (self) 은 _dispatch_r_effect 에서 처리.
 	events.append_array(_process_r_conditional(card, idx, board))
 
 	return {"events": events, "gold": 0, "terazin": 0}

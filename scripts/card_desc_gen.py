@@ -499,10 +499,18 @@ def desc_conscript(p: dict) -> str:
     ##   rank_upgrade: YAML 선언 플래그 (runtime 이 source_card rank 로 R4/R10
     ##                 변환·엘리트 보너스 자동 적용). desc 에는 표시 안 함 —
     ##                 "징집" 키워드 glossary 에 R4/R10 효과가 통합 기술돼 있음.
+    ##   forced_unit: pool 랜덤 대신 고정 유닛 징집 (ml_assault 용).
+    ##                "무조건 바이커 2기" 같은 desc 로 표시.
     ##   enhanced_count: 앞 N 회 뽑기는 강화 변환 강제 (ml_outpost 용).
-    ##   biker_rebirth: 바이커 뽑히면 즉시 추가 뽑기 연쇄 (ml_assault 용).
+    ##   biker_rebirth: 바이커 뽑히면 즉시 추가 뽑기 연쇄 (구 ml_assault 용, 현재 미사용).
     t = resolve_target(p["target"])
     n = p["count"]
+    forced: str = p.get("forced_unit", "")
+    if forced:
+        # 고정 유닛 경로: "N회 × M기" 대신 총 수량 직접 표기.
+        unit_name = _unit_name(forced)
+        return f"{t}에 {unit_name} {n}회 징집 (회당 2기)" if forced == "ml_biker" \
+            else f"{t}에 {unit_name} 고정 징집 {n}회"
     text = f"{t}에 징집 {n}회"
     modifiers: list = []
     if p.get("biker_rebirth"):

@@ -2934,11 +2934,11 @@ func _register_military() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true, "biker_rebirth": true}
+					{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true, "forced_unit": "ml_biker"}
 				],
 				"r_conditional_effects": [
-					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 15, "bonus": 1}, "enhanced_count": 2}]},
-					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "shield", "target": "self", "hp_pct": 0.2}]},
+					{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "self", "pct": 0.1}]}
 				],
 			}
 		],
@@ -2954,11 +2954,11 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true, "biker_rebirth": true}
+						{"action": "conscript", "target": "self", "count": 2, "rank_upgrade": true, "forced_unit": "ml_biker"}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 12, "bonus": 1}, "enhanced_count": 2}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "shield", "target": "self", "hp_pct": 0.4}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "self", "pct": 0.2}]}
 					],
 				}
 			],
@@ -2973,11 +2973,11 @@ func _register_military() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "conscript", "target": "self", "count": 4, "rank_upgrade": true, "biker_rebirth": true}
+						{"action": "conscript", "target": "self", "count": 4, "rank_upgrade": true, "forced_unit": "ml_biker"}
 					],
 					"r_conditional_effects": [
-						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "swarm_buff", "target": "all_military", "atk_per_unit": 0.005, "ms_bonus": {"unit_thresh": 10, "bonus": 1}, "enhanced_count": 2}]},
-						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "all_military", "pct": 0.1}]}
+						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "shield", "target": "self", "hp_pct": 0.9}]},
+						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "lifesteal", "target": "self", "pct": 0.3}]}
 					],
 				}
 			],

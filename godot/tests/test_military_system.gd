@@ -375,12 +375,16 @@ func test_tactical_buffs_atk_by_total_units() -> void:
 # ml_assault (RS): 재설계로 timing BS→RS, 기본 효과는 spawn_unit(바이커)
 # ================================================================
 
-func test_assault_rs_spawns_biker() -> void:
-	## ★1: 매 RS 바이커 1기 추가.
+func test_assault_rs_conscripts_fixed_biker() -> void:
+	## ★1 (2026-04-21 재설계): forced_unit=ml_biker 로 고정 징집.
+	## 1 회 = pool entry count (biker=2 기). rank 0 이면 전부 base biker.
 	var card: CardInstance = CardInstance.create("ml_assault")
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 1, "★1: 바이커 +1")
+	assert_eq(card.get_total_units(), before + 2, "★1: ml_biker 2 기 징집 (R0)")
+	# 추가된 유닛이 ml_biker 인지 확인.
+	var biker_stack: Dictionary = _find_stack_by_id(card, "ml_biker")
+	assert_false(biker_stack.is_empty(), "ml_biker stack 존재")
 
 
 # ================================================================
@@ -691,42 +695,57 @@ func test_tactical_r10_sets_as_bonus() -> void:
 		"R10: as_bonus 0.15 세팅")
 
 
-# --- 돌격편대 R4/R10: swarm_buff 해금 + lifesteal ---
+# --- 돌격편대 R4/R10 (2026-04-21 재설계): self shield + self lifesteal ---
 
-func test_assault_r4_applies_swarm_buff() -> void:
-	## R4: swarm_buff 해금. 모든 군대 유닛에 ATK buff.
-	var board: Array = [
-		CardInstance.create("ml_assault"),
-		CardInstance.create("ml_barracks"),
-	]
-	board[0].theme_state["rank"] = 4
-	var atk_before: float = board[1].get_total_atk()
-	_sys.apply_battle_start(board[0], 0, board)
-	assert_gt(board[1].get_total_atk(), atk_before, "R4: 군대 카드 ATK 증가 (swarm_buff)")
+func test_assault_r4_applies_self_shield() -> void:
+	## ★1 R4: 이 카드 shield_hp_pct 에 0.2 누적 (방어막 HP 20%).
+	var card: CardInstance = CardInstance.create("ml_assault")
+	card.theme_state["rank"] = 4
+	var before: float = card.shield_hp_pct
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.shield_hp_pct - before, 0.2, 0.001,
+		"★1 R4: 이 카드 shield +20%")
 
 
-func test_assault_r10_sets_lifesteal_pct() -> void:
-	## R10: 모든 군대 카드에 theme_state["lifesteal_pct"] 0.10 세팅.
+func test_assault_s3_r4_shield_90pct() -> void:
+	## ★3 R4: shield +90% (★별 스케일링 20/40/90%).
+	var card := _make_star("ml_assault", 3)
+	card.theme_state["rank"] = 4
+	var before: float = card.shield_hp_pct
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.shield_hp_pct - before, 0.9, 0.001, "★3 R4: shield +90%")
+
+
+func test_assault_r10_sets_self_lifesteal() -> void:
+	## ★1 R10: 이 카드 theme_state["lifesteal_pct"] = 0.1 (전군 아님, self).
 	var board: Array = [
 		CardInstance.create("ml_assault"),
 		CardInstance.create("ml_barracks"),
 	]
 	board[0].theme_state["rank"] = 10
-	_sys.apply_battle_start(board[0], 0, board)
-	assert_almost_eq(board[1].theme_state.get("lifesteal_pct", 0.0), 0.10, 0.001,
-		"R10: lifesteal_pct 0.10 세팅")
+	_sys.process_rs_card(board[0], 0, board, _rng)
+	assert_almost_eq(board[0].theme_state.get("lifesteal_pct", 0.0), 0.1, 0.001,
+		"★1 R10: self lifesteal 0.1")
+	assert_almost_eq(board[1].theme_state.get("lifesteal_pct", 0.0), 0.0, 0.001,
+		"★1 R10: 다른 카드엔 lifesteal 미전파 (self 한정)")
 
 
-func test_assault_r0_no_swarm_buff() -> void:
-	## R4 미만: swarm_buff 해금 안 됨. ATK 변화 없어야 함.
-	var board: Array = [
-		CardInstance.create("ml_assault"),
-		CardInstance.create("ml_barracks"),
-	]
-	var atk_before: float = board[1].get_total_atk()
-	_sys.apply_battle_start(board[0], 0, board)
-	assert_almost_eq(board[1].get_total_atk(), atk_before, 0.01,
-		"R0: swarm_buff 없음 → ATK 불변")
+func test_assault_s3_r10_lifesteal_30pct() -> void:
+	## ★3 R10: self lifesteal 0.3 (★별 10/20/30%).
+	var card := _make_star("ml_assault", 3)
+	card.theme_state["rank"] = 10
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.theme_state.get("lifesteal_pct", 0.0), 0.3, 0.001,
+		"★3 R10: self lifesteal 0.3")
+
+
+func test_assault_r0_no_shield_no_lifesteal() -> void:
+	## rank 4 미만: shield/lifesteal 효과 없음.
+	var card: CardInstance = CardInstance.create("ml_assault")
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.shield_hp_pct, 0.0, 0.001, "R0: shield 없음")
+	assert_almost_eq(card.theme_state.get("lifesteal_pct", 0.0), 0.0, 0.001,
+		"R0: lifesteal 없음")
 
 
 # --- 특수작전대 ★/R: crit_buff + crit_splash ---
@@ -914,13 +933,13 @@ func test_barracks_s3_high_rank_mult_applies_once() -> void:
 		"★3 rank 15: 재적용 없음 (one-shot)")
 
 
-func test_assault_s1_conscripts_and_emits_co() -> void:
-	## ★1 (2026-04-21): spawn_unit(biker) → conscript + biker_rebirth.
-	## base pool 1 회 뽑기. 최소 1 기 추가 + CO 이벤트 방출.
+func test_assault_s1_conscripts_fixed_biker_and_emits_co() -> void:
+	## ★1 (2026-04-21 C8): forced_unit=ml_biker, 1 회 = 2 기. biker_rebirth 제거.
+	## CO 이벤트 방출 유지 (ml_outpost 체인용).
 	var card: CardInstance = CardInstance.create("ml_assault")
 	var before: int = card.get_total_units()
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(card.get_total_units(), before, "★1: conscript 유닛 추가")
+	assert_eq(card.get_total_units() - before, 2, "★1: 바이커 2 기 (forced, 1 회 × 2)")
 	var has_co := false
 	for e in result["events"]:
 		if e.get("layer2", -1) == Enums.Layer2.CONSCRIPT:
@@ -929,27 +948,26 @@ func test_assault_s1_conscripts_and_emits_co() -> void:
 	assert_true(has_co, "★1: CO 이벤트 방출")
 
 
-func test_assault_s3_conscripts_4_times() -> void:
-	## ★3: conscript 4 회 뽑기 + biker_rebirth. 최소 4 기, 평균 ~8 기.
+func test_assault_s3_conscripts_4_times_fixed_biker() -> void:
+	## ★3: forced 바이커 4 회 = 8 기 (회당 2 기). R0 이면 모두 base biker.
 	var card := _make_star("ml_assault", 3)
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	var added: int = card.get_total_units() - before
-	assert_gte(added, 4, "★3: 최소 4 기 추가 (4 회 뽑기 × 유닛당 최소 1 기)")
+	assert_eq(card.get_total_units() - before, 8, "★3: 바이커 8 기 (4 회 × 2 기)")
 
 
-func test_assault_biker_rebirth_triggers_extra_pick() -> void:
-	## biker_rebirth: ml_biker 가 뽑히면 추가 뽑기 → 유닛 수가 예상보다 많음.
-	## 이 테스트는 결정론적: biker 가 반드시 뽑히는 상황을 가정하기 어려우므로
-	## 최대 안전 횟수(MAX_BIKER_REBIRTH_DEPTH=20) 를 초과하지 않는 것만 검증.
-	## 실제 동작은 test_assault_s1_conscripts_and_emits_co 와 조합해 확인.
-	var card := _make_star("ml_assault", 3)
-	var before: int = card.get_total_units()
+func test_assault_r10_conscripts_all_enhanced_biker() -> void:
+	## R10 도달 → forced biker 전원 강화 (ml_biker_enhanced). 기존 base biker 는
+	## comp 초기화분 유지.
+	var card: CardInstance = CardInstance.create("ml_assault")
+	card.theme_state["rank"] = 10
 	_sys.process_rs_card(card, 0, [card], _rng)
-	var added: int = card.get_total_units() - before
-	# 4 뽑기 × 최대 (3 기 + rebirth 체인). 이론적 극단치는 크지만 확률상
-	# 120 기 이상은 사실상 0. 느슨한 상한 검증.
-	assert_lte(added, 120, "biker_rebirth 가 무한 루프로 터지지 않음")
+	var has_enhanced_biker := false
+	for s in card.stacks:
+		if s["unit_type"].get("id", "") == "ml_biker_enhanced":
+			has_enhanced_biker = true
+			break
+	assert_true(has_enhanced_biker, "R10: 강화 바이커 존재")
 
 
 # 공통 R4/R10 enhance_convert_card 테스트 (18 개) 및 헬퍼

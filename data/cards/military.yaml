@@ -480,7 +480,17 @@ cards:
     - assault
     impl: theme_system
     star_scalable_actions:
-    - swarm_buff
+    - shield
+    - lifesteal
+    # 2026-04-21 재설계:
+    #   징집: pool 랜덤 → **고정 ml_biker** (forced_unit). "돌격 편대 = 바이커
+    #         군단" 정체성 강화. 1 회 = ml_biker 2 기 (pool count 준수).
+    #         rank_upgrade: true 로 R4 50% / R10 100% 확률로 강화 바이커 전환.
+    #         biker_rebirth 제거 (고정 바이커라 재도전 의미 없음).
+    #   R4: 이 카드 유닛 방어막 ★별 20/40/90% (shield target: self).
+    #        기존 swarm_buff / ms_bonus 제거.
+    #   R10: 이 카드 라이프스틸 ★별 10/20/30% (target: self).
+    #         기존 전군 라이프스틸 10% 고정 → self + ★별 스케일링.
     stars:
       1:
         effects:
@@ -489,23 +499,19 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            swarm_buff:
-              target: all_military
-              atk_per_unit: 0.005
-              ms_bonus:
-                unit_thresh: 15
-                bonus: 1
-              enhanced_count: 2
+            shield:
+              target: self
+              hp_pct: 0.2
           - when:
               rank_gte: 10
             lifesteal:
-              target: all_military
+              target: self
               pct: 0.1
           conscript:
             target: self
             count: 1
             rank_upgrade: true
-            biker_rebirth: true
+            forced_unit: ml_biker
       2:
         effects:
         - trigger_timing: RS
@@ -513,23 +519,19 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            swarm_buff:
-              target: all_military
-              atk_per_unit: 0.005
-              ms_bonus:
-                unit_thresh: 12
-                bonus: 1
-              enhanced_count: 2
+            shield:
+              target: self
+              hp_pct: 0.4
           - when:
               rank_gte: 10
             lifesteal:
-              target: all_military
-              pct: 0.1
+              target: self
+              pct: 0.2
           conscript:
             target: self
             count: 2
             rank_upgrade: true
-            biker_rebirth: true
+            forced_unit: ml_biker
       3:
         effects:
         - trigger_timing: RS
@@ -537,23 +539,19 @@ cards:
           r_conditional:
           - when:
               rank_gte: 4
-            swarm_buff:
-              target: all_military
-              atk_per_unit: 0.005
-              ms_bonus:
-                unit_thresh: 10
-                bonus: 1
-              enhanced_count: 2
+            shield:
+              target: self
+              hp_pct: 0.9
           - when:
               rank_gte: 10
             lifesteal:
-              target: all_military
-              pct: 0.1
+              target: self
+              pct: 0.3
           conscript:
             target: self
             count: 4
             rank_upgrade: true
-            biker_rebirth: true
+            forced_unit: ml_biker
   ml_special_ops:
     name: 특수 작전대
     tier: 4
