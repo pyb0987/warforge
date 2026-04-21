@@ -27,6 +27,7 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 		"pr_harvest": return _harvest(card, idx, board, event)
 		"pr_carapace": return _carapace(card, idx, board)
 		"pr_apex_hunt": return _apex_hunt(card, idx)
+		"pr_transcend": return _transcend_event(card, idx, event)
 	return Enums.empty_result()
 
 
@@ -193,10 +194,17 @@ func _queen(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 
 func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# ★1: hatch 3 self, 1 each predator  |  ★2: 4 self, 2 each  |  ★3: +auto meta 1
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var self_eff := _find_eff(effs, "hatch", "self")
-	var all_eff := _find_eff(effs, "hatch", "all_predator")
+	# ★1: hatch 3 self, 1 each predator  |  ★2/★3: 4 self, 2 each.
+	# 자기 RS 변태 (구 ★3 meta_consume + ATK 영구 성장) 는 2026-04-21
+	# 제거. 자기 변태는 OE block (listen MT) 에서 다른 포식종의 변태
+	# 이벤트 반응으로 이관 (_transcend_event).
+	# RS block 만 참조 — get_theme_effects 는 모든 block action 합산이라
+	# OE block 의 hatch/meta 를 혼동할 수 있음.
+	var rs_block := CardDB.get_block_for_timing(
+		card.get_base_id(), card.star_level, Enums.TriggerTiming.ROUND_START)
+	var rs_actions: Array = rs_block.get("actions", [])
+	var self_eff := _find_eff(rs_actions, "hatch", "self")
+	var all_eff := _find_eff(rs_actions, "hatch", "all_predator")
 
 	var self_n: int = self_eff.get("count", 3)
 	var all_n: int = all_eff.get("count", 1)
@@ -210,15 +218,48 @@ func _transcend(card: CardInstance, idx: int, board: Array) -> Dictionary:
 			_hatch(board[pi], all_n)
 			events.append(_hatch_evt(idx, pi))
 
-	# ★3: auto metamorphosis 1/round + ATK+5% permanent
-	var meta_eff := _find_eff(effs, "meta_consume")
-	var enhance_eff := _find_eff(effs, "enhance", "self")
-	if not meta_eff.is_empty():
-		if card.metamorphosis(meta_eff.get("consume", 1)):
-			card.enhance(null, enhance_eff.get("atk_pct", 0.05), 0.0)
-			events.append(_meta_evt(idx, idx))
-
 	return {"events": events, "gold": 0, "terazin": 0}
+
+
+## pr_transcend OE 반응 (2026-04-21 신규):
+## 다른 포식종 카드가 부화(HA) / 변태(MT) 이벤트를 일으키면 본 카드에도
+## 동일 행동 발동. listen l2 로 이벤트 종류 분기. require_other 로 자기
+## 이벤트는 배제 (무한 루프 방지).
+func _transcend_event(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
+	var l2: int = event.get("layer2", -1)
+	var oe_block := _find_transcend_oe_block(card, l2)
+	if oe_block.is_empty():
+		return Enums.empty_result()
+	var actions: Array = oe_block.get("actions", [])
+	var events: Array = []
+	match l2:
+		Enums.Layer2.HATCH:
+			var hatch_eff := _find_eff(actions, "hatch", "self")
+			if hatch_eff.is_empty():
+				return Enums.empty_result()
+			var count: int = hatch_eff.get("count", 1)
+			_hatch(card, count)
+			events.append(_hatch_evt(idx, idx))
+		Enums.Layer2.METAMORPHOSIS:
+			var meta_eff := _find_eff(actions, "meta_consume")
+			if meta_eff.is_empty():
+				return Enums.empty_result()
+			var consume: int = meta_eff.get("consume", 1)
+			var count: int = meta_eff.get("count", 1)
+			for _n in count:
+				if card.metamorphosis(consume):
+					events.append(_meta_evt(idx, idx))
+	return {"events": events, "gold": 0, "terazin": 0}
+
+
+## trigger_layer2 값으로 OE block 탐색 (HA 또는 MT block 중 하나 반환).
+func _find_transcend_oe_block(card: CardInstance, l2_target: int) -> Dictionary:
+	for block in card.template.get("effects", []):
+		if block.get("trigger_timing", -1) != Enums.TriggerTiming.ON_EVENT:
+			continue
+		if block.get("trigger_layer2", -1) == l2_target:
+			return block
+	return {}
 
 
 # --- OE cards ---

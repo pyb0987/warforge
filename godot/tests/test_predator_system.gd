@@ -270,10 +270,65 @@ func test_transcend_s2_hatch_4_self_2_other() -> void:
 	assert_eq(other.get_total_units(), other_before + 2, "★2 other hatch 2")
 
 
-func test_transcend_s3_auto_metamorphosis() -> void:
-	## ★3: 자동 변태1회 + enhance ATK+5%
+func test_transcend_s3_no_auto_meta_on_rs() -> void:
+	## 2026-04-21 개편: ★3 RS 에서 자기 변태(meta_consume) 제거.
+	## hatch 4 self + 2 other 만. 자기 변태는 OE MT 반응으로 이관.
 	var card := _make_star("pr_transcend", 3)
-	var atk_before: float = card.get_total_atk()
+	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	# hatch 4 self → meta(1) auto → enhance 5%
-	assert_gt(card.get_total_atk(), atk_before, "★3 auto meta → ATK enhance")
+	assert_eq(card.get_total_units(), before + 4,
+		"★3 RS self +4 only (meta_consume 제거됨)")
+
+
+# ================================================================
+# pr_transcend OE 반응 (2026-04-21 신규):
+# 다른 포식종의 HA / MT 이벤트 시 본카드에 부화 / 변태 반영
+# ================================================================
+
+func test_transcend_s1_oe_hatch_reaction() -> void:
+	## ★1: 다른 포식종의 HATCH 이벤트 → 본카드 self +1기.
+	var card: CardInstance = CardInstance.create("pr_transcend")
+	var before: int = card.get_total_units()
+	var event := {"layer1": Enums.Layer1.UNIT_ADDED,
+		"layer2": Enums.Layer2.HATCH,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before + 1,
+		"★1 HA 이벤트 → self hatch 1기")
+
+
+func test_transcend_s1_oe_meta_reaction() -> void:
+	## ★1: 다른 포식종의 METAMORPHOSIS 이벤트 → 본카드 변태 1회.
+	## metamorphosis(consume:1) = 약자 1 제거 + 강자 1 추가 = net 0.
+	var card: CardInstance = CardInstance.create("pr_transcend")
+	var before: int = card.get_total_units()
+	var event := {"layer1": Enums.Layer1.ENHANCED,
+		"layer2": Enums.Layer2.METAMORPHOSIS,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before,
+		"★1 MT 이벤트 → 변태 1회 (net 0)")
+
+
+func test_transcend_s3_oe_hatch_count_2() -> void:
+	## ★3: HA 반응으로 self +2기.
+	var card := _make_star("pr_transcend", 3)
+	var before: int = card.get_total_units()
+	var event := {"layer1": Enums.Layer1.UNIT_ADDED,
+		"layer2": Enums.Layer2.HATCH,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before + 2,
+		"★3 HA 이벤트 → self hatch 2기")
+
+
+func test_transcend_s3_oe_meta_count_2() -> void:
+	## ★3: MT 반응으로 변태 2회 (consume:1 × count:2). net 0.
+	var card := _make_star("pr_transcend", 3)
+	var before: int = card.get_total_units()
+	var event := {"layer1": Enums.Layer1.ENHANCED,
+		"layer2": Enums.Layer2.METAMORPHOSIS,
+		"source_idx": 1, "target_idx": 0}
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before,
+		"★3 MT 이벤트 → 변태 2회 (net 0)")

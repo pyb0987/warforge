@@ -171,44 +171,49 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 		for i in board.size():
 			var card: CardInstance = board[i]
 			var tmpl := card.template
-			var block := _find_block(tmpl, Enums.TriggerTiming.ON_EVENT)
-			if block.is_empty():
-				continue
-			if not _trigger_matches_block(block, event, i):
-				continue
-			var max_act: int = block.get("max_activations", -1)
-			if not card.can_activate_with(max_act, activation_bonus):
-				continue
-			card.activations_used += 1
+			# Iterate ALL OE blocks on this card so a multi-block card (e.g.
+			# pr_transcend with separate HA/MT listen blocks) can react to
+			# different event layers independently. A single event normally
+			# matches at most one block because listen filters are disjoint;
+			# duplicate matches would each fire and each bump activations_used.
+			for block in tmpl.get("effects", []):
+				if block.get("trigger_timing", -1) != Enums.TriggerTiming.ON_EVENT:
+					continue
+				if not _trigger_matches_block(block, event, i):
+					continue
+				var max_act: int = block.get("max_activations", -1)
+				if not card.can_activate_with(max_act, activation_bonus):
+					continue
+				card.activations_used += 1
 
-			var actions: Array = block.get("actions", [])
-			var theme: int = tmpl.get("theme", -1)
-			var impl: String = tmpl.get("impl", "card_db")
-			var result: Dictionary
+				var actions: Array = block.get("actions", [])
+				var theme: int = tmpl.get("theme", -1)
+				var impl: String = tmpl.get("impl", "card_db")
+				var result: Dictionary
 
-			if impl == "theme_system" and theme in _theme_systems:
-				result = _theme_systems[theme].process_event_card(card, i, board, event, _rng)
-			else:
-				result = _execute_actions(card, i, board, event["target_idx"], 0, 1.0, actions)
+				if impl == "theme_system" and theme in _theme_systems:
+					result = _theme_systems[theme].process_event_card(card, i, board, event, _rng)
+				else:
+					result = _execute_actions(card, i, board, event["target_idx"], 0, 1.0, actions)
 
-			# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과
-			var cond_effects: Array = block.get("conditional_effects", [])
-			for cond in cond_effects:
-				if _check_condition(cond, card, i, board):
-					var cond_result := _execute_conditional(cond, card, i, board, 1.0)
-					result["events"].append_array(cond_result["events"])
-					result["gold"] += cond_result["gold"]
-					result["terazin"] += cond_result["terazin"]
+				# conditional_effects: 기본 효과 후 조건 충족 시 추가 효과
+				var cond_effects: Array = block.get("conditional_effects", [])
+				for cond in cond_effects:
+					if _check_condition(cond, card, i, board):
+						var cond_result := _execute_conditional(cond, card, i, board, 1.0)
+						result["events"].append_array(cond_result["events"])
+						result["gold"] += cond_result["gold"]
+						result["terazin"] += cond_result["terazin"]
 
-			queue.append_array(result["events"])
-			gold_earned += result["gold"]
-			terazin_earned += result["terazin"]
-			chain_count += 1
+				queue.append_array(result["events"])
+				gold_earned += result["gold"]
+				terazin_earned += result["terazin"]
+				chain_count += 1
 
-			if verbose:
-				var l2_name := _layer2_name(event.get("layer2", -1))
-				print("    CHAIN %s[%d] ← %s → %devt" % [
-					card.get_name(), i, l2_name, result["events"].size()])
+				if verbose:
+					var l2_name := _layer2_name(event.get("layer2", -1))
+					print("    CHAIN %s[%d] ← %s → %devt" % [
+						card.get_name(), i, l2_name, result["events"].size()])
 
 	chain_completed.emit(chain_count, gold_earned)
 

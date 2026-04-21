@@ -518,6 +518,21 @@ cards:
           persistent:
             death_atk_bonus: 0.03
             kill_hp_recover: 0.1
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l2: HA
+          require_other: true
+          hatch:
+            target: self
+            count: 1
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l2: MT
+          require_other: true
+          meta_consume:
+            consume: 1
       2:
         effects:
         - trigger_timing: RS
@@ -530,6 +545,21 @@ cards:
           persistent:
             death_atk_bonus: 0.05
             kill_hp_recover: 0.15
+        - trigger_timing: OE
+          max_act: 5
+          listen:
+            l2: HA
+          require_other: true
+          hatch:
+            target: self
+            count: 1
+        - trigger_timing: OE
+          max_act: 5
+          listen:
+            l2: MT
+          require_other: true
+          meta_consume:
+            consume: 1
       3:
         effects:
         - trigger_timing: RS
@@ -539,12 +569,22 @@ cards:
             count: 4
           - target: all_predator
             count: 2
-          meta_consume:
-            consume: 1
-          enhance:
-            target: self
-            atk_pct: 0.05
-            ol1: null
           persistent:
             death_atk_bonus: 0.05
             kill_hp_recover: 0.15
+        - trigger_timing: OE
+          max_act: -1
+          listen:
+            l2: HA
+          require_other: true
+          hatch:
+            target: self
+            count: 2
+        - trigger_timing: OE
+          max_act: -1
+          listen:
+            l2: MT
+          require_other: true
+          meta_consume:
+            consume: 1
+            count: 2

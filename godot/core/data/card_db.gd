@@ -2481,6 +2481,18 @@ func _register_predator() -> void:
 					{"action": "hatch", "target": "all_predator", "count": 1},
 					{"action": "persistent", "death_atk_bonus": 0.03, "kill_hp_recover": 0.1}
 				],
+			},
+			{
+				"trigger_timing": OE, "max_activations": 3,
+				"trigger_layer1": -1, "trigger_layer2": HA,
+				"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+				"actions": [{"action": "hatch", "target": "self", "count": 1}],
+			},
+			{
+				"trigger_timing": OE, "max_activations": 3,
+				"trigger_layer1": -1, "trigger_layer2": MT,
+				"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+				"actions": [{"action": "meta_consume", "consume": 1}],
 			}
 		],
 		tra_tags,
@@ -2499,6 +2511,18 @@ func _register_predator() -> void:
 						{"action": "hatch", "target": "all_predator", "count": 2},
 						{"action": "persistent", "death_atk_bonus": 0.05, "kill_hp_recover": 0.15}
 					],
+				},
+				{
+					"trigger_timing": OE, "max_activations": 5,
+					"trigger_layer1": -1, "trigger_layer2": HA,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+					"actions": [{"action": "hatch", "target": "self", "count": 1}],
+				},
+				{
+					"trigger_timing": OE, "max_activations": 5,
+					"trigger_layer1": -1, "trigger_layer2": MT,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+					"actions": [{"action": "meta_consume", "consume": 1}],
 				}
 			],
 			},
@@ -2514,10 +2538,20 @@ func _register_predator() -> void:
 					"actions": [
 						{"action": "hatch", "target": "self", "count": 4},
 						{"action": "hatch", "target": "all_predator", "count": 2},
-						{"action": "meta_consume", "consume": 1},
-						{"action": "enhance", "target": "self", "atk_pct": 0.05},
 						{"action": "persistent", "death_atk_bonus": 0.05, "kill_hp_recover": 0.15}
 					],
+				},
+				{
+					"trigger_timing": OE, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": HA,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+					"actions": [{"action": "hatch", "target": "self", "count": 2}],
+				},
+				{
+					"trigger_timing": OE, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": MT,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
+					"actions": [{"action": "meta_consume", "consume": 1, "count": 2}],
 				}
 			],
 			},
