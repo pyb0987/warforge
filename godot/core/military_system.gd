@@ -248,18 +248,29 @@ func _add_with_bonus(target: CardInstance, unit_id: String, count: int) -> int:
 ## 반환: 실제로 추가된 총 유닛 수 (cap 반영, 보너스 포함).
 const MAX_BIKER_REBIRTH_DEPTH: int = 20
 
+# Transform 모드 (source_card rank 기반, R4/R10 게이트):
+# 0: 변환 없음 (rank < 4 또는 source_card null 에 forced_enhance 도 없음)
+# 1: 각 유닛 50% 확률 변환 (4 ≤ rank < 10)
+# 2: 전체 변환 (rank ≥ 10 또는 enhanced_tries 강제)
+enum ConscriptTransform { NONE, PROB_50, ALL }
+
 func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 		source_card: CardInstance = null, enhanced_tries: int = 0,
 		biker_rebirth: bool = false) -> int:
 	var added := 0
 	var source_rank: int = _rank(source_card) if source_card != null else 0
-	var transform_all: bool = source_rank >= 4
+	var rank_mode: int = ConscriptTransform.NONE
+	if source_rank >= 10:
+		rank_mode = ConscriptTransform.ALL
+	elif source_rank >= 4:
+		rank_mode = ConscriptTransform.PROB_50
 	var elite_bonus: bool = source_rank >= 10
 	var forced_enhance: int = clampi(enhanced_tries, 0, tries)
 
 	for i in tries:
-		added += _conscript_single_try(target, rng,
-				transform_all or i < forced_enhance, biker_rebirth)
+		# forced_enhance 는 rank 무관 강제 전체 변환 (ml_outpost enhanced_count).
+		var mode: int = ConscriptTransform.ALL if i < forced_enhance else rank_mode
+		added += _conscript_single_try(target, rng, mode, biker_rebirth)
 
 	# R10: 엘리트 유닛 1 기 보너스 (base 뽑기와 별개).
 	if elite_bonus and PoolData.ELITE_UNITS.size() > 0:
@@ -271,9 +282,13 @@ func _conscript(target: CardInstance, tries: int, rng: RandomNumberGenerator,
 
 
 ## 단일 뽑기 1 회 + biker_rebirth 연쇄 처리.
+## transform_mode:
+##   NONE    → count 기 전부 base uid 로 추가
+##   PROB_50 → count 기 각각 50% 확률로 enhanced, 나머지 base
+##   ALL     → count 기 전부 enhanced uid 로 추가
 ## 반환: 이 뽑기 (재뽑기 포함) 로 추가된 총 유닛 수.
 func _conscript_single_try(target: CardInstance, rng: RandomNumberGenerator,
-		transform: bool, biker_rebirth: bool) -> int:
+		transform_mode: int, biker_rebirth: bool) -> int:
 	var added := 0
 	var depth := 0
 	while true:
@@ -282,13 +297,32 @@ func _conscript_single_try(target: CardInstance, rng: RandomNumberGenerator,
 		var count: int = int(picked.get("count", 1))
 		if uid == "":
 			return added
-		var picked_id: String = uid  # biker 판정용 (변환 전 원본 id)
-		if transform:
-			uid = ENHANCED_MAP.get(uid, uid)
-		var n := target.add_specific_unit(uid, count)
-		added += n
+		var picked_id: String = uid  # biker 판정용 (원본 id)
+		var enhanced_id: String = ENHANCED_MAP.get(uid, uid)
+
+		# enhanced_n 결정 (개별 유닛 단위 확률 적용).
+		var enhanced_n: int = 0
+		match transform_mode:
+			ConscriptTransform.ALL:
+				enhanced_n = count
+			ConscriptTransform.PROB_50:
+				for _j in count:
+					if rng.randf() < 0.5:
+						enhanced_n += 1
+			_:
+				enhanced_n = 0
+		var base_n: int = count - enhanced_n
+
+		var try_added: int = 0
+		if enhanced_n > 0:
+			try_added += target.add_specific_unit(enhanced_id, enhanced_n)
+		if base_n > 0:
+			try_added += target.add_specific_unit(uid, base_n)
+		added += try_added
+
 		# 양성가 보너스: 징집 1 회당 확률로 1 기 추가 (이벤트 미방출).
-		if n > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
+		# 원본 base uid 로 추가 (통일).
+		if try_added > 0 and bonus_spawn_chance > 0.0 and bonus_rng != null:
 			if bonus_rng.randf() < bonus_spawn_chance:
 				added += target.add_specific_unit(uid, 1)
 		# biker_rebirth: 뽑힌 base 유닛이 ml_biker 면 즉시 추가 뽑기.

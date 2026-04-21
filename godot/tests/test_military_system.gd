@@ -477,19 +477,21 @@ func test_barracks_r10_trains_far_military() -> void:
 # rank 를 전달 → R4 이상이면 ENHANCED_MAP 변환, R10 이상이면 엘리트 1 기
 # 추가. _pool_for_card 헬퍼도 제거됨.
 
-func test_conscript_r4_transforms_to_enhanced() -> void:
-	## R4 도달 카드로 self 징집하면 뽑힌 base 유닛이 (강화) 버전으로 변환.
+func test_conscript_r4_partial_transform() -> void:
+	## R4 도달 카드 self 징집: 각 유닛 50% 확률로 (강화) 변환.
+	## ★3 (count 3 + both_adj 1) 이면 뽑기가 충분히 많아 확률상 enhanced
+	## 유닛이 1기 이상 나옴 (RNG seed=42 결정론적).
 	var card: CardInstance = CardInstance.create("ml_conscript")
+	card.star_level = 3
 	card.theme_state["rank"] = 4
 	_sys.process_rs_card(card, 0, [card], _rng)
-	# 변환 확인: stacks 안에 _enhanced suffix 유닛 존재해야 함.
 	var has_enhanced := false
 	for s in card.stacks:
 		if (s["unit_type"].get("id", "") as String).ends_with("_enhanced"):
 			has_enhanced = true
 			break
 	assert_true(has_enhanced,
-		"R4 conscript: base 유닛이 (강화) 버전으로 변환되어 추가")
+		"R4 conscript: 50% 확률 변환 — enhanced 유닛 존재")
 
 
 func test_conscript_r10_adds_elite_bonus() -> void:

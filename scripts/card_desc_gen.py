@@ -493,19 +493,18 @@ def desc_train(p: dict) -> str:
     return f"{t} 훈련(계급+{n})"
 
 def desc_conscript(p: dict) -> str:
-    ## 2026-04-21 해석 B:
+    ## 2026-04-21 해석 B (+ 계급 변환 glossary 이관):
     ##   count = "뽑기 횟수" (이전엔 "유닛 수"). 각 뽑기 = base pool uniform
     ##   1 선택 → 유닛별 count (3/2/2/1/1/1) 만큼 추가. 평균 1.67 기/뽑기.
-    ##   rank_upgrade: 이 징집이 호출 카드의 rank 에 따라 자동 강화/엘리트
-    ##                 보너스를 받는지 여부 (self RS 경로만 true, 반응형은 false).
+    ##   rank_upgrade: YAML 선언 플래그 (runtime 이 source_card rank 로 R4/R10
+    ##                 변환·엘리트 보너스 자동 적용). desc 에는 표시 안 함 —
+    ##                 "징집" 키워드 glossary 에 R4/R10 효과가 통합 기술돼 있음.
     ##   enhanced_count: 앞 N 회 뽑기는 강화 변환 강제 (ml_outpost 용).
     ##   biker_rebirth: 바이커 뽑히면 즉시 추가 뽑기 연쇄 (ml_assault 용).
     t = resolve_target(p["target"])
     n = p["count"]
     text = f"{t}에 징집 {n}회"
     modifiers: list = []
-    if p.get("rank_upgrade"):
-        modifiers.append("이 카드 계급 4+: 강화 변환, 계급 10+: 엘리트 1기 추가")
     if p.get("biker_rebirth"):
         modifiers.append("바이커 뽑으면 재징집")
     eh = int(p.get("enhanced_count", 0))
