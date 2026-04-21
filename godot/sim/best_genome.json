@@ -152,5 +152,9 @@
   "boss_scaling": {
     "atk_mult": 1.3,
     "hp_mult": 1.3
+  },
+  "starting_resources": {
+    "gold": 7,
+    "terazin": 2
   }
 }
