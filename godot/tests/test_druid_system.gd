@@ -367,36 +367,49 @@ func test_world_s2_unit_cap_40() -> void:
 	assert_gt(card.get_total_atk(), atk_before, "★2 21기 < 40 → 성장 실행")
 
 
-func test_world_s1_over_20_stops_growth() -> void:
-	## ★1: 20기 초과 시 성장 중단 (cap=20 유지)
+func test_world_no_unit_cap_always_grows() -> void:
+	## 2026-04-21: unit_cap 제거 — 유닛 수 무관 항상 성장.
 	var card: CardInstance = CardInstance.create("dr_world")
 	for _i in 20:
 		card.spawn_random(_rng)
-	# total 3(base) + 20 = 23 > 20
 	var atk_before: float = card.get_total_atk()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_atk(), atk_before, "★1 23기 > 20 → 성장 중단")
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.10, 0.1,
+		"★1: 23기여도 ATK ×1.10 성장 (cap 없음)")
 
 
-func test_world_s1_at_20_full_growth() -> void:
-	## ★1: 정확히 20기 → 성장 실행
+func test_world_applies_to_all_board_cards() -> void:
+	## 2026-04-21: target: all_allies — dr_world 외 카드 (드루이드 아닌 포함) 도 배수 적용.
+	var world: CardInstance = CardInstance.create("dr_world")
+	var non_druid: CardInstance = CardInstance.create("sp_assembly")  # 스팀펑크
+	var non_druid_atk_before: float = non_druid.get_total_atk()
+	_sys.process_rs_card(world, 0, [world, non_druid], _rng)
+	# ★1 base_atk 1.10, 0 나무 → ×1.10 배수 적용 예상.
+	assert_almost_eq(non_druid.get_total_atk(), non_druid_atk_before * 1.10, 0.1,
+		"비-드루이드 카드도 ATK ×1.10 성장")
+
+
+func test_world_as_multiplier_applies_to_upgrade_as() -> void:
+	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 upgrade_as_mult 누적.
+	## ★1 as_base 1.05 → RS 1회 후 upgrade_as_mult ×1.05.
 	var card: CardInstance = CardInstance.create("dr_world")
-	for _i in 17:
-		card.spawn_random(_rng)
-	# total 3 + 17 = 20 = cap
-	var atk_before: float = card.get_total_atk()
+	var as_before: float = card.upgrade_as_mult
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.get_total_atk(), atk_before * 1.10, 0.1, "20기 = cap → ×1.10")
+	assert_almost_eq(card.upgrade_as_mult, as_before * 1.05, 0.001,
+		"★1 AS ×1.05 누적 (upgrade_as_mult)")
 
 
-func test_world_uses_all_druid_units_not_card_only() -> void:
-	## 세계수 조건은 전체 드루이드 유닛 수 기준 (코드/문서 정합성 수정)
-	var world: CardInstance = CardInstance.create("dr_world")  # 3유닛
-	var other: CardInstance = CardInstance.create("dr_cradle")  # 2유닛
-	for _i in 16:
-		other.spawn_random(_rng)
-	# other: 2+16=18, world: 3 → total druid = 21 > cap 20
+func test_world_uses_forest_depth_all_druid_trees() -> void:
+	## 2026-04-21 bugfix: tree_source: forest_depth — 모든 드루이드 카드 🌳 합.
+	## dr_world ★1 RS 1회: self +2, cradle +1 → forest 3. atk_tree_step 30 이므로
+	## floor(3/30)=0 → atk_mult 그대로 1.10. 30 단위를 넘기려면 다수 라운드.
+	## 여기선 cradle 에 🌳 28 미리 설정 → RS 후 forest = (2+28) + (1) = 31 이면 30/30=1.
+	var world: CardInstance = CardInstance.create("dr_world")
+	var cradle: CardInstance = CardInstance.create("dr_cradle")
+	cradle.theme_state["trees"] = 28  # cradle 에 나무 28 프리-설정
+	# RS 1회 후: world.trees = 0+2=2, cradle.trees = 28+1=29 → forest = 31
+	# ★1 atk_tree_step 30 → floor(31/30) = 1 → +0.1 → atk_mult 1.20
 	var atk_before: float = world.get_total_atk()
-	_sys.process_rs_card(world, 0, [world, other], _rng)
-	# ★1 cap=20, 전체 21기 → 초과 → 성장 중단
-	assert_eq(world.get_total_atk(), atk_before, "전체 드루이드 21기 > 20 → 성장 중단")
+	_sys.process_rs_card(world, 0, [world, cradle], _rng)
+	assert_almost_eq(world.get_total_atk(), atk_before * 1.20, 0.1,
+		"forest_depth 31 → ★1 ATK ×1.20")

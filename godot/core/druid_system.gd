@@ -342,6 +342,16 @@ func _wt_root(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
+## 필드 전체 드루이드 카드의 🌳 합 — multiply_stats 의 tree_source.
+## YAML 의 `tree_source: forest_depth` 에 대응 (2026-04-21 bugfix:
+## 기존 구현이 self 트리만 참조해 UI desc '전체 나무 수' 와 불일치했음).
+func _forest_depth(board: Array) -> int:
+	var total := 0
+	for entry in _druid_entries(board):
+		total += _trees(entry["card"])
+	return total
+
+
 func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects("dr_world", card.star_level)
 	var self_add_eff := _find_eff(effs, "tree_add", "self")
@@ -357,26 +367,36 @@ func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		if c != card:
 			_add_trees(c, all_trees)
 
-	var trees := _trees(card)
-	var unit_cap: int = mult_eff.get("unit_cap", 20)
-	if _druid_unit_count(board) > unit_cap:
-		return Enums.empty_result()
+	# 2026-04-21 재설계:
+	#  - tree_source: forest_depth (모든 드루이드 🌳 합) 를 실제 사용.
+	#  - unit_cap 제거 (항상 적용).
+	#  - multiply_stats 를 board 전체 카드에 적용 (target: all_allies).
+	#  - AS 배수는 theme_state['as_mult'] (reader 없음, dead) 대신
+	#    card.upgrade_as_mult 에 곱셈 누적 — game_manager 가 읽음.
+	var trees := _forest_depth(board)
 
-	# Multiplicative growth per round
 	var base_atk: float = mult_eff.get("atk_base", 1.10)
 	var atk_div: float = mult_eff.get("atk_tree_step", 30.0)
+	var atk_per: float = mult_eff.get("atk_per_tree", 0.1)
 	var base_hp: float = mult_eff.get("hp_base", 1.05)
 	var hp_div: float = mult_eff.get("hp_tree_step", 30.0)
-
-	var tree_atk: float = floorf(trees / atk_div) * (mult_eff.get("atk_per_tree", 0.1) as float)
-	var tree_hp: float = floorf(trees / hp_div) * (mult_eff.get("hp_per_tree", 0.05) as float)
-	card.multiply_stats(base_atk + tree_atk - 1.0, base_hp + tree_hp - 1.0)
-
-	# AS multiplier stored for combat engine
-	var as_base: float = mult_eff.get("as_base", 1.05)
+	var hp_per: float = mult_eff.get("hp_per_tree", 0.05)
+	var base_as: float = mult_eff.get("as_base", 1.05)
 	var as_div: float = mult_eff.get("as_tree_step", 30.0)
 	var as_per: float = mult_eff.get("as_per_tree", 0.05)
-	card.theme_state["as_mult"] = as_base + floorf(trees / as_div) * as_per
+
+	var atk_mult := base_atk + floorf(trees / atk_div) * atk_per
+	var hp_mult := base_hp + floorf(trees / hp_div) * hp_per
+	var as_mult := base_as + floorf(trees / as_div) * as_per
+
+	for i in board.size():
+		var target: CardInstance = board[i]
+		if target == null:
+			continue
+		# multiply_stats 는 upgrade_atk_mult / upgrade_hp_mult 에 곱셈 누적.
+		target.multiply_stats(atk_mult - 1.0, hp_mult - 1.0)
+		target.upgrade_as_mult *= as_mult
+		target.stats_changed.emit()
 
 	return {
 		"events": [{

@@ -349,18 +349,15 @@ def desc_druid_unit_enhance(p: dict) -> str:
     return text
 
 def desc_multiply_stats(p: dict) -> str:
-    ## P2 (review R1, HIGH, 2026-04-17): 3축(ATK/HP/AS) × 서로 다른
-    ## 'N당 +X×' 기준이 한 줄에 혼재되어 파싱 불가하던 문제. '\n' 물리 분리로
-    ## 각 축을 독립 줄에 배치. '숲의 깊이' 신조어 대신 '전체 나무 수' 평이
-    ## 한국어로 용어 통일.
-    ## target 해석: dr_world는 target:self (이 카드 유닛에만 적용).
-    cap = p["unit_cap"]
+    ## 2026-04-21 재설계: dr_world 의 multiply_stats 가
+    ## target: all_allies (필드 전체), unit_cap 제거, tree_source:forest_depth.
+    ## P2 (review R1, 2026-04-17): 3축 각 독립 줄로 배치, '전체 나무 수' 용어 통일.
     atk_base = p["atk_base"]
     atk_step = p["atk_tree_step"]
     atk_per = p["atk_per_tree"]
-    tgt_str = resolve_target(p.get("target", "self"))
+    tgt_str = resolve_target(p.get("target", "all_allies"))
 
-    lines = [f"[지속] 이 카드 ≤{cap}기일 때 {tgt_str} 유닛 스탯 배수 적용:"]
+    lines = [f"[지속] {tgt_str} 유닛 스탯 배수 적용:"]
     lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}당 +{atk_per}×)")
     if p.get("hp_base"):
         hp_step = p.get("hp_tree_step", atk_step)

@@ -496,7 +496,7 @@ cards:
           - target: all_other_druid
             count: 1
           multiply_stats:
-            target: self
+            target: all_allies
             tree_source: forest_depth
             atk_base: 1.1
             atk_per_tree: 0.1
@@ -507,7 +507,6 @@ cards:
             as_base: 1.05
             as_per_tree: 0.05
             as_tree_step: 30
-            unit_cap: 20
       2:
         effects:
         - trigger_timing: RS
@@ -518,7 +517,7 @@ cards:
           - target: all_other_druid
             count: 2
           multiply_stats:
-            target: self
+            target: all_allies
             tree_source: forest_depth
             atk_base: 1.15
             atk_per_tree: 0.1
@@ -529,7 +528,6 @@ cards:
             as_base: 1.05
             as_per_tree: 0.05
             as_tree_step: 30
-            unit_cap: 40
       3:
         effects:
         - trigger_timing: RS
@@ -540,7 +538,7 @@ cards:
           - target: all_other_druid
             count: 2
           multiply_stats:
-            target: self
+            target: all_allies
             tree_source: forest_depth
             atk_base: 1.3
             atk_per_tree: 0.1
@@ -551,4 +549,3 @@ cards:
             as_base: 1.05
             as_per_tree: 0.05
             as_tree_step: 30
-            unit_cap: 200
