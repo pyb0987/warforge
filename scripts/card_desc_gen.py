@@ -237,6 +237,19 @@ def desc_absorb(p: dict) -> str:
         text += f" + 최다 유닛 ATK +{pct}%"
     return text
 
+
+def desc_absorb_steampunk(p: dict) -> str:
+    ratio = fmt_pct(p.get("growth_ratio", 0.5))
+    text = f"판매된 스팀펑크 카드의 모든 유닛 흡수 + 성장률 {ratio}% 이식"
+    if p.get("transfer_upgrades"):
+        text += " + 업그레이드 이전"
+    return text
+
+
+def desc_growth_multiply(p: dict) -> str:
+    pct = fmt_pct(p.get("pct", 0.2))
+    return f"이 카드의 성장률 +{pct}% 개량(복리)"
+
 # ═══════════════════════════════════════════════════════════════════
 # Druid effect descriptors
 # ═══════════════════════════════════════════════════════════════════
@@ -734,6 +747,8 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "scrap":            desc_scrap,
     "diversity_gold":   desc_diversity_gold,
     "absorb":           desc_absorb,
+    "absorb_steampunk": desc_absorb_steampunk,
+    "growth_multiply":  desc_growth_multiply,
     # Druid
     "tree_add":         desc_tree_add,
     "tree_absorb":      desc_tree_absorb,

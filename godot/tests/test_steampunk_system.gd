@@ -126,16 +126,31 @@ func test_warmachine_rs_and_persistent_coexist() -> void:
 
 
 # ================================================================
-# sp_arsenal: on_sell_trigger → 최강 유닛 3기 흡수
+# sp_arsenal: on_sell_trigger → 스팀펑크 카드 판매 시 모든 유닛 + 성장률 일부 이식
+# (2026-04-21 재설계: max_act 1/R, 모든 unit, growth_ratio 이식)
 # ================================================================
 
-func test_arsenal_absorbs_3_strongest_units() -> void:
+func test_arsenal_absorbs_all_units() -> void:
+	## sp_assembly comp: spider×2 + sawblade×1 + rat×1 = 4기. 모두 흡수.
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
-	sold.attach_upgrade("C1")
+	var sold_total: int = sold.get_total_units()
 	var before: int = arsenal.get_total_units()
 	_sys.on_sell_trigger(arsenal, sold)
-	assert_eq(arsenal.get_total_units(), before + 3, "3기 흡수")
+	assert_eq(arsenal.get_total_units(), before + sold_total,
+		"판매된 카드의 모든 유닛 흡수")
+
+
+func test_arsenal_preserves_sold_card_stack_types() -> void:
+	## sp_assembly 의 stack 3종 (spider/sawblade/rat) 모두 arsenal 에 이식.
+	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
+	var sold: CardInstance = CardInstance.create("sp_assembly")
+	_sys.on_sell_trigger(arsenal, sold)
+	var seen: Array[String] = []
+	for s in arsenal.stacks:
+		seen.append(s["unit_type"].get("id", ""))
+	for expected in ["sp_spider", "sp_sawblade", "sp_rat"]:
+		assert_true(expected in seen, "흡수된 stack 에 %s 포함" % expected)
 
 
 func test_arsenal_ignores_non_steampunk_sold() -> void:
@@ -146,17 +161,43 @@ func test_arsenal_ignores_non_steampunk_sold() -> void:
 	assert_eq(arsenal.get_total_units(), before, "비스팀펑크 → 무시")
 
 
-func test_arsenal_absorbed_unit_is_highest_cp() -> void:
-	## sp_assembly 최강: sp_sawblade(CP=160) vs sp_spider(80) vs sp_rat(60)
+func test_arsenal_s1_absorbs_growth_50pct() -> void:
+	## ★1 growth_ratio=0.5. sold 카드의 growth_atk 0.4 → arsenal +0.2.
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
-	sold.attach_upgrade("C1")
+	sold.growth_atk_pct = 0.4
+	sold.growth_hp_pct = 0.2
 	_sys.on_sell_trigger(arsenal, sold)
-	var found := false
-	for s in arsenal.stacks:
-		if s["unit_type"].get("id", "") == "sp_sawblade":
-			found = true
-	assert_true(found, "흡수된 유닛 = sp_sawblade(최강 CP)")
+	assert_almost_eq(arsenal.growth_atk_pct, 0.2, 0.001, "★1 ATK 성장 50% 이식")
+	assert_almost_eq(arsenal.growth_hp_pct, 0.1, 0.001, "★1 HP 성장 50% 이식")
+
+
+func test_arsenal_max_act_1_per_round() -> void:
+	## max_act: 1 — 같은 라운드 2번째 판매는 발동 안 됨.
+	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
+	var sold1: CardInstance = CardInstance.create("sp_assembly")
+	var sold2: CardInstance = CardInstance.create("sp_assembly")
+	_sys.on_sell_trigger(arsenal, sold1)
+	var mid: int = arsenal.get_total_units()
+	_sys.on_sell_trigger(arsenal, sold2)
+	assert_eq(arsenal.get_total_units(), mid,
+		"같은 라운드 2번째 판매는 막힘")
+	# reset_round → 다음 라운드에는 다시 발동 가능
+	arsenal.reset_round()
+	_sys.on_sell_trigger(arsenal, sold2)
+	assert_gt(arsenal.get_total_units(), mid,
+		"reset_round 후 다시 발동 가능")
+
+
+func test_arsenal_triggers_without_upgrades_on_sold() -> void:
+	## 구 버전은 'sold_card.upgrades.is_empty() → return' 제약이 있었음.
+	## 신 버전은 업그레이드 없어도 발동. growth_ratio 이식만.
+	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
+	var sold: CardInstance = CardInstance.create("sp_assembly")
+	var before: int = arsenal.get_total_units()
+	_sys.on_sell_trigger(arsenal, sold)
+	assert_gt(arsenal.get_total_units(), before,
+		"sold 카드에 upgrade 없어도 유닛 흡수 발동")
 
 
 # ================================================================
@@ -397,54 +438,49 @@ func test_charger_s3_has_epic_counter() -> void:
 # ★2/★3 제국 병기창 (ON_SELL absorb)
 # ================================================================
 
-func test_arsenal_s2_absorbs_5() -> void:
-	## ★2: 5기 흡수 (★1은 3기)
-	var arsenal := _make_star("sp_arsenal", 2)
-	var sold: CardInstance = CardInstance.create("sp_assembly")
-	sold.attach_upgrade("C1")
-	var before: int = arsenal.get_total_units()
-	_sys.on_sell_trigger(arsenal, sold)
-	assert_eq(arsenal.get_total_units(), before + 5, "★2 5기 흡수")
-
-
 func test_arsenal_s2_transfers_upgrades() -> void:
-	## ★2: 판매 카드의 업그레이드를 병기창에 이전
+	## ★2: 판매 카드의 업그레이드를 병기창에 이전 (★1에는 이전 안 됨)
 	var arsenal := _make_star("sp_arsenal", 2)
 	var sold: CardInstance = CardInstance.create("sp_assembly")
 	sold.attach_upgrade("C1")
 	sold.attach_upgrade("R1")
 	var upg_before: int = arsenal.upgrades.size()
 	_sys.on_sell_trigger(arsenal, sold)
-	assert_eq(arsenal.upgrades.size(), upg_before + 2, "★2 업그레이드 2개 이전")
+	assert_eq(arsenal.upgrades.size(), upg_before + 2,
+		"★2 판매 카드의 업그레이드 2개 이전")
 
 
-func test_arsenal_no_trigger_without_upgrade() -> void:
-	## 업그레이드 없는 카드 판매 시 미발동
+func test_arsenal_s1_does_not_transfer_upgrades() -> void:
+	## ★1: transfer_upgrades 없음 — 유닛만 흡수, 업그레이드는 이전 안 됨.
 	var arsenal: CardInstance = CardInstance.create("sp_arsenal")
 	var sold: CardInstance = CardInstance.create("sp_assembly")
-	var before: int = arsenal.get_total_units()
-	_sys.on_sell_trigger(arsenal, sold)
-	assert_eq(arsenal.get_total_units(), before, "업그레이드 없으면 미발동")
-
-
-func test_arsenal_s3_absorbs_7() -> void:
-	## ★3: 7기 흡수
-	var arsenal := _make_star("sp_arsenal", 3)
-	var sold: CardInstance = CardInstance.create("sp_assembly")
 	sold.attach_upgrade("C1")
-	var before: int = arsenal.get_total_units()
+	var upg_before: int = arsenal.upgrades.size()
 	_sys.on_sell_trigger(arsenal, sold)
-	assert_eq(arsenal.get_total_units(), before + 7, "★3 7기 흡수")
+	assert_eq(arsenal.upgrades.size(), upg_before,
+		"★1 업그레이드 이전 없음")
 
 
-func test_arsenal_s3_majority_atk_bonus() -> void:
-	## ★3: 최다유닛 타입 ATK +30%
+func test_arsenal_s3_rs_growth_multiply_compound() -> void:
+	## ★3 RS block: 본인 성장률 × (1 + 0.2) = 1.2배 (복리).
 	var arsenal := _make_star("sp_arsenal", 3)
-	var sold: CardInstance = CardInstance.create("sp_assembly")
-	sold.attach_upgrade("C1")
-	var atk_before: float = arsenal.get_total_atk()
-	_sys.on_sell_trigger(arsenal, sold)
-	assert_gt(arsenal.get_total_atk(), atk_before, "★3 → majority ATK +30%")
+	arsenal.growth_atk_pct = 0.5
+	arsenal.growth_hp_pct = 0.2
+	_sys.process_rs_card(arsenal, 0, [arsenal], _rng)
+	assert_almost_eq(arsenal.growth_atk_pct, 0.6, 0.001,
+		"★3 RS ATK 성장 0.5 → 0.6 (×1.2)")
+	assert_almost_eq(arsenal.growth_hp_pct, 0.24, 0.001,
+		"★3 RS HP 성장 0.2 → 0.24 (×1.2)")
+
+
+func test_arsenal_s1_s2_no_rs_growth_multiply() -> void:
+	## ★1/★2 는 RS block 없음 — process_rs_card 는 growth 건드리지 않음.
+	for star in [1, 2]:
+		var arsenal := _make_star("sp_arsenal", star)
+		arsenal.growth_atk_pct = 0.5
+		_sys.process_rs_card(arsenal, 0, [arsenal], _rng)
+		assert_almost_eq(arsenal.growth_atk_pct, 0.5, 0.001,
+			"★%d RS 에서 growth 변화 없음" % star)
 
 
 # ================================================================

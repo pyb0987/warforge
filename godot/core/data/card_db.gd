@@ -607,7 +607,7 @@ func _register_steampunk() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 4, "atk_buff_pct": 0.3, "attack_stack_pct": 0.12}
+						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 4, "atk_buff_pct": 0.3, "attack_stack_pct": 0.05}
 					],
 				},
 				{
@@ -679,10 +679,10 @@ func _register_steampunk() -> void:
 		ars_comp,
 		[
 			{
-				"trigger_timing": SELL, "max_activations": -1,
+				"trigger_timing": SELL, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "absorb", "target": "self", "count": 3}],
+				"actions": [{"action": "absorb_steampunk", "growth_ratio": 0.5}],
 			}
 		],
 		ars_tags,
@@ -693,10 +693,10 @@ func _register_steampunk() -> void:
 				"card_tags": ars_tags,
 				"effects": [
 				{
-					"trigger_timing": SELL, "max_activations": -1,
+					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "absorb", "target": "self", "count": 5, "transfer_upgrades": true}],
+					"actions": [{"action": "absorb_steampunk", "growth_ratio": 0.5, "transfer_upgrades": true}],
 				}
 			],
 			},
@@ -706,12 +706,16 @@ func _register_steampunk() -> void:
 				"card_tags": ars_tags,
 				"effects": [
 				{
-					"trigger_timing": SELL, "max_activations": -1,
+					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "absorb", "target": "self", "count": 7, "transfer_upgrades": true, "majority_atk_bonus": 0.3}
-					],
+					"actions": [{"action": "absorb_steampunk", "growth_ratio": 0.5, "transfer_upgrades": true}],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "growth_multiply", "pct": 0.2}],
 				}
 			],
 			},

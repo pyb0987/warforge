@@ -13,7 +13,28 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	match card.get_base_id():
 		"sp_warmachine":
 			return _warmachine_manufacture(card, idx, board, rng)
+		"sp_arsenal":
+			return _arsenal_rs_growth(card)
 	# Other steampunk cards use generic card_db effects or other hooks.
+	return Enums.empty_result()
+
+
+## sp_arsenal ★3 RS block: 본인의 성장률을 (1 + pct) 배로 증폭 (복리).
+## ★1/★2 에는 growth_multiply action 이 없으므로 no-op.
+func _arsenal_rs_growth(card: CardInstance) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "growth_multiply")
+	if eff.is_empty():
+		return Enums.empty_result()
+	var pct: float = eff.get("pct", 0.2)
+	var mult: float = 1.0 + pct
+	card.growth_atk_pct *= mult
+	card.growth_hp_pct *= mult
+	for tag in card.tag_growth_atk:
+		card.tag_growth_atk[tag] *= mult
+	for tag in card.tag_growth_hp:
+		card.tag_growth_hp[tag] *= mult
+	card.stats_changed.emit()
 	return Enums.empty_result()
 
 
@@ -91,48 +112,68 @@ func apply_persistent(card: CardInstance) -> void:
 		card.theme_state["attack_stack_pct"] = attack_stack_pct
 
 
-## Handle sell event for sp_arsenal (absorb strongest units from sold card).
+## sp_arsenal 판매 반응 (2026-04-21 재설계):
+## 판매된 스팀펑크 카드의 모든 유닛을 흡수하고, 성장률(개량)의 일부를 이식.
+## max_act: 1 — 한 라운드 1회만 발동 (arsenal.activations_used 로 제어).
+## ★2+: 판매 카드의 upgrade 도 함께 이전.
 func on_sell_trigger(arsenal: CardInstance, sold_card: CardInstance) -> void:
 	if arsenal.get_base_id() != "sp_arsenal":
 		return
-	# Sold card must be steampunk (design: "업그레이드가 있는 스팀펑크 카드를 판매할 때")
 	if sold_card.template.get("theme", -1) != Enums.CardTheme.STEAMPUNK:
-		return
-	if sold_card.upgrades.is_empty():
 		return
 
 	var effs := CardDB.get_theme_effects("sp_arsenal", arsenal.star_level)
-	var abs_eff := _find_eff(effs, "absorb")
-	var absorb: int = abs_eff.get("count", 3)
+	var eff := _find_eff(effs, "absorb_steampunk")
+	if eff.is_empty():
+		return
 
-	var best_id := _strongest_unit_id(sold_card)
-	if best_id != "":
-		var added := arsenal.add_specific_unit(best_id, absorb)
+	# SELL 은 chain_engine 외부에서 호출되므로 max_act 를 수동으로 체크/증가.
+	# reset_round 가 매 라운드 activations_used 를 0 으로 리셋해 "라운드 1회" 보장.
+	var max_act := _arsenal_sell_max_act(arsenal)
+	if not arsenal.can_activate_with(max_act, 0):
+		return
+	arsenal.activations_used += 1
+
+	var growth_ratio: float = eff.get("growth_ratio", 0.5)
+	var transfer_upgrades: bool = eff.get("transfer_upgrades", false)
+
+	# 1) 판매된 카드의 모든 유닛을 arsenal 에 이식 (카드 cap 60 + 보드 cap 체크는 add_specific_unit 이 담당).
+	for s in sold_card.stacks:
+		var unit_id: String = s["unit_type"].get("id", "")
+		if unit_id == "":
+			continue
+		var count: int = s["count"]
+		var added := arsenal.add_specific_unit(unit_id, count)
 		var bonus := CardInstance.roll_bonus_count(added, bonus_spawn_chance, bonus_rng)
 		if bonus > 0:
-			arsenal.add_specific_unit(best_id, bonus)
+			arsenal.add_specific_unit(unit_id, bonus)
 
-	# 업그레이드 이전 (transfer_upgrades: true인 star에서만)
-	if abs_eff.get("transfer_upgrades", false):
+	# 2) 성장률(개량) 이식 — 전체 필드 + tag별 growth 를 growth_ratio 배율로 누적.
+	arsenal.growth_atk_pct += sold_card.growth_atk_pct * growth_ratio
+	arsenal.growth_hp_pct += sold_card.growth_hp_pct * growth_ratio
+	for tag in sold_card.tag_growth_atk:
+		arsenal.tag_growth_atk[tag] = arsenal.tag_growth_atk.get(tag, 0.0) \
+			+ sold_card.tag_growth_atk[tag] * growth_ratio
+	for tag in sold_card.tag_growth_hp:
+		arsenal.tag_growth_hp[tag] = arsenal.tag_growth_hp.get(tag, 0.0) \
+			+ sold_card.tag_growth_hp[tag] * growth_ratio
+
+	# 3) Upgrade 이전 (★2+).
+	if transfer_upgrades:
 		for upg in sold_card.upgrades:
 			var uid: String = upg.get("id", "")
 			if uid != "" and arsenal.can_attach_upgrade():
 				arsenal.attach_upgrade(uid)
 
-	# 최다 유닛 타입 ATK 보너스 (majority_atk_bonus가 있는 star에서만)
-	var majority_bonus: float = abs_eff.get("majority_atk_bonus", 0.0)
-	if majority_bonus > 0.0:
-		var most_id := ""
-		var most_count := 0
-		for s in arsenal.stacks:
-			if s["count"] > most_count:
-				most_count = s["count"]
-				most_id = s["unit_type"].get("id", "")
-		if most_id != "":
-			for s in arsenal.stacks:
-				if s["unit_type"].get("id", "") == most_id:
-					s["upgrade_atk_mult"] *= 1.0 + majority_bonus
-					break
+	arsenal.stats_changed.emit()
+
+
+## SELL block 의 max_activations (1) 을 arsenal template 에서 읽음.
+func _arsenal_sell_max_act(arsenal: CardInstance) -> int:
+	for block in arsenal.template.get("effects", []):
+		if block.get("trigger_timing", -1) == Enums.TriggerTiming.ON_SELL:
+			return block.get("max_activations", -1)
+	return -1
 
 
 # --- Internal ---

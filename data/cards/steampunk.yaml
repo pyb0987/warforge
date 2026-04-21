@@ -370,7 +370,7 @@ cards:
             tag: firearm
             unit_thresh: 4
             atk_buff_pct: 0.3
-            attack_stack_pct: 0.12
+            attack_stack_pct: 0.05
         - trigger_timing: RS
           max_act: -1
           manufacture:
@@ -459,24 +459,24 @@ cards:
       1:
         effects:
         - trigger_timing: SELL
-          max_act: -1
-          absorb:
-            target: self
-            count: 3
+          max_act: 1
+          absorb_steampunk:
+            growth_ratio: 0.5
       2:
         effects:
         - trigger_timing: SELL
-          max_act: -1
-          absorb:
-            target: self
-            count: 5
+          max_act: 1
+          absorb_steampunk:
+            growth_ratio: 0.5
             transfer_upgrades: true
       3:
         effects:
         - trigger_timing: SELL
-          max_act: -1
-          absorb:
-            target: self
-            count: 7
+          max_act: 1
+          absorb_steampunk:
+            growth_ratio: 0.5
             transfer_upgrades: true
-            majority_atk_bonus: 0.3
+        - trigger_timing: RS
+          max_act: -1
+          growth_multiply:
+            pct: 0.2
