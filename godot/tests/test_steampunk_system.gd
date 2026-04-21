@@ -30,7 +30,7 @@ func _make_self_target_mf_event() -> Dictionary:
 
 
 # ================================================================
-# sp_charger: 제조 카운터 10마다 terazin+1 + enhance(0.05)
+# sp_charger ★1: 제조 카운터 8마다 terazin+1 + enhance(0.05)
 # ================================================================
 
 func test_charger_counter_increments() -> void:
@@ -39,23 +39,23 @@ func test_charger_counter_increments() -> void:
 	assert_eq(card.theme_state.get("manufacture_counter", 0), 1, "counter 0→1")
 
 
-func test_charger_below_10_no_terazin() -> void:
+func test_charger_below_threshold_no_terazin() -> void:
 	var card: CardInstance = CardInstance.create("sp_charger")
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
 	assert_eq(result["terazin"], 0, "counter=1 → terazin=0")
 
 
-func test_charger_at_10_gives_terazin() -> void:
+func test_charger_s1_fires_at_8() -> void:
 	var card: CardInstance = CardInstance.create("sp_charger")
-	card.theme_state["manufacture_counter"] = 9
+	card.theme_state["manufacture_counter"] = 7
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "counter 9→10 → terazin=1")
+	assert_eq(result["terazin"], 1, "★1 counter 7→8 → terazin=1")
 	assert_eq(card.theme_state.get("manufacture_counter", -1), 0, "counter reset to 0")
 
 
-func test_charger_at_10_also_enhances_atk() -> void:
+func test_charger_s1_fires_also_enhances_atk() -> void:
 	var card: CardInstance = CardInstance.create("sp_charger")
-	card.theme_state["manufacture_counter"] = 9
+	card.theme_state["manufacture_counter"] = 7
 	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
 	assert_gt(card.get_total_atk(), atk_before, "enhance(0.05) → ATK 증가")
@@ -74,15 +74,15 @@ func test_charger_self_target_counts_twice() -> void:
 
 
 func test_charger_self_target_crosses_threshold_in_one_event() -> void:
-	## counter=9, self-target +2 → 11. threshold 10 초과 → 1 라운드 테라진+1 & 남은 1.
+	## ★1 threshold 8. counter=7, self-target +2 → 9. threshold 1회 넘음 → 잔여 1.
 	var card: CardInstance = CardInstance.create("sp_charger")
-	card.theme_state["manufacture_counter"] = 9
+	card.theme_state["manufacture_counter"] = 7
 	var result: Dictionary = _sys.process_event_card(
 		card, 0, [card], _make_self_target_mf_event(), _rng)
 	assert_eq(result["terazin"], 1,
-		"self-target 이벤트로 counter 9+2=11 → threshold 1회 넘음")
+		"self-target 이벤트로 counter 7+2=9 → threshold 8 1회 넘음")
 	assert_eq(card.theme_state.get("manufacture_counter", -1), 1,
-		"counter 11-10=1 잔여")
+		"counter 9-8=1 잔여")
 
 
 func test_charger_non_self_target_counts_once() -> void:
@@ -425,54 +425,21 @@ func test_warmachine_s3_threshold_4() -> void:
 # ★2/★3 태엽 과급기 (OE counter threshold)
 # ================================================================
 
-func test_charger_s2_base_fires_at_8() -> void:
-	## ★2: threshold 8 (2026-04-21 하향)
+func test_charger_s2_base_fires_at_6() -> void:
+	## ★2: threshold 6, terazin 2 (2026-04-21 하향)
 	var card := _make_star("sp_charger", 2)
-	card.theme_state["manufacture_counter"] = 7
+	card.theme_state["manufacture_counter"] = 5
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "★2 counter 7→8 → terazin=1")
+	assert_eq(result["terazin"], 2, "★2 counter 5→6 → terazin=2")
 	assert_eq(card.theme_state.get("manufacture_counter", -1), 0, "counter reset")
 
 
-func test_charger_s2_rare_counter_increments() -> void:
-	## ★2: rare_counter 별도 누적
-	var card := _make_star("sp_charger", 2)
-	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(card.theme_state.get("rare_counter", 0), 1, "rare_counter 0→1")
-
-
-func test_charger_s2_rare_at_20() -> void:
-	## ★2: rare_counter 20 → pending_rare_upgrade
-	var card := _make_star("sp_charger", 2)
-	card.theme_state["rare_counter"] = 19
-	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_true(card.theme_state.get("pending_rare_upgrade", false), "★2 rare 20 → pending")
-	assert_eq(card.theme_state.get("rare_counter", -1), 0, "rare_counter reset")
-
-
-func test_charger_s1_no_rare_counter() -> void:
-	## ★1: rare_counter 없음
-	var card := _make_star("sp_charger", 1)
-	card.theme_state["manufacture_counter"] = 9
-	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_false(card.theme_state.has("rare_counter"), "★1 → rare_counter 없음")
-
-
-func test_charger_s3_base_fires_at_6() -> void:
-	## ★3: threshold 6 (2026-04-21 하향)
+func test_charger_s3_base_fires_at_4() -> void:
+	## ★3: threshold 4, terazin 4 (2026-04-21 하향)
 	var card := _make_star("sp_charger", 3)
-	card.theme_state["manufacture_counter"] = 5
+	card.theme_state["manufacture_counter"] = 3
 	var result: Dictionary = _sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_eq(result["terazin"], 1, "★3 counter 5→6 → terazin=1")
-
-
-func test_charger_s3_has_epic_counter() -> void:
-	## ★3: epic_counter 15 → pending_epic_upgrade (rare→epic 승격)
-	var card := _make_star("sp_charger", 3)
-	card.theme_state["epic_counter"] = 14
-	_sys.process_event_card(card, 0, [card], _make_manufacture_event(), _rng)
-	assert_true(card.theme_state.get("pending_epic_upgrade", false), "★3 epic 15 → pending")
-	assert_eq(card.theme_state.get("epic_counter", -1), 0, "epic_counter reset")
+	assert_eq(result["terazin"], 4, "★3 counter 3→4 → terazin=4")
 
 
 # ================================================================

@@ -944,7 +944,7 @@ def counter_prefix_for(card: dict, star_data: dict) -> str:
                 self_mult = params["self_target_multiplier"]
             break
     if self_mult and self_mult > 1:
-        return f"{event_name} 1회당 카운터 +1 (자기 카드 대상이면 +{self_mult})."
+        return f"{event_name} 1회당 카운터 +1 (이 카드 대상이면 +{self_mult})."
     return f"{event_name} 1회당 카운터 +1."
 
 

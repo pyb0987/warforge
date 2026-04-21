@@ -401,7 +401,7 @@ cards:
             l2: MF
           counter_produce:
             event: MF
-            threshold: 10
+            threshold: 8
             self_target_multiplier: 2
             rewards:
               terazin: 1
@@ -415,14 +415,11 @@ cards:
             l2: MF
           counter_produce:
             event: MF
-            threshold: 8
+            threshold: 6
             self_target_multiplier: 2
             rewards:
-              terazin: 1
+              terazin: 2
               enhance_atk_pct: 0.07
-          rare_counter:
-            threshold: 20
-            reward: pending_rare_upgrade
       3:
         effects:
         - trigger_timing: OE
@@ -432,17 +429,11 @@ cards:
             l2: MF
           counter_produce:
             event: MF
-            threshold: 6
+            threshold: 4
             self_target_multiplier: 2
             rewards:
-              terazin: 1
+              terazin: 4
               enhance_atk_pct: 0.1
-          epic_counter:
-            threshold: 15
-            reward: pending_epic_upgrade
-          total_counter:
-            per_manufacture: 10
-            reward_terazin: 1
   sp_arsenal:
     name: 제국 병기창
     tier: 5

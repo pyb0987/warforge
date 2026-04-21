@@ -197,15 +197,13 @@ func _find_eff(effs: Array, action: String, target: String = "") -> Dictionary:
 
 
 ## sp_charger: MF 이벤트 감지 → 카운터 누적, threshold 도달 시 terazin +
-## self ATK 개량. ★↑ 시 threshold 하향 + enhance 수치 증가.
-## 2026-04-21: self-target bonus 추가 — MF 이벤트의 target_idx 가 이 카드
-## 자신이면 모든 counter 증가분이 self_target_multiplier 배 (기본 2배).
-## total_counter 는 modulo 방식에서 threshold 방식(while 루프)으로 변경 —
-## increment 가 1 이상이어도 정확히 임계 처리.
+## self ATK 개량. ★↑ 시 threshold 하향 + terazin 보상/enhance 수치 증가.
+## 2026-04-21: self-target bonus — MF 이벤트의 target_idx 가 이 카드이면
+## 카운터 증가분이 self_target_multiplier 배 (기본 2배).
 func _charger(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var cp := _find_eff(effs, "counter_produce")
-	var threshold: int = cp.get("threshold", 10)
+	var threshold: int = cp.get("threshold", 8)
 	var self_mult: int = cp.get("self_target_multiplier", 1)
 	var rewards: Dictionary = cp.get("rewards", {})
 	var terazin_reward: int = rewards.get("terazin", 1)
@@ -218,7 +216,7 @@ func _charger(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
 	var events: Array = []
 	var terazin := 0
 
-	# Base counter: threshold → terazin + enhance (all star levels)
+	# Counter: threshold 도달 시 terazin 보상 + self ATK 개량.
 	var counter: int = card.theme_state.get("manufacture_counter", 0) + increment
 	while counter >= threshold:
 		counter -= threshold
@@ -230,39 +228,6 @@ func _charger(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
 			"source_idx": idx, "target_idx": idx,
 		})
 	card.theme_state["manufacture_counter"] = counter
-
-	# ★2: separate rare counter — 20 → pending rare upgrade 3-choice (UI)
-	if card.star_level == 2:
-		var rc := _find_eff(effs, "rare_counter")
-		var rc_thresh: int = rc.get("threshold", 20)
-		var rare_cnt: int = card.theme_state.get("rare_counter", 0) + increment
-		while rare_cnt >= rc_thresh:
-			rare_cnt -= rc_thresh
-			card.theme_state["pending_rare_upgrade"] = true
-		card.theme_state["rare_counter"] = rare_cnt
-
-	# ★3: epic counter — 15 → pending epic upgrade 3-choice (UI)
-	if card.star_level >= 3:
-		var ec := _find_eff(effs, "epic_counter")
-		var ec_thresh: int = ec.get("threshold", 15)
-		var epic_cnt: int = card.theme_state.get("epic_counter", 0) + increment
-		while epic_cnt >= ec_thresh:
-			epic_cnt -= ec_thresh
-			card.theme_state["pending_epic_upgrade"] = true
-		card.theme_state["epic_counter"] = epic_cnt
-
-	# ★3 영구: 제조 N회마다 +1 테라진 자동 획득 (기본 카운터와 별도 추적).
-	# 필드명 'total_manufacture_count' 는 기존 저장값 호환 유지하되 이제
-	# '임계 카운터' 의미 (threshold 넘으면 reset).
-	if card.star_level >= 3:
-		var tc := _find_eff(effs, "total_counter")
-		var tc_interval: int = tc.get("per_manufacture", 10)
-		var tc_reward: int = tc.get("reward_terazin", 1)
-		var total_cnt: int = card.theme_state.get("total_manufacture_count", 0) + increment
-		while total_cnt >= tc_interval:
-			total_cnt -= tc_interval
-			terazin += tc_reward
-		card.theme_state["total_manufacture_count"] = total_cnt
 
 	return {"events": events, "gold": 0, "terazin": terazin}
 
