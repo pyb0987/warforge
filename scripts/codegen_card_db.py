@@ -1241,6 +1241,12 @@ def _project_to_desc_gen_input(all_cards: dict) -> dict:
                 # timing; other blocks' actions get timing_override injected so
                 # desc_gen renders them as separate sections.
                 proj_star["max_act"] = first_block["max_act"]
+                # Multi-block: preserve per-block max_act so desc_gen can
+                # attach "(최대 N/R)" suffix to the correct timing section.
+                # Key = short timing string (e.g. "RS", "ON_SELL" / "SELL").
+                proj_star["max_act_by_timing"] = {
+                    b["trigger_timing"]: b.get("max_act", -1) for b in blocks
+                }
                 if first_block["trigger_timing"] != base_timing:
                     proj_star["timing"] = first_block["trigger_timing"]
                 # conditional/r_conditional: depth-reduced {when, ...actions}

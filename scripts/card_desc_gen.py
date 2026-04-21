@@ -1053,7 +1053,10 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
     # 'X 1회당 카운터 +1'을 base 본문 앞에 삽입해 축적 전제 노출.
     counter_pfx = counter_prefix_for(card, star_data)
 
-    # 6. Assemble per-timing texts
+    # 6. Assemble per-timing texts — each timing section carries its OWN
+    # max_act suffix when available (multi-block aware). Falls back to the
+    # star-level max_act for the base timing in legacy single-block cases.
+    max_act_map: dict = star_data.get("max_act_by_timing", {})
     parts = []
     # Base timing first, then others
     ordered = [base_timing] + [t for t in timing_groups if t != base_timing]
@@ -1073,12 +1076,19 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
         body = compress_repeated_target(body)
         if timing == base_timing and counter_pfx:
             body = f"{counter_pfx} {body}"
-        parts.append(f"{pfx} {body}")
+        # Per-block max_act suffix: attach to this timing's section, not the
+        # whole sentence. timing_override / ACTION_TIMING_OVERRIDE 로 만들어진
+        # 가짜 timing group 은 블록이 아니므로 map 에 없어 suffix 없음 (정상).
+        if timing in max_act_map:
+            block_suffix = desc_max_act_suffix(max_act_map[timing], timing)
+        elif timing == base_timing:
+            # Fallback for projections lacking max_act_by_timing (legacy).
+            block_suffix = desc_max_act_suffix(star_data["max_act"], base_timing)
+        else:
+            block_suffix = ""
+        parts.append(f"{pfx} {body}{block_suffix}")
 
-    # 7. max_act suffix
-    suffix = desc_max_act_suffix(star_data["max_act"], base_timing)
-
-    return ". ".join(parts) + suffix
+    return ". ".join(parts)
 
 def generate_all_descs(
     all_cards: dict[str, dict[str, dict]]
