@@ -2698,7 +2698,7 @@ func _register_military() -> void:
 			{
 				"trigger_timing": OE, "max_activations": 2,
 				"trigger_layer1": -1, "trigger_layer2": CO,
-				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 				"actions": [{"action": "conscript", "target": "event_target", "count": 1}],
 				"r_conditional_effects": [
 					{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "conscript", "target": "event_target_adj", "count": 1}]},
@@ -2716,7 +2716,7 @@ func _register_military() -> void:
 				{
 					"trigger_timing": OE, "max_activations": 3,
 					"trigger_layer1": -1, "trigger_layer2": CO,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
 						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 1}
 					],
@@ -2735,7 +2735,7 @@ func _register_military() -> void:
 				{
 					"trigger_timing": OE, "max_activations": 3,
 					"trigger_layer1": -1, "trigger_layer2": CO,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"require_tenure": 0, "require_other_card": true, "is_threshold": false,
 					"actions": [
 						{"action": "conscript", "target": "event_target", "count": 2, "enhanced_count": 2}
 					],
