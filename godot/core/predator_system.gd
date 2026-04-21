@@ -16,6 +16,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 		"pr_nest": return _nest(card, idx, board)
 		"pr_farm": return _farm(card, idx)
 		"pr_queen": return _queen(card, idx, board)
+		"pr_apex_hunt": return _apex_hunt_rs(card, idx)
 	# pr_transcend: RS 핸들러 제거 (2026-04-21). 자기 부화/변태 없음.
 	# 다른 카드의 HA/MT 이벤트에 OE 반응 (_transcend_event) 만.
 	return Enums.empty_result()
@@ -344,30 +345,54 @@ func _carapace(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	return {"events": events, "gold": 0, "terazin": 0}
 
 
-func _apex_hunt(card: CardInstance, idx: int) -> Dictionary:
-	# ★1: meta 2, ≤5u ATK+30%  |  ★2: meta 2, +50%  |  ★3: meta 1, ATK×2 mult
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var meta_eff := _find_eff(effs, "meta_consume")
-	var cond_eff := _find_eff(effs, "conditional")
+## pr_apex_hunt 블록별 action 조회. meta_consume 이 RS/OE 양쪽에 중복
+## 존재하므로 get_theme_effects (flat concat) 대신 template.effects 를
+## trigger_timing 으로 필터해 각 블록 고유 action 을 취한다.
+func _apex_hunt_block_action(card: CardInstance, timing: int,
+		action_name: String) -> Dictionary:
+	for block in card.template.get("effects", []):
+		if block.get("trigger_timing", -1) != timing:
+			continue
+		for a in block.get("actions", []):
+			if a.get("action", "") == action_name:
+				return a
+	return {}
 
-	var consume: int = meta_eff.get("consume", 2)
+
+## pr_apex_hunt RS 블록 (2026-04-21 재설계): 매 라운드 자체 기동.
+## meta_consume(consume=1, net 0) → 자기 MT 이벤트 방출 → 자신의 OE 체인 시작.
+## 외부 MT 소스(pr_molt 등) 없이도 단독 동작 확보.
+## 유닛 부족(< consume+1) 이면 metamorphosis 자동 no-op → OE 체인도 안 걸림.
+func _apex_hunt_rs(card: CardInstance, idx: int) -> Dictionary:
+	var meta_eff := _apex_hunt_block_action(
+		card, Enums.TriggerTiming.ROUND_START, "meta_consume")
+	var consume: int = int(meta_eff.get("consume", 1))
+	var events: Array = []
+	if card.metamorphosis(consume):
+		events.append(_meta_evt(idx, idx))
+	return {"events": events, "gold": 0, "terazin": 0}
+
+
+## pr_apex_hunt OE 블록 (2026-04-21 재설계): conditional (unit_count_lte: 5)
+## 제거 — 외부 MT 및 self-MT 에 무조건 buff + meta_consume. require_other
+## 미설정, max_act 로 라운드 상한 제어.
+func _apex_hunt(card: CardInstance, idx: int) -> Dictionary:
+	# ★1: meta 2 + ATK+30%  |  ★2: meta 2 + ATK+50%  |  ★3: meta 1 + ATK×2
+	var meta_eff := _apex_hunt_block_action(
+		card, Enums.TriggerTiming.ON_EVENT, "meta_consume")
+	var consume: int = int(meta_eff.get("consume", 2))
 
 	var events: Array = []
 	if card.metamorphosis(consume):
 		events.append(_meta_evt(idx, idx))
 
-	if not cond_eff.is_empty() and card.get_total_units() <= cond_eff.get("threshold", 5):
-		var inner_effs: Array = cond_eff.get("effects", [])
-		var buff_eff: Dictionary = {}
-		for e in inner_effs:
-			if e.get("action") == "buff":
-				buff_eff = e
-				break
-		if not buff_eff.is_empty():
-			if buff_eff.has("atk_mult"):
-				card.temp_mult_buff(buff_eff.get("atk_mult", 2.0))
-			else:
-				card.temp_buff(null, buff_eff.get("atk_pct", 0.3))
+	var buff_eff := _apex_hunt_block_action(
+		card, Enums.TriggerTiming.ON_EVENT, "buff")
+	if not buff_eff.is_empty():
+		if buff_eff.has("atk_mult"):
+			card.temp_mult_buff(buff_eff.get("atk_mult", 2.0))
+		else:
+			card.temp_buff(null, buff_eff.get("atk_pct", 0.3))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 

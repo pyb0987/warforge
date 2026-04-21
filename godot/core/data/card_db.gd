@@ -2421,10 +2421,16 @@ func _register_predator() -> void:
 				"trigger_timing": OE, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": MT,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "meta_consume", "consume": 2}],
-				"conditional_effects": [
-					{"condition": "unit_count_lte", "threshold": 5, "effects": [{"action": "buff", "target": "self", "atk_pct": 0.3}]}
+				"actions": [
+					{"action": "buff", "target": "self", "atk_pct": 0.3},
+					{"action": "meta_consume", "consume": 2}
 				],
+			},
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "meta_consume", "consume": 1}],
 			}
 		],
 		ah_tags,
@@ -2438,10 +2444,16 @@ func _register_predator() -> void:
 					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": MT,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "meta_consume", "consume": 2}],
-					"conditional_effects": [
-						{"condition": "unit_count_lte", "threshold": 5, "effects": [{"action": "buff", "target": "self", "atk_pct": 0.5}]}
+					"actions": [
+						{"action": "buff", "target": "self", "atk_pct": 0.5},
+						{"action": "meta_consume", "consume": 2}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "meta_consume", "consume": 1}],
 				}
 			],
 			},
@@ -2454,10 +2466,16 @@ func _register_predator() -> void:
 					"trigger_timing": OE, "max_activations": 2,
 					"trigger_layer1": -1, "trigger_layer2": MT,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "meta_consume", "consume": 1}],
-					"conditional_effects": [
-						{"condition": "unit_count_lte", "threshold": 5, "effects": [{"action": "buff", "target": "self", "atk_mult": 2.0, "kill_hp_recover": true}]}
+					"actions": [
+						{"action": "buff", "target": "self", "atk_mult": 2.0, "kill_hp_recover": true},
+						{"action": "meta_consume", "consume": 1}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "meta_consume", "consume": 1}],
 				}
 			],
 			},
