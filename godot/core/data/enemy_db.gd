@@ -33,16 +33,19 @@ static func _round_mult(r: int) -> float:
 
 ## Generate enemy army for a given round.
 ## genome=null falls back to Genome.create_default() (matches original constants).
-## 2026-04-22: target_cp_per_round 기반 unit count 자동 도출.
-##   - 유닛 base stats 고정 (growth via unit count, not stats)
-##   - 4 preset은 PresetGenerator로 동일 target_cp 달성
-##   - 보스 라운드: target_cp × boss_mult (단일 곱)
+## 2026-04-22: target_cp_per_round + stat_mult(enemy_cp_curve) 이중 축.
+##   - stat_mult: 라운드별 유닛당 스탯 배수 (atk × stat_mult, hp × stat_mult)
+##   - target_cp: 총 CP (stat_mult² 반영 후 적절 unit_count 도출)
+##   - 보스 라운드: target_cp × 1.3 (stat_mult은 별도 곱 없음)
 static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome = null) -> Array:
 	var g: Genome = genome if genome != null else Genome.create_default()
 
 	var is_boss := round_num in [4, 8, 12, 15]
 	var preset: int = rng.randi_range(0, 3)
 	var preset_name: String = PRESET_NAMES[preset]
+
+	# stat_mult (enemy_cp_curve): 유닛당 스탯 배수 (고정, autoresearch 대상 아님)
+	var stat_mult: float = g.enemy_cp_curve[round_num - 1] if round_num >= 1 and round_num <= 15 else 1.0
 
 	# target_cp 산정 (보스면 ×1.3)
 	var target_cp: float = g.target_cp_per_round[round_num - 1] if round_num >= 1 and round_num <= 15 else 100.0
@@ -51,8 +54,8 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 		var boss_mult: float = float(bm.get("atk_mult", 1.3))
 		target_cp *= boss_mult
 
-	# PresetGenerator로 unit count 도출
-	var counts: Dictionary = PresetGen.derive_comp(preset_name, target_cp, g.enemy_stats)
+	# PresetGenerator로 unit count 도출 (stat_mult² 고려하여 적절 수량)
+	var counts: Dictionary = PresetGen.derive_comp(preset_name, target_cp, g.enemy_stats, stat_mult)
 
 	var units: Array = []
 	for type_name in counts:
@@ -63,11 +66,10 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 		var base_hp: float = stat.get("hp", 20.0)
 		var base_as: float = stat.get("as", 1.0)
 
-		# 2026-04-22: cp_curve stat multiplier 제거. base stats 고정.
-		# Preset sub-multiplier만 적용 (role 내 분화)
+		# 스탯 스케일: stat_mult × sub_mult (2026-04-22 restored)
 		var sub_mult: float = _sub_mult(preset_name, type_name)
-		var scaled_atk: float = base_atk * sub_mult
-		var scaled_hp: float = base_hp * sub_mult
+		var scaled_atk: float = base_atk * stat_mult * sub_mult
+		var scaled_hp: float = base_hp * stat_mult * sub_mult
 
 		var range_val: int = BASE.get(type_name + "_range", 0)
 		var ms_val: int = BASE.get(type_name + "_ms", 2)

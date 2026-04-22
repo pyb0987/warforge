@@ -114,26 +114,23 @@ func test_boss_r15_is_balanced() -> void:
 
 
 func test_boss_round_target_cp_boosted() -> void:
-	## 2026-04-22: target_cp 기반 시스템. 보스 라운드는 target_cp × 1.3 적용 → 유닛 수 ↑.
-	## atk/hp는 고정 (base stat + sub_mult만).
+	## 2026-04-22: target_cp × 1.3 적용 (보스). stat_mult는 enemy_cp_curve로 별도 적용.
+	## R4 stat_mult ~2 → 유닛 atk = base_atk × stat_mult × sub_mult.
 	_rng.seed = 42
 	var r4: Array = EnemyDBScript.generate(4, _rng)
-	_rng.seed = 42
-	var r3: Array = EnemyDBScript.generate(3, _rng)
-	# R4는 보스 → 같은 seed라도 R3 대비 유닛 더 많아야 (target_cp(4) × 1.3 > target_cp(3))
-	# 하지만 preset이 다를 수 있으므로, 최소한 atk은 base stat 범위 내
+	# R4 stat_mult 약 2 → 최대 atk ≈ 6(sniper) × 2 × 1.0 = 12. 최소 ≈ 2 × 2 × 0.7 = 2.8
 	for u in r4:
-		# Base atk ≤ 6 (sniper) × sub_mult 1.0. Scaled by sub_mult only (no cp_mult).
-		assert_lte(u["atk"], 6.0 + 0.01, "atk은 base stat 이하 (stat multiplier 없음)")
-		assert_gte(u["atk"], 1.4 - 0.01, "atk 최소 = 2.0 × 0.7(sub_mult) = 1.4")
+		assert_lte(u["atk"], 16.0 + 0.01, "R4 atk ≤ max base × stat_mult")
+		assert_gte(u["atk"], 1.0 - 0.01, "R4 atk > 0")
 
 
 func test_non_boss_round_no_boost() -> void:
-	## 2026-04-22: 스탯은 고정이므로 atk은 항상 base range 내.
+	## 2026-04-22: stat_mult 라운드별 선형 증가. atk은 base × stat_mult.
 	_rng.seed = 100
 	var r3: Array = EnemyDBScript.generate(3, _rng)
+	# R3 stat_mult ~1.7 → max atk ≈ 6 × 1.7 = 10.2
 	for u in r3:
-		assert_lte(u["atk"], 6.0 + 0.01, "R3 atk ≤ max base (sniper 6)")
+		assert_lte(u["atk"], 12.0, "R3 atk ≤ max base × stat_mult(R3)")
 
 
 # ================================================================

@@ -33,14 +33,17 @@ static func sub_mult(preset_name: String, role: String) -> float:
 	return 1.0
 
 
-## Derive unit counts per role to match target_cp.
+## Derive unit counts per role to match target_cp at given stat scale.
 ## stats: {role: {"atk": float, "hp": float, "as": float}}
+## stat_mult: per-round enemy stat multiplier (atk × stat_mult, hp × stat_mult).
+##            Per-unit CP scales by stat_mult² (atk×hp both scaled).
 ## Returns: {role: int count}
-static func derive_comp(preset_name: String, target_cp: float, stats: Dictionary) -> Dictionary:
+static func derive_comp(preset_name: String, target_cp: float, stats: Dictionary, stat_mult: float = 1.0) -> Dictionary:
 	var weights: Dictionary = PRESET_RECIPES.get(preset_name, {})
 	if weights.is_empty():
 		return {}
 
+	var stat_sq: float = stat_mult * stat_mult
 	var avg_cp_per_unit := 0.0
 	for role in weights:
 		var s: Dictionary = stats.get(role, {})
@@ -50,7 +53,7 @@ static func derive_comp(preset_name: String, target_cp: float, stats: Dictionary
 		var atk: float = float(s.get("atk", 0.0)) * sm
 		var hp: float = float(s.get("hp", 0.0)) * sm
 		var as_val: float = maxf(float(s.get("as", 1.0)), 0.01)
-		var cp_unit: float = (atk / as_val) * hp
+		var cp_unit: float = (atk / as_val) * hp * stat_sq
 		avg_cp_per_unit += float(weights[role]) * cp_unit
 
 	if avg_cp_per_unit <= 0.0:

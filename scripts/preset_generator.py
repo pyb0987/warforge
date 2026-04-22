@@ -31,17 +31,20 @@ def sub_mult(preset_name: str, role: str) -> float:
     return _SUB_MULT.get((preset_name, role), 1.0)
 
 
-def derive_comp(preset_name: str, target_cp: float, stats: dict) -> dict:
-    """Derive unit counts per role to match target_cp.
+def derive_comp(preset_name: str, target_cp: float, stats: dict, stat_mult: float = 1.0) -> dict:
+    """Derive unit counts per role to match target_cp at given stat scale.
 
     stats: {role: {"atk": float, "hp": float, "as": float}}
+    stat_mult: per-round enemy stat multiplier (atk × stat_mult, hp × stat_mult).
+               Per-unit CP scales by stat_mult² (atk×hp both scaled).
     Returns: {role: int count}
     """
     if preset_name not in PRESET_RECIPES:
         return {}
     weights = PRESET_RECIPES[preset_name]
 
-    # Average CP per unit (weighted), with sub_mult applied.
+    # Average CP per unit (weighted), with sub_mult and stat_mult² applied.
+    stat_sq = stat_mult * stat_mult
     avg_cp_per_unit = 0.0
     for role, w in weights.items():
         s = stats.get(role)
@@ -51,7 +54,7 @@ def derive_comp(preset_name: str, target_cp: float, stats: dict) -> dict:
         atk = s["atk"] * sm
         hp = s["hp"] * sm
         as_val = max(s.get("as", 1.0), 0.01)
-        cp_unit = (atk / as_val) * hp
+        cp_unit = (atk / as_val) * hp * stat_sq
         avg_cp_per_unit += w * cp_unit
 
     if avg_cp_per_unit <= 0:
@@ -64,9 +67,10 @@ def derive_comp(preset_name: str, target_cp: float, stats: dict) -> dict:
     return counts
 
 
-def preset_cp_estimate(preset_name: str, target_cp: float, stats: dict) -> float:
+def preset_cp_estimate(preset_name: str, target_cp: float, stats: dict, stat_mult: float = 1.0) -> float:
     """Given derived comp, compute actual total CP. Should ≈ target_cp."""
-    counts = derive_comp(preset_name, target_cp, stats)
+    counts = derive_comp(preset_name, target_cp, stats, stat_mult)
+    stat_sq = stat_mult * stat_mult
     total = 0.0
     for role, count in counts.items():
         s = stats.get(role, {})
@@ -76,5 +80,5 @@ def preset_cp_estimate(preset_name: str, target_cp: float, stats: dict) -> float
         atk = s["atk"] * sm
         hp = s["hp"] * sm
         as_val = max(s.get("as", 1.0), 0.01)
-        total += (atk / as_val) * hp * count
+        total += (atk / as_val) * hp * count * stat_sq
     return total

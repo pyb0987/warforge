@@ -1,13 +1,59 @@
 {
   "_comment": "Single source of truth for genome validator bounds. Read by autoresearch.py AND genome.gd. Drift is a bug class (failures/002 + 2026-04-18 iter3).",
-  "_references": ["godot/sim/program.md § Genome 변수 정의"],
-  "cp_range": [0.5, 50.0],
-  "target_cp_range": [100.0, 100000.0],
-  "income_range": [5, 8],
-  "levelup_range": [5, 13],
+  "_references": [
+    "godot/sim/program.md \u00a7 Genome \ubcc0\uc218 \uc815\uc758"
+  ],
+  "cp_range": [
+    0.5,
+    50.0
+  ],
+  "target_cp_range": [
+    100.0,
+    500000.0
+  ],
+  "income_range": [
+    5,
+    8
+  ],
+  "levelup_range": [
+    5,
+    13
+  ],
   "income_presets": {
-    "A": [5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7],
-    "B": [6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8],
-    "_note": "base_income은 두 프리셋 중 하나만 허용 (2026-04-19 사용자 설계 의도). 자유 정수 perturbation 금지."
+    "A": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      7,
+      7,
+      7,
+      7
+    ],
+    "B": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      7,
+      7,
+      7,
+      7,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "_note": "base_income\uc740 \ub450 \ud504\ub9ac\uc14b \uc911 \ud558\ub098\ub9cc \ud5c8\uc6a9 (2026-04-19 \uc0ac\uc6a9\uc790 \uc124\uacc4 \uc758\ub3c4). \uc790\uc720 \uc815\uc218 perturbation \uae08\uc9c0."
   }
 }
