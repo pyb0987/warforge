@@ -94,24 +94,24 @@
   },
   "enemy_composition": {
     "swarm": {
-      "swarm_base": 4,
-      "swarm_per_r": 1.5,
-      "ranged_base": 1,
-      "ranged_per_r": 0.1
+      "swarm_base": 8,
+      "swarm_per_r": 2.5,
+      "ranged_base": 2,
+      "ranged_per_r": 0.5
     },
     "heavy": {
-      "heavy_base": 1,
-      "heavy_per_r": 0.5,
-      "melee_base": 2,
-      "melee_per_r": 0.9,
-      "ranged_base": 1,
-      "ranged_per_r": 0.2
+      "heavy_base": 3,
+      "heavy_per_r": 0.8,
+      "melee_base": 4,
+      "melee_per_r": 1.0,
+      "ranged_base": 2,
+      "ranged_per_r": 0.5
     },
     "sniper": {
       "sniper_base": 3,
-      "sniper_per_r": 0.3,
-      "melee_base": 3,
-      "melee_per_r": 3.9
+      "sniper_per_r": 0.6,
+      "melee_base": 5,
+      "melee_per_r": 1.2
     },
     "balanced": {
       "melee_base": 4,
