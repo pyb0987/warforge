@@ -1,26 +1,14 @@
 {
-  "activation_utilization": 0.881509749949781,
-  "axis_delta": {
-    "activation_utilization": -0.00541697646034045,
-    "board_utilization": -0.00385055361989128,
-    "card_coverage": -0.00500000000000028,
-    "dominance_moment": 0.00726481411751734,
-    "emotional_arc": 0.0637414697979717,
-    "loss_resilience": -0.0165476190476198,
-    "theme_ratio_variance": -0.00591220238095191,
-    "tipping_point_quality": 0.0422316813032553,
-    "weighted_score": 0.0128899400024097,
-    "win_rate_band": 0.0420805827873479
-  },
-  "board_utilization": 0.671788525861321,
-  "card_coverage": 0.135714285714286,
-  "dominance_moment": 0.950882786703515,
-  "emotional_arc": 0.676900584795322,
-  "loss_resilience": 0.278333333333333,
+  "activation_utilization": 0.871775793650794,
+  "board_utilization": 0.696526742822239,
+  "card_coverage": 0.182857142857143,
+  "dominance_moment": 1.0,
+  "emotional_arc": 0.44140625,
+  "loss_resilience": 0.0338095238095238,
   "metadata": {
     "base_seed": 42,
-    "genome_path": "res://sim/candidate_genome.json",
-    "runs_per_ai": 20,
+    "genome_path": "res://sim/best_genome.json",
+    "runs_per_ai": 5,
     "strategies": [
       "soft_steampunk",
       "soft_druid",
@@ -30,54 +18,54 @@
       "economy",
       "aggressive"
     ],
-    "total_runs": 140
+    "total_runs": 35
   },
   "strategy_stats": {
     "adaptive": {
-      "avg_hp": -15.6,
-      "total": 20,
-      "win_rate": 0.1,
-      "wins": 2
+      "avg_hp": -623.0,
+      "total": 5,
+      "win_rate": 0.0,
+      "wins": 0
     },
     "aggressive": {
-      "avg_hp": -12.55,
-      "total": 20,
-      "win_rate": 0.05,
-      "wins": 1
+      "avg_hp": -514.2,
+      "total": 5,
+      "win_rate": 0.0,
+      "wins": 0
     },
     "economy": {
-      "avg_hp": -10.7,
-      "total": 20,
-      "win_rate": 0.05,
+      "avg_hp": -244.0,
+      "total": 5,
+      "win_rate": 0.2,
       "wins": 1
     },
     "soft_druid": {
-      "avg_hp": -20.75,
-      "total": 20,
-      "win_rate": 0.05,
-      "wins": 1
+      "avg_hp": -422.6,
+      "total": 5,
+      "win_rate": 0.0,
+      "wins": 0
     },
     "soft_military": {
-      "avg_hp": -11.1,
-      "total": 20,
+      "avg_hp": -220.4,
+      "total": 5,
       "win_rate": 0.0,
       "wins": 0
     },
     "soft_predator": {
-      "avg_hp": -18.05,
-      "total": 20,
-      "win_rate": 0.05,
-      "wins": 1
+      "avg_hp": -284.4,
+      "total": 5,
+      "win_rate": 0.0,
+      "wins": 0
     },
     "soft_steampunk": {
-      "avg_hp": -11.85,
-      "total": 20,
-      "win_rate": 0.05,
-      "wins": 1
+      "avg_hp": -249.0,
+      "total": 5,
+      "win_rate": 0.0,
+      "wins": 0
     }
   },
-  "theme_ratio_variance": 0.540219742063492,
-  "tipping_point_quality": 0.243619762373453,
-  "weighted_score": 0.557804418919439,
-  "win_rate_band": 0.812841263072361
+  "theme_ratio_variance": 0.477103174603175,
+  "tipping_point_quality": 0.0,
+  "weighted_score": 0.446908791250852,
+  "win_rate_band": 0.521716359654161
 }

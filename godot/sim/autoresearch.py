@@ -37,6 +37,7 @@ _BOUNDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "genome_
 with open(_BOUNDS_PATH) as _f:
     _BOUNDS = json.load(_f)
 CP_RANGE = tuple(_BOUNDS["cp_range"])
+TARGET_CP_RANGE = tuple(_BOUNDS.get("target_cp_range", [100.0, 100000.0]))
 INCOME_RANGE = tuple(_BOUNDS["income_range"])
 LEVELUP_RANGE = tuple(_BOUNDS["levelup_range"])
 
@@ -53,14 +54,14 @@ def save_json(path, data):
 
 def validate_genome(g):
     """Validate genome constraints. Returns error string or empty string."""
-    cp = g["enemy_cp_curve"]
-    if len(cp) != 15:
-        return f"CP curve must have 15 values, got {len(cp)}"
-    for i, v in enumerate(cp):
-        if v < CP_RANGE[0] or v > CP_RANGE[1]:
-            return f"CP curve[{i}] = {v} out of range"
-        if i > 0 and cp[i] < cp[i - 1]:
-            return f"CP curve not monotonic at {i}"
+    tc = g.get("target_cp_per_round", [])
+    if len(tc) != 15:
+        return f"target_cp_per_round must have 15 values, got {len(tc)}"
+    for i, v in enumerate(tc):
+        if v < TARGET_CP_RANGE[0] or v > TARGET_CP_RANGE[1]:
+            return f"target_cp[{i}] = {v} out of range {TARGET_CP_RANGE}"
+        if i > 0 and tc[i] < tc[i - 1]:
+            return f"target_cp not monotonic at {i}"
 
     inc = g["economy"]["base_income"]
     for i, v in enumerate(inc):
@@ -164,6 +165,25 @@ def validate_genome(g):
             return f"card_effects[{k}] = {v} out of range [{lo}, {hi}]"
 
     return ""
+
+
+def mutate_target_cp_curve(genome, strength=0.15):
+    """Mutate target_cp_per_round — 유닛 수 기반 난이도 scalar.
+    
+    2026-04-22 신설: enemy_cp_curve + enemy_composition 통합 대체.
+    Geometric perturbation (multiplicative) — curve이 기하급수이므로 log scale 자연.
+    """
+    g = copy.deepcopy(genome)
+    curve = list(g["target_cp_per_round"])
+    for i in range(15):
+        delta = curve[i] * strength * random.uniform(-1, 1)
+        curve[i] = max(TARGET_CP_RANGE[0], min(TARGET_CP_RANGE[1], curve[i] + delta))
+    # Monotonic
+    for i in range(1, 15):
+        if curve[i] < curve[i - 1]:
+            curve[i] = curve[i - 1]
+    g["target_cp_per_round"] = [round(v, 2) for v in curve]
+    return g
 
 
 def mutate_cp_curve(genome, strength=0.15):
@@ -419,7 +439,7 @@ def mutate_card_effects(genome, strength=0.15):
 
 
 PHASE_MUTATORS = {
-    1: [("enemy_comp", mutate_enemy_comp), ("economy", mutate_economy)],  # 2026-04-19: cp_curve freeze, enemy_comp 탐색
+    1: [("target_cp", mutate_target_cp_curve), ("economy", mutate_economy)],  # 2026-04-22: target_cp + economy
     2: [("shop_tiers", mutate_shop_tiers)],
     3: [("enemy_comp", mutate_enemy_comp)],
     4: [("activation_caps", mutate_activation_caps), ("boss_scaling", mutate_boss_scaling)],

@@ -9,16 +9,20 @@ func test_load_default_genome() -> void:
 	assert_not_null(g, "default genome 로드 성공")
 
 
-func test_default_cp_curve_length() -> void:
+func test_default_target_cp_length() -> void:
+	# 2026-04-22: target_cp_per_round 대체 (enemy_cp_curve deprecated).
 	var g = GenomeScript.load_file("res://sim/default_genome.json")
-	assert_eq(g.enemy_cp_curve.size(), 15, "CP 커브 15라운드")
+	assert_eq(g.target_cp_per_round.size(), 15, "target_cp 15라운드")
 
 
-func test_default_cp_curve_matches_enemy_db() -> void:
+func test_default_target_cp_geometric() -> void:
+	# Default: geometric 100 → 100000 over 15 rounds.
 	var g = GenomeScript.load_file("res://sim/default_genome.json")
-	assert_almost_eq(g.enemy_cp_curve[0], 1.0, 0.01, "R1 = 1.0")
-	assert_almost_eq(g.enemy_cp_curve[7], 2.4, 0.01, "R8 = 2.4")
-	assert_almost_eq(g.enemy_cp_curve[14], 4.5, 0.01, "R15 = 4.5")
+	assert_almost_eq(g.target_cp_per_round[0], 100.0, 1.0, "R1 = 100")
+	assert_almost_eq(g.target_cp_per_round[14], 100000.0, 100.0, "R15 = 100000")
+	# Monotonic
+	for i in range(1, 15):
+		assert_gte(g.target_cp_per_round[i], g.target_cp_per_round[i-1], "monotonic at R%d" % (i+1))
 
 
 func test_default_economy() -> void:

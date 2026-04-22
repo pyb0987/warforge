@@ -1,21 +1,4 @@
 {
-  "enemy_cp_curve": [
-    1.0,
-    1.5,
-    2.0,
-    2.5,
-    3.0,
-    3.5,
-    4.0,
-    4.5,
-    5.0,
-    5.5,
-    6.0,
-    6.5,
-    7.0,
-    7.5,
-    8.0
-  ],
   "economy": {
     "base_income": [
       5,
@@ -92,36 +75,6 @@
       50
     ]
   },
-  "enemy_composition": {
-    "swarm": {
-      "swarm_base": 8,
-      "swarm_per_r": 2.5,
-      "ranged_base": 2,
-      "ranged_per_r": 0.5
-    },
-    "heavy": {
-      "heavy_base": 3,
-      "heavy_per_r": 0.8,
-      "melee_base": 4,
-      "melee_per_r": 1.0,
-      "ranged_base": 2,
-      "ranged_per_r": 0.5
-    },
-    "sniper": {
-      "sniper_base": 3,
-      "sniper_per_r": 0.6,
-      "melee_base": 5,
-      "melee_per_r": 1.2
-    },
-    "balanced": {
-      "melee_base": 4,
-      "melee_per_r": 0.5,
-      "ranged_base": 3,
-      "ranged_per_r": 0.7,
-      "swarm_base": 3,
-      "swarm_per_r": 0.5
-    }
-  },
   "enemy_stats": {
     "swarm": {
       "atk": 2.0,
@@ -156,5 +109,22 @@
   "starting_resources": {
     "gold": 7,
     "terazin": 2
-  }
+  },
+  "target_cp_per_round": [
+    100.0,
+    163.8,
+    268.3,
+    439.4,
+    719.7,
+    1178.8,
+    1930.7,
+    3162.3,
+    5179.5,
+    8483.4,
+    13895.0,
+    22758.5,
+    37275.9,
+    61054.0,
+    100000.0
+  ]
 }

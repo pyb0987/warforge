@@ -12,6 +12,9 @@ enum Preset { SWARM, HEAVY, SNIPER, BALANCED }
 
 const PRESET_NAMES := ["swarm", "heavy", "sniper", "balanced"]
 
+## PresetGenerator 로드 (2026-04-22: target_cp → unit count 변환).
+const PresetGen = preload("res://sim/preset_generator.gd")
+
 ## Range/MoveSpeed/Radius are not genome-controlled (geometry constants).
 const BASE := {
 	"swarm_atk": 2.0,   "swarm_hp": 12.0,  "swarm_as": 0.8, "swarm_range": 0, "swarm_ms": 3,
@@ -30,37 +33,41 @@ static func _round_mult(r: int) -> float:
 
 ## Generate enemy army for a given round.
 ## genome=null falls back to Genome.create_default() (matches original constants).
+## 2026-04-22: target_cp_per_round 기반 unit count 자동 도출.
+##   - 유닛 base stats 고정 (growth via unit count, not stats)
+##   - 4 preset은 PresetGenerator로 동일 target_cp 달성
+##   - 보스 라운드: target_cp × boss_mult (단일 곱)
 static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome = null) -> Array:
 	var g: Genome = genome if genome != null else Genome.create_default()
 
 	var is_boss := round_num in [4, 8, 12, 15]
 	var preset: int = rng.randi_range(0, 3)
-
 	var preset_name: String = PRESET_NAMES[preset]
-	var comp: Dictionary = g.get_enemy_comp(preset_name)
-	var cp_mult: float = g.enemy_cp_curve[round_num - 1] if round_num >= 1 and round_num <= 15 else 1.0
+
+	# target_cp 산정 (보스면 ×1.3)
+	var target_cp: float = g.target_cp_per_round[round_num - 1] if round_num >= 1 and round_num <= 15 else 100.0
+	if is_boss:
+		var bm: Dictionary = g.get_boss_mult()
+		var boss_mult: float = float(bm.get("atk_mult", 1.3))
+		target_cp *= boss_mult
+
+	# PresetGenerator로 unit count 도출
+	var counts: Dictionary = PresetGen.derive_comp(preset_name, target_cp, g.enemy_stats)
 
 	var units: Array = []
-	for key in comp:
-		if not key.ends_with("_base"):
-			continue
-		var type_name: String = key.replace("_base", "")
-		var base_count: int = int(comp[key])
-		var per_r: float = comp.get(type_name + "_per_r", 0.0)
-		var count: int = maxi(int(base_count + round_num * per_r), 1)
+	for type_name in counts:
+		var count: int = int(counts[type_name])
 
 		var stat: Dictionary = g.get_enemy_stat(type_name)
 		var base_atk: float = stat.get("atk", 3.0)
 		var base_hp: float = stat.get("hp", 20.0)
 		var base_as: float = stat.get("as", 1.0)
 
-		var scaled_atk: float = base_atk * cp_mult
-		var scaled_hp: float = base_hp * cp_mult
-
-		# Preset sub-multipliers (preserve original variety in role-stat balance)
+		# 2026-04-22: cp_curve stat multiplier 제거. base stats 고정.
+		# Preset sub-multiplier만 적용 (role 내 분화)
 		var sub_mult: float = _sub_mult(preset_name, type_name)
-		scaled_atk *= sub_mult
-		scaled_hp *= sub_mult
+		var scaled_atk: float = base_atk * sub_mult
+		var scaled_hp: float = base_hp * sub_mult
 
 		var range_val: int = BASE.get(type_name + "_range", 0)
 		var ms_val: int = BASE.get(type_name + "_ms", 2)
@@ -75,15 +82,7 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 				"radius": 6.0,
 			})
 
-	# Boss scaling
-	if is_boss:
-		var bm: Dictionary = g.get_boss_mult()
-		var batk: float = bm.get("atk_mult", 1.3)
-		var bhp: float = bm.get("hp_mult", 1.3)
-		for u in units:
-			u["atk"] *= batk
-			u["hp"] *= bhp
-
+	# 2026-04-22: 보스 배수는 target_cp에 이미 적용됨 (×1.3 total CP). 스탯에 별도 배수 없음.
 	return units
 
 

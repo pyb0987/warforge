@@ -178,16 +178,18 @@ func _bench_ids(state: GameState) -> Array:
 
 # --- Genome signal: enemy pressure → adaptive spending ---
 
-## Returns enemy pressure multiplier [0.5, 2.0] based on genome CP curve.
+## Returns enemy pressure multiplier [0.5, 2.0] based on genome target_cp curve.
 ## Higher = enemies are harder this round → spend more aggressively.
+## 2026-04-22: target_cp_per_round 기반 (이전 enemy_cp_curve 대체).
+## default geometric 100→100000 기준.
 func _get_enemy_pressure(round_num: int) -> float:
-	if not _genome or _genome.enemy_cp_curve.is_empty():
+	if not _genome or _genome.target_cp_per_round.is_empty():
 		return 1.0
 	if round_num < 1 or round_num > 15:
 		return 1.0
-	var cp: float = _genome.enemy_cp_curve[round_num - 1]
-	# Compare to default curve baseline
-	var default_cp: float = Genome._original_round_mult(round_num)
+	var cp: float = _genome.target_cp_per_round[round_num - 1]
+	# Compare to default geometric curve: 100 × 1000^((r-1)/14)
+	var default_cp: float = 100.0 * pow(1000.0, float(round_num - 1) / 14.0)
 	if default_cp <= 0.0:
 		return 1.0
 	var ratio: float = cp / default_cp
@@ -241,10 +243,10 @@ func _should_delay_levelup(state: GameState) -> bool:
 	if card_count == 0:
 		return false
 	var avg_cp: float = total_cp / card_count
-	var enemy_cp: float = Genome._original_round_mult(state.round_num)
-	if _genome and not _genome.enemy_cp_curve.is_empty():
-		enemy_cp = _genome.enemy_cp_curve[state.round_num - 1]
-	var enemy_proxy: float = enemy_cp * 100.0
+	# 2026-04-22: target_cp_per_round 사용. 직접 CP value이므로 ×100 scaling 불필요.
+	var enemy_proxy: float = 500.0  # fallback
+	if _genome and not _genome.target_cp_per_round.is_empty():
+		enemy_proxy = _genome.target_cp_per_round[state.round_num - 1]
 	var ratio: float = _p("slow_roll_board_cp_ratio", 1.5)
 	return avg_cp > enemy_proxy * ratio
 

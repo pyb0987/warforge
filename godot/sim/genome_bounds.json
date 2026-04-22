@@ -2,6 +2,7 @@
   "_comment": "Single source of truth for genome validator bounds. Read by autoresearch.py AND genome.gd. Drift is a bug class (failures/002 + 2026-04-18 iter3).",
   "_references": ["godot/sim/program.md § Genome 변수 정의"],
   "cp_range": [0.5, 50.0],
+  "target_cp_range": [100.0, 100000.0],
   "income_range": [5, 8],
   "levelup_range": [5, 13],
   "income_presets": {

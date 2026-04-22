@@ -7,7 +7,14 @@ extends RefCounted
 ## upgrade values, boss reward values, game structure (rounds/field/bench/HP).
 ## Card effects: Tier A params only (dr_deep_rate, pr_swarm_sense_buff, etc.).
 
-## Per-round enemy CP multiplier (indices 0-14 = R1-R15).
+## Per-round target total CP (indices 0-14 = R1-R15).
+## 2026-04-22: enemy_cp_curve 대체. 유닛 수가 이 값에 맞춰 자동 생성되며,
+## 유닛 base stats는 고정 (growth via unit count only, not stats).
+## 4 preset은 PresetGenerator로부터 동일 target_cp를 달성하도록 자동 도출됨.
+var target_cp_per_round: Array = []
+
+## DEPRECATED: enemy_cp_curve. target_cp_per_round로 대체 (2026-04-22).
+## from_dict에서 legacy JSON 로드용으로만 유지. runtime에서 사용 안 함.
 var enemy_cp_curve: Array = []
 
 ## Economy parameters.
@@ -191,10 +198,22 @@ static func from_dict(data: Dictionary) -> Genome:
 	return _from_dict(data)
 
 
+## Default target_cp_per_round — geometric 100 → 100000 (1000x growth over 15 rounds).
+## Each round: target_cp[r] = 100 * (1000)^((r-1)/14)
+## 2026-04-22 신설 (unit count 기반 난이도).
+static func _default_target_cp() -> Array:
+	var curve: Array = []
+	for i in 15:
+		var factor: float = pow(1000.0, float(i) / 14.0)
+		curve.append(round(100.0 * factor * 10.0) / 10.0)
+	return curve
+
+
 ## Build a default Genome with all baseline values populated.
 ## Used by EnemyDB / ShopPicker / game_manager when no best_genome is available.
 static func create_default() -> Genome:
 	var g := Genome.new()
+	g.target_cp_per_round = _default_target_cp()
 	g.enemy_cp_curve = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.2, 4.5]
 	g.economy = {
 		"base_income": [5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7],
@@ -219,11 +238,22 @@ static func create_default() -> Genome:
 static func _from_dict(data: Dictionary) -> Genome:
 	var g := Genome.new()
 
-	# --- Enemy CP curve (required, 15 values) ---
+	# --- target_cp_per_round (primary, 2026-04-22) ---
+	# Backward compat: if missing, synthesize default or from legacy enemy_cp_curve.
+	var tc_raw: Array = data.get("target_cp_per_round", [])
+	if tc_raw.size() == 15:
+		var tc: Array = []
+		for v in tc_raw:
+			tc.append(float(v))
+		g.target_cp_per_round = tc
+	else:
+		g.target_cp_per_round = _default_target_cp()
+
+	# --- Enemy CP curve (deprecated but kept for legacy JSON) ---
 	g.enemy_cp_curve = data.get("enemy_cp_curve", [])
 	if g.enemy_cp_curve.size() != 15:
-		push_error("Genome: enemy_cp_curve must have 15 values, got %d" % g.enemy_cp_curve.size())
-		return null
+		# Legacy fallback — not required anymore
+		g.enemy_cp_curve = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.2, 4.5]
 
 	# --- Economy (with defaults for new fields) ---
 	var econ: Dictionary = data.get("economy", {})
@@ -390,20 +420,20 @@ static func _bounds() -> Dictionary:
 ## Validate genome constraints. Returns "" if valid, error message if not.
 func validate() -> String:
 	var B: Dictionary = _bounds()
-	var cp_lo: float = float(B["cp_range"][0])
-	var cp_hi: float = float(B["cp_range"][1])
+	var tc_lo: float = float(B.get("target_cp_range", [100.0, 100000.0])[0])
+	var tc_hi: float = float(B.get("target_cp_range", [100.0, 100000.0])[1])
 	var in_lo: int = int(B["income_range"][0])
 	var in_hi: int = int(B["income_range"][1])
 	var lv_lo: int = int(B["levelup_range"][0])
 	var lv_hi: int = int(B["levelup_range"][1])
 
-	# 1. CP curve: monotonically increasing, range from genome_bounds.json
+	# 1. target_cp_per_round: monotonically increasing, range from genome_bounds.json
 	for i in 15:
-		var v: float = enemy_cp_curve[i]
-		if v < cp_lo or v > cp_hi:
-			return "enemy_cp_curve[%d] = %.2f out of range [%.2f, %.2f]" % [i, v, cp_lo, cp_hi]
-		if i > 0 and enemy_cp_curve[i] < enemy_cp_curve[i - 1]:
-			return "enemy_cp_curve not monotonic: [%d]=%.2f < [%d]=%.2f" % [i, enemy_cp_curve[i], i - 1, enemy_cp_curve[i - 1]]
+		var v: float = target_cp_per_round[i]
+		if v < tc_lo or v > tc_hi:
+			return "target_cp_per_round[%d] = %.2f out of range [%.2f, %.2f]" % [i, v, tc_lo, tc_hi]
+		if i > 0 and target_cp_per_round[i] < target_cp_per_round[i - 1]:
+			return "target_cp_per_round not monotonic: [%d]=%.2f < [%d]=%.2f" % [i, target_cp_per_round[i], i - 1, target_cp_per_round[i - 1]]
 
 	# 2. Base income: monotonically increasing, range from genome_bounds.json
 	var inc: Array = economy.get("base_income", [])
