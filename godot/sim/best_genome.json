@@ -114,12 +114,12 @@
       "melee_per_r": 3.9
     },
     "balanced": {
-      "melee_base": 11,
-      "melee_per_r": 0.2,
-      "ranged_base": 17,
-      "ranged_per_r": 1.2,
-      "swarm_base": 6,
-      "swarm_per_r": 1.5
+      "melee_base": 4,
+      "melee_per_r": 0.5,
+      "ranged_base": 3,
+      "ranged_per_r": 0.7,
+      "swarm_base": 3,
+      "swarm_per_r": 0.5
     }
   },
   "enemy_stats": {
