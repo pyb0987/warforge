@@ -414,8 +414,10 @@ func _on_battle_finished(result: Dictionary) -> void:
 		game_over_popup.show_result(false, game_state.round_num, game_state.hp)
 		return
 
-	# 보스 라운드 승리 시 보상 팝업 (R4/R8/R12, R15 제외)
-	if won and _is_boss_reward_round():
+	# 보스 라운드 생존 시 보상 팝업 (R4/R8/R12, R15 제외).
+	# 2026-04-23: 승리 → 생존. HP≤0 게임오버는 line 408에서 이미 조기 차단됨.
+	# 이유: 보스에서 졌으나 살아남은 경우 보상이 없으면 후속 R이 사실상 불가 (user 지적).
+	if _is_boss_reward_round():
 		_show_boss_reward_popup()
 	else:
 		_enter_phase(Phase.SETTLEMENT)
