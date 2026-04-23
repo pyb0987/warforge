@@ -88,6 +88,8 @@ var _cached_flow_enemy_dir: Vector2 = Vector2.ZERO
 
 # --- Alive index list (rebuilt once per tick for efficient iteration) ---
 var _alive_list: PackedInt32Array = []
+var _interleaved_order: PackedInt32Array = []  # team-interleaved iteration order (fair first-strike)
+var _pos_snapshot: PackedVector2Array  # pre-phase-1 pos cache for symmetric movement
 
 # --- Pixel scale ---
 const RANGE_SCALE := 32.0   # 1 range unit = 32px
@@ -312,9 +314,29 @@ func tick() -> bool:
 	# Apply slow auras and per-tick mechanics
 	_mech.apply_per_tick()
 
-	# Per-unit update (iterate only alive units)
-	for idx in _alive_list:
-		_update_unit(idx)
+	# Two-phase update to eliminate iteration-order bias (2026-04-23).
+	# Previously single-phase: team 1 units moved+attacked first, then team 0.
+	# This let team 0 see team 1's post-movement position and get first-strike
+	# when engagement range was crossed within a tick.
+	# Fix 1 (phase split): Phase 1 moves all, Phase 2 attacks from post-move
+	#   positions — both teams see each other's final state symmetrically.
+	# Fix 2 (team-interleaved order): within each phase, residual bias came
+	#   from lower-index units attacking first (team 1 spawns at lower idx).
+	#   Build interleaved order (t1[0], t0[0], t1[1], t0[1], ...) so the
+	#   kill-before-counter advantage alternates per unit within one tick —
+	#   symmetric first-strike distribution.
+	_rebuild_interleaved_order()
+	# Snapshot pos so phase 1 movements are computed from pre-tick state
+	# (prevents earlier-iterating units' new position leaking into later units'
+	# target-distance reads).
+	if _pos_snapshot.size() != count:
+		_pos_snapshot.resize(count)
+	for i in _alive_list:
+		_pos_snapshot[i] = pos[i]
+	for idx in _interleaved_order:
+		_move_unit(idx)
+	for idx in _interleaved_order:
+		_attack_unit(idx)
 
 	# Collision separation (every COLLISION_INTERVAL ticks in headless — visual smoothness not needed)
 	if not headless or _tick % COLLISION_INTERVAL == 0:
@@ -331,7 +353,9 @@ func tick() -> bool:
 	return true
 
 
-func _update_unit(i: int) -> void:
+## Phase 1: movement only. Updates target and pos based on PRE-attack-phase state.
+## Phase 2 (_attack_unit) will see post-movement positions for all units symmetrically.
+func _move_unit(i: int) -> void:
 	var is_ally := team[i] == 1
 	var eff_ms: float = move_speed[i] * slow_factor[i]
 
@@ -368,21 +392,40 @@ func _update_unit(i: int) -> void:
 		# 이동시키지 않고 제자리에 두어 이탈 방지.
 		return
 
+	# 2026-04-23: Read target pos from snapshot (pre-tick state) so earlier
+	# iterations' pos writes don't leak into later units' movement decisions.
+	# Self pos uses current (possibly already-updated in same tick? No —
+	# each unit writes its own pos only once per tick, so pos[i] == snapshot here).
 	var t := target_idx[i]
-	var dist_sq := pos[i].distance_squared_to(pos[t])
+	var target_pos: Vector2 = _pos_snapshot[t]
+	var dist_sq := pos[i].distance_squared_to(target_pos)
 	var range_sq := attack_range[i] * attack_range[i]
 
-	if dist_sq <= range_sq:
-		cooldown[i] -= 1.0
-		if cooldown[i] <= 0.0:
-			_do_attack(i, t)
-			cooldown[i] = attack_speed[i]
-	else:
-		var dist := sqrt(dist_sq)  # sqrt only for movement (not for in-range units)
-		var dir := (pos[t] - pos[i]) / dist  # manual normalized (reuse dist)
+	if dist_sq > range_sq:
+		var dist := sqrt(dist_sq)
+		var dir := (target_pos - pos[i]) / dist
 		var step := minf(eff_ms, dist - attack_range[i] + 2.0)
 		pos[i] += dir * step
 		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
+
+
+## Phase 2: attack resolution from post-movement positions. All units see the
+## same snapshot of final positions (symmetric across teams).
+func _attack_unit(i: int) -> void:
+	# Skip retreating or dead units (phase 1 may have invalidated state).
+	if alive[i] == 0 or retreat_active[i] == 1:
+		return
+	var t := target_idx[i]
+	if t < 0 or alive[t] == 0:
+		return
+	var dist_sq := pos[i].distance_squared_to(pos[t])
+	var range_sq := attack_range[i] * attack_range[i]
+	if dist_sq > range_sq:
+		return
+	cooldown[i] -= 1.0
+	if cooldown[i] <= 0.0:
+		_do_attack(i, t)
+		cooldown[i] = attack_speed[i]
 
 
 func _resolve_collisions() -> void:
@@ -456,6 +499,28 @@ func _rebuild_alive_list() -> void:
 	for i in count:
 		if alive[i] == 1:
 			_alive_list.append(i)
+
+
+## Build a team-interleaved version of _alive_list for fair iteration.
+## Pattern: team1[0], team0[0], team1[1], team0[1], ... (remaining after shorter
+## team exhausted appended at tail). Ensures no team has a block-wise first-mover
+## advantage within a single tick.
+func _rebuild_interleaved_order() -> void:
+	_interleaved_order.resize(0)
+	# Partition alive_list by team (stable by index within each team).
+	var t1: PackedInt32Array = []
+	var t0: PackedInt32Array = []
+	for idx in _alive_list:
+		if team[idx] == 1:
+			t1.append(idx)
+		else:
+			t0.append(idx)
+	var n := maxi(t1.size(), t0.size())
+	for i in n:
+		if i < t1.size():
+			_interleaved_order.append(t1[i])
+		if i < t0.size():
+			_interleaved_order.append(t0[i])
 
 
 ## Grid-based AOE query: find enemy units within radius of center.
