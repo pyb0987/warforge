@@ -204,32 +204,54 @@ func test_factory_pc_self_train_crosses_r4_gate_next_round() -> void:
 
 
 func test_factory_pc_enhances_conscripted_by_rank() -> void:
-	## ★1: rank 5 카드에 5 × 2% = 10% ATK 영구 강화.
+	## 2026-04-23: 스케일 기준 = factory 자신의 rank.
+	## ★1 rate 0.02. factory rank 5 → 5 × 2% = 10% ATK.
 	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 5
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 5
 	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var atk_before: float = target.get_total_atk()
 	_sys.apply_post_combat(factory, 0, board, true)
 	var atk_after: float = target.get_total_atk()
 	assert_almost_eq(atk_after / atk_before, 1.10, 0.01,
-		"rank 5 × 2% = 10% ATK 증강 비율")
+		"factory rank 5 × 2% = 10% ATK")
 
 
 func test_factory_pc_r4_applies_hp_too() -> void:
-	## ml_factory rank 4+ 이면 대상 카드에 HP 도 rank × 2% 영구 강화.
+	## 2026-04-23: factory 자신 rank 기반. rate 0.02 (★1).
+	## factory rank 10 → HP = 10 × 2% = 20%. R4 게이트 충족.
 	var factory: CardInstance = CardInstance.create("ml_factory")
-	factory.theme_state["rank"] = 4
+	factory.theme_state["rank"] = 10
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 10
 	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var hp_before: float = target.get_total_hp()
 	_sys.apply_post_combat(factory, 0, board, true)
 	var hp_after: float = target.get_total_hp()
 	assert_almost_eq(hp_after / hp_before, 1.20, 0.01,
-		"rank 10 × 2% = 20% HP 증강 (ml_factory R4+ 조건 충족)")
+		"factory rank 10 × 2% = 20% HP 증강 (R4+ 충족)")
+
+
+func test_factory_pc_ignores_target_rank() -> void:
+	## target rank 무관 검증: factory rank 동일·target rank 다른 두 케이스 결과 동일.
+	## 2026-04-23 factory-rank 기반 전환 regression gate.
+	var factory_a: CardInstance = CardInstance.create("ml_factory")
+	factory_a.theme_state["rank"] = 5
+	var target_a: CardInstance = CardInstance.create("ml_barracks")
+	target_a.theme_state["rank"] = 0
+	factory_a.theme_state["trained_this_round"] = {1: true}
+	_sys.apply_post_combat(factory_a, 0, [factory_a, target_a], true)
+
+	var factory_b: CardInstance = CardInstance.create("ml_factory")
+	factory_b.theme_state["rank"] = 5
+	var target_b: CardInstance = CardInstance.create("ml_barracks")
+	target_b.theme_state["rank"] = 12
+	factory_b.theme_state["trained_this_round"] = {1: true}
+	_sys.apply_post_combat(factory_b, 0, [factory_b, target_b], true)
+
+	assert_almost_eq(target_a.get_total_atk(), target_b.get_total_atk(), 0.01,
+		"target rank 0 vs 12 → 결과 동일 (factory rank만 사용)")
 
 
 func test_factory_pc_r3_no_hp_buff() -> void:
@@ -237,7 +259,6 @@ func test_factory_pc_r3_no_hp_buff() -> void:
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	factory.theme_state["rank"] = 3
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 5
 	factory.theme_state["trained_this_round"] = {1: true}
 	var board: Array = [factory, target]
 	var hp_before: float = target.get_total_hp()
@@ -249,8 +270,8 @@ func test_factory_pc_r3_no_hp_buff() -> void:
 func test_factory_pc_resets_collection_after_apply() -> void:
 	## PC 적용 후 집합 초기화 — 다음 라운드의 수집이 누수 없이 시작.
 	var factory: CardInstance = CardInstance.create("ml_factory")
+	factory.theme_state["rank"] = 1  # enhance 경로 실행되도록 (test name "after_apply" 의도)
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 5
 	factory.theme_state["trained_this_round"] = {1: true, 2: true}
 	_sys.apply_post_combat(factory, 0, [factory, target, target], true)
 	var coll: Dictionary = factory.theme_state.get("trained_this_round", {})
@@ -258,38 +279,37 @@ func test_factory_pc_resets_collection_after_apply() -> void:
 
 
 func test_factory_pc_star_scaling() -> void:
-	## ★2 = 3%, ★3 = 5% per rank.
+	## 2026-04-23: factory 자신 rank 기반. ★2 = 3%, ★3 = 5% per rank.
 	var factory2 := _make_star("ml_factory", 2)
+	factory2.theme_state["rank"] = 10
 	var target2: CardInstance = CardInstance.create("ml_barracks")
-	target2.theme_state["rank"] = 10
 	factory2.theme_state["trained_this_round"] = {1: true}
 	var atk_before2: float = target2.get_total_atk()
 	_sys.apply_post_combat(factory2, 0, [factory2, target2], true)
 	assert_almost_eq(target2.get_total_atk() / atk_before2, 1.30, 0.01,
-		"★2: rank 10 × 3% = 30%")
+		"★2: factory rank 10 × 3% = 30%")
 
 	var factory3 := _make_star("ml_factory", 3)
+	factory3.theme_state["rank"] = 10
 	var target3: CardInstance = CardInstance.create("ml_barracks")
-	target3.theme_state["rank"] = 10
 	factory3.theme_state["trained_this_round"] = {1: true}
 	var atk_before3: float = target3.get_total_atk()
 	_sys.apply_post_combat(factory3, 0, [factory3, target3], true)
 	assert_almost_eq(target3.get_total_atk() / atk_before3, 1.50, 0.01,
-		"★3: rank 10 × 5% = 50%")
+		"★3: factory rank 10 × 5% = 50%")
 
 
 func test_factory_pc_r10_applies_as_buff() -> void:
-	## ml_factory rank 10+ 이면 대상 카드에 AS 도 강화. ★1=2%/rank.
-	## upgrade_as_mult /= (1 + rank × 0.02). target rank 10 → /1.20.
+	## 2026-04-23: factory 자신 rank 기반. ★1=2%/rank.
+	## factory rank 10 → upgrade_as_mult /= (1 + 10 × 0.02) = /1.20.
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	factory.theme_state["rank"] = 10
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 10
 	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.upgrade_as_mult, as_before / 1.20, 0.001,
-		"★1 R10: upgrade_as_mult /= (1 + rank×2%) = /1.20")
+		"★1 R10: upgrade_as_mult /= (1 + factory rank×2%) = /1.20")
 
 
 func test_factory_pc_r9_no_as_buff() -> void:
@@ -297,7 +317,6 @@ func test_factory_pc_r9_no_as_buff() -> void:
 	var factory: CardInstance = CardInstance.create("ml_factory")
 	factory.theme_state["rank"] = 9
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 10
 	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
@@ -306,11 +325,10 @@ func test_factory_pc_r9_no_as_buff() -> void:
 
 
 func test_factory_pc_star3_r10_as_rate() -> void:
-	## ★3 R10: AS 비율 5%/rank. target rank 10 → /1.50.
+	## 2026-04-23: factory 자신 rank 기반. ★3 AS 5%/rank. factory rank 10 → /1.50.
 	var factory := _make_star("ml_factory", 3)
 	factory.theme_state["rank"] = 10
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	target.theme_state["rank"] = 10
 	factory.theme_state["trained_this_round"] = {1: true}
 	var as_before: float = target.upgrade_as_mult
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
@@ -318,16 +336,16 @@ func test_factory_pc_star3_r10_as_rate() -> void:
 		"★3 R10: upgrade_as_mult /= 1.50")
 
 
-func test_factory_pc_rank_zero_no_enhance() -> void:
-	## rank 0 대상은 증강 없음 (곱연산 결과 0).
+func test_factory_pc_factory_rank_zero_no_enhance() -> void:
+	## 2026-04-23: factory 자신 rank 0이면 early-continue 가드로 enhance 생략.
 	var factory: CardInstance = CardInstance.create("ml_factory")
+	# factory rank 설정 안 함 → 0
 	var target: CardInstance = CardInstance.create("ml_barracks")
-	# rank 설정 안 함 → 0
 	factory.theme_state["trained_this_round"] = {1: true}
 	var atk_before: float = target.get_total_atk()
 	_sys.apply_post_combat(factory, 0, [factory, target], true)
 	assert_almost_eq(target.get_total_atk(), atk_before, 0.01,
-		"rank 0 → 증강 없음")
+		"factory rank 0 → 증강 없음 (early-continue)")
 
 
 # ================================================================

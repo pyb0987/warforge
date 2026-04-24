@@ -1055,9 +1055,11 @@ func _factory_collect_tr(card: CardInstance, event: Dictionary) -> Dictionary:
 	return Enums.empty_result()
 
 
-## ml_factory PC 블록: 수집된 카드에 그 카드의 계급 × atk_pct_per_rank 만큼
+## ml_factory PC 블록: 수집된 카드에 **ml_factory 자신의 계급** × atk_pct_per_rank 만큼
 ## ATK 영구 강화. ml_factory 자신 rank 4+ 이면 동일 비율로 HP 도 강화.
 ## rank 10+ 이면 동일 비율로 AS 도 강화 (공격 속도 = upgrade_as_mult 값 감소).
+## 2026-04-23: 이전에는 target_rank 기반이라 multi-trainer 환경에서 compound 폭증.
+## factory 자신 rank로 변경 → self-train 속도로만 성장 → 선형 상한.
 ## 적용 후: 집합 초기화 + 자신 rank +1 (self-train, 이벤트 재방출 없음 —
 ## 자기 참조 무한 체인 차단).
 func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
@@ -1072,6 +1074,11 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 	var apply_hp: bool = self_rank >= 4 and r4_hp_per_rank > 0.0
 	var apply_as: bool = self_rank >= 10 and r10_as_per_rank > 0.0
 
+	# 스케일 기준: factory 자신의 rank (target rank 아님).
+	var atk_pct: float = float(self_rank) * atk_per_rank
+	var hp_pct: float = float(self_rank) * r4_hp_per_rank if apply_hp else 0.0
+	var as_divisor: float = 1.0 + float(self_rank) * r10_as_per_rank if apply_as else 1.0
+
 	var coll: Dictionary = card.theme_state.get("trained_this_round", {})
 	for key in coll.keys():
 		var tgt_idx: int = int(key)
@@ -1080,24 +1087,16 @@ func _factory_pc(card: CardInstance, board: Array) -> Dictionary:
 		var target: CardInstance = board[tgt_idx] as CardInstance
 		if target == null:
 			continue
-		# Safety: TR 이벤트 대상은 군대 카드여야 함 (현재 파이프라인은 항상 그러하지만
-		# future-proofing: 다른 테마가 TR layer2 를 재사용할 경우 영향 격리).
+		# Safety: TR 이벤트 대상은 군대 카드여야 함.
 		if target.template.get("theme", -1) != Enums.CardTheme.MILITARY:
 			continue
-		var tgt_rank: int = _rank(target)
-		if tgt_rank <= 0:
-			continue
-		var atk_pct: float = float(tgt_rank) * atk_per_rank
-		var hp_pct: float = float(tgt_rank) * r4_hp_per_rank if apply_hp else 0.0
+		if self_rank <= 0:
+			continue  # factory 자신 rank 0이면 적용치 0
 		if atk_pct > 0.0 or hp_pct > 0.0:
 			target.enhance(null, atk_pct, hp_pct)
-		if apply_as:
-			# AS 강화 = upgrade_as_mult 값 감소 (낮을수록 빠름).
-			# 1 / (1 + rank × pct) 형태로 안전하게 나눈다 (음수 걱정 없음).
-			var as_divisor: float = 1.0 + float(tgt_rank) * r10_as_per_rank
-			if as_divisor > 0.0:
-				target.upgrade_as_mult /= as_divisor
-				target.stats_changed.emit()
+		if apply_as and as_divisor > 0.0:
+			target.upgrade_as_mult /= as_divisor
+			target.stats_changed.emit()
 	# 라운드 단위로 초기화 — 다음 라운드의 수집이 누수 없이 시작.
 	card.theme_state["trained_this_round"] = {}
 	# Self-train: 전투 종료마다 자신 rank +1 (이벤트 방출 없음).
