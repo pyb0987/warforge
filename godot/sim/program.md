@@ -230,7 +230,7 @@ boss_hp_mult:  기본 1.3, 범위 [1.0, 2.0]
 2. **커맨더/탈리스만 수치 수정 금지**: 리플레이 시스템의 정체성
 3. **업그레이드 수치 수정 금지**: 성장 경로의 정체성
 4. **보스 보상 수치 수정 금지**: 보상 설계의 정체성
-5. **게임 구조 변경 금지**: MAX_ROUNDS=15, STARTING_FIELD_SLOTS=6, MAX_FIELD_SLOTS=8, MAX_BENCH_SLOTS=8, 플레이어 HP=30
+5. **게임 구조 변경 금지**: MAX_ROUNDS=15, STARTING_FIELD_SLOTS=6, MAX_FIELD_SLOTS=8, MAX_BENCH_SLOTS=8, 플레이어 HP=30, 패배 데미지=ceil(적 생존 유닛 × 라운드 배수); 배수 R1=0.2 → R15=1.2 선형
 6. **평가기(evaluator.gd) 수정 금지**: Fixed Evaluator 원칙
 7. **default_genome.json은 Phase 도중 수정 금지**: mutation seed이자 phase 간 reproducibility anchor. Phase 종료 시에만 갱신하고, 갱신 시 `rejection_history.md` § Phase 별 default_genome.json 스냅샷에 sha256 + 변경 사유 기록.
 

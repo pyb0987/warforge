@@ -385,10 +385,10 @@ func _on_battle_finished(result: Dictionary) -> void:
 
 		print("[Settlement] Victory bonus: +%dg" % gold_change)
 	else:
-		var damage: int = result.get("enemy_survived", 1)
+		var damage: int = GameState.compute_defeat_damage(game_state.round_num, result.get("enemy_survived", 1))
 		hp_change = -damage
 		game_state.hp -= damage
-		print("[Settlement] Took %d damage (enemy survived), HP=%d" % [damage, game_state.hp])
+		print("[Settlement] Took %d damage (enemy survived ×R%d 배수), HP=%d" % [damage, game_state.round_num, game_state.hp])
 
 	# Apply POST_COMBAT effects (패배 성장 등)
 	var post := _apply_post_combat_effects(won)

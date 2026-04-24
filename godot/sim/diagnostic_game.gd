@@ -276,7 +276,7 @@ func run_game(args: Dictionary) -> void:
 			state.gold += BossReward.get_settlement_gold_bonus(state, true)
 			state.terazin += BossReward.get_settlement_terazin_bonus(state, true)
 		else:
-			state.hp -= result.get("enemy_survived", 1)
+			state.hp -= GameState.compute_defeat_damage(round_num, result.get("enemy_survived", 1))
 
 		var inc: int = genome.economy.base_income[round_num - 1]
 		var interest: int = mini(state.gold / 5 * genome.economy.interest_per_5g,

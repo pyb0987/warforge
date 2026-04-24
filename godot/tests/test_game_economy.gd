@@ -117,14 +117,54 @@ func test_settlement_r11_gold_5_total_income_8() -> void:
 
 
 # ================================================================
-# HP 데미지 (패배 시 적 생존 유닛 수)
+# HP 데미지 (패배 시 라운드 배수 × 적 생존 유닛 수, ceil)
+# 배수: R1=0.2 → R15=1.2 선형 증가
 # ================================================================
 
-func test_hp_damage_equals_enemy_survived() -> void:
+func test_defeat_damage_r1_multiplier_02() -> void:
+	# R1 배수 0.2: enemy=5 → 1.0 → ceil 1, enemy=10 → 2.0 → ceil 2
+	assert_eq(GameState.compute_defeat_damage(1, 5), 1, "R1 × 5유닛 = 1 데미지")
+	assert_eq(GameState.compute_defeat_damage(1, 10), 2, "R1 × 10유닛 = 2 데미지")
+
+
+func test_defeat_damage_r8_multiplier_07() -> void:
+	# R8 배수 0.7: enemy=10 → 7.0 → ceil 7, enemy=14 → 9.8 → ceil 10
+	assert_eq(GameState.compute_defeat_damage(8, 10), 7, "R8 × 10유닛 = 7 데미지")
+	assert_eq(GameState.compute_defeat_damage(8, 14), 10, "R8 × 14유닛 = 10 데미지 (9.8 ceil)")
+
+
+func test_defeat_damage_r15_multiplier_12() -> void:
+	# R15 배수 1.2: enemy=5 → 6.0 → ceil 6, enemy=10 → 12.0 → ceil 12
+	assert_eq(GameState.compute_defeat_damage(15, 5), 6, "R15 × 5유닛 = 6 데미지")
+	assert_eq(GameState.compute_defeat_damage(15, 10), 12, "R15 × 10유닛 = 12 데미지")
+
+
+func test_defeat_damage_ceil_rounds_up() -> void:
+	# R1 enemy=3: 0.6 → ceil 1 (공짜 패배 방지)
+	assert_eq(GameState.compute_defeat_damage(1, 3), 1, "R1 × 3유닛 = 0.6 ceil = 1")
+
+
+func test_defeat_damage_min_1_boundary() -> void:
+	# 어떤 라운드든 enemy≥1이면 데미지≥1 (ceil의 자동 보장)
+	assert_eq(GameState.compute_defeat_damage(1, 1), 1, "R1 × 1유닛 = 0.2 ceil = 1 (공짜 패배 불가)")
+
+
+func test_defeat_damage_monotonic_round() -> void:
+	# enemy 고정 시 round_num 증가 → damage 비감소
+	var prev: int = 0
+	for r: int in range(1, Enums.MAX_ROUNDS + 1):
+		var dmg: int = GameState.compute_defeat_damage(r, 10)
+		assert_true(dmg >= prev, "R%d 데미지(%d) >= R%d 데미지(%d)" % [r, dmg, r - 1, prev])
+		prev = dmg
+
+
+func test_defeat_damage_applied_to_hp() -> void:
+	# 통합: state.hp 차감 흐름
 	_state.hp = 30
-	var enemy_survived: int = 5
-	_state.hp -= enemy_survived
-	assert_eq(_state.hp, 25, "30 - 5 = 25")
+	_state.round_num = 1
+	var dmg: int = GameState.compute_defeat_damage(_state.round_num, 5)
+	_state.hp -= dmg
+	assert_eq(_state.hp, 29, "R1 패배 적5 → 30-1=29")
 
 
 func test_hp_damage_can_go_negative() -> void:
