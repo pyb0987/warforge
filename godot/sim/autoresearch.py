@@ -24,12 +24,23 @@ import subprocess
 import sys
 import time
 
+# Import calibration primitives (2026-04-22): target_cp is no longer mutated;
+# it is DERIVED from target_wr_curve.json via per-round binary adjustment.
+# Autoresearch only mutates economy/shop/etc; calibration runs inside the loop.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from calibrate_target_cp import (  # noqa: E402
+    derive_target_survival,
+    derive_target_wr,
+    calibrate as calibrate_target_cp,
+)
+
 GODOT_PATH = "/opt/homebrew/bin/godot"
 PROJECT_PATH = "godot/"
 GENOME_PATH = "godot/sim/default_genome.json"
 BASELINE_PATH = "godot/sim/baseline.json"
 BEST_GENOME_PATH = "godot/sim/best_genome.json"
 TEMP_GENOME_PATH = "godot/sim/candidate_genome.json"
+TARGET_CURVE_PATH = "godot/sim/target_wr_curve.json"
 
 # Validation bounds — single source: genome_bounds.json.
 # Do NOT hardcode here or in genome.gd. Drift caused 40min waste on 2026-04-18.
@@ -40,6 +51,12 @@ CP_RANGE = tuple(_BOUNDS["cp_range"])
 TARGET_CP_RANGE = tuple(_BOUNDS.get("target_cp_range", [100.0, 100000.0]))
 INCOME_RANGE = tuple(_BOUNDS["income_range"])
 LEVELUP_RANGE = tuple(_BOUNDS["levelup_range"])
+
+# Target survival curve → per-round target WR (constant across autoresearch run).
+# Loaded once; genome_bounds.json-style single source of truth for difficulty intent.
+with open(TARGET_CURVE_PATH) as _f:
+    _CURVE = json.load(_f)
+TARGET_WR = derive_target_wr(derive_target_survival(_CURVE["survival_anchors"]))
 
 
 def load_json(path):
@@ -167,23 +184,9 @@ def validate_genome(g):
     return ""
 
 
-def mutate_target_cp_curve(genome, strength=0.15):
-    """Mutate target_cp_per_round — 유닛 수 기반 난이도 scalar.
-    
-    2026-04-22 신설: enemy_cp_curve + enemy_composition 통합 대체.
-    Geometric perturbation (multiplicative) — curve이 기하급수이므로 log scale 자연.
-    """
-    g = copy.deepcopy(genome)
-    curve = list(g["target_cp_per_round"])
-    for i in range(15):
-        delta = curve[i] * strength * random.uniform(-1, 1)
-        curve[i] = max(TARGET_CP_RANGE[0], min(TARGET_CP_RANGE[1], curve[i] + delta))
-    # Monotonic
-    for i in range(1, 15):
-        if curve[i] < curve[i - 1]:
-            curve[i] = curve[i - 1]
-    g["target_cp_per_round"] = [round(v, 2) for v in curve]
-    return g
+# 2026-04-22: mutate_target_cp_curve REMOVED. target_cp is now DERIVED via
+# calibrate_target_cp.calibrate() to match target_wr_curve.json (design curve).
+# Autoresearch searches economy/shop/etc; per-round difficulty self-adjusts.
 
 
 def mutate_cp_curve(genome, strength=0.15):
@@ -439,7 +442,9 @@ def mutate_card_effects(genome, strength=0.15):
 
 
 PHASE_MUTATORS = {
-    1: [("target_cp", mutate_target_cp_curve), ("economy", mutate_economy)],  # 2026-04-22: target_cp + economy
+    # 2026-04-22: target_cp REMOVED from Phase 1 — now calibrated per-mutation
+    # (see inner calibration in main loop). Phase 1 now pure economy search.
+    1: [("economy", mutate_economy)],
     2: [("shop_tiers", mutate_shop_tiers)],
     3: [("enemy_comp", mutate_enemy_comp)],
     4: [("activation_caps", mutate_activation_caps), ("boss_scaling", mutate_boss_scaling)],
@@ -542,14 +547,35 @@ def main():
             print(f"[{iteration:3d}] INVALID ({mut_name}): {err}")
             continue
 
-        # Save candidate
-        save_json(TEMP_GENOME_PATH, candidate)
+        # Inner calibration (2026-04-22): derive target_cp to match design curve.
+        # Warm-start from candidate's current target_cp (inherited from best_genome).
+        # max_iter=4 is usually enough because warm start is close to optimum;
+        # only economy changed, not target_cp shape.
+        print(f"[{iteration:3d}] Calibrating {mut_name}...", end="", flush=True)
+        try:
+            calibrated, cal_diag = calibrate_target_cp(
+                candidate, TARGET_WR,
+                max_iter=4, runs=args.runs,
+                cp_range=TARGET_CP_RANGE,
+                verbose=False,
+            )
+        except Exception as e:
+            print(f" CAL ERROR: {e}")
+            continue
+
+        seg = cal_diag["final_segment_errors_pp"]
+        cal_str = f"cal{cal_diag['iterations']}iter err[E{seg.get('early',0):.0f}/M{seg.get('mid',0):.0f}/L{seg.get('late',0):.0f}]pp"
+        if not cal_diag["converged"]:
+            cal_str += "*"  # marker for non-converged
+
+        # Save calibrated candidate
+        save_json(TEMP_GENOME_PATH, calibrated)
 
         # Brief pause between godot invocations to prevent resource exhaustion
         time.sleep(1)
 
         # Evaluate
-        print(f"[{iteration:3d}] Testing {mut_name} mutation (strength={strength:.2f})...", end="", flush=True)
+        print(f" [{cal_str}] Testing...", end="", flush=True)
         result = run_batch(TEMP_GENOME_PATH, BASELINE_PATH, runs=args.runs)
 
         if result is None:
@@ -578,9 +604,9 @@ def main():
         hp_delta_str = (" Δhp[" + " ".join(hp_deltas) + "]") if hp_deltas else ""
 
         if new_score > best_score:
-            # ADOPT
+            # ADOPT (save CALIBRATED genome, not raw candidate — 2026-04-22)
             best_score = new_score
-            best_genome = candidate
+            best_genome = calibrated
             save_json(BEST_GENOME_PATH, best_genome)
             save_json(BASELINE_PATH, result)
             consecutive_rejects = 0
