@@ -169,10 +169,15 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 		Enums.CardTheme.STEAMPUNK:
 			if card.theme_state.has("manufacture_counter"):
 				var mc: int = card.theme_state["manufacture_counter"]
-				var mt := 10
-				if card.star_level == 2:
-					mt = 20
-				info_label.text += "\n⚙ %d/%d" % [mc, mt]
+				# threshold는 카드 데이터(counter_produce.threshold)에서 직접 읽는다.
+				# sp_charger: ★1=8, ★2=6, ★3=4 — 기존 하드코딩(10/20)은 실제와 불일치였음.
+				var mt := 0
+				for e in CardDB.get_theme_effects(card.template_id, card.star_level):
+					if e.get("action", "") == "counter_produce":
+						mt = int(e.get("threshold", 0))
+						break
+				if mt > 0:
+					info_label.text += "\n⚙ %d/%d" % [mc, mt]
 
 	# Unit composition + total CP
 	var unit_lines: PackedStringArray = []
