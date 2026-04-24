@@ -281,7 +281,7 @@ func run() -> Dictionary:
 		if won:
 			state.gold += 1  # Win bonus
 		else:
-			var damage: int = combat_result.get("enemy_survived", 1)
+			var damage: int = GameState.compute_defeat_damage(round_num, combat_result.get("enemy_survived", 1))
 			state.hp -= damage
 
 		# Income from genome

@@ -287,3 +287,14 @@ func _get_zone(zone: String) -> Array:
 		"board": return board
 		"bench": return bench
 	return []
+
+
+## 패배 시 플레이어 HP 데미지 = ceil(enemy_survived × 배수).
+## 배수: R1=0.2 → R15=1.2 선형 증가, step = 1/14.
+## 초반 라운드(방랑상인 등) 의도적 패배 전략 허용, 후반 도박 강하게 처벌.
+## 정수 연산으로 float 오차 회피: multiplier = (18 + 10×round_num) / 140.
+## enemy_survived ≥ 1 이면 ceil이 자동으로 최소 1 데미지 보장 (공짜 패배 방지).
+static func compute_defeat_damage(round_num: int, enemy_survived: int) -> int:
+	var numerator: int = enemy_survived * (18 + 10 * round_num)
+	var denominator: int = 140
+	return (numerator + denominator - 1) / denominator
