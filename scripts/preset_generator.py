@@ -2,112 +2,113 @@
 
 Mirrors godot/sim/preset_generator.gd — keep in sync.
 
-Phase 2 (2026-04-24): Parameterized CP formula (autoresearch-tunable).
+Phase 2 Option A (2026-04-24): Extended formula including range + ms.
 
-  CP = FORMULA_BASE + (atk/as)^FORMULA_ALPHA × hp^FORMULA_BETA
+  CP = FORMULA_BASE + (atk/as)^ALPHA × hp^BETA × (1+range)^GAMMA × ms^DELTA
 
   Rationale:
-    - FORMULA_BASE: presence CP (every unit occupies a slot → non-zero value)
+    - FORMULA_BASE: presence CP (every unit occupies a slot)
     - FORMULA_ALPHA: DPS exponent (sub-linear damage returns in mass combat)
-    - FORMULA_BETA: HP exponent (sub-linear survival returns under focus fire)
+    - FORMULA_BETA: HP exponent
+    - FORMULA_GAMMA: range exponent (ranged units have kiting advantage)
+    - FORMULA_DELTA: ms exponent (fast units engage more)
 
-  These 3 constants are tuned via autoresearch with parity_evaluator.py.
+  All 5 exponents tuned via autoresearch. Any γ/δ/α/β = 0 disables that term.
 
 THEME_RECIPES: enemy preset → weighted unit pool (unchanged).
-UNIT_STATS: mirror of UnitDB atk/hp/as (immutable — update only if UnitDB changes).
+UNIT_STATS: mirror of UnitDB atk/hp/as/range/ms (immutable).
 """
-
-import math
 
 
 # ═══════════════════════════════════════════════════════════════════
 # CP Formula Coefficients — AUTORESEARCH-TUNABLE
-# Orchestrator (cp_formula_autoresearch.py) mutates these values.
 # ═══════════════════════════════════════════════════════════════════
 
-FORMULA_BASE = 19.35      # presence CP (every unit → at least this much)
-FORMULA_ALPHA = 0.249      # DPS exponent (0.5=sqrt, 1.0=linear)
-FORMULA_BETA = 0.905       # HP exponent (0.5=sqrt, 1.0=linear)
+FORMULA_BASE = 19.35       # presence CP
+FORMULA_ALPHA = 0.249      # DPS exponent
+FORMULA_BETA = 0.905       # HP exponent
+FORMULA_GAMMA = 0.0        # range exponent (0 = disabled — seed from Phase 2 baseline)
+FORMULA_DELTA = 0.0        # ms exponent (0 = disabled — seed from Phase 2 baseline)
 
 
 # ═══════════════════════════════════════════════════════════════════
 # UNIT_STATS — mirror of godot/core/data/unit_db.gd (IMMUTABLE)
-# Source of truth: UnitDB. Update this dict only when UnitDB stats change.
+# Now includes range + ms for Option A formula.
 # ═══════════════════════════════════════════════════════════════════
 
 UNIT_STATS = {
     # ── Steampunk (10) ──
-    "sp_spider":   {"atk": 2, "hp": 20,  "as": 0.5},
-    "sp_rat":      {"atk": 2, "hp": 15,  "as": 0.5},
-    "sp_sawblade": {"atk": 4, "hp": 40,  "as": 1.0},
-    "sp_scorpion": {"atk": 6, "hp": 55,  "as": 1.0},
-    "sp_crab":     {"atk": 5, "hp": 70,  "as": 1.5},
-    "sp_titan":    {"atk": 4, "hp": 100, "as": 1.5},
-    "sp_cannon":   {"atk": 5, "hp": 35,  "as": 1.0},
-    "sp_drone":    {"atk": 4, "hp": 20,  "as": 0.5},
-    "sp_turret":   {"atk": 8, "hp": 30,  "as": 1.5},
-    "sp_scout":    {"atk": 2, "hp": 25,  "as": 0.5},
+    "sp_spider":   {"atk": 2, "hp": 20,  "as": 0.5, "range": 0, "ms": 3},
+    "sp_rat":      {"atk": 2, "hp": 15,  "as": 0.5, "range": 2, "ms": 3},
+    "sp_sawblade": {"atk": 4, "hp": 40,  "as": 1.0, "range": 0, "ms": 2},
+    "sp_scorpion": {"atk": 6, "hp": 55,  "as": 1.0, "range": 2, "ms": 2},
+    "sp_crab":     {"atk": 5, "hp": 70,  "as": 1.5, "range": 0, "ms": 1},
+    "sp_titan":    {"atk": 4, "hp": 100, "as": 1.5, "range": 0, "ms": 1},
+    "sp_cannon":   {"atk": 5, "hp": 35,  "as": 1.0, "range": 4, "ms": 2},
+    "sp_drone":    {"atk": 4, "hp": 20,  "as": 0.5, "range": 4, "ms": 2},
+    "sp_turret":   {"atk": 8, "hp": 30,  "as": 1.5, "range": 6, "ms": 1},
+    "sp_scout":    {"atk": 2, "hp": 25,  "as": 0.5, "range": 2, "ms": 3},
 
     # ── Druid (10) ──
-    "dr_wolf":      {"atk": 7,  "hp": 40,  "as": 0.5},
-    "dr_boar":      {"atk": 9,  "hp": 60,  "as": 1.0},
-    "dr_treant_y":  {"atk": 8,  "hp": 80,  "as": 1.0},
-    "dr_spirit":    {"atk": 7,  "hp": 60,  "as": 1.0},
-    "dr_turtle":    {"atk": 4,  "hp": 100, "as": 1.5},
-    "dr_treant_a":  {"atk": 6,  "hp": 150, "as": 1.5},
-    "dr_rootguard": {"atk": 5,  "hp": 70,  "as": 1.0},
-    "dr_vine":      {"atk": 8,  "hp": 50,  "as": 1.0},
-    "dr_toad":      {"atk": 7,  "hp": 45,  "as": 1.0},
-    "dr_spore":     {"atk": 14, "hp": 40,  "as": 1.5},
+    "dr_wolf":      {"atk": 7,  "hp": 40,  "as": 0.5, "range": 0, "ms": 3},
+    "dr_boar":      {"atk": 9,  "hp": 60,  "as": 1.0, "range": 0, "ms": 2},
+    "dr_treant_y":  {"atk": 8,  "hp": 80,  "as": 1.0, "range": 0, "ms": 1},
+    "dr_spirit":    {"atk": 7,  "hp": 60,  "as": 1.0, "range": 2, "ms": 2},
+    "dr_turtle":    {"atk": 4,  "hp": 100, "as": 1.5, "range": 0, "ms": 2},
+    "dr_treant_a":  {"atk": 6,  "hp": 150, "as": 1.5, "range": 0, "ms": 1},
+    "dr_rootguard": {"atk": 5,  "hp": 70,  "as": 1.0, "range": 2, "ms": 1},
+    "dr_vine":      {"atk": 8,  "hp": 50,  "as": 1.0, "range": 4, "ms": 1},
+    "dr_toad":      {"atk": 7,  "hp": 45,  "as": 1.0, "range": 4, "ms": 2},
+    "dr_spore":     {"atk": 14, "hp": 40,  "as": 1.5, "range": 6, "ms": 1},
 
     # ── Predator (10) ──
-    "pr_larva":    {"atk": 2, "hp": 15, "as": 0.5},
-    "pr_worker":   {"atk": 2, "hp": 20, "as": 1.0},
-    "pr_spider":   {"atk": 2, "hp": 12, "as": 0.5},
-    "pr_warrior":  {"atk": 3, "hp": 25, "as": 1.0},
-    "pr_charger":  {"atk": 4, "hp": 30, "as": 1.0},
-    "pr_sniper":   {"atk": 3, "hp": 15, "as": 1.0},
-    "pr_flyer":    {"atk": 3, "hp": 20, "as": 0.5},
-    "pr_queen":    {"atk": 2, "hp": 40, "as": 1.5},
-    "pr_guardian": {"atk": 6, "hp": 45, "as": 1.5},
-    "pr_apex":     {"atk": 8, "hp": 30, "as": 1.0},
+    "pr_larva":    {"atk": 2, "hp": 15, "as": 0.5, "range": 0, "ms": 3},
+    "pr_worker":   {"atk": 2, "hp": 20, "as": 1.0, "range": 0, "ms": 2},
+    "pr_spider":   {"atk": 2, "hp": 12, "as": 0.5, "range": 2, "ms": 3},
+    "pr_warrior":  {"atk": 3, "hp": 25, "as": 1.0, "range": 0, "ms": 3},
+    "pr_charger":  {"atk": 4, "hp": 30, "as": 1.0, "range": 0, "ms": 3},
+    "pr_sniper":   {"atk": 3, "hp": 15, "as": 1.0, "range": 4, "ms": 2},
+    "pr_flyer":    {"atk": 3, "hp": 20, "as": 0.5, "range": 4, "ms": 3},
+    "pr_queen":    {"atk": 2, "hp": 40, "as": 1.5, "range": 0, "ms": 1},
+    "pr_guardian": {"atk": 6, "hp": 45, "as": 1.5, "range": 0, "ms": 2},
+    "pr_apex":     {"atk": 8, "hp": 30, "as": 1.0, "range": 2, "ms": 2},
 
     # ── Military (10) ──
-    "ml_recruit":   {"atk": 3,  "hp": 30, "as": 0.5},
-    "ml_infantry":  {"atk": 6,  "hp": 50, "as": 1.0},
-    "ml_shield":    {"atk": 3,  "hp": 75, "as": 1.5},
-    "ml_drone":     {"atk": 3,  "hp": 20, "as": 0.5},
-    "ml_biker":     {"atk": 5,  "hp": 40, "as": 0.5},
-    "ml_plasma":    {"atk": 6,  "hp": 35, "as": 1.0},
-    "ml_sniper":    {"atk": 8,  "hp": 25, "as": 1.5},
-    "ml_artillery": {"atk": 12, "hp": 40, "as": 1.5},
-    "ml_commander": {"atk": 4,  "hp": 55, "as": 1.0},
-    "ml_walker":    {"atk": 9,  "hp": 85, "as": 1.5},
+    "ml_recruit":   {"atk": 3,  "hp": 30, "as": 0.5, "range": 0, "ms": 3},
+    "ml_infantry":  {"atk": 6,  "hp": 50, "as": 1.0, "range": 0, "ms": 2},
+    "ml_shield":    {"atk": 3,  "hp": 75, "as": 1.5, "range": 0, "ms": 1},
+    "ml_drone":     {"atk": 3,  "hp": 20, "as": 0.5, "range": 2, "ms": 3},
+    "ml_biker":     {"atk": 5,  "hp": 40, "as": 0.5, "range": 0, "ms": 3},
+    "ml_plasma":    {"atk": 6,  "hp": 35, "as": 1.0, "range": 4, "ms": 2},
+    "ml_sniper":    {"atk": 8,  "hp": 25, "as": 1.5, "range": 4, "ms": 2},
+    "ml_artillery": {"atk": 12, "hp": 40, "as": 1.5, "range": 6, "ms": 1},
+    "ml_commander": {"atk": 4,  "hp": 55, "as": 1.0, "range": 0, "ms": 2},
+    "ml_walker":    {"atk": 9,  "hp": 85, "as": 1.5, "range": 2, "ms": 1},
 
-    # ── Neutral (10) — excluded from enemy presets ──
-    "ne_scrap":    {"atk": 2,  "hp": 25,  "as": 0.5},
-    "ne_golem":    {"atk": 3,  "hp": 70,  "as": 1.5},
-    "ne_spirit":   {"atk": 6,  "hp": 20,  "as": 1.0},
-    "ne_eagle":    {"atk": 5,  "hp": 15,  "as": 0.5},
-    "ne_guardian": {"atk": 10, "hp": 35,  "as": 1.5},
-    "ne_merc":     {"atk": 5,  "hp": 45,  "as": 1.0},
-    "ne_archer":   {"atk": 5,  "hp": 30,  "as": 1.0},
-    "ne_chimera":  {"atk": 7,  "hp": 50,  "as": 1.0},
-    "ne_beast":    {"atk": 8,  "hp": 35,  "as": 0.5},
-    "ne_mutant":   {"atk": 6,  "hp": 100, "as": 1.5},
+    # ── Neutral (10) — player cards only ──
+    "ne_scrap":    {"atk": 2,  "hp": 25,  "as": 0.5, "range": 0, "ms": 3},
+    "ne_golem":    {"atk": 3,  "hp": 70,  "as": 1.5, "range": 0, "ms": 1},
+    "ne_spirit":   {"atk": 6,  "hp": 20,  "as": 1.0, "range": 4, "ms": 2},
+    "ne_eagle":    {"atk": 5,  "hp": 15,  "as": 0.5, "range": 2, "ms": 3},
+    "ne_guardian": {"atk": 10, "hp": 35,  "as": 1.5, "range": 6, "ms": 1},
+    "ne_merc":     {"atk": 5,  "hp": 45,  "as": 1.0, "range": 0, "ms": 2},
+    "ne_archer":   {"atk": 5,  "hp": 30,  "as": 1.0, "range": 4, "ms": 2},
+    "ne_chimera":  {"atk": 7,  "hp": 50,  "as": 1.0, "range": 0, "ms": 2},
+    "ne_beast":    {"atk": 8,  "hp": 35,  "as": 0.5, "range": 0, "ms": 3},
+    "ne_mutant":   {"atk": 6,  "hp": 100, "as": 1.5, "range": 0, "ms": 1},
 
-    # ── Military Enhanced (6) — excluded from enemy presets ──
-    "ml_recruit_enhanced":  {"atk": 5, "hp": 45,  "as": 0.7},
-    "ml_infantry_enhanced": {"atk": 9, "hp": 70,  "as": 1.0},
-    "ml_shield_enhanced":   {"atk": 4, "hp": 110, "as": 1.5},
-    "ml_drone_enhanced":    {"atk": 5, "hp": 30,  "as": 0.7},
-    "ml_biker_enhanced":    {"atk": 8, "hp": 55,  "as": 0.7},
-    "ml_plasma_enhanced":   {"atk": 9, "hp": 50,  "as": 1.0},
+    # ── Military Enhanced (6) — player cards only ──
+    "ml_recruit_enhanced":  {"atk": 5, "hp": 45,  "as": 0.7, "range": 0, "ms": 3},
+    "ml_infantry_enhanced": {"atk": 9, "hp": 70,  "as": 1.0, "range": 0, "ms": 2},
+    "ml_shield_enhanced":   {"atk": 4, "hp": 110, "as": 1.5, "range": 0, "ms": 1},
+    "ml_drone_enhanced":    {"atk": 5, "hp": 30,  "as": 0.7, "range": 3, "ms": 3},
+    "ml_biker_enhanced":    {"atk": 8, "hp": 55,  "as": 0.7, "range": 0, "ms": 3},
+    "ml_plasma_enhanced":   {"atk": 9, "hp": 50,  "as": 1.0, "range": 5, "ms": 2},
 }
 
 
 # ═══════════════════════════════════════════════════════════════════
-# THEME_RECIPES — unchanged from Phase 1
+# THEME_RECIPES — unchanged
 # ═══════════════════════════════════════════════════════════════════
 
 THEME_RECIPES = {
@@ -139,20 +140,26 @@ THEME_RECIPES = {
 # ═══════════════════════════════════════════════════════════════════
 
 def unit_intrinsic_cp(unit_id: str, stat_mult: float = 1.0) -> float:
-    """Formula: CP = BASE + (atk/as)^ALPHA × hp^BETA. Scaled by stat_mult²."""
+    """Formula: CP = BASE + (atk/as)^α × hp^β × (1+range)^γ × ms^δ. Scaled by stat_mult²."""
     stats = UNIT_STATS.get(unit_id)
     if stats is None:
         return FORMULA_BASE * stat_mult * stat_mult
     atk = float(stats["atk"])
     hp = float(stats["hp"])
     as_val = max(float(stats["as"]), 0.01)
+    rng = float(stats.get("range", 0))
+    ms = max(float(stats.get("ms", 2)), 0.01)
     dps = atk / as_val
-    cp = FORMULA_BASE + (dps ** FORMULA_ALPHA) * (hp ** FORMULA_BETA)
+    cp = (FORMULA_BASE
+          + (dps ** FORMULA_ALPHA)
+          * (hp ** FORMULA_BETA)
+          * ((1.0 + rng) ** FORMULA_GAMMA)
+          * (ms ** FORMULA_DELTA))
     return cp * stat_mult * stat_mult
 
 
 def derive_comp(preset_name: str, target_cp: float, stat_mult: float = 1.0) -> dict:
-    """Derive unit counts per unit_id so Σ(CP × count) ≈ target_cp. Returns sparse {uid: count}."""
+    """Derive unit counts per unit_id so Σ(CP × count) ≈ target_cp. Sparse return."""
     if preset_name not in THEME_RECIPES:
         return {}
     weights = THEME_RECIPES[preset_name]
@@ -189,6 +196,5 @@ def army_effective_cp(counts: dict, stat_mult: float = 1.0) -> float:
 
 
 def preset_cp_estimate(preset_name: str, target_cp: float, stat_mult: float = 1.0) -> float:
-    """Convenience: derive_comp then sum. Should ≈ target_cp (±rounding)."""
     counts = derive_comp(preset_name, target_cp, stat_mult)
     return army_effective_cp(counts, stat_mult)

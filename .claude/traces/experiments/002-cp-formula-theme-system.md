@@ -129,3 +129,61 @@ Phase 2 formula (different basins):
    changing what's on the table is sometimes necessary before tuning.
 3. **Two seeds converging to same basin** = reasonable confidence in global optimum
    (for this search space).
+
+## Follow-up Explorations (2026-04-24)
+
+### Option A — extended formula with range + ms exponents
+
+Added `× (1+range)^γ × ms^δ` terms, 5-param search. Autoresearch (seed=4242, seeded
+with Phase 2 best) ran 20 iterations, **0 ADOPT** — all REJECT. Conclusion: γ=δ=0
+remains optimal. Range and move_speed are **collinear with atk/hp/as** for CP
+purposes — their combat effects are already absorbed by the existing terms.
+
+### Option C — symbolic regression (per-unit WR fit)
+
+Ran 40-unit pairwise tournament at equal count (20 vs 20, stat_mult 3.5, 10 runs/pair).
+Computed per-unit `avg_wr_vs_field`. Fit multiple formula candidates to WR log-odds:
+
+| Formula | R² |
+|---------|-----|
+| Phase 2 `BASE + DPS^α × hp^β` (α=0.25, β=0.9) | 0.796 |
+| Same + range/ms exponents | 0.796 (γ=δ=0) |
+| Linear `c0 + c1·atk + c2·hp + c3·dps` | 0.884 |
+| `BASE + atk^α × hp^β × as^γ` | 0.811 |
+| **`BASE + c × sqrt(atk × hp / as)`** | **0.923** |
+| Polynomial | 0.779 |
+| Linear + range/ms | 0.887 |
+
+F5 (`sqrt(atk × hp / as)`) fit empirical tournament WR best (**α=β=0.5, coincidentally
+Phase 2's minimum-parameter form**). Tested F5 in parity runner with BASE ∈ {30, 50, 80}:
+
+| Config | parity metric | in_band/36 |
+|--------|--------------|-----------|
+| F5 BASE=30 | 0.044 | 0 |
+| F5 BASE=50 | 0.088 | 2 |
+| F5 BASE=80 | 0.049 | 0 |
+| **Phase 2 (α=0.25, β=0.9)** | **0.512** | **17** |
+
+**Paradox**: F5 fits per-unit WR 93% but produces 90% WORSE parity.
+
+**Resolution**: per-unit WR ≠ preset-level parity. Tournament measures "20 units of A
+vs 20 units of B" (individual unit efficiency). Parity measures "preset A with
+target_cp vs preset B with target_cp" (total army balance after count derivation).
+These are different objectives:
+- F5 over-values strong units → druid gets few high-CP units → loses mass combat
+- Phase 2 (α low, β high) under-values DPS → druid gets more units → balances
+
+### Final Verdict
+
+Phase 2 formula `CP = 19.35 + (atk/as)^0.249 × hp^0.905` is optimal for the
+**parity objective**. Alternatives explored (Option A range/ms, Option C sqrt geo-mean)
+either match or underperform. Autoresearch's result is confirmed robust across
+5 independent lines of exploration.
+
+### Additional Lessons
+
+4. **Objective matters more than function form**: A formula that fits one metric
+   excellently can fail another metric. The choice of evaluator metric (parity
+   off-diag band vs per-unit WR) fundamentally changes the optimum.
+5. **Collinearity of combat features**: atk, hp, as contain enough information;
+   range/ms add no independent signal for CP-ordering.

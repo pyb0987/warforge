@@ -75,12 +75,14 @@ PARITY_TIMEOUT = 600  # 10 min — parity run takes ~4-5 min
 
 
 def read_constants_from_gd() -> dict:
-    """Parse FORMULA_BASE/ALPHA/BETA from preset_generator.gd (Phase 2 formula)."""
+    """Parse FORMULA_BASE/ALPHA/BETA/GAMMA/DELTA from preset_generator.gd (Option A)."""
     text = PRESET_GENERATOR_GD.read_text()
     patterns = {
         "FORMULA_BASE":  r"const\s+FORMULA_BASE\s*:=\s*([\d.]+)",
         "FORMULA_ALPHA": r"const\s+FORMULA_ALPHA\s*:=\s*([\d.]+)",
         "FORMULA_BETA":  r"const\s+FORMULA_BETA\s*:=\s*([\d.]+)",
+        "FORMULA_GAMMA": r"const\s+FORMULA_GAMMA\s*:=\s*([\d.]+)",
+        "FORMULA_DELTA": r"const\s+FORMULA_DELTA\s*:=\s*([\d.]+)",
     }
     out = {}
     for k, pat in patterns.items():

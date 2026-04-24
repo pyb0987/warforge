@@ -33,13 +33,17 @@ EVALUATOR = RESEARCH_DIR / "parity_evaluator.py"
 EXPERIMENTS = RESEARCH_DIR / "experiments.jsonl"
 BEST_SCORE = RESEARCH_DIR / "best_score.txt"
 
-# Phase 2 parameterized formula: CP = BASE + (atk/as)^ALPHA × hp^BETA
+# Phase 2 Option A: CP = BASE + (atk/as)^α × hp^β × (1+range)^γ × ms^δ
 BOUNDS = {
     "FORMULA_BASE":  (0.0, 150.0),
-    "FORMULA_ALPHA": (0.2, 1.2),
-    "FORMULA_BETA":  (0.2, 1.2),
+    "FORMULA_ALPHA": (0.0, 1.2),
+    "FORMULA_BETA":  (0.0, 1.2),
+    "FORMULA_GAMMA": (0.0, 1.5),
+    "FORMULA_DELTA": (0.0, 1.5),
 }
-DEFAULTS = {"FORMULA_BASE": 40.0, "FORMULA_ALPHA": 0.5, "FORMULA_BETA": 0.5}
+# Seed from Phase 2 best (known optimum for 3-param subspace).
+DEFAULTS = {"FORMULA_BASE": 19.35, "FORMULA_ALPHA": 0.249, "FORMULA_BETA": 0.905,
+            "FORMULA_GAMMA": 0.0, "FORMULA_DELTA": 0.0}
 
 
 # ================================================================
@@ -136,17 +140,28 @@ def corner_candidate(rng: random.Random) -> tuple[str, dict]:
 
 
 def generate_candidate(rng: random.Random, n: int, best: dict | None) -> tuple[str, dict]:
+    # If we know a prior best, perturb aggressively around it from iter 1.
+    # Random/corner exploration is mixed in at low rate for diversity.
+    if best is not None:
+        # Ensure best has all current BOUNDS keys (pad with DEFAULTS for new dims).
+        full_best = {k: best.get(k, DEFAULTS.get(k, 0.0)) for k in BOUNDS}
+        r = rng.random()
+        if r < 0.15:
+            return random_candidate(rng)        # diversity sample
+        if r < 0.30:
+            return corner_candidate(rng)        # edge exploration
+        scale = 0.20 if n % 3 == 0 else 0.10    # mix near/far perturbs
+        return perturb_candidate(rng, full_best, scale)
+
+    # No prior best — original phased exploration
     if n <= 30:
         return random_candidate(rng)
     if n <= 60:
-        if best is None or rng.random() < 0.3:
+        if rng.random() < 0.3:
             return corner_candidate(rng)
-        return perturb_candidate(rng, best, scale=0.15)
-    # late phase: tighter local search
-    if best is None:
-        return random_candidate(rng)
+        return perturb_candidate(rng, DEFAULTS, scale=0.15)
     scale = 0.10 if rng.random() < 0.7 else 0.20
-    return perturb_candidate(rng, best, scale)
+    return perturb_candidate(rng, DEFAULTS, scale)
 
 
 # ================================================================
