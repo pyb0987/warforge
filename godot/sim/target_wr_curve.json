@@ -1,0 +1,20 @@
+{
+  "_purpose": "Design-intent cumulative survival curve. Human truth source.",
+  "_note": "Per-round target WR is derived from this (ratio of adjacent survivals). Autoresearch NEVER mutates this file — it's the design curve that target_cp calibrates toward.",
+  "_structure": "Anchors at boss rounds (R0/R4/R8/R12/R15). Geometric interpolation within segments.",
+  "_rationale": {
+    "R4": "첫 보스 — 셋업 완료, 완만한 진입",
+    "R8": "★2 전환기 보스 — 빌드 구축 완료 여부 시험",
+    "R12": "최종전 진입 보스 — 중후반 압박 누적",
+    "R15": "최종 보스 — 장르 컨벤션 (Monster Train C25 ~10%, StS A20 ~5%) 사이"
+  },
+
+  "survival_anchors": {
+    "rounds": [0, 4, 8, 12, 15],
+    "values": [1.00, 0.80, 0.50, 0.25, 0.07]
+  },
+  "interpolation": "geometric",
+
+  "_tolerance_pp": 3.0,
+  "_tolerance_note": "per-round WR calibration tolerance: ±3 percentage points"
+}
