@@ -90,6 +90,7 @@ var _cached_flow_enemy_dir: Vector2 = Vector2.ZERO
 var _alive_list: PackedInt32Array = []
 var _interleaved_order: PackedInt32Array = []  # team-interleaved iteration order (fair first-strike)
 var _pos_snapshot: PackedVector2Array  # pre-phase-1 pos cache for symmetric movement
+var _damage_queue: PackedInt32Array = []  # flattened [attacker, defender, ...] for simultaneous damage
 
 # --- Pixel scale ---
 const RANGE_SCALE := 32.0   # 1 range unit = 32px
@@ -335,8 +336,15 @@ func tick() -> bool:
 		_pos_snapshot[i] = pos[i]
 	for idx in _interleaved_order:
 		_move_unit(idx)
+	# Phase 2: queue eligible attacks first, then resolve them in a separate pass
+	# so iteration order within phase 2 cannot decide kill-before-counter outcomes.
+	# "Simultaneous damage" — A→B and B→A both land even if either is lethal.
+	_damage_queue.resize(0)
 	for idx in _interleaved_order:
-		_attack_unit(idx)
+		_queue_attack(idx)
+	var q_pairs := _damage_queue.size() / 2
+	for k in q_pairs:
+		_do_attack(_damage_queue[k * 2], _damage_queue[k * 2 + 1])
 
 	# Collision separation (every COLLISION_INTERVAL ticks in headless — visual smoothness not needed)
 	if not headless or _tick % COLLISION_INTERVAL == 0:
@@ -354,7 +362,7 @@ func tick() -> bool:
 
 
 ## Phase 1: movement only. Updates target and pos based on PRE-attack-phase state.
-## Phase 2 (_attack_unit) will see post-movement positions for all units symmetrically.
+## Phase 2 (_queue_attack + resolve pass) will see post-movement positions symmetrically.
 func _move_unit(i: int) -> void:
 	var is_ally := team[i] == 1
 	var eff_ms: float = move_speed[i] * slow_factor[i]
@@ -369,10 +377,12 @@ func _move_unit(i: int) -> void:
 
 	# Target caching: skip find_nearest if current target is alive and in attack range.
 	# Only re-search when target dies or moves out of range.
+	# Target search uses _pos_snapshot so earlier-iterating units' post-move writes
+	# do not leak into later units' target selection — symmetric across iteration order.
 	var t_cached := target_idx[i]
 	var need_search := true
 	if t_cached >= 0 and alive[t_cached] == 1:
-		var cached_dist_sq := pos[i].distance_squared_to(pos[t_cached])
+		var cached_dist_sq := pos[i].distance_squared_to(_pos_snapshot[t_cached])
 		if cached_dist_sq <= attack_range[i] * attack_range[i]:
 			need_search = false  # attacking current target, no need to re-search
 
@@ -382,10 +392,10 @@ func _move_unit(i: int) -> void:
 		# Pass 2: full battlefield only if pass 1 misses (rare during active combat).
 		# Full search guarantees no unit-escape-bug (traces/failures/unit-escape-bug).
 		var near_range := maxf(attack_range[i], NEAR_SEARCH_RANGE)
-		target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, near_range)
+		target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, _pos_snapshot, near_range)
 		if target_idx[i] < 0:
 			const FULL_BATTLEFIELD_SEARCH := BATTLEFIELD_W + BATTLEFIELD_H
-			target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, pos, FULL_BATTLEFIELD_SEARCH)
+			target_idx[i] = _grid.find_nearest(pos[i], is_ally, team, alive, _pos_snapshot, FULL_BATTLEFIELD_SEARCH)
 
 	if target_idx[i] < 0:
 		# 여기 도달 = 반대편 팀이 0명 → 다음 tick 말에 _finish 호출됨.
@@ -409,9 +419,13 @@ func _move_unit(i: int) -> void:
 		pos[i] = pos[i].clamp(Vector2.ZERO, Vector2(BATTLEFIELD_W, BATTLEFIELD_H))
 
 
-## Phase 2: attack resolution from post-movement positions. All units see the
-## same snapshot of final positions (symmetric across teams).
-func _attack_unit(i: int) -> void:
+## Phase 2a: determine attack eligibility from post-movement positions and enqueue
+## the attack without applying damage. Cooldown still ticks here so every unit that
+## had a target in range consumes a cooldown step, matching prior single-phase behavior.
+## Damage resolution happens in a second pass (see tick()) so that in-tick kills do
+## not prevent the symmetric counter-attack — iteration order within phase 2 becomes
+## irrelevant for who-kills-whom.
+func _queue_attack(i: int) -> void:
 	# Skip retreating or dead units (phase 1 may have invalidated state).
 	if alive[i] == 0 or retreat_active[i] == 1:
 		return
@@ -424,7 +438,8 @@ func _attack_unit(i: int) -> void:
 		return
 	cooldown[i] -= 1.0
 	if cooldown[i] <= 0.0:
-		_do_attack(i, t)
+		_damage_queue.append(i)
+		_damage_queue.append(t)
 		cooldown[i] = attack_speed[i]
 
 
