@@ -3,29 +3,31 @@ extends RefCounted
 ## Fixed evaluator for autoresearch. Computes 9-axis score from simulation results.
 ## IMMUTABLE — do not modify during autoresearch (without explicit user authorization).
 
-## Axis weights (v8 — loss_resilience added per Pragmatist critique 2026-04-07).
-## Rationale: avg_hp data was collected but unused; conflated all losses equally.
-## Reduced emotional_arc 0.15→0.05 to make room (most overlapping signal).
+## Axis weights (v9 — 2026-04-22: win_rate_band + emotional_arc 통합 → per_round_wr_match).
+## 변경 사유: target_wr_curve.json이 진실 소스가 되면서, 두 축이 각각 다른 기준으로 평가하던
+## "WR이 맞나"와 "라운드별 흐름이 맞나"가 하나의 per-round WR 매칭 신호로 수렴.
+## 가중치 0.13 + 0.05 = 0.18을 신축으로 이전.
 const WEIGHTS := {
 	"board_utilization": 0.12,
 	"activation_utilization": 0.08,
-	"win_rate_band": 0.13,
+	"per_round_wr_match": 0.18,
 	"tipping_point_quality": 0.17,
 	"dominance_moment": 0.12,
 	"theme_ratio_variance": 0.13,
 	"card_coverage": 0.10,
-	"emotional_arc": 0.05,
 	"loss_resilience": 0.10,
 }
 
-## Target GAME clear rate (not per-round). Asymmetric gaussian gradient.
-## 7.5% center = midpoint of 5-10% desired band.
-## Asymmetric σ (2026-04-19): symmetric gaussian으로는 0% WR이 target에서 7.5%p 떨어져 있어도
-## 같은 거리의 15%와 동점 (대칭). 하지만 "이길 수 없는 게임"과 "살짝 쉬운 게임"은 설계상 비대칭.
-## failures/002 3회째 재발 방지.
-const WIN_RATE_TARGET := 0.075
-const WIN_RATE_SIGMA_BELOW := 0.07  # target 아래 (WR < 7.5%) — 하한 완만 벌점 (0% → 0.563)
-const WIN_RATE_SIGMA_ABOVE := 0.15  # target 위 (WR > 7.5%) — 상한 급격 벌점 (30% → 0.325)
+## Per-round WR match — segment-based Gaussian scoring.
+## target_wr는 target_wr_curve.json에서 런타임 로드 (evaluator 클래스 로드 시 1회).
+## σ_pp는 각 segment의 noise floor 고려값 (binomial SE × 1.5).
+const TARGET_CURVE_PATH := "res://sim/target_wr_curve.json"
+const WR_MATCH_SIGMA_PP := {
+	"early": 5.0,   # R1-R8  (n≈140, SE~2.5pp)
+	"mid":   8.0,   # R9-R12 (n≈80, SE~5pp)
+	"late": 12.0,   # R13-R15 (n≈30, SE~9pp)
+}
+const MIN_SAMPLES_PER_ROUND := 10  # 소표본 라운드는 점수 계산에서 제외
 
 ## CP margin gate for board_utilization.
 const MARGIN_LO := 0.2
@@ -44,12 +46,11 @@ static func evaluate(results: Array) -> Dictionary:
 	var scores := {}
 	scores["board_utilization"] = _eval_board_utilization(results)
 	scores["activation_utilization"] = _eval_activation_utilization(results)
-	scores["win_rate_band"] = _eval_win_rate_band(results)
+	scores["per_round_wr_match"] = _eval_per_round_wr_match(results)
 	scores["tipping_point_quality"] = _eval_tipping_point(results)
 	scores["dominance_moment"] = _eval_dominance_moment(results)
 	scores["theme_ratio_variance"] = _eval_theme_ratio_variance(results)
 	scores["card_coverage"] = _eval_card_coverage(results)
-	scores["emotional_arc"] = _eval_emotional_arc(results)
 	scores["loss_resilience"] = _eval_loss_resilience(results)
 
 	# Weighted sum
@@ -135,59 +136,106 @@ static func _eval_activation_utilization(results: Array) -> float:
 
 
 # ================================================================
-# Axis 3: win_rate_band — overall + per-theme σ
+# Axis 3: per_round_wr_match — design curve matching (2026-04-22)
 # ================================================================
+##
+## target_wr_curve.json (R0/R4/R8/R12/R15 앵커 → 15-round cumulative survival)
+## 으로부터 per-round target WR을 도출하고, 측정 WR과의 오차를 segment별
+## Gaussian으로 채점. 이전 win_rate_band + emotional_arc 두 축을 대체.
+##
+## Segment 기반 이유: 후반 라운드는 도달자 적어 noise floor 높음. σ를 segment별로
+## 조정하지 않으면 후반 soft fail이 전반 hard fail과 동점 점수로 나와 gradient 혼탁.
+##
+## Formula (per round):
+##   score_r = exp(-((actual_wr[r] - target_wr[r])/100 / sigma_pp[segment])^2 / 2)
+##   (Gaussian, σ is in percentage points)
+## Final = mean(score_r) across rounds with totals[r] >= MIN_SAMPLES_PER_ROUND.
+##
+## target_wr는 evaluator 클래스 로드 시 1회 로드 (static cache). 런 중 불변.
+static var _target_wr: Array = _load_target_wr()
 
-static func _eval_win_rate_band(results: Array) -> float:
-	var total_wins := 0
-	var total_games := 0
-	# Per-strategy game clear rate
-	var strat_wins: Dictionary = {}
-	var strat_games: Dictionary = {}
 
+static func _load_target_wr() -> Array:
+	var file := FileAccess.open(TARGET_CURVE_PATH, FileAccess.READ)
+	if file == null:
+		push_error("Evaluator: target_wr_curve.json not found at %s — per_round_wr_match disabled" % TARGET_CURVE_PATH)
+		return []
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK:
+		push_error("Evaluator: target_wr_curve.json parse failed")
+		return []
+	var data: Dictionary = json.data
+	var anchors: Dictionary = data.get("survival_anchors", {})
+	var rounds: Array = anchors.get("rounds", [])
+	var values: Array = anchors.get("values", [])
+	if rounds.size() != values.size() or rounds.size() < 2:
+		push_error("Evaluator: invalid survival_anchors")
+		return []
+	# Geometric interpolation: expand anchors → 15-round cumulative survival
+	var survival: Array = []
+	survival.resize(16)
+	survival[0] = 1.0
+	for seg in range(rounds.size() - 1):
+		var r_start: int = rounds[seg]
+		var r_end: int = rounds[seg + 1]
+		var v_start: float = values[seg]
+		var v_end: float = values[seg + 1]
+		var per_round_clear: float = pow(v_end / v_start, 1.0 / (r_end - r_start))
+		for r in range(r_start + 1, r_end + 1):
+			survival[r] = survival[r - 1] * per_round_clear
+	# Survival → target_wr (ratio)
+	var target_wr: Array = []
+	var prev: float = 1.0
+	for r in range(1, 16):
+		target_wr.append(survival[r] / prev if prev > 0.0 else 0.0)
+		prev = survival[r]
+	return target_wr
+
+
+static func _segment_of(round_index: int) -> String:
+	# round_index is 0-indexed (0 = R1, 14 = R15)
+	if round_index < 8:
+		return "early"
+	if round_index < 12:
+		return "mid"
+	return "late"
+
+
+static func _eval_per_round_wr_match(results: Array) -> float:
+	if _target_wr.is_empty():
+		return 0.5  # curve not loaded — neutral score
+	# Aggregate per-round wins/totals
+	var wins: Array = []
+	var totals: Array = []
+	wins.resize(15)
+	totals.resize(15)
+	for i in 15:
+		wins[i] = 0
+		totals[i] = 0
 	for r in results:
-		var strat: String = r.strategy
-		total_games += 1
-		strat_games[strat] = strat_games.get(strat, 0) + 1
-		if r.won:
-			total_wins += 1
-			strat_wins[strat] = strat_wins.get(strat, 0) + 1
-
-	if total_games == 0:
+		for rd in r.round_data:
+			var rn: int = int(rd.round_num) - 1
+			if rn >= 0 and rn < 15:
+				totals[rn] += 1
+				if rd.battle_won:
+					wins[rn] += 1
+	# Score per round (only those with enough samples)
+	var score_sum: float = 0.0
+	var count: int = 0
+	for rn in 15:
+		if totals[rn] < MIN_SAMPLES_PER_ROUND:
+			continue
+		var actual_wr: float = float(wins[rn]) / totals[rn]
+		var target_wr: float = float(_target_wr[rn])
+		var seg: String = _segment_of(rn)
+		var sigma_pp: float = WR_MATCH_SIGMA_PP[seg]
+		var dist_pp: float = (actual_wr - target_wr) * 100.0
+		var score: float = exp(-dist_pp * dist_pp / (2.0 * sigma_pp * sigma_pp))
+		score_sum += score
+		count += 1
+	if count == 0:
 		return 0.0
-	var overall_cr: float = float(total_wins) / total_games
-
-	# Per-strategy σ of clear rate
-	var strat_crs: Array = []
-	for strat in strat_games:
-		var sg: int = strat_games[strat]
-		var sw: int = strat_wins.get(strat, 0)
-		if sg > 0:
-			strat_crs.append(float(sw) / sg)
-
-	var sigma := 0.0
-	if strat_crs.size() > 1:
-		var mean_cr := 0.0
-		for cr in strat_crs:
-			mean_cr += cr
-		mean_cr /= strat_crs.size()
-		for cr in strat_crs:
-			sigma += (cr - mean_cr) * (cr - mean_cr)
-		sigma = sqrt(sigma / strat_crs.size())
-
-	return _score_win_rate_band(overall_cr, sigma)
-
-
-## Score game clear rate: gaussian gradient centered on target + σ penalty.
-## Target: 7.5% (midpoint of 5-10% desired band).
-## At 7.5%: 1.0. At 5% or 10%: 0.89. At 0%: 0.32. At 20%: 0.08.
-static func _score_win_rate_band(overall_cr: float, strat_sigma: float) -> float:
-	var dist: float = overall_cr - WIN_RATE_TARGET
-	var sig: float = WIN_RATE_SIGMA_BELOW if dist < 0.0 else WIN_RATE_SIGMA_ABOVE
-	var band_score: float = exp(-dist * dist / (2.0 * sig * sig))
-	# Penalize high strategy variance (σ > 0.10 is concerning for low clear rates)
-	var sigma_penalty: float = clampf(strat_sigma / 0.10, 0.0, 1.0)
-	return clampf(band_score * (1.0 - sigma_penalty * 0.5), 0.0, 1.0)
+	return clampf(score_sum / count, 0.0, 1.0)
 
 
 # ================================================================
@@ -423,77 +471,11 @@ static func _eval_card_coverage(results: Array) -> float:
 
 
 # ================================================================
-# Axis 8: emotional_arc — per-segment win rate matching design curve
+# Axis 8: loss_resilience — final HP normalized (close losses > stomps)
 # ================================================================
-
-## Emotional arc segments: {rounds: [start, end], target: [lo, hi]}
-const ARC_SEGMENTS := [
-	{"start": 1, "end": 3, "lo": 0.70, "hi": 0.95},   # 여유
-	{"start": 4, "end": 7, "lo": 0.40, "hi": 0.70},   # 균형
-	{"start": 8, "end": 12, "lo": 0.25, "hi": 0.55},  # 열세
-	{"start": 13, "end": 15, "lo": 0.15, "hi": 0.45}, # 돌파
-]
-
-static func _eval_emotional_arc(results: Array) -> float:
-	if results.is_empty():
-		return 0.5
-
-	# Collect per-round win rates across all results
-	var round_wins: Array = []  # index 0-14 = R1-R15
-	var round_total: Array = []
-	round_wins.resize(15)
-	round_total.resize(15)
-	for i in 15:
-		round_wins[i] = 0
-		round_total[i] = 0
-
-	for r in results:
-		for rd in r.round_data:
-			var rn: int = rd.round_num - 1  # 0-indexed
-			if rn >= 0 and rn < 15:
-				round_total[rn] += 1
-				if rd.battle_won:
-					round_wins[rn] += 1
-
-	# Score each segment
-	var segment_scores: Array = []
-	for seg in ARC_SEGMENTS:
-		var wins := 0
-		var total := 0
-		for rn in range(seg.start - 1, seg.end):
-			wins += round_wins[rn]
-			total += round_total[rn]
-		if total == 0:
-			segment_scores.append(0.5)
-			continue
-
-		var actual_wr: float = float(wins) / total
-		var lo: float = seg.lo
-		var hi: float = seg.hi
-
-		if actual_wr >= lo and actual_wr <= hi:
-			# In band → score 1.0
-			segment_scores.append(1.0)
-		else:
-			# Distance from nearest band edge, normalized
-			var dist: float
-			if actual_wr < lo:
-				dist = lo - actual_wr
-			else:
-				dist = actual_wr - hi
-			# Penalize: 0.2 distance → score ~0.5, 0.4 distance → score ~0
-			segment_scores.append(clampf(1.0 - dist * 2.5, 0.0, 1.0))
-
-	# Average across 4 segments
-	var total_score := 0.0
-	for s in segment_scores:
-		total_score += s
-	return total_score / segment_scores.size()
-
-
-# ================================================================
-# Axis 9: loss_resilience — final HP normalized (close losses > stomps)
-# ================================================================
+## 2026-04-22: emotional_arc 축 제거 — per_round_wr_match로 통합됨.
+## ARC_SEGMENTS(4-segment in/out band)는 target_wr_curve의 segment별 Gaussian
+## σ로 대체됨 (continuous gradient, cliff 없음).
 ##
 ## Rationale (Pragmatist 2026-04-07):
 ## avg_hp 데이터는 batch_runner.gd에서 수집되지만 8축 evaluator가 무시.
