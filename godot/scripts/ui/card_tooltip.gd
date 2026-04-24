@@ -23,6 +23,30 @@ var _timing_names := {
 	Enums.TriggerTiming.PERSISTENT: "지속",
 }
 
+# 유닛 태그 → 한글 표시명 (unit_db.gd 기준). 미등록 태그는 원문 그대로.
+var _tag_names := {
+	"gear": "기어",
+	"steam": "증기",
+	"electric": "전기",
+	"firearm": "화기",
+	"armor": "장갑",
+	"machine": "기계",
+	"organic": "유기체",
+	"carapace": "갑각",
+	"queen": "여왕",
+	"enhanced": "강화",
+	"small": "소형",
+	"medium": "중형",
+	"large": "대형",
+	"melee": "근접",
+	"ranged": "원거리",
+	"steampunk": "스팀펑크",
+	"druid": "드루이드",
+	"predator": "포식종",
+	"military": "군대",
+	"neutral": "중립",
+}
+
 
 func _ready() -> void:
 	visible = false
@@ -89,6 +113,7 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 
 	# Permanent 강화 누적 (테마 무관, 모든 카드) — growth_atk_pct / growth_hp_pct.
 	# 2026-04-19: 사용자가 sp_furnace 등 enhance 효과 UI 확인 요청.
+	# 2026-04-24: tag_growth_atk / tag_growth_hp 도 동일 패턴으로 표시 (예: 태엽공방 gear +5%).
 	if card.growth_atk_pct > 0.001 or card.growth_hp_pct > 0.001:
 		var atk_p: float = card.growth_atk_pct * 100.0
 		var hp_p: float = card.growth_hp_pct * 100.0
@@ -98,6 +123,22 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 		if hp_p > 0.001:
 			parts.append("HP +%.0f%%" % hp_p)
 		info_label.text += "\n💪 강화: " + ", ".join(parts)
+	var tag_keys: Dictionary = {}
+	for t in card.tag_growth_atk:
+		tag_keys[t] = true
+	for t in card.tag_growth_hp:
+		tag_keys[t] = true
+	for tag in tag_keys:
+		var t_atk: float = card.tag_growth_atk.get(tag, 0.0) * 100.0
+		var t_hp: float = card.tag_growth_hp.get(tag, 0.0) * 100.0
+		var tag_parts: PackedStringArray = []
+		if t_atk > 0.001:
+			tag_parts.append("ATK +%.0f%%" % t_atk)
+		if t_hp > 0.001:
+			tag_parts.append("HP +%.0f%%" % t_hp)
+		if not tag_parts.is_empty():
+			var tag_name: String = _tag_names.get(tag, tag)
+			info_label.text += "\n💪 %s 강화: %s" % [tag_name, ", ".join(tag_parts)]
 
 	# Theme-specific state display
 	var tmpl_theme: int = tmpl.get("theme", Enums.CardTheme.NEUTRAL)
