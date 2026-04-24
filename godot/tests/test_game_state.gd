@@ -244,3 +244,19 @@ func test_try_merge_cascade_star1_to_star3() -> void:
 	var steps: Array = _gs.try_merge("sp_assembly")
 	assert_eq(steps.size(), 2, "캐스케이드 → 2 steps")
 	assert_eq(steps.back().get("new_star", -1), 3, "cascade로 ★3 도달")
+
+
+func test_try_merge_caps_units_at_cap() -> void:
+	## 회귀: ★1 3장이 각각 27기로 부풀면 단순 합산 시 81기 → 60기 초과.
+	## _try_merge_once 는 get_unit_cap() 을 준수해야 한다.
+	## 실제 관측: sp_arsenal(제국 병기창) absorb_steampunk 로 유닛을 불린 ★1 3장
+	## 합성 시 ★2가 70기 관측된 버그 (2026-04-24).
+	for i in 3:
+		var card: CardInstance = CardInstance.create("sp_assembly")
+		card.stacks[0]["count"] = 25  # stack[0] 부풀림 → card 당 25+1+1 = 27기
+		_gs.board[i] = card
+	var steps: Array = _gs.try_merge("sp_assembly")
+	assert_eq(steps.size(), 1, "합성 1회")
+	var merged: CardInstance = steps[0]["card"]
+	assert_true(merged.get_total_units() <= merged.get_unit_cap(),
+		"유닛 합이 cap(%d) 이하 — 실제 %d" % [merged.get_unit_cap(), merged.get_total_units()])
