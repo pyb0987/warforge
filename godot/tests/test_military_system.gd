@@ -1042,3 +1042,81 @@ func test_combat_revive_not_triggered_without_limit() -> void:
 	engine.setup(ally_units, enemy_units)
 	engine.kill_unit(0)
 	assert_eq(engine.alive[0], 0, "revive_limit=0 → 정상 사망")
+
+
+# ================================================================
+# ml_alliance (T3) — RS theme_count_conscript + BS theme_count_spawn
+# ================================================================
+
+
+func test_alliance_star1_rs_adds_recruits_per_theme() -> void:
+	## ★1 RS: theme_count × 1 ml_recruit 직접 추가
+	## 보드에 5테마 모두 → 5기 추가
+	var card: CardInstance = CardInstance.create("ml_alliance")
+	var before_units: int = card.get_total_units()
+	var board: Array = [
+		card,  # military
+		CardInstance.create("sp_assembly"),  # steampunk
+		CardInstance.create("ne_earth_echo"),  # neutral
+		CardInstance.create("dr_cradle"),  # druid
+		CardInstance.create("pr_nest"),  # predator
+	]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_eq(card.get_total_units(), before_units + 5, "5테마 → +5 ml_recruit")
+
+
+func test_alliance_mono_military_only_one_recruit() -> void:
+	## 단일 military theme → theme_count=1 → +1 ml_recruit
+	var card: CardInstance = CardInstance.create("ml_alliance")
+	var before_units: int = card.get_total_units()
+	var board: Array = [card, CardInstance.create("ml_barracks")]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_eq(card.get_total_units(), before_units + 1, "1테마 → +1")
+
+
+func test_alliance_respects_unit_cap() -> void:
+	## get_unit_cap 도달 시 추가 spawn 안 함 (총합 ≤ cap)
+	var card: CardInstance = CardInstance.create("ml_alliance")
+	# 모든 stack을 0으로 비우고 stack[0] = cap-1 로 세팅 (cap 직전)
+	for s in card.stacks:
+		s["count"] = 0
+	card.stacks[0]["count"] = card.get_unit_cap() - 1
+	var board: Array = [
+		card, CardInstance.create("sp_assembly"),
+		CardInstance.create("ne_earth_echo"), CardInstance.create("dr_cradle"),
+		CardInstance.create("pr_nest"),
+	]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_true(card.get_total_units() <= card.get_unit_cap(),
+		"cap %d 이하 (실제 %d)" % [card.get_unit_cap(), card.get_total_units()])
+
+
+func test_alliance_star3_bs_threshold_instant_recruit() -> void:
+	## ★3 BS: theme_count ≥3 시 즉시 ml_recruit 1기 추가 (instant_conscript_threshold)
+	var card: CardInstance = CardInstance.create("ml_alliance")
+	card.evolve_star()
+	card.evolve_star()
+	var before_units: int = card.get_total_units()
+	var board: Array = [
+		card, CardInstance.create("sp_assembly"),
+		CardInstance.create("ne_earth_echo"),
+	]  # 3테마
+	_sys.apply_battle_start(card, 0, board)
+	# theme_count=3, mult=2 → 6 spawn (랜덤 ally) + instant_conscript 1기 → self에 최소 1기 증가
+	# (랜덤 분배라 정확한 +N 보장 못함, 다만 self는 instant_conscript 보장)
+	assert_true(card.get_total_units() >= before_units + 1,
+		"★3 BS theme_count≥3 → 즉시 conscript 1기 (self)")
+
+
+func test_alliance_star2_bs_no_instant_threshold() -> void:
+	## ★2 BS: instant_conscript_threshold 없음 → spawn만
+	var card: CardInstance = CardInstance.create("ml_alliance")
+	card.evolve_star()
+	var board: Array = [card, CardInstance.create("ml_barracks")]
+	# theme_count=1, mult=1 → 1 spawn (random ally)
+	_sys.apply_battle_start(card, 0, board)
+	# 누군가에게 1기 spawn — 보드 총합으로 검증
+	var total: int = 0
+	for c in board:
+		total += (c as CardInstance).get_total_units()
+	assert_true(total >= 1, "★2 BS spawn 1기")

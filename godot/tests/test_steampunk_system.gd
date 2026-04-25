@@ -544,3 +544,65 @@ func test_interest_ignores_non_reroll_cards() -> void:
 	var assembly_units: int = board[0].get_total_units()
 	engine.process_reroll_triggers(board)
 	assert_eq(board[0].get_total_units(), assembly_units, "RS 카드 미발동")
+
+
+# ================================================================
+# sp_global_workshop (T3 RS) — 비-스팀펑크 조건 + gear enhance
+# ================================================================
+
+
+func test_global_workshop_mono_steampunk_no_fire() -> void:
+	## 보드가 모두 스팀펑크면 발동 안 함 (min_non_steampunk: 1)
+	var card: CardInstance = CardInstance.create("sp_global_workshop")
+	var board: Array = [card, CardInstance.create("sp_assembly")]
+	_sys.process_rs_card(card, 0, board, _rng)
+	# tag_growth_atk 가 비어있어야 함
+	assert_eq(card.tag_growth_atk.size(), 0, "단테마 → no enhance")
+
+
+func test_global_workshop_star1_with_non_steampunk_enhances_gear() -> void:
+	## 비-스팀펑크 카드 1장+ → gear 태그 +3% ATK
+	var card: CardInstance = CardInstance.create("sp_global_workshop")
+	var neutral_card: CardInstance = CardInstance.create("ne_earth_echo")
+	var board: Array = [card, neutral_card]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_almost_eq(card.tag_growth_atk.get("gear", 0.0), 0.03, 0.001,
+		"★1 + 비-스팀펑크 → gear ATK +3%")
+
+
+func test_global_workshop_star2_atk_and_hp_enhance() -> void:
+	## ★2: gear ATK +5%, HP +2%
+	var card: CardInstance = CardInstance.create("sp_global_workshop")
+	card.evolve_star()
+	var board: Array = [card, CardInstance.create("ne_earth_echo")]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_almost_eq(card.tag_growth_atk.get("gear", 0.0), 0.05, 0.001, "★2 gear ATK +5%")
+	assert_almost_eq(card.tag_growth_hp.get("gear", 0.0), 0.02, 0.001, "★2 gear HP +2%")
+
+
+func test_global_workshop_star3_threshold3_spawns_gear_unit() -> void:
+	## ★3: 비-스팀펑크 ≥3장 시 gear 유닛 1기 spawn 추가
+	var card: CardInstance = CardInstance.create("sp_global_workshop")
+	card.evolve_star()
+	card.evolve_star()
+	var before_units: int = card.get_total_units()
+	var board: Array = [
+		card,
+		CardInstance.create("ne_earth_echo"),
+		CardInstance.create("dr_cradle"),
+		CardInstance.create("pr_nest"),  # 3 비-스팀펑크
+	]
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_eq(card.get_total_units(), before_units + 1, "★3 + 비-스팀펑크 ≥3 → gear 1기 spawn")
+
+
+func test_global_workshop_star3_threshold_not_met_no_spawn() -> void:
+	## ★3: 비-스팀펑크 <3장이면 spawn 안 함 (enhance만)
+	var card: CardInstance = CardInstance.create("sp_global_workshop")
+	card.evolve_star()
+	card.evolve_star()
+	var before_units: int = card.get_total_units()
+	var board: Array = [card, CardInstance.create("ne_earth_echo")]  # 1 비-스팀펑크
+	_sys.process_rs_card(card, 0, board, _rng)
+	assert_eq(card.get_total_units(), before_units, "비-스팀펑크 <3 → spawn 없음")
+	assert_almost_eq(card.tag_growth_atk.get("gear", 0.0), 0.07, 0.001, "★3 gear ATK +7%")
