@@ -35,13 +35,14 @@ func process_event_card(card: CardInstance, _idx: int, _board: Array,
 	return {"events": [], "gold": 0, "terazin": 0}
 
 
-func apply_persistent(_card: CardInstance) -> void:
+func apply_persistent(_card: CardInstance, _board: Array = []) -> void:
 	# Quiet no-op: chain_engine.process_persistent iterates ALL board cards
 	# and dispatches any PERSISTENT-timed one through its theme_system, even
 	# card_db impl cards. Rather than fire push_error on every PERSISTENT
 	# card whose theme didn't override, silent inheritance is accepted.
-	# Derived classes that care (druid, predator, steampunk) override and
-	# handle their specific card IDs.
+	# Derived classes that care (druid, predator, steampunk, neutral) override.
+	# board param 추가 (Phase 3b-2a) — ne_legion 처럼 보드 전체를 보는 aura
+	# 카드를 위해. 기존 override 들은 board 무시 가능 (default = [] 안전).
 	pass
 
 

@@ -92,7 +92,7 @@ func process_event_card(card: CardInstance, idx: int, _board: Array,
 
 
 ## Apply persistent combat effects (sp_warmachine range scaling).
-func apply_persistent(card: CardInstance) -> void:
+func apply_persistent(card: CardInstance, _board: Array = []) -> void:
 	if card.get_base_id() != "sp_warmachine":
 		return
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)

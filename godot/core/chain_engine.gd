@@ -329,7 +329,7 @@ func process_persistent(board: Array) -> void:
 			continue
 		var theme: int = tmpl.get("theme", -1)
 		if theme in _theme_systems:
-			_theme_systems[theme].apply_persistent(card)
+			_theme_systems[theme].apply_persistent(card, board)
 
 
 ## Process BATTLE_START effects. Handles both inline effects and theme system delegation.
