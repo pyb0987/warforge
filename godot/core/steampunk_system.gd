@@ -15,6 +15,8 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 			return _warmachine_manufacture(card, idx, board, rng)
 		"sp_arsenal":
 			return _arsenal_rs_growth(card)
+		"sp_global_workshop":
+			return _global_workshop(card, idx, board, rng)
 	# Other steampunk cards use generic card_db effects or other hooks.
 	return Enums.empty_result()
 
@@ -243,3 +245,60 @@ func _strongest_unit_id(card: CardInstance) -> String:
 			best_cp = cp
 			best_id = ut.get("id", "")
 	return best_id
+
+
+## sp_global_workshop: 보드에 비-스팀펑크 카드가 1장 이상 있을 때 RS마다
+## gear 태그 유닛에 누적 enhance. ★3은 비-스팀펑크 ≥3장 시 추가 spawn.
+## 다테마 인센티브 — 단테마 덱에서는 발동 안 함.
+func _global_workshop(card: CardInstance, idx: int, board: Array,
+		rng: RandomNumberGenerator) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "gear_diversity_enhance")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	# 보드의 비-스팀펑크 카드 수 카운트
+	var non_sp_count := 0
+	for c in board:
+		if c == null:
+			continue
+		var ci: CardInstance = c
+		if ci.template.get("theme", -1) != Enums.CardTheme.STEAMPUNK:
+			non_sp_count += 1
+
+	var min_required: int = eff.get("min_non_steampunk", 1)
+	if non_sp_count < min_required:
+		return Enums.empty_result()
+
+	var atk_pct: float = eff.get("atk_pct", 0.0)
+	var hp_pct: float = eff.get("hp_pct", 0.0)
+	if atk_pct > 0.0 or hp_pct > 0.0:
+		card.enhance("gear", atk_pct, hp_pct)
+
+	var events: Array = [{
+		"layer1": Enums.Layer1.ENHANCED,
+		"layer2": Enums.Layer2.UPGRADE,
+		"source_idx": idx, "target_idx": idx,
+	}]
+
+	# ★3 추가: 비-스팀펑크 ≥ spawn_threshold 시 gear 유닛 spawn
+	var spawn_thresh: int = eff.get("spawn_threshold", 0)
+	var spawn_count: int = eff.get("spawn_unit", 0)
+	if spawn_thresh > 0 and spawn_count > 0 and non_sp_count >= spawn_thresh:
+		if card.get_total_units() < card.get_unit_cap():
+			# gear 태그 유닛 중 weighted random — 카드 comp에서 gear 태그 유닛만 추출
+			var gear_unit_ids: Array = []
+			for s in card.stacks:
+				var tags: PackedStringArray = s["unit_type"].get("tags", PackedStringArray())
+				if "gear" in tags:
+					gear_unit_ids.append(s["unit_type"].get("id", ""))
+			if gear_unit_ids.size() > 0:
+				var picked: String = gear_unit_ids[rng.randi_range(0, gear_unit_ids.size() - 1)]
+				card.add_specific_unit(picked, spawn_count)
+				events.append({
+					"layer1": Enums.Layer1.UNIT_ADDED,
+					"layer2": Enums.Layer2.MANUFACTURE,
+					"source_idx": idx, "target_idx": idx,
+				})
+
+	return {"events": events, "gold": 0, "terazin": 0}

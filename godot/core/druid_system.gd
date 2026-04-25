@@ -20,9 +20,11 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	return Enums.empty_result()
 
 
-func process_event_card(_card: CardInstance, _idx: int, _board: Array,
-		_event: Dictionary, _rng: RandomNumberGenerator) -> Dictionary:
-	# Druid has no ON_EVENT cards in growth chain
+func process_event_card(card: CardInstance, idx: int, board: Array,
+		event: Dictionary, _rng: RandomNumberGenerator) -> Dictionary:
+	if card.get_base_id() == "dr_resonance":
+		return _resonance(card, idx, board, event)
+	# Other druid cards have no ON_EVENT triggers in growth chain
 	return Enums.empty_result()
 
 
@@ -482,3 +484,44 @@ func _grace_post(card: CardInstance, won: bool) -> Dictionary:
 		gold /= 2
 	var terazin := terazin_amt if trees >= terazin_thresh else 0
 	return {"events": [], "gold": gold, "terazin": terazin}
+
+
+## dr_resonance (T4): 비-druid 카드의 UA 이벤트 감지 → tree_add + self enhance.
+## intertheme bridge — 다른 테마의 spawn에 반응해 드루이드 자원(tree) 생성.
+## filter: non_druid_target — event.target_idx 카드가 druid면 무시
+## (multi-review C-A/C-B 지적 반영, board 참조로 target theme 검사).
+func _resonance(card: CardInstance, idx: int, board: Array, event: Dictionary) -> Dictionary:
+	# 자기 source 무시 (무한 루프 방지)
+	if event.get("source_idx", -1) == idx:
+		return Enums.empty_result()
+	# Target이 druid이면 무시 (filter: non_druid_target)
+	var target_idx: int = event.get("target_idx", -1)
+	if target_idx >= 0 and target_idx < board.size() and board[target_idx] != null:
+		var target: CardInstance = board[target_idx]
+		if target.template.get("theme", -1) == Enums.CardTheme.DRUID:
+			return Enums.empty_result()
+
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "mirror_spawn_to_tree")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	# 트리 자원 추가 — _add_trees helper 사용 (floor guard, druid 일관성)
+	var tree_add: int = eff.get("tree_add", 1)
+	if tree_add > 0:
+		_add_trees(card, tree_add)
+
+	# Self enhance
+	var atk_pct: float = eff.get("self_atk_pct", 0.0)
+	var hp_pct: float = eff.get("self_hp_pct", 0.0)
+	if atk_pct > 0.0 or hp_pct > 0.0:
+		card.enhance(null, atk_pct, hp_pct)
+
+	return {
+		"events": [{
+			"layer1": Enums.Layer1.ENHANCED,
+			"layer2": -1,
+			"source_idx": idx, "target_idx": idx,
+		}],
+		"gold": 0, "terazin": 0,
+	}
