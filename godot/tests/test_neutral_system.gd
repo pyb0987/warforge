@@ -244,6 +244,312 @@ func test_fusion_end_m2_below_threshold_no_aura() -> void:
 		"M<3 → aura 미발동")
 
 
+# ================================================================
+# ne_legion (T3 PERSISTENT) — duplicate_buff_aura
+# ================================================================
+
+
+func test_legion_no_duplicates_no_buff() -> void:
+	## 중복 카드 없음 (각 template_id 1장) → buff 없음
+	var card: CardInstance = CardInstance.create("ne_legion")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp]
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(sp.stacks[0]["temp_atk_mult"], 1.0, 0.001, "중복 없음 → no buff")
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001, "self도 변화 없음")
+
+
+func test_legion_star1_buffs_duplicates() -> void:
+	## 같은 sp_assembly 2장 → N_excl=1, ATK +20%, HP +10% 각각 적용
+	var card: CardInstance = CardInstance.create("ne_legion")
+	var sp1: CardInstance = CardInstance.create("sp_assembly")
+	var sp2: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp1, sp2]
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(sp1.stacks[0]["temp_atk_mult"], 1.0 + 0.20, 0.001, "sp1 ATK ×1.20")
+	assert_almost_eq(sp2.stacks[0]["temp_atk_mult"], 1.0 + 0.20, 0.001, "sp2 ATK ×1.20")
+	assert_almost_eq(sp1.stacks[0]["temp_hp_mult"], 1.0 + 0.10, 0.001, "sp1 HP ×1.10")
+
+
+func test_legion_star2_3_duplicates_n_excl_2() -> void:
+	## 같은 sp_assembly 3장 → N_excl=2 → 각각 ATK +60%, HP +30%
+	var card: CardInstance = CardInstance.create("ne_legion")
+	card.evolve_star()  # ★2: atk_per_n=0.30, hp_per_n=0.15
+	var sp1: CardInstance = CardInstance.create("sp_assembly")
+	var sp2: CardInstance = CardInstance.create("sp_assembly")
+	var sp3: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp1, sp2, sp3]
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(sp1.stacks[0]["temp_atk_mult"], 1.0 + 0.30 * 2, 0.001,
+		"★2 N_excl=2 → ATK ×1.60")
+	assert_almost_eq(sp1.stacks[0]["temp_hp_mult"], 1.0 + 0.15 * 2, 0.001,
+		"★2 N_excl=2 → HP ×1.30")
+
+
+func test_legion_star3_spawns_per_card() -> void:
+	## ★3: spawn_per_card=1 → 각 중복 카드에 첫 stack 유닛 1기 추가
+	var card: CardInstance = CardInstance.create("ne_legion")
+	card.evolve_star()
+	card.evolve_star()
+	var sp1: CardInstance = CardInstance.create("sp_assembly")
+	var sp2: CardInstance = CardInstance.create("sp_assembly")
+	var sp1_units: int = sp1.get_total_units()
+	var sp2_units: int = sp2.get_total_units()
+	_sys.apply_persistent(card, [card, sp1, sp2])
+	assert_eq(sp1.get_total_units(), sp1_units + 1, "★3 sp1 +1기")
+	assert_eq(sp2.get_total_units(), sp2_units + 1, "★3 sp2 +1기")
+
+
+# ================================================================
+# ne_nexus (T5 OE) — mirror_l1, non_neutral_target filter, multi-block
+# ================================================================
+
+
+func _make_event(l1_type: int, src: int, tgt: int) -> Dictionary:
+	return {"layer1": l1_type, "layer2": -1,
+			"source_idx": src, "target_idx": tgt}
+
+
+func test_nexus_self_source_ignored() -> void:
+	## source_idx == self idx → 무한 루프 방지
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 0, 1)
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "self-source → no fire")
+
+
+func test_nexus_neutral_target_filtered() -> void:
+	## target이 NEUTRAL → 무시 (filter: non_neutral_target)
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	var ne_target: CardInstance = CardInstance.create("ne_earth_echo")
+	var board: Array = [card, ne_target]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "NEUTRAL target → 무시")
+
+
+func test_nexus_star1_non_neutral_target_enhances() -> void:
+	## 비-NEUTRAL target (sp_assembly) UA → self ATK +2%
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 UA → +2% ATK")
+
+
+func test_nexus_star1_en_event_also_fires() -> void:
+	## EN 이벤트도 별도 OE block으로 listen → ATK +2%
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp]
+	var event := _make_event(Enums.Layer1.ENHANCED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 EN → +2% ATK")
+
+
+func test_nexus_star3_spawns_unit() -> void:
+	## ★3: spawn_unit=1 → 첫 stack unit 1기 추가
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	card.evolve_star()
+	card.evolve_star()
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp]
+	var before_units: int = card.get_total_units()
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.get_total_units(), before_units + 1, "★3 → 유닛 1기 spawn")
+
+
+func test_nexus_omni_target_filtered_as_neutral() -> void:
+	## omni-theme target 은 NEUTRAL 매치 → 무시
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	var omni: CardInstance = CardInstance.create("sp_assembly")
+	omni.is_omni_theme = true
+	var board: Array = [card, omni]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "omni target → 무시 (NEUTRAL 매치)")
+
+
+# ================================================================
+# ne_council (T5 PERSISTENT) — all_themes_field_bonus
+# ================================================================
+
+
+func _make_5_theme_board(council: CardInstance) -> Array:
+	## council + sp + ml + dr + pr 5장 → 5테마 보드
+	return [
+		council,  # neutral (council 자체)
+		CardInstance.create("sp_assembly"),
+		CardInstance.create("ml_barracks"),
+		CardInstance.create("dr_cradle"),
+		CardInstance.create("pr_nest"),
+	]
+
+
+func test_council_star1_no_aura() -> void:
+	## ★1: field_slots는 game_manager 처리. PERSISTENT handler는 aura만 (★1=0).
+	var card: CardInstance = CardInstance.create("ne_council")
+	var board := _make_5_theme_board(card)
+	_sys.apply_persistent(card, board)
+	# ★1 aura 0% — sp_assembly 변화 없음
+	assert_almost_eq(board[1].stacks[0]["temp_atk_mult"], 1.0, 0.001, "★1 → 아군 aura 없음")
+
+
+func test_council_star2_5theme_allies_atk_bonus() -> void:
+	## ★2: 5테마 충족 시 모든 아군 ATK +5%
+	var card: CardInstance = CardInstance.create("ne_council")
+	card.evolve_star()
+	var board := _make_5_theme_board(card)
+	_sys.apply_persistent(card, board)
+	for c in board:
+		assert_almost_eq((c as CardInstance).stacks[0]["temp_atk_mult"], 1.0 + 0.05, 0.001,
+			"★2 5테마 → ATK ×1.05")
+
+
+func test_council_star3_atk_hp_bonus() -> void:
+	## ★3: 5테마 충족 시 ATK +7%, HP +5%
+	var card: CardInstance = CardInstance.create("ne_council")
+	card.evolve_star()
+	card.evolve_star()
+	var board := _make_5_theme_board(card)
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(board[1].stacks[0]["temp_atk_mult"], 1.0 + 0.07, 0.001, "★3 ATK ×1.07")
+	assert_almost_eq(board[1].stacks[0]["temp_hp_mult"], 1.0 + 0.05, 0.001, "★3 HP ×1.05")
+
+
+func test_council_below_5_themes_no_aura() -> void:
+	## 4테마만 → 조건 미달 → ★3라도 aura 없음
+	var card: CardInstance = CardInstance.create("ne_council")
+	card.evolve_star()
+	card.evolve_star()
+	var board: Array = [
+		card, CardInstance.create("sp_assembly"),
+		CardInstance.create("ml_barracks"),
+		CardInstance.create("dr_cradle"),  # 4 테마 (no predator)
+	]
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(board[1].stacks[0]["temp_atk_mult"], 1.0, 0.001, "4테마 → aura 없음")
+
+
+func test_council_omni_card_satisfies_all_themes() -> void:
+	## omni-theme 카드 1장이 모든 5테마 매치 → council 단독 + omni 1장으로 발동
+	var card: CardInstance = CardInstance.create("ne_council")
+	card.evolve_star()
+	var omni: CardInstance = CardInstance.create("sp_assembly")
+	omni.is_omni_theme = true
+	var board: Array = [card, omni]
+	_sys.apply_persistent(card, board)
+	assert_almost_eq(omni.stacks[0]["temp_atk_mult"], 1.0 + 0.05, 0.001,
+		"★2 + omni(5테마) → 아군 aura 발동")
+
+
+# ================================================================
+# ne_clone_seed (T1 RS clone + SELL transfer_upgrade ★3)
+# ================================================================
+
+
+func test_clone_seed_rs_returns_clone_signal() -> void:
+	## RS handler 결과에 clones_to_bench 포함, 첫 항목은 self template_id ★1
+	var card: CardInstance = CardInstance.create("ne_clone_seed")
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	var clones: Array = result.get("clones_to_bench", [])
+	assert_eq(clones.size(), 1, "1 clone signal")
+	assert_eq(clones[0].get("template_id", ""), "ne_clone_seed", "복사본 template_id 매치")
+	assert_eq(clones[0].get("star", 0), 1, "★1 신선 복사본")
+
+
+func test_clone_seed_star2_rs_includes_self_enhance() -> void:
+	## ★2 RS: 복사 + self ATK +2% (enhance action)
+	var card: CardInstance = CardInstance.create("ne_clone_seed")
+	card.evolve_star()
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★2 → self ATK +2%")
+
+
+func test_clone_seed_sell_grants_neg1_gold() -> void:
+	## SELL: gold -1 (페널티)
+	var card: CardInstance = CardInstance.create("ne_clone_seed")
+	var result: Dictionary = _sys.process_self_sell(card, [])
+	assert_eq(result.get("gold", 0), -1, "★1 SELL → -1g")
+
+
+func test_clone_seed_star3_sell_with_upgrade_signals_transfer() -> void:
+	## ★3 SELL + upgrade 보유 시 → transfer_upgrade signal 포함
+	var card: CardInstance = CardInstance.create("ne_clone_seed")
+	card.evolve_star()
+	card.evolve_star()
+	# 가짜 upgrade 부착 (★3 transfer 트리거 조건)
+	card.upgrades.append({"id": "test_upg", "name": "테스트업그", "rarity": "C"})
+	var result: Dictionary = _sys.process_self_sell(card, [])
+	assert_true(result.has("transfer_upgrade"), "★3+upgrade → transfer signal")
+	assert_eq(result.get("transfer_upgrade", {}).get("source_card"), card,
+		"source_card = self")
+
+
+func test_clone_seed_star3_sell_no_upgrade_no_transfer() -> void:
+	## ★3 SELL 이지만 upgrade 0개 → transfer signal 없음
+	var card: CardInstance = CardInstance.create("ne_clone_seed")
+	card.evolve_star()
+	card.evolve_star()
+	var result: Dictionary = _sys.process_self_sell(card, [])
+	assert_false(result.has("transfer_upgrade"), "upgrade 없으면 transfer 없음")
+
+
+# ================================================================
+# ne_masquerade (T4 SELL transform_theme + ★3 omni)
+# ================================================================
+
+
+func test_masquerade_no_target_no_transform() -> void:
+	## 보드에 다른 카드 없음 (self 만) → transform 없음
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var result: Dictionary = _sys.process_self_sell(card, [card])
+	assert_false(result.has("transform_theme"), "타겟 없음 → transform 없음")
+
+
+func test_masquerade_star1_returns_target_and_theme() -> void:
+	## ★1 SELL: 첫 비-self 카드 + 비-NEUTRAL theme (sim 결정성)
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var result: Dictionary = _sys.process_self_sell(card, [card, sp])
+	var transform: Dictionary = result.get("transform_theme", {})
+	assert_eq(transform.get("target_card"), sp, "target_card = sp")
+	assert_false(transform.get("omni", true), "★1 omni=false")
+
+
+func test_masquerade_target_skips_self() -> void:
+	## 보드에 self + sp + dr → target=첫 비-self = sp (self 건너뜀)
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var dr: CardInstance = CardInstance.create("dr_cradle")
+	var result: Dictionary = _sys.process_self_sell(card, [card, sp, dr])
+	assert_eq(result.get("transform_theme", {}).get("target_card"), sp,
+		"sp 첫 비-self target")
+
+
+func test_masquerade_star3_omni_flag() -> void:
+	## ★3: omni=true 반환 → game_manager 가 target.is_omni_theme 설정
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	card.evolve_star()
+	card.evolve_star()
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var result: Dictionary = _sys.process_self_sell(card, [card, sp])
+	assert_true(result.get("transform_theme", {}).get("omni", false),
+		"★3 omni=true")
+
+
+func test_masquerade_target_is_steampunk_picks_predator() -> void:
+	## sim 결정성: target이 STEAMPUNK 면 PREDATOR로 변환 (default 회피)
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var result: Dictionary = _sys.process_self_sell(card, [card, sp])
+	var t: Dictionary = result.get("transform_theme", {})
+	assert_eq(t.get("new_theme"), Enums.CardTheme.PREDATOR,
+		"sp target → predator로 변환")
+
+
 func test_fusion_end_star1_no_allies_aura() -> void:
 	## ★1: allies_atk_pct_per_m 0 → 아군 buff 안 함 (M ≥ 3 라도)
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
