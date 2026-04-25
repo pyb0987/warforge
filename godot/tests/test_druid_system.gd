@@ -413,3 +413,80 @@ func test_world_uses_forest_depth_all_druid_trees() -> void:
 	_sys.process_rs_card(world, 0, [world, cradle], _rng)
 	assert_almost_eq(world.get_total_atk(), atk_before * 1.20, 0.1,
 		"forest_depth 31 → ★1 ATK ×1.20")
+
+
+# ================================================================
+# dr_resonance (T4 OE l1:UA, filter non_druid_target) — mirror spawn → tree+enhance
+# ================================================================
+
+
+func _make_ua_event(src: int, tgt: int) -> Dictionary:
+	return {"layer1": Enums.Layer1.UNIT_ADDED, "layer2": -1,
+			"source_idx": src, "target_idx": tgt}
+
+
+func test_resonance_self_source_ignored() -> void:
+	## source_idx == self idx → 무한 루프 방지
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	var event := _make_ua_event(0, 1)  # source=self
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 0, "self-source → no fire")
+
+
+func test_resonance_druid_target_filtered_out() -> void:
+	## target이 druid이면 무시 (filter: non_druid_target)
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	var druid_target: CardInstance = CardInstance.create("dr_cradle")
+	var board: Array = [card, druid_target]
+	var event := _make_ua_event(1, 1)  # source=1 (druid_target), target=1 (druid)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 0, "druid target → 무시")
+
+
+func test_resonance_star1_non_druid_target_tree_and_enhance() -> void:
+	## 비-druid target → tree_add +1, self ATK +2%
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	var sp_target: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp_target]
+	var event := _make_ua_event(1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 1, "★1 tree_add +1")
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 ATK +2%")
+
+
+func test_resonance_star2_tree_atk_hp() -> void:
+	## ★2: tree +1, ATK +3%, HP +2% (multi-review missing coverage)
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	card.evolve_star()
+	var sp_target: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp_target]
+	var event := _make_ua_event(1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 1, "★2 tree +1")
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 ATK +3%")
+	assert_almost_eq(card.growth_hp_pct, 0.02, 0.001, "★2 HP +2%")
+
+
+func test_resonance_star3_double_tree_and_hp() -> void:
+	## ★3: tree +2, ATK +4%, HP +3%
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	card.evolve_star()
+	card.evolve_star()
+	var sp_target: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp_target]
+	var event := _make_ua_event(1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 2, "★3 tree +2")
+	assert_almost_eq(card.growth_atk_pct, 0.04, 0.001, "★3 ATK +4%")
+	assert_almost_eq(card.growth_hp_pct, 0.03, 0.001, "★3 HP +3%")
+
+
+func test_resonance_omni_target_treated_as_druid() -> void:
+	## omni-theme 카드는 druid에도 매치 → resonance 발동 안 함
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	var omni_target: CardInstance = CardInstance.create("ne_earth_echo")
+	omni_target.is_omni_theme = true
+	var board: Array = [card, omni_target]
+	var event := _make_ua_event(1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 0, "omni target → 무시 (druid 매치)")

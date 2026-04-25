@@ -414,3 +414,94 @@ func test_transcend_oe_stacks_growth_across_events() -> void:
 	_sys.process_event_card(card, 0, [card], mt_event, _rng)
 	assert_almost_eq(card.growth_atk_pct, 0.09, 0.001,
 		"HA+HA+MT → 누적 0.09")
+
+
+# ================================================================
+# pr_parasitic_swarm (T3 OE l2:ANY) — intertheme listener
+# ================================================================
+
+
+func _make_l2_event(l2_type: int, src: int, tgt: int) -> Dictionary:
+	return {"layer1": Enums.Layer1.UNIT_ADDED, "layer2": l2_type,
+			"source_idx": src, "target_idx": tgt}
+
+
+func test_parasitic_swarm_self_source_ignored() -> void:
+	## source_idx == self idx → 무한 루프 방지로 무시 (enhance 안 일어남)
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	var event := _make_l2_event(Enums.Layer2.MANUFACTURE, 0, 1)  # source=0=self
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "self-source → no fire")
+
+
+func test_parasitic_swarm_star1_external_l2_enhances() -> void:
+	## ★1: 외부 l2 이벤트 → ATK +2%
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	var event := _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2)
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 → +2% ATK")
+
+
+func test_parasitic_swarm_star2_atk_hp_enhance() -> void:
+	## ★2: ATK +3%, HP +1%
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	var event := _make_l2_event(Enums.Layer2.HATCH, 1, 2)
+	_sys.process_event_card(card, 0, [card], event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 → +3% ATK")
+	assert_almost_eq(card.growth_hp_pct, 0.01, 0.001, "★2 → +1% HP")
+
+
+func test_parasitic_swarm_star3_l2_diversity_first_seen_bonus() -> void:
+	## ★3: 새 l2 종류 첫 등장 시 추가 +5% (라운드 내 동일 l2 재발생은 base만).
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	card.evolve_star()
+	var board: Array = [card]
+	# 1차 MF: base +5% + diversity +5% = +10% ATK
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.10, 0.001, "1차 MF → +10% (base+div)")
+	# 2차 동일 MF: base만 → 누적 +15%
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.15, 0.001, "2차 동일 MF → 누적 +15%")
+
+
+func test_parasitic_swarm_star3_diversity_two_distinct_l2() -> void:
+	## ★3: 서로 다른 l2 → 각각 diversity bonus
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	card.evolve_star()
+	var board: Array = [card]
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.HATCH, 1, 2), _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.20, 0.001, "MF + HA → +20% (base 10 + div 10)")
+
+
+func test_parasitic_swarm_star3_round_resets_diversity_set() -> void:
+	## tenure 증가 시 l2_seen_round 리셋 → 같은 l2 다시 diversity 받음.
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	card.evolve_star()
+	var board: Array = [card]
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
+	card.tenure += 1
+	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.20, 0.001, "라운드 리셋 → diversity 재적용")
+
+
+func test_parasitic_swarm_star3_spawns_unit_on_l2() -> void:
+	## ★3: l2 발동 시 포식종 유닛 1기 spawn (multi-review missing coverage)
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	card.evolve_star()
+	var before_units: int = card.get_total_units()
+	var event := _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2)
+	var result: Dictionary = _sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before_units + 1, "★3 → 유닛 1기 spawn")
+	# spawn 이벤트 emit 검증 (HATCH event)
+	var found_hatch := false
+	for evt in result.get("events", []):
+		if evt.get("layer2", -1) == Enums.Layer2.HATCH:
+			found_hatch = true
+			break
+	assert_true(found_hatch, "spawn → HATCH 이벤트 emit")
