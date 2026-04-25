@@ -54,6 +54,8 @@ LAYER2_MAP = {
     "MT": "Enums.Layer2.METAMORPHOSIS",
     "TR": "Enums.Layer2.TRAIN",
     "CO": "Enums.Layer2.CONSCRIPT",
+    # Wildcard — listener 전용. trigger_layer2: ANY 면 chain_engine 이 모든 비-NONE l2 매치.
+    "ANY": "Enums.Layer2.ANY",
 }
 
 THEME_MAP = {

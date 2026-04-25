@@ -461,7 +461,7 @@ func _materialize_army(state: GameState) -> Array:
 				units.append({
 					"atk": eff_atk * reroll_buff_mult,
 					"hp": eff_hp,
-					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult,
+					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult * c.temp_as_mult,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),
 					"move_speed": ut["move_speed"] + c.upgrade_move_speed,
 					"def": c.upgrade_def,
