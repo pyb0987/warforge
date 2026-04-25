@@ -126,15 +126,6 @@ def validate_genome(g):
             return f"weighted_tier not monotonic: Lv{lv}"
         prev_wt = wt
 
-    # Heavy must have highest HP
-    es = g.get("enemy_stats", {})
-    if es:
-        heavy_hp = es.get("heavy", {}).get("hp", 60)
-        for t in ["swarm", "melee", "ranged", "sniper"]:
-            hp = es.get(t, {}).get("hp", 20)
-            if heavy_hp < hp:
-                return f"heavy.hp ({heavy_hp}) must be >= {t}.hp ({hp})"
-
     # Activation caps: valid card IDs and range [1,10]
     ALL_CARDS = MILITARY_CARDS + NON_MILITARY_CARDS + [
         "ne_earth_echo", "ne_wild_pulse", "ne_ruin_resonance", "ne_wanderers",
@@ -300,28 +291,6 @@ def mutate_shop_tiers(genome, strength=0.15):
     return g
 
 
-def mutate_enemy_comp(genome, strength=0.15):
-    """Mutate enemy unit composition (count formula) only.
-
-    2026-04-19 pivot: 유닛 수가 autoresearch 대상, 유닛 스탯은 고정.
-    사용자 설계 의도: 적은 '수가 많아도 개별은 약한' 방향. 정예화 금지.
-    - base: [1, 20] (R1 기본 유닛 수 확대)
-    - per_r: [0.1, 8.0] (라운드당 증가율 확대)
-    """
-    g = copy.deepcopy(genome)
-    comp = g["enemy_composition"]
-    for preset in comp:
-        for key in comp[preset]:
-            val = comp[preset][key]
-            if key.endswith("_base"):
-                delta = max(1, int(val * strength))
-                comp[preset][key] = max(1, min(40, val + delta * random.choice([-1, 1])))
-            elif key.endswith("_per_r"):
-                delta = val * strength * random.uniform(-1, 1)
-                comp[preset][key] = round(max(0.1, min(15.0, val + delta)), 1)
-    return g
-
-
 # All card IDs by theme (for activation_caps mutation)
 MILITARY_CARDS = [
     "ml_barracks", "ml_outpost", "ml_academy", "ml_conscript", "ml_supply",
@@ -446,7 +415,7 @@ PHASE_MUTATORS = {
     # (see inner calibration in main loop). Phase 1 now pure economy search.
     1: [("economy", mutate_economy)],
     2: [("shop_tiers", mutate_shop_tiers)],
-    3: [("enemy_comp", mutate_enemy_comp)],
+    3: [("cp_curve", mutate_cp_curve_geometric)],
     4: [("activation_caps", mutate_activation_caps), ("boss_scaling", mutate_boss_scaling)],
     5: [("caps_and_boss", mutate_caps_and_boss)],
     6: [("card_effects", mutate_card_effects)],

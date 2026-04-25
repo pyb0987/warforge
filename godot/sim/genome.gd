@@ -27,13 +27,6 @@ var activation_caps: Dictionary = {}
 ## Shop tier weights per level. Format: {"1": [100,0,0,0,0], "2": [70,28,2,0,0], ...}
 var shop_tier_weights: Dictionary = {}
 
-## Enemy unit composition per preset. Format:
-## {"swarm": {"swarm_base":8, "swarm_per_r":2.5, "ranged_base":2, "ranged_per_r":0.5}, ...}
-var enemy_composition: Dictionary = {}
-
-## Enemy base stats per type. Format: {"swarm": {"atk":2.0, "hp":12.0, "as":0.8}, ...}
-var enemy_stats: Dictionary = {}
-
 ## Boss scaling multipliers. Format: {"atk_mult": 1.3, "hp_mult": 1.3}
 var boss_scaling: Dictionary = {}
 
@@ -62,21 +55,6 @@ const DEFAULT_SHOP_TIER_WEIGHTS := {
 	"4": [10, 25, 42, 20, 3],
 	"5": [0, 10, 25, 45, 20],
 	"6": [0, 0, 10, 40, 50],
-}
-
-const DEFAULT_ENEMY_COMPOSITION := {
-	"swarm": {"swarm_base": 8, "swarm_per_r": 2.5, "ranged_base": 2, "ranged_per_r": 0.5},
-	"heavy": {"heavy_base": 3, "heavy_per_r": 0.8, "melee_base": 4, "melee_per_r": 1.0, "ranged_base": 2, "ranged_per_r": 0.5},
-	"sniper": {"sniper_base": 3, "sniper_per_r": 0.6, "melee_base": 5, "melee_per_r": 1.2},
-	"balanced": {"melee_base": 4, "melee_per_r": 1.0, "ranged_base": 3, "ranged_per_r": 0.7, "swarm_base": 3, "swarm_per_r": 0.5},
-}
-
-const DEFAULT_ENEMY_STATS := {
-	"swarm": {"atk": 2.0, "hp": 12.0, "as": 0.8},
-	"melee": {"atk": 4.0, "hp": 30.0, "as": 1.2},
-	"ranged": {"atk": 3.0, "hp": 15.0, "as": 1.5},
-	"heavy": {"atk": 5.0, "hp": 60.0, "as": 2.0},
-	"sniper": {"atk": 6.0, "hp": 10.0, "as": 2.0},
 }
 
 const DEFAULT_BOSS_SCALING := {"atk_mult": 1.3, "hp_mult": 1.3}
@@ -226,8 +204,6 @@ static func create_default() -> Genome:
 	}
 	g.activation_caps = {}
 	g.shop_tier_weights = DEFAULT_SHOP_TIER_WEIGHTS.duplicate(true)
-	g.enemy_composition = DEFAULT_ENEMY_COMPOSITION.duplicate(true)
-	g.enemy_stats = DEFAULT_ENEMY_STATS.duplicate(true)
 	g.boss_scaling = DEFAULT_BOSS_SCALING.duplicate()
 	g.starting_resources = DEFAULT_STARTING_RESOURCES.duplicate()
 	g.card_effects = DEFAULT_CARD_EFFECTS.duplicate()
@@ -279,12 +255,6 @@ static func _from_dict(data: Dictionary) -> Genome:
 		g.shop_tier_weights = {}
 		for k in raw_stw:
 			g.shop_tier_weights[str(k)] = raw_stw[k]
-
-	# --- Enemy composition (default if absent) ---
-	g.enemy_composition = data.get("enemy_composition", DEFAULT_ENEMY_COMPOSITION.duplicate(true))
-
-	# --- Enemy stats (default if absent) ---
-	g.enemy_stats = data.get("enemy_stats", DEFAULT_ENEMY_STATS.duplicate(true))
 
 	# --- Boss scaling (default if absent) ---
 	g.boss_scaling = data.get("boss_scaling", DEFAULT_BOSS_SCALING.duplicate())
@@ -364,16 +334,6 @@ func get_levelup_cost(level: int) -> int:
 ## Get reroll cost.
 func get_reroll_cost() -> int:
 	return economy.get("reroll_cost", 1)
-
-
-## Get enemy composition for a preset name. Returns dict of base/per_r pairs.
-func get_enemy_comp(preset: String) -> Dictionary:
-	return enemy_composition.get(preset, {})
-
-
-## Get enemy base stats for a unit type. Returns {"atk":f, "hp":f, "as":f}.
-func get_enemy_stat(unit_type: String) -> Dictionary:
-	return enemy_stats.get(unit_type, {"atk": 3.0, "hp": 20.0, "as": 1.0})
 
 
 ## Get boss ATK/HP multipliers.
@@ -518,14 +478,6 @@ func validate() -> String:
 		var r: Array = AI_PARAMS_RANGE[k]
 		if v < r[0] or v > r[1]:
 			return "ai_params[%s] = %.4f out of range [%.4f, %.4f]" % [k, v, r[0], r[1]]
-
-	# 8. Enemy stats: heavy must have highest HP
-	if not enemy_stats.is_empty():
-		var hv_hp: float = enemy_stats.get("heavy", {}).get("hp", 60.0)
-		for t in ["swarm", "melee", "ranged", "sniper"]:
-			var hp: float = enemy_stats.get(t, {}).get("hp", 20.0)
-			if hv_hp < hp:
-				return "heavy.hp (%.1f) must be >= %s.hp (%.1f)" % [hv_hp, t, hp]
 
 	return ""
 

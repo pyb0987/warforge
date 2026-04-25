@@ -253,6 +253,9 @@ func run() -> Dictionary:
 		var round_max_activations := 0
 		for card in active_board:
 			var c: CardInstance = card as CardInstance
+			# Evaluator metric (atk+hp), NOT the SSoT CP formula. Used by
+			# evaluator.gd for Gini (scale-invariant) and per-round totals.
+			# Migrating to get_total_cp() shifts magnitudes and re-tunes scoring.
 			var cp: float = c.get_total_atk() + c.get_total_hp()
 			card_cps.append(cp)
 			total_units += c.get_total_units()
