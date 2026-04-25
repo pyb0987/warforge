@@ -110,15 +110,24 @@ func test_void_force_no_empty_slots_no_buff() -> void:
 	## board.size() == MAX_FIELD_SLOTS → empty=0 → no fire
 	var card: CardInstance = CardInstance.create("ne_void_force")
 	# 8 카드로 보드 가득
-	var board: Array = []
-	for i in Enums.MAX_FIELD_SLOTS:
-		if i == 0:
-			board.append(card)
-		else:
-			board.append(CardInstance.create("ne_scrap" if false else "sp_assembly"))
-	# stack temp_atk_mult 변화 없음
+	var board: Array = [card]
+	for i in range(1, Enums.MAX_FIELD_SLOTS):
+		board.append(CardInstance.create("sp_assembly"))
 	_sys.apply_battle_start(card, 0, board)
 	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001, "E=0 → buff 0")
+
+
+func test_void_force_star2_solo_buff() -> void:
+	## ★2 E=7 → ATK ×(1+0.40×7)=3.8, HP ×(1+0.20×7)=2.4 — multi-review missing ★ branch
+	var card: CardInstance = CardInstance.create("ne_void_force")
+	card.evolve_star()
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.40 * 7, 0.001,
+		"★2 E=7 → ATK ×3.8")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 7, 0.001,
+		"★2 E=7 → HP ×2.4")
+	# ★2 는 AS scaling 없음 (★3 only)
+	assert_almost_eq(card.temp_as_mult, 1.0, 0.001, "★2 → temp_as_mult 변화 없음")
 
 
 func test_void_force_star1_solo_max_buff() -> void:
@@ -193,8 +202,46 @@ func test_fusion_end_m3_triggers_allies_aura() -> void:
 	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
 	# M=3, self ATK +0.65×3=+195%, HP +0.35×3=+105%
 	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 3, 0.001, "self ATK ×2.95")
-	# allies ATK +M×7% = +21% (자기 제외)
-	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0 + 0.07 * 3, 0.001, "ally ATK ×1.21")
+	# allies ATK +M×7% = +21% (자기 제외) — ally1 + ally2 모두 검증
+	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0 + 0.07 * 3, 0.001, "ally1 ATK ×1.21")
+	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.0 + 0.07 * 3, 0.001, "ally2 ATK ×1.21")
+
+
+func test_fusion_end_star2_no_allies_aura() -> void:
+	## ★2: allies_atk_pct_per_m 없음 → M ≥ 3 라도 아군 buff 안 함 (multi-review 누락 ★)
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()  # ★2
+	var ally1: CardInstance = CardInstance.create("sp_assembly")
+	ally1.evolve_star()
+	ally1.evolve_star()
+	var ally2: CardInstance = CardInstance.create("ne_earth_echo")
+	ally2.evolve_star()
+	ally2.evolve_star()
+	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
+	# ★2 self M=2 → ATK ×(1+0.55×2)=2.1, HP ×(1+0.20×2)=1.4
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2, 0.001,
+		"★2 self M=2 → ATK ×2.10")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2, 0.001,
+		"★2 self M=2 → HP ×1.40")
+	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001, "★2 → 아군 aura 없음")
+
+
+func test_fusion_end_m2_below_threshold_no_aura() -> void:
+	## ★3 self M=2 (★3 ally 1장만) → allies_threshold(3) 미달 → 아군 aura 없음
+	## (boundary 검증 — multi-review 누락)
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()
+	card.evolve_star()
+	var ally1: CardInstance = CardInstance.create("sp_assembly")
+	ally1.evolve_star()
+	ally1.evolve_star()
+	_sys.apply_battle_start(card, 0, [card, ally1])
+	# self ATK ×(1+0.65×2)=2.30
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 2, 0.001,
+		"M=2 self ATK ×2.30")
+	# 아군 aura 없음 (M=2 < threshold 3)
+	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"M<3 → aura 미발동")
 
 
 func test_fusion_end_star1_no_allies_aura() -> void:
