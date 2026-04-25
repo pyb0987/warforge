@@ -161,9 +161,17 @@ func _evaluate_council_field_bonus() -> void:
 		if card == null:
 			continue
 		var ci: CardInstance = card
-		var t: int = ci.template.get("theme", -1)
-		if t >= 0:
-			themes_seen[t] = true
+		# omni-theme 카드는 5테마 모두에 매치 — 단독으로 5테마 조건 충족
+		if ci.is_omni_theme:
+			themes_seen[Enums.CardTheme.NEUTRAL] = true
+			themes_seen[Enums.CardTheme.STEAMPUNK] = true
+			themes_seen[Enums.CardTheme.MILITARY] = true
+			themes_seen[Enums.CardTheme.DRUID] = true
+			themes_seen[Enums.CardTheme.PREDATOR] = true
+		else:
+			var t: int = ci.template.get("theme", -1)
+			if t >= 0:
+				themes_seen[t] = true
 		if ci.get_base_id() == "ne_council":
 			has_council = true
 	var should_be_active := has_council and themes_seen.size() >= 5
@@ -622,13 +630,10 @@ func _apply_upgrade_transfer(transfer: Dictionary) -> void:
 			break
 
 
-## ne_masquerade theme transform 처리. board[target_idx] 카드의 template.theme 갱신.
+## ne_masquerade theme transform 처리. handler가 CardInstance 참조 직접 전달.
 ## ★3 omni: card.is_omni_theme = true (모든 theme 비교에 매치).
 func _apply_theme_transform(transform: Dictionary) -> void:
-	var target_idx: int = transform.get("target_idx", -1)
-	if target_idx < 0 or target_idx >= game_state.board.size():
-		return
-	var target: CardInstance = game_state.board[target_idx]
+	var target: CardInstance = transform.get("target_card")
 	if target == null:
 		return
 	var omni: bool = transform.get("omni", false)

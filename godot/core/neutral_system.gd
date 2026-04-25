@@ -260,11 +260,11 @@ func _nexus(card: CardInstance, idx: int, board: Array, event: Dictionary) -> Di
 	# 자기 source 무시 (자체 spawn으로 인한 cyclic 방지)
 	if event.get("source_idx", -1) == idx:
 		return Enums.empty_result()
-	# Target이 neutral이면 무시 (filter: non_neutral_target)
+	# Target이 neutral이면 무시 (filter: non_neutral_target). omni-theme 도 neutral 매치.
 	var target_idx: int = event.get("target_idx", -1)
 	if target_idx >= 0 and target_idx < board.size() and board[target_idx] != null:
 		var target: CardInstance = board[target_idx]
-		if target.template.get("theme", -1) == Enums.CardTheme.NEUTRAL:
+		if target.is_omni_theme or target.template.get("theme", -1) == Enums.CardTheme.NEUTRAL:
 			return Enums.empty_result()
 
 	# 두 OE block 중 현재 event 의 layer1 에 매칭되는 block 의 mirror_l1 액션 추출.
@@ -328,14 +328,22 @@ func _council_aura(card: CardInstance, board: Array) -> void:
 	var allies_hp: float = eff.get("allies_hp_pct", 0.0)
 	if allies_atk <= 0.0 and allies_hp <= 0.0:
 		return  # ★1 은 field_slots 만, 추가 스탯 없음
-	# 5테마 조건 재검사 (process_persistent 시점)
+	# 5테마 조건 재검사 (process_persistent 시점) — omni-theme 카드는 모두 매치
 	var themes_seen: Dictionary = {}
 	for c in board:
 		if c == null:
 			continue
-		var t: int = (c as CardInstance).template.get("theme", -1)
-		if t >= 0:
-			themes_seen[t] = true
+		var ci: CardInstance = c
+		if ci.is_omni_theme:
+			themes_seen[Enums.CardTheme.NEUTRAL] = true
+			themes_seen[Enums.CardTheme.STEAMPUNK] = true
+			themes_seen[Enums.CardTheme.MILITARY] = true
+			themes_seen[Enums.CardTheme.DRUID] = true
+			themes_seen[Enums.CardTheme.PREDATOR] = true
+		else:
+			var t: int = ci.template.get("theme", -1)
+			if t >= 0:
+				themes_seen[t] = true
 	if themes_seen.size() < 5:
 		return
 	var atk_mult: float = 1.0 + allies_atk
@@ -382,30 +390,37 @@ func _clone_seed_sell(card: CardInstance) -> Dictionary:
 ## SELL (tenure ≥ 1): 필드 카드 1장 선택 → theme 변경.
 ## ★1: 5개 중 무작위 3개 offering, ★2: 5개 전체, ★3: omni-theme.
 ## game_manager 가 결과 dict의 "transform_theme" 필드를 처리.
-## sim 결정성: target = 첫 비-self 필드 카드, theme = 5개 중 첫 번째 (NEUTRAL).
+## sim 결정성: target = 첫 비-self 필드 카드, theme = 5개 중 첫 번째 비-NEUTRAL theme
+## (NEUTRAL 디폴트는 diversity 효과 무용 — 의미 있는 변환 위해 STEAMPUNK 우선).
+##
+## CardInstance 참조를 직접 반환 (active_board↔board sparse-compact 인덱스 불일치 방지).
 func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "transform_theme")
 	if eff.is_empty():
 		return Enums.empty_result()
-	# 대상 카드 선택 (sim 결정성)
-	# allow_self: true 라도 카드는 판매되어 board 에서 제거된 상태 — 사실상 self 불가
-	var target_idx: int = -1
-	for i in board.size():
-		if board[i] != null and board[i] != card:
-			target_idx = i
-			break
-	if target_idx < 0:
+	# 대상 카드 선택 (sim 결정성) — board는 active(compact) 또는 sparse 둘 다 처리.
+	var target: CardInstance = null
+	for c in board:
+		if c == null or c == card:
+			continue
+		target = c
+		break
+	if target == null:
 		return Enums.empty_result()
-	# theme 선택 (★별 offering size, sim 은 첫 옵션)
+	# theme 선택 (sim 은 첫 비-NEUTRAL — 다양성에 의미 있는 변환).
+	# 첫 비-NEUTRAL 이면서 target 의 현재 theme 와 다른 것을 우선.
 	var omni: bool = eff.get("omni", false)
-	var new_theme: int = Enums.CardTheme.NEUTRAL  # default 첫 옵션
+	var current: int = target.template.get("theme", -1)
+	var new_theme: int = Enums.CardTheme.STEAMPUNK
+	if current == Enums.CardTheme.STEAMPUNK:
+		new_theme = Enums.CardTheme.PREDATOR
 	return {
 		"events": [],
 		"gold": 0,
 		"terazin": 0,
 		"transform_theme": {
-			"target_idx": target_idx,
+			"target_card": target,
 			"new_theme": new_theme,
 			"omni": omni,
 		},

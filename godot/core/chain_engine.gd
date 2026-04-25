@@ -664,10 +664,19 @@ func _execute_actions(card: CardInstance, card_idx: int,
 
 				"diversity_gold":
 					# 차원 행상인: 테마 수 × gold_per_theme 골드
+					# omni-theme (ne_masquerade ★3) 카드는 모든 5 테마에 매치 — 단독으로 5 테마 카운트
 					var themes_seen: Dictionary = {}
 					for c in board:
-						var th: int = (c as CardInstance).template.get("theme", -1)
-						themes_seen[th] = true
+						var ci_dg: CardInstance = c
+						if ci_dg.is_omni_theme:
+							themes_seen[Enums.CardTheme.NEUTRAL] = true
+							themes_seen[Enums.CardTheme.STEAMPUNK] = true
+							themes_seen[Enums.CardTheme.MILITARY] = true
+							themes_seen[Enums.CardTheme.DRUID] = true
+							themes_seen[Enums.CardTheme.PREDATOR] = true
+						else:
+							var th: int = ci_dg.template.get("theme", -1)
+							themes_seen[th] = true
 					var theme_count: int = themes_seen.size()
 					var gpt: int = eff.get("gold_per_theme", 1)
 					gold += theme_count * gpt

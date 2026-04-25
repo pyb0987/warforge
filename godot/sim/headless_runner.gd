@@ -66,17 +66,43 @@ func run() -> Dictionary:
 	# Connect chain events for cross-activation tracking
 	chain_engine.chain_event_fired.connect(_on_chain_event)
 
-	# ON_SELL triggers (e.g., sp_arsenal absorb, ne_hoarder tenure_gold)
+	# ON_SELL triggers (e.g., sp_arsenal absorb, ne_hoarder tenure_gold,
+	# ne_clone_seed ★3 transfer_upgrade, ne_masquerade transform_theme)
 	state.card_sold.connect(func(sold_card: CardInstance):
 		var sell_result: Dictionary = chain_engine.process_sell_triggers(
 				state.get_active_board(), sold_card)
-		# Self-sell 효과(예: ne_hoarder)의 gold/terazin 적용 — game_manager 와 동일 패턴
 		var gold_delta: int = sell_result.get("gold", 0)
 		var terazin_delta: int = sell_result.get("terazin", 0)
 		if gold_delta != 0:
 			state.gold = maxi(state.gold + gold_delta, 0)
 		if terazin_delta != 0:
 			state.terazin = maxi(state.terazin + terazin_delta, 0)
+		# ne_clone_seed ★3 SELL: source 카드의 첫 업그레이드를 보드 첫 카드에 부착
+		var transfer: Dictionary = sell_result.get("transfer_upgrade", {})
+		if not transfer.is_empty():
+			var src: CardInstance = transfer.get("source_card")
+			if src != null and src.upgrades.size() > 0:
+				var u_idx: int = transfer.get("source_upgrade_idx", 0)
+				if u_idx >= 0 and u_idx < src.upgrades.size():
+					var upg: Dictionary = src.upgrades[u_idx]
+					for c in state.board:
+						if c == null:
+							continue
+						var ct: CardInstance = c
+						if ct.upgrades.size() < ct.get_max_upgrade_slots():
+							ct.upgrades.append(upg)
+							break
+		# ne_masquerade SELL: target 카드 theme 변경 (★3 omni)
+		var transform: Dictionary = sell_result.get("transform_theme", {})
+		if not transform.is_empty():
+			var target: CardInstance = transform.get("target_card")
+			if target != null:
+				if transform.get("omni", false):
+					target.is_omni_theme = true
+				else:
+					var nth: int = transform.get("new_theme", -1)
+					if nth >= 0:
+						target.template["theme"] = nth
 	)
 
 	var shop := ShopLogic.new()
@@ -167,10 +193,21 @@ func run() -> Dictionary:
 		_cross_activations = 0
 		_total_activations = 0
 		state.round_rerolls = 0
+		# ne_council 보너스 평가 (game_manager._evaluate_council_field_bonus 와 동일 로직)
+		_sim_evaluate_council_field_bonus(state)
 		var active_board := state.get_active_board()
 		var chain_result := chain_engine.run_growth_chain(active_board, false)
 		state.gold += chain_result["gold_earned"]
 		state.terazin += chain_result["terazin_earned"]
+		# ne_clone_seed RS 복제본을 벤치에 추가 (chain_result.clones_to_bench)
+		var sim_clones: Array = chain_result.get("clones_to_bench", [])
+		for clone_spec in sim_clones:
+			var clone_tid: String = clone_spec.get("template_id", "")
+			if clone_tid == "":
+				continue
+			var clone_inst: CardInstance = CardInstance.create(clone_tid)
+			if clone_inst != null:
+				state.add_to_bench(clone_inst)
 
 		# ---- BATTLE ----
 		# Persistent + battle_start
@@ -452,3 +489,34 @@ func _generate_enemies(round_num: int, rng: RandomNumberGenerator) -> Array:
 ## Calculate interest — state에 주입된 genome 값 사용 (SSOT: game_state.calc_interest()).
 func _calc_interest(state: GameState) -> int:
 	return state.calc_interest()
+
+
+## ne_council 평의회 보너스 평가 — game_manager._evaluate_council_field_bonus 와 동일 로직.
+## 보드에 ne_council + 5테마 모두 존재 시 field_slots +1 활성, 깨지면 -1.
+## Phase 3b-2b: sim 동작 일관성 (live game 동일 로직, omni-theme 인식).
+func _sim_evaluate_council_field_bonus(state: GameState) -> void:
+	var has_council := false
+	var themes_seen: Dictionary = {}
+	for card in state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		if ci.is_omni_theme:
+			themes_seen[Enums.CardTheme.NEUTRAL] = true
+			themes_seen[Enums.CardTheme.STEAMPUNK] = true
+			themes_seen[Enums.CardTheme.MILITARY] = true
+			themes_seen[Enums.CardTheme.DRUID] = true
+			themes_seen[Enums.CardTheme.PREDATOR] = true
+		else:
+			var t: int = ci.template.get("theme", -1)
+			if t >= 0:
+				themes_seen[t] = true
+		if ci.get_base_id() == "ne_council":
+			has_council = true
+	var should_be_active := has_council and themes_seen.size() >= 5
+	if should_be_active and not state.council_field_bonus_active:
+		state.field_slots = mini(state.field_slots + 1, Enums.MAX_FIELD_SLOTS)
+		state.council_field_bonus_active = true
+	elif (not should_be_active) and state.council_field_bonus_active:
+		state.field_slots = maxi(state.field_slots - 1, 0)
+		state.council_field_bonus_active = false
