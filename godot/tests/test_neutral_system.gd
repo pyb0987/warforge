@@ -361,6 +361,18 @@ func test_nexus_star3_spawns_unit() -> void:
 	assert_eq(card.get_total_units(), before_units + 1, "★3 → 유닛 1기 spawn")
 
 
+func test_nexus_star2_atk_and_hp() -> void:
+	## ★2: ATK +3%, HP +1% (multi-review missing ★ branch)
+	var card: CardInstance = CardInstance.create("ne_nexus")
+	card.evolve_star()
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 UA → ATK +3%")
+	assert_almost_eq(card.growth_hp_pct, 0.01, 0.001, "★2 UA → HP +1%")
+
+
 func test_nexus_omni_target_filtered_as_neutral() -> void:
 	## omni-theme target 은 NEUTRAL 매치 → 무시
 	var card: CardInstance = CardInstance.create("ne_nexus")
@@ -458,6 +470,8 @@ func test_clone_seed_rs_returns_clone_signal() -> void:
 	assert_eq(clones.size(), 1, "1 clone signal")
 	assert_eq(clones[0].get("template_id", ""), "ne_clone_seed", "복사본 template_id 매치")
 	assert_eq(clones[0].get("star", 0), 1, "★1 신선 복사본")
+	# Negative assertion: ★1 RS는 enhance 액션 없음 — growth_atk_pct 변화 없음
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "★1 RS → enhance 미적용")
 
 
 func test_clone_seed_star2_rs_includes_self_enhance() -> void:
@@ -511,12 +525,35 @@ func test_masquerade_no_target_no_transform() -> void:
 
 func test_masquerade_star1_returns_target_and_theme() -> void:
 	## ★1 SELL: 첫 비-self 카드 + 비-NEUTRAL theme (sim 결정성)
+	## sp target → PREDATOR 변환 (sim 결정성: STEAMPUNK 면 PREDATOR, 아니면 STEAMPUNK)
 	var card: CardInstance = CardInstance.create("ne_masquerade")
 	var sp: CardInstance = CardInstance.create("sp_assembly")
 	var result: Dictionary = _sys.process_self_sell(card, [card, sp])
 	var transform: Dictionary = result.get("transform_theme", {})
 	assert_eq(transform.get("target_card"), sp, "target_card = sp")
 	assert_false(transform.get("omni", true), "★1 omni=false")
+	assert_eq(transform.get("new_theme"), Enums.CardTheme.PREDATOR,
+		"sp target → PREDATOR (sim 결정성)")
+
+
+func test_masquerade_default_theme_for_non_steampunk() -> void:
+	## target이 비-STEAMPUNK (예: dr_cradle) → default STEAMPUNK 변환
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var dr: CardInstance = CardInstance.create("dr_cradle")
+	var result: Dictionary = _sys.process_self_sell(card, [card, dr])
+	var t: Dictionary = result.get("transform_theme", {})
+	assert_eq(t.get("new_theme"), Enums.CardTheme.STEAMPUNK,
+		"dr target → default STEAMPUNK")
+
+
+func test_masquerade_sparse_board_skips_nulls() -> void:
+	## sparse board (null 중간) → null skip + 첫 비-self 카드 선택
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var sparse_board: Array = [card, null, sp, null]
+	var result: Dictionary = _sys.process_self_sell(card, sparse_board)
+	var t: Dictionary = result.get("transform_theme", {})
+	assert_eq(t.get("target_card"), sp, "null skip + sp 선택")
 
 
 func test_masquerade_target_skips_self() -> void:
