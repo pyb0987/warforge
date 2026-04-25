@@ -47,6 +47,7 @@ func _init() -> void:
 	_theme_systems[Enums.CardTheme.DRUID] = DruidSystem.new()
 	_theme_systems[Enums.CardTheme.PREDATOR] = PredatorSystem.new()
 	_theme_systems[Enums.CardTheme.MILITARY] = MilitarySystem.new()
+	_theme_systems[Enums.CardTheme.NEUTRAL] = NeutralSystem.new()
 
 
 func set_seed(seed_val: int) -> void:
@@ -253,23 +254,41 @@ func process_merge_triggers(board: Array, merged_card: CardInstance) -> Dictiona
 
 ## Process ON_SELL triggers (e.g., sp_arsenal absorb, druid 🌳 distribute).
 ## Called when a card is sold. sold_card is the removed CardInstance.
-func process_sell_triggers(board: Array, sold_card: CardInstance) -> void:
+## Returns {gold, terazin, events} from sold_card's own SELL block (e.g., ne_hoarder
+## tenure_gold). Other reactive cards (sp_arsenal etc.) mutate board state in place.
+func process_sell_triggers(board: Array, sold_card: CardInstance) -> Dictionary:
 	# Druid: distribute 🌳 from sold druid card to remaining druids
 	var dr_sys = _theme_systems.get(Enums.CardTheme.DRUID)
 	if dr_sys != null:
 		dr_sys.on_sell(sold_card, board)
 
-	# ON_SELL timing cards (e.g., sp_arsenal)
+	# ON_SELL timing cards on board reacting to OTHER card's sell (e.g., sp_arsenal)
 	var sp_sys = _theme_systems.get(Enums.CardTheme.STEAMPUNK)
-	if sp_sys == null:
-		return
-	for card in board:
-		var c := card as CardInstance
-		if c == null:
-			continue
-		if _find_block(c.template, Enums.TriggerTiming.ON_SELL).is_empty():
-			continue
-		sp_sys.on_sell_trigger(c, sold_card)
+	if sp_sys != null:
+		for card in board:
+			var c := card as CardInstance
+			if c == null:
+				continue
+			if _find_block(c.template, Enums.TriggerTiming.ON_SELL).is_empty():
+				continue
+			sp_sys.on_sell_trigger(c, sold_card)
+
+	# Self-sell: sold_card 본인의 ON_SELL block 효과 처리 (e.g., ne_hoarder, ne_envoy SELL).
+	# require_tenure 가드 — block에 require_tenure 명시되어 있으면 카드 tenure가
+	# 그 이상이어야 발동. (theme_system handler 내부에서 다시 체크하지 않음)
+	var result := {"events": [], "gold": 0, "terazin": 0}
+	if sold_card == null:
+		return result
+	var sold_theme: int = sold_card.template.get("theme", -1)
+	if sold_theme not in _theme_systems:
+		return result
+	var sell_block := _find_block(sold_card.template, Enums.TriggerTiming.ON_SELL)
+	if sell_block.is_empty():
+		return result
+	var required_tenure: int = sell_block.get("require_tenure", 0)
+	if sold_card.tenure < required_tenure:
+		return result
+	return _theme_systems[sold_theme].process_self_sell(sold_card, board)
 
 
 ## Process ON_REROLL triggers (e.g., sp_interest).
