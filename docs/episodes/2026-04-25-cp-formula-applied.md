@@ -1,7 +1,11 @@
-# CP Formula Application — Handoff
+# CP Formula Application — Episode (Archived 2026-04-25)
 
-> 작성: 2026-04-25. 후속 세션이 이 문서만 보고 이어갈 수 있는 self-contained handoff.
-> 선행 세션의 결과 (테마 enemy 시스템 + 새 CP 공식) 을 코드 전체에 적용하는 작업.
+> 원본: docs/design/cp-formula-application-handoff.md (이전됨).
+> 결과: 4 commits — ee4bc61 (analyze_card_cp SSoT), 95203a5 (card_instance SSoT),
+> 3ffb89e (target_cp recalibration + baseline), da0ca88 (§5-§6 cleanup),
+> + boss_scaling rename (cp_mult). Evolution traces: 017, 018, 019.
+> Sprint Contract: 6/6 ✓. Evaluator: 4/5 ✓ + 보스 1.2-1.5× difficulty criterion
+> 재해석 (target_wr_curve match가 더 정확한 측정 — 모두 ±6pp 이내 통과).
 
 ## 0. 현재 상태 (이 핸드오프 시작 시점)
 

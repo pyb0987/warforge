@@ -27,7 +27,8 @@ var activation_caps: Dictionary = {}
 ## Shop tier weights per level. Format: {"1": [100,0,0,0,0], "2": [70,28,2,0,0], ...}
 var shop_tier_weights: Dictionary = {}
 
-## Boss scaling multipliers. Format: {"atk_mult": 1.3, "hp_mult": 1.3}
+## Boss scaling. Format: {"cp_mult": 1.3} — multiplies target_cp on boss rounds
+## (more total enemy CP, not per-unit stat boost).
 var boss_scaling: Dictionary = {}
 
 ## Starting resources. Format: {"gold": 10, "terazin": 2}
@@ -57,7 +58,7 @@ const DEFAULT_SHOP_TIER_WEIGHTS := {
 	"6": [0, 0, 10, 40, 50],
 }
 
-const DEFAULT_BOSS_SCALING := {"atk_mult": 1.3, "hp_mult": 1.3}
+const DEFAULT_BOSS_SCALING := {"cp_mult": 1.3}
 
 const DEFAULT_STARTING_RESOURCES := {"gold": 10, "terazin": 2}
 const STARTING_RESOURCES_RANGE := {"gold": [5, 15], "terazin": [0, 5]}

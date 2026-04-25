@@ -142,10 +142,9 @@ def validate_genome(g):
 
     # Boss scaling
     bs = g.get("boss_scaling", {})
-    for key in ["atk_mult", "hp_mult"]:
-        val = bs.get(key, 1.3)
-        if val < 1.0 or val > 2.0:
-            return f"boss_scaling.{key} = {val} out of range [1.0, 2.0]"
+    cp_mult = bs.get("cp_mult", 1.3)
+    if cp_mult < 1.0 or cp_mult > 2.0:
+        return f"boss_scaling.cp_mult = {cp_mult} out of range [1.0, 2.0]"
 
     # Starting resources
     sr = g.get("starting_resources", {})
@@ -348,15 +347,12 @@ def mutate_activation_caps(genome, strength=0.15):
 
 
 def mutate_boss_scaling(genome, strength=0.15):
-    """Mutate boss ATK/HP multipliers."""
+    """Mutate boss CP multiplier."""
     g = copy.deepcopy(genome)
-    bs = g.get("boss_scaling", {"atk_mult": 1.3, "hp_mult": 1.3})
-
-    for key in ["atk_mult", "hp_mult"]:
-        val = bs[key]
-        delta = val * strength * random.uniform(-1, 1)
-        bs[key] = round(max(1.0, min(2.0, val + delta)), 2)
-
+    bs = g.get("boss_scaling", {"cp_mult": 1.3})
+    val = bs.get("cp_mult", 1.3)
+    delta = val * strength * random.uniform(-1, 1)
+    bs["cp_mult"] = round(max(1.0, min(2.0, val + delta)), 2)
     g["boss_scaling"] = bs
     return g
 

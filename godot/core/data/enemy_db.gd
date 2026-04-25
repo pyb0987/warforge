@@ -10,7 +10,7 @@ extends RefCounted
 ## Stat scaling per round:
 ##   atk × stat_mult, hp × stat_mult  (enemy_cp_curve[round-1])
 ##   target_cp_per_round[round-1] drives total army CP
-##   boss rounds (4/8/12/15): target_cp × boss_atk_mult
+##   boss rounds (4/8/12/15): target_cp × boss_scaling.cp_mult
 
 ## Preset types = 4 game themes.
 enum Preset { PREDATOR, DRUID, MILITARY, STEAMPUNK }
@@ -39,12 +39,11 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 	# Per-round stat multiplier (atk × stat_mult, hp × stat_mult).
 	var stat_mult: float = g.enemy_cp_curve[round_num - 1] if round_num >= 1 and round_num <= 15 else 1.0
 
-	# Target army CP (×boss_mult on boss rounds — already scales stat_mult² via UNIT_CP × stat_mult²).
+	# Target army CP (×cp_mult on boss rounds — adds proportionally more units).
 	var target_cp: float = g.target_cp_per_round[round_num - 1] if round_num >= 1 and round_num <= 15 else 100.0
 	if is_boss:
 		var bm: Dictionary = g.get_boss_mult()
-		var boss_mult: float = float(bm.get("atk_mult", 1.3))
-		target_cp *= boss_mult
+		target_cp *= float(bm.get("cp_mult", 1.3))
 
 	# Theme-based composition: {unit_id: count}
 	var counts: Dictionary = PresetGen.derive_comp(preset_name, target_cp, stat_mult)
