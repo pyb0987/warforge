@@ -131,17 +131,20 @@ THEME_RECIPES = {
 # Derivation API
 # ═══════════════════════════════════════════════════════════════════
 
+def cp_from_stats(atk: float, attack_speed: float, hp: float, stat_mult: float = 1.0) -> float:
+    """CP from raw stats. Use this for runtime CP (post-upgrade effective stats)."""
+    as_val = max(float(attack_speed), 0.01)
+    dps = float(atk) / as_val
+    cp = FORMULA_BASE + (dps ** FORMULA_ALPHA) * (float(hp) ** FORMULA_BETA)
+    return cp * stat_mult * stat_mult
+
+
 def unit_intrinsic_cp(unit_id: str, stat_mult: float = 1.0) -> float:
     """Formula: CP = BASE + (atk/as)^α × hp^β. Scaled by stat_mult²."""
     stats = UNIT_STATS.get(unit_id)
     if stats is None:
         return FORMULA_BASE * stat_mult * stat_mult
-    atk = float(stats["atk"])
-    hp = float(stats["hp"])
-    as_val = max(float(stats["as"]), 0.01)
-    dps = atk / as_val
-    cp = FORMULA_BASE + (dps ** FORMULA_ALPHA) * (hp ** FORMULA_BETA)
-    return cp * stat_mult * stat_mult
+    return cp_from_stats(stats["atk"], stats["as"], stats["hp"], stat_mult)
 
 
 def derive_comp(preset_name: str, target_cp: float, stat_mult: float = 1.0) -> dict:

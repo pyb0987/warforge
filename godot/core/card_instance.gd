@@ -6,6 +6,7 @@ extends RefCounted
 ##   ATK = base * (1 + growth%) * upgrade_mult * temp_mult + temp_atk
 
 const BASE_UNIT_CAP := 60
+const PresetGen = preload("res://sim/preset_generator.gd")
 
 # --- Commander bonuses (set at creation time) ---
 var unit_cap_bonus: int = 0
@@ -154,12 +155,12 @@ func get_total_hp() -> float:
 	return total
 
 
-## Total Combat Power = Σ(count × ATK/AS × HP) across all stacks.
+## Total Combat Power across all stacks (SSoT: PresetGen.cp_from_stats).
 func get_total_cp() -> float:
 	var total := 0.0
 	for s in stacks:
-		var as_val: float = maxf(s["unit_type"].get("attack_speed", 1.0), 0.01)
-		total += s["count"] * eff_atk_for(s) / as_val * eff_hp_for(s)
+		var as_val: float = s["unit_type"].get("attack_speed", 1.0)
+		total += s["count"] * PresetGen.cp_from_stats(eff_atk_for(s), as_val, eff_hp_for(s))
 	return total
 
 
@@ -276,12 +277,11 @@ func breed_strongest() -> bool:
 	if stacks.is_empty() or get_total_units() >= get_unit_cap():
 		return false
 	var best_idx := 0
-	var best_cp := 0.0
+	var best_cp := -1.0
 	for i in stacks.size():
 		var s: Dictionary = stacks[i]
 		var ut: Dictionary = s["unit_type"]
-		var as_val: float = maxf(ut["attack_speed"], 0.01)
-		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		var cp: float = PresetGen.cp_from_stats(ut["atk"], ut["attack_speed"], ut["hp"])
 		if cp > best_cp:
 			best_cp = cp
 			best_idx = i
@@ -301,8 +301,7 @@ func remove_weakest_unit() -> bool:
 		if s["count"] <= 0:
 			continue
 		var ut: Dictionary = s["unit_type"]
-		var as_val: float = maxf(ut.get("attack_speed", 1.0), 0.01)
-		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		var cp: float = PresetGen.cp_from_stats(ut["atk"], ut.get("attack_speed", 1.0), ut["hp"])
 		if cp < worst_cp:
 			worst_cp = cp
 			worst_idx = i
@@ -351,8 +350,7 @@ func remove_weakest(count: int) -> int:
 	for i in stacks.size():
 		var s: Dictionary = stacks[i]
 		var ut: Dictionary = s["unit_type"]
-		var as_val: float = maxf(ut["attack_speed"], 0.01)
-		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		var cp: float = PresetGen.cp_from_stats(ut["atk"], ut["attack_speed"], ut["hp"])
 		sorted_stacks.append({"idx": i, "cp": cp})
 	sorted_stacks.sort_custom(func(a, b): return a["cp"] < b["cp"])
 	var to_remove := count
@@ -381,8 +379,7 @@ func metamorphosis(consume_count: int) -> bool:
 	var best_cp := -1.0
 	for i in stacks.size():
 		var ut: Dictionary = stacks[i]["unit_type"]
-		var as_val: float = maxf(ut["attack_speed"], 0.01)
-		var cp: float = float(ut["atk"]) / as_val * float(ut["hp"])
+		var cp: float = PresetGen.cp_from_stats(ut["atk"], ut["attack_speed"], ut["hp"])
 		if cp > best_cp:
 			best_cp = cp
 			strongest_idx = i

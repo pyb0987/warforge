@@ -20,6 +20,14 @@ const FORMULA_ALPHA := 0.249
 const FORMULA_BETA := 0.905
 
 
+## CP from raw stats. Use this for runtime CP (post-upgrade effective stats).
+static func cp_from_stats(atk: float, attack_speed: float, hp: float, stat_mult: float = 1.0) -> float:
+	var as_val: float = maxf(attack_speed, 0.01)
+	var dps: float = atk / as_val
+	var cp: float = FORMULA_BASE + pow(dps, FORMULA_ALPHA) * pow(hp, FORMULA_BETA)
+	return cp * stat_mult * stat_mult
+
+
 # ═══════════════════════════════════════════════════════════════════
 # UNIT_STATS — mirror of godot/core/data/unit_db.gd (IMMUTABLE)
 # Now includes range + ms for Option A formula.
