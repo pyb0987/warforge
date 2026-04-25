@@ -617,7 +617,7 @@ cards:
         - trigger_timing: OE
           max_act: 2
           listen:
-            l2: any
+            l1: UA
           mirror_l2:
             atk_pct: 0.02
       2:
@@ -625,7 +625,7 @@ cards:
         - trigger_timing: OE
           max_act: 4
           listen:
-            l2: any
+            l1: UA
           mirror_l2:
             atk_pct: 0.03
             hp_pct: 0.01
@@ -634,7 +634,7 @@ cards:
         - trigger_timing: OE
           max_act: 6
           listen:
-            l2: any
+            l1: UA
           mirror_l2:
             atk_pct: 0.05
             hp_pct: 0.03
