@@ -1108,15 +1108,18 @@ func test_alliance_star3_bs_threshold_instant_recruit() -> void:
 		"★3 BS theme_count≥3 → 즉시 conscript 1기 (self)")
 
 
-func test_alliance_star2_bs_no_instant_threshold() -> void:
-	## ★2 BS: instant_conscript_threshold 없음 → spawn만
+func test_alliance_star2_bs_spawns_one_per_theme_count() -> void:
+	## ★2 BS: theme_count × mult(1) spawn (instant_conscript_threshold 없음)
+	## before_total 베이스라인 캡처 — 트리비얼 통과 방지 (multi-review C-A 수정)
 	var card: CardInstance = CardInstance.create("ml_alliance")
 	card.evolve_star()
 	var board: Array = [card, CardInstance.create("ml_barracks")]
-	# theme_count=1, mult=1 → 1 spawn (random ally)
-	_sys.apply_battle_start(card, 0, board)
-	# 누군가에게 1기 spawn — 보드 총합으로 검증
-	var total: int = 0
+	var before_total: int = 0
 	for c in board:
-		total += (c as CardInstance).get_total_units()
-	assert_true(total >= 1, "★2 BS spawn 1기")
+		before_total += (c as CardInstance).get_total_units()
+	# theme_count=1 (military), mult=1 → 1 spawn (random ally)
+	_sys.apply_battle_start(card, 0, board)
+	var after_total: int = 0
+	for c in board:
+		after_total += (c as CardInstance).get_total_units()
+	assert_eq(after_total, before_total + 1, "★2 BS theme_count=1 → +1 spawn")

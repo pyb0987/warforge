@@ -454,6 +454,19 @@ func test_resonance_star1_non_druid_target_tree_and_enhance() -> void:
 	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 ATK +2%")
 
 
+func test_resonance_star2_tree_atk_hp() -> void:
+	## ★2: tree +1, ATK +3%, HP +2% (multi-review missing coverage)
+	var card: CardInstance = CardInstance.create("dr_resonance")
+	card.evolve_star()
+	var sp_target: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, sp_target]
+	var event := _make_ua_event(1, 1)
+	_sys.process_event_card(card, 0, board, event, _rng)
+	assert_eq(card.theme_state.get("trees", 0), 1, "★2 tree +1")
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 ATK +3%")
+	assert_almost_eq(card.growth_hp_pct, 0.02, 0.001, "★2 HP +2%")
+
+
 func test_resonance_star3_double_tree_and_hp() -> void:
 	## ★3: tree +2, ATK +4%, HP +3%
 	var card: CardInstance = CardInstance.create("dr_resonance")

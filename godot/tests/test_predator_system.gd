@@ -476,3 +476,21 @@ func test_parasitic_swarm_star3_round_resets_diversity_set() -> void:
 	card.tenure += 1
 	_sys.process_event_card(card, 0, board, _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2), _rng)
 	assert_almost_eq(card.growth_atk_pct, 0.20, 0.001, "라운드 리셋 → diversity 재적용")
+
+
+func test_parasitic_swarm_star3_spawns_unit_on_l2() -> void:
+	## ★3: l2 발동 시 포식종 유닛 1기 spawn (multi-review missing coverage)
+	var card: CardInstance = CardInstance.create("pr_parasitic_swarm")
+	card.evolve_star()
+	card.evolve_star()
+	var before_units: int = card.get_total_units()
+	var event := _make_l2_event(Enums.Layer2.MANUFACTURE, 1, 2)
+	var result: Dictionary = _sys.process_event_card(card, 0, [card], event, _rng)
+	assert_eq(card.get_total_units(), before_units + 1, "★3 → 유닛 1기 spawn")
+	# spawn 이벤트 emit 검증 (HATCH event)
+	var found_hatch := false
+	for evt in result.get("events", []):
+		if evt.get("layer2", -1) == Enums.Layer2.HATCH:
+			found_hatch = true
+			break
+	assert_true(found_hatch, "spawn → HATCH 이벤트 emit")
