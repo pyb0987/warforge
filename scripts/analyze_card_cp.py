@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 """
-analyze_card_cp.py — Compute base CP (ATK/AS × HP sum) for all cards.
+analyze_card_cp.py — Compute base CP for all cards using the SSoT formula.
 
 Usage:
     python3 scripts/analyze_card_cp.py              # full report
     python3 scripts/analyze_card_cp.py --sort cp    # sort by CP desc
     python3 scripts/analyze_card_cp.py --tier 4     # only tier 4
 
-Formula per unit:  cp = n * (atk / attack_speed) * hp
-Card base CP     = sum of per-unit cp over comp entries
-This matches dr_cradle=1200, dr_lifebeat=1100, sp_furnace=393.
+CP formula: scripts/preset_generator.py::unit_intrinsic_cp (single source).
+Card base CP = Σ (unit_intrinsic_cp(uid) × n) over comp entries.
 """
 
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -24,27 +22,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 CARDS_DIR = ROOT / "data" / "cards"
-UNIT_DB = ROOT / "godot" / "core" / "data" / "unit_db.gd"
 
-_REG_RE = re.compile(
-    r'_reg\("(\w+)",\s*"[^"]*",\s*(-?\d+),\s*(-?\d+),\s*([\d.]+),\s*(-?\d+),\s*(-?\d+),'
-)
-
-
-def load_units() -> dict[str, dict]:
-    """Parse unit_db.gd _reg(...) calls → {id: {atk, hp, as, range, ms}}."""
-    units: dict[str, dict] = {}
-    text = UNIT_DB.read_text(encoding="utf-8")
-    for m in _REG_RE.finditer(text):
-        uid, atk, hp, as_, urange, ms = m.groups()
-        units[uid] = {
-            "atk": int(atk),
-            "hp": int(hp),
-            "as": float(as_),
-            "range": int(urange),
-            "ms": int(ms),
-        }
-    return units
+sys.path.insert(0, str(ROOT / "scripts"))
+from preset_generator import UNIT_STATS, unit_intrinsic_cp  # noqa: E402
 
 
 def load_cards() -> list[dict]:
@@ -62,8 +42,8 @@ def load_cards() -> list[dict]:
     return cards
 
 
-def card_base_cp(card: dict, units: dict[str, dict]) -> tuple[float, int, str]:
-    """Return (base_cp, unit_count, comp_desc)."""
+def card_base_cp(card: dict) -> tuple[float, int, str]:
+    """Return (base_cp, unit_count, comp_desc) using SSoT formula."""
     comp = card.get("comp") or []
     total_cp = 0.0
     total_units = 0
@@ -71,15 +51,10 @@ def card_base_cp(card: dict, units: dict[str, dict]) -> tuple[float, int, str]:
     for entry in comp:
         uid = entry["unit"]
         n = int(entry.get("n", 1))
-        u = units.get(uid)
-        if not u:
+        if uid not in UNIT_STATS:
             parts.append(f"{uid}×{n}(MISSING)")
             continue
-        as_ = u["as"]
-        if as_ <= 0:
-            continue
-        per = (u["atk"] / as_) * u["hp"]
-        total_cp += n * per
+        total_cp += unit_intrinsic_cp(uid) * n
         total_units += n
         parts.append(f"{uid}×{n}")
     return total_cp, total_units, " + ".join(parts)
@@ -106,7 +81,6 @@ def main() -> int:
     ap.add_argument("--csv", action="store_true", help="output CSV")
     args = ap.parse_args()
 
-    units = load_units()
     cards = load_cards()
     if args.tier is not None:
         cards = [c for c in cards if c.get("tier") == args.tier]
@@ -115,7 +89,7 @@ def main() -> int:
 
     rows = []
     for c in cards:
-        cp, n, comp = card_base_cp(c, units)
+        cp, n, comp = card_base_cp(c)
         rows.append((c, cp, n, comp))
 
     sort_key = {
@@ -133,7 +107,7 @@ def main() -> int:
         return 0
 
     # Grouped listing
-    print(f"# Card base CP report — {len(rows)} cards (formula: sum(n × ATK/AS × HP))\n")
+    print(f"# Card base CP report — {len(rows)} cards (SSoT: preset_generator.unit_intrinsic_cp)\n")
     by_tier_theme: dict[int, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     by_tier: dict[int, list[float]] = defaultdict(list)
     for c, cp, n, comp in rows:
