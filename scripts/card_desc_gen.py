@@ -69,6 +69,8 @@ OE_PREFIX = {
     ("UA", "MERGE"): "★합성 시:",
     ("UA", "REROLL"): "리롤 시:",
     ("UA", "SELL"):   "[반응] 판매 시:",
+    # Phase 6a: pr_parasitic_swarm intertheme listener (l2: ANY wildcard)
+    (None, "ANY"):   "[반응] 테마 효과 발동 시:",
 }
 
 # Action types whose intrinsic timing differs from the card's base timing
@@ -693,6 +695,92 @@ def desc_revive_scope_override(p: dict) -> str:
     t = resolve_target(p["target"])
     return f"부활 대상 확장 → {t}"
 
+
+# ═══════════════════════════════════════════════════════════════════
+# Phase 6a: 4 테마 카드 (Phase 1-3 신규 13장 중 테마부)
+# ═══════════════════════════════════════════════════════════════════
+
+
+def desc_mirror_l2(p: dict) -> str:
+    """pr_parasitic_swarm — OE_PREFIX (None, ANY) prefix 가 '[반응] 테마 효과 발동 시:'를
+    이미 붙이므로 본문만 작성."""
+    atk = p.get("atk_pct", 0.0)
+    hp = p.get("hp_pct", 0.0)
+    spawn = p.get("spawn_unit", 0)
+    div = p.get("l2_diversity_bonus", 0.0)
+    parts = []
+    if atk and hp:
+        parts.append(f"ATK +{fmt_pct(atk)}% HP +{fmt_pct(hp)}%")
+    elif atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    elif hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"자신 {' '.join(parts)} 영구 강화"
+    extras = []
+    if spawn:
+        extras.append(f"유닛 {spawn}기 추가")
+    if div:
+        extras.append(f"새 종류 첫 발견마다 추가 ATK +{fmt_pct(div)}%")
+    if extras:
+        base += " (" + ", ".join(extras) + ")"
+    return base
+
+
+def desc_gear_diversity_enhance(p: dict) -> str:
+    """sp_global_workshop — 보드에 비-스팀펑크 카드 1장+ 시 #기어 강화."""
+    min_n = p.get("min_non_steampunk", 1)
+    atk = p.get("atk_pct", 0.0)
+    hp = p.get("hp_pct", 0.0)
+    spawn_n = p.get("spawn_unit", 0)
+    spawn_thresh = p.get("spawn_threshold", 0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"보드에 비-스팀펑크 {min_n}장+ 시 #기어 유닛 {' '.join(parts)} 영구 강화"
+    if spawn_n and spawn_thresh:
+        base += f" (비-스팀펑크 {spawn_thresh}장+ 시 #기어 유닛 {spawn_n}기 추가)"
+    return base
+
+
+def desc_theme_count_conscript(p: dict) -> str:
+    """ml_alliance RS — 보드 테마 수 × mult 만큼 신병(ml_recruit) 추가."""
+    mult = p.get("mult", 1)
+    if mult == 1:
+        return "보드 테마 수만큼 자신에 신병 추가"
+    return f"보드 테마 수 × {mult}만큼 자신에 신병 추가"
+
+
+def desc_theme_count_spawn(p: dict) -> str:
+    """ml_alliance BS — 보드 테마 수 × mult 만큼 랜덤 아군에 spawn,
+    instant_conscript_threshold 시 즉시 신병 등장.
+    block timing prefix ('전투 시작:')는 상위 desc_gen에서 추가 — 여기선 본문만."""
+    mult = p.get("mult", 1)
+    thresh = p.get("instant_conscript_threshold", 0)
+    if mult == 1:
+        base = "보드 테마 수만큼 랜덤 아군 유닛 추가"
+    else:
+        base = f"보드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
+    if thresh:
+        base += f" (테마 {thresh}+ 시 자신에 신병 1기 즉시 등장)"
+    return base
+
+
+def desc_mirror_spawn_to_tree(p: dict) -> str:
+    """dr_resonance — OE_PREFIX (UA) prefix 가 '[반응] 유닛 추가 시:'를
+    이미 붙이므로 'non-druid' 필터와 본문만 작성."""
+    tree = p.get("tree_add", 1)
+    atk = p.get("self_atk_pct", 0.0)
+    hp = p.get("self_hp_pct", 0.0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    self_part = f", 자신 {' '.join(parts)} 영구 강화" if parts else ""
+    return f"비-드루이드 대상이면 🌳 +{tree}{self_part}"
+
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
             f"{p['threshold']} 소비, 레어 업그레이드 3택1")
@@ -831,6 +919,12 @@ EFFECT_HANDLERS: dict[str, Any] = {
     # ml_factory PC 재설계 (2026-04-21)
     "rank_scaled_enhance":     desc_rank_scaled_enhance,
     # Steampunk-specific: hatch_enhance, battle_buff already covered
+    # Phase 6a: 4 테마 카드 (Phase 1-3 신규)
+    "mirror_l2":                desc_mirror_l2,
+    "gear_diversity_enhance":   desc_gear_diversity_enhance,
+    "theme_count_conscript":    desc_theme_count_conscript,
+    "theme_count_spawn":        desc_theme_count_spawn,
+    "mirror_spawn_to_tree":     desc_mirror_spawn_to_tree,
 }
 
 def desc_effect(eff: dict | int | float) -> str:
