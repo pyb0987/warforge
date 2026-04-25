@@ -1228,11 +1228,19 @@ func _alliance_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var add: int = theme_count * mult
 	if add <= 0:
 		return Enums.empty_result()
-	# conscript_counter 누적 (military 자체 메커니즘과 동일 키)
-	var prev: int = card.theme_state.get("conscript_counter", 0)
-	card.theme_state["conscript_counter"] = prev + add
-	# 이벤트 emit 안 함 (carry-over 카운터 누적)
-	return {"events": [], "gold": 0, "terazin": 0}
+	# 직접 ml_recruit 1기 spawn (theme_count × mult 만큼) — conscript_counter 추상화
+	# 제거 (소비자 없는 dead write 회피, multi-review C-A 지적).
+	var events: Array = []
+	for _i in add:
+		if card.get_total_units() >= card.get_unit_cap():
+			break
+		card.add_specific_unit("ml_recruit", 1)
+		events.append({
+			"layer1": Enums.Layer1.UNIT_ADDED,
+			"layer2": Enums.Layer2.CONSCRIPT,
+			"source_idx": idx, "target_idx": idx,
+		})
+	return {"events": events, "gold": 0, "terazin": 0}
 
 
 ## ml_alliance BS — ★2/★3에서 theme_count 비례 spawn.
@@ -1255,18 +1263,24 @@ func _alliance_bs(card: CardInstance, idx: int, board: Array) -> Dictionary:
 
 	var events: Array = []
 	if spawn_total > 0 and ally_indices.size() > 0:
-		var rng := RandomNumberGenerator.new()
-		rng.randomize()
-		for _n in spawn_total:
-			var pick_idx: int = ally_indices[rng.randi_range(0, ally_indices.size() - 1)]
+		# Deterministic round-robin (sim 결정성 보장 — apply_battle_start에 rng
+		# 시그니처 없음. randomize() 호출 시 sim non-determinism 발생, multi-
+		# review C-B 지적). idx + n 모듈로 ally_indices 크기로 순환 분배.
+		for n in spawn_total:
+			var pick_idx: int = ally_indices[(idx + n) % ally_indices.size()]
 			var target: CardInstance = board[pick_idx]
 			if target.get_total_units() < target.get_unit_cap():
-				target.spawn_random(rng)
-				events.append({
-					"layer1": Enums.Layer1.UNIT_ADDED,
-					"layer2": Enums.Layer2.CONSCRIPT,
-					"source_idx": idx, "target_idx": pick_idx,
-				})
+				# spawn_random 은 RNG 필요 — comp 첫 유닛 직접 추가로 대체
+				var comp: Array = target.template.get("composition", [])
+				if comp.size() > 0:
+					var unit_id: String = comp[0].get("unit_id", "")
+					if unit_id != "":
+						target.add_specific_unit(unit_id, 1)
+						events.append({
+							"layer1": Enums.Layer1.UNIT_ADDED,
+							"layer2": Enums.Layer2.CONSCRIPT,
+							"source_idx": idx, "target_idx": pick_idx,
+						})
 
 	# ★3: instant_conscript_threshold 도달 시 self에 징집 유닛 1기 등장
 	var thresh: int = eff.get("instant_conscript_threshold", 0)
