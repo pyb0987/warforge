@@ -676,7 +676,10 @@ def desc_high_rank_mult(p: dict) -> str:
     return f"계급 {rank}+ 시 ATK ×{mult}"
 
 def desc_grant_gold(p: dict) -> str:
-    return f"골드 +{p['amount']}"
+    amount = p["amount"]
+    if amount < 0:
+        return f"골드 {amount}"  # 음수는 부호 그대로 (예: '골드 -1')
+    return f"골드 +{amount}"
 
 def desc_grant_terazin(p: dict) -> str:
     return f"테라진 +{p['amount']}"
@@ -780,6 +783,126 @@ def desc_mirror_spawn_to_tree(p: dict) -> str:
         parts.append(f"HP +{fmt_pct(hp)}%")
     self_part = f", 자신 {' '.join(parts)} 영구 강화" if parts else ""
     return f"비-드루이드 대상이면 🌳 +{tree}{self_part}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Phase 6b: 9 중립 카드 (Phase 1-3 신규)
+# ═══════════════════════════════════════════════════════════════════
+
+
+def desc_mirror_l1(p: dict) -> str:
+    """ne_nexus — listen l1: EN/UA, filter non_neutral_target.
+    OE_PREFIX (UA, None) / (EN, None) 가 '[반응] 유닛 추가 시:' / '강화 발동 시:' 붙임."""
+    atk = p.get("atk_pct", 0.0)
+    hp = p.get("hp_pct", 0.0)
+    spawn = p.get("spawn_unit", 0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"비-중립 대상이면 자신 {' '.join(parts)} 영구 강화"
+    if spawn:
+        base += f" + 유닛 {spawn}기 추가"
+    return base
+
+
+def desc_clone_self_to_bench(p: dict) -> str:
+    """ne_clone_seed RS — 벤치에 자기 ★1 복사본 추가."""
+    star = p.get("star", 1)
+    return f"벤치에 자기 ★{star} 복사본 추가"
+
+
+def desc_tenure_gold(p: dict) -> str:
+    """ne_hoarder SELL — 체류 라운드 × per_tenure 골드.
+    ★3은 upgrade_chance 추가."""
+    per = p.get("gold_per_tenure", 0)
+    chance = p.get("upgrade_chance", 0.0)
+    base = f"체류 라운드 × {per}골드 획득"
+    if chance:
+        base += f" + {fmt_pct(chance)}% 확률 업그레이드 1장"
+    return base
+
+
+def desc_duplicate_buff_aura(p: dict) -> str:
+    """ne_legion PERSISTENT — 보드 중복 카드(같은 template_id 2장+)들에
+    ATK/HP buff. N_excl=중복 카드 수-1."""
+    atk = p.get("atk_pct_per_n", 0.0)
+    hp = p.get("hp_pct_per_n", 0.0)
+    spawn = p.get("spawn_per_card", 0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"보드 중복 카드들 각각 {' / '.join(parts)} × 같은 종류 수"
+    if spawn:
+        base += f" + 유닛 {spawn}기 추가"
+    return base
+
+
+def desc_transform_theme(p: dict) -> str:
+    """ne_masquerade SELL — 필드 카드 1장 theme 변경. ★3: omni-theme."""
+    omni = p.get("omni", False)
+    if omni:
+        return "필드 카드 1장을 모든 5테마 동시 매치 (omni) 상태로 영구 변환"
+    offer = p.get("offer_count", 3)
+    return f"필드 카드 1장 선택 → {offer}개 theme 중 1개로 영구 변환"
+
+
+def desc_empty_slot_scaling(p: dict) -> str:
+    """ne_void_force BS — 필드 빈칸 E 만큼 self ATK/HP/AS scaling."""
+    atk = p.get("atk_pct_per_e", 0.0)
+    hp = p.get("hp_pct_per_e", 0.0)
+    as_div = p.get("as_div_per_e", 0.0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"필드 빈칸 1개당 자신 {' / '.join(parts)}"
+    if as_div:
+        base += f" + AS / (1+{fmt_pct(as_div)}%×빈칸)"
+    return base + " (이번 전투)"
+
+
+def desc_star3_count_scaling(p: dict) -> str:
+    """ne_fusion_end BS — 보드 ★3 카드 수 M 만큼 self ATK/HP scaling.
+    ★3은 allies_threshold 도달 시 모든 아군 ATK aura 추가."""
+    atk = p.get("atk_pct_per_m", 0.0)
+    hp = p.get("hp_pct_per_m", 0.0)
+    a_atk = p.get("allies_atk_pct_per_m", 0.0)
+    a_thresh = p.get("allies_threshold", 0)
+    parts = []
+    if atk:
+        parts.append(f"ATK +{fmt_pct(atk)}%")
+    if hp:
+        parts.append(f"HP +{fmt_pct(hp)}%")
+    base = f"보드 ★3 카드 1장당 자신 {' / '.join(parts)}"
+    if a_atk and a_thresh:
+        base += f" (★3 {a_thresh}장+ 시 모든 아군 ATK +{fmt_pct(a_atk)}%×★3수)"
+    return base + " (이번 전투)"
+
+
+def desc_transfer_upgrade(p: dict) -> str:
+    """ne_clone_seed ★3 SELL — 자신의 업그레이드 1개를 필드 카드로 이전."""
+    count = p.get("count", 1)
+    return f"자신의 업그레이드 {count}개를 필드 카드 1장에 이전"
+
+
+def desc_all_themes_field_bonus(p: dict) -> str:
+    """ne_council PERSISTENT — 5테마 모두 존재 시 field_slots+1 + 아군 buff."""
+    slot = p.get("slot_bonus", 0)
+    a_atk = p.get("allies_atk_pct", 0.0)
+    a_hp = p.get("allies_hp_pct", 0.0)
+    parts = []
+    if slot:
+        parts.append(f"필드 슬롯 +{slot}")
+    if a_atk:
+        parts.append(f"모든 아군 ATK +{fmt_pct(a_atk)}%")
+    if a_hp:
+        parts.append(f"모든 아군 HP +{fmt_pct(a_hp)}%")
+    return "보드에 5테마 모두 존재 시 " + " + ".join(parts)
 
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
@@ -925,6 +1048,16 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "theme_count_conscript":    desc_theme_count_conscript,
     "theme_count_spawn":        desc_theme_count_spawn,
     "mirror_spawn_to_tree":     desc_mirror_spawn_to_tree,
+    # Phase 6b: 9 중립 카드 (Phase 1-3 신규)
+    "mirror_l1":                desc_mirror_l1,
+    "clone_self_to_bench":      desc_clone_self_to_bench,
+    "tenure_gold":              desc_tenure_gold,
+    "duplicate_buff_aura":      desc_duplicate_buff_aura,
+    "transform_theme":          desc_transform_theme,
+    "empty_slot_scaling":       desc_empty_slot_scaling,
+    "star3_count_scaling":      desc_star3_count_scaling,
+    "all_themes_field_bonus":   desc_all_themes_field_bonus,
+    "transfer_upgrade":         desc_transfer_upgrade,
 }
 
 def desc_effect(eff: dict | int | float) -> str:
