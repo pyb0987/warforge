@@ -66,9 +66,17 @@ func run() -> Dictionary:
 	# Connect chain events for cross-activation tracking
 	chain_engine.chain_event_fired.connect(_on_chain_event)
 
-	# ON_SELL triggers (e.g., sp_arsenal absorb)
+	# ON_SELL triggers (e.g., sp_arsenal absorb, ne_hoarder tenure_gold)
 	state.card_sold.connect(func(sold_card: CardInstance):
-		chain_engine.process_sell_triggers(state.get_active_board(), sold_card)
+		var sell_result: Dictionary = chain_engine.process_sell_triggers(
+				state.get_active_board(), sold_card)
+		# Self-sell 효과(예: ne_hoarder)의 gold/terazin 적용 — game_manager 와 동일 패턴
+		var gold_delta: int = sell_result.get("gold", 0)
+		var terazin_delta: int = sell_result.get("terazin", 0)
+		if gold_delta != 0:
+			state.gold = maxi(state.gold + gold_delta, 0)
+		if terazin_delta != 0:
+			state.terazin = maxi(state.terazin + terazin_delta, 0)
 	)
 
 	var shop := ShopLogic.new()
