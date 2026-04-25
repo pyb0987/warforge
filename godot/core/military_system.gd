@@ -43,6 +43,7 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 		"ml_assault": return _assault_rs(card, idx, board, rng)
 		"ml_special_ops": return _special_ops(card, idx, board, rng)
 		"ml_command": return _command(card, idx, board)
+		"ml_alliance": return _alliance_rs(card, idx, board)
 	return Enums.empty_result()
 
 
@@ -62,6 +63,7 @@ func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionar
 	match card.get_base_id():
 		"ml_tactical": return _tactical_battle(card, idx, board)
 		"ml_assault": return _assault_battle(card, idx, board)
+		"ml_alliance": return _alliance_bs(card, idx, board)
 	return Enums.empty_result()
 
 
@@ -1194,3 +1196,87 @@ func _supply_post(card: CardInstance, idx: int, board: Array, won: bool) -> Dict
 # Deferred conscription helpers 제거됨 (2026-04-21):
 #   clear_pending / pick_conscript_options / apply_conscript —
 #   3택1 UI 폐기. 모든 conscript 는 _conscript() 자동 처리.
+
+
+# --- ml_alliance (T3) ---
+#
+# 동맹군: 보드 테마 다양성에 비례해 징집 가속 + BS spawn.
+# RS: conscript_counter += theme_count × mult
+# BS: theme_count × mult 유닛 spawn 랜덤 아군에 (★2/★3)
+# ★3 BS: theme_count ≥ instant_conscript_threshold 시 즉시 징집 유닛 1기 등장
+
+
+## 보드의 고유 테마 수 카운트 (NEUTRAL 포함).
+func _count_board_themes(board: Array) -> int:
+	var seen: Dictionary = {}
+	for c in board:
+		if c == null:
+			continue
+		var t: int = (c as CardInstance).template.get("theme", -1)
+		if t >= 0:
+			seen[t] = true
+	return seen.size()
+
+
+func _alliance_rs(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "theme_count_conscript")
+	if eff.is_empty():
+		return Enums.empty_result()
+	var mult: int = eff.get("mult", 1)
+	var theme_count := _count_board_themes(board)
+	var add: int = theme_count * mult
+	if add <= 0:
+		return Enums.empty_result()
+	# conscript_counter 누적 (military 자체 메커니즘과 동일 키)
+	var prev: int = card.theme_state.get("conscript_counter", 0)
+	card.theme_state["conscript_counter"] = prev + add
+	# 이벤트 emit 안 함 (carry-over 카운터 누적)
+	return {"events": [], "gold": 0, "terazin": 0}
+
+
+## ml_alliance BS — ★2/★3에서 theme_count 비례 spawn.
+## ★3는 theme_count ≥ instant_conscript_threshold 시 즉시 징집 유닛 1기 등장.
+func _alliance_bs(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "theme_count_spawn")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	var theme_count := _count_board_themes(board)
+	var mult: int = eff.get("mult", 1)
+	var spawn_total: int = theme_count * mult
+
+	# Spawn 대상 결정 (random_ally — 보드의 살아있는 카드 1장 랜덤)
+	var ally_indices: Array[int] = []
+	for i in board.size():
+		if board[i] != null:
+			ally_indices.append(i)
+
+	var events: Array = []
+	if spawn_total > 0 and ally_indices.size() > 0:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		for _n in spawn_total:
+			var pick_idx: int = ally_indices[rng.randi_range(0, ally_indices.size() - 1)]
+			var target: CardInstance = board[pick_idx]
+			if target.get_total_units() < target.get_unit_cap():
+				target.spawn_random(rng)
+				events.append({
+					"layer1": Enums.Layer1.UNIT_ADDED,
+					"layer2": Enums.Layer2.CONSCRIPT,
+					"source_idx": idx, "target_idx": pick_idx,
+				})
+
+	# ★3: instant_conscript_threshold 도달 시 self에 징집 유닛 1기 등장
+	var thresh: int = eff.get("instant_conscript_threshold", 0)
+	if thresh > 0 and theme_count >= thresh and card.get_total_units() < card.get_unit_cap():
+		# 단순화: ml_recruit 1기 직접 추가 (정식 conscript pool 추첨은 Phase 4 deferred)
+		card.add_specific_unit("ml_recruit", 1)
+		events.append({
+			"layer1": Enums.Layer1.UNIT_ADDED,
+			"layer2": Enums.Layer2.CONSCRIPT,
+			"source_idx": idx, "target_idx": idx,
+		})
+
+	return {"events": events, "gold": 0, "terazin": 0}

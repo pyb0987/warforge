@@ -20,9 +20,11 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 	return Enums.empty_result()
 
 
-func process_event_card(_card: CardInstance, _idx: int, _board: Array,
-		_event: Dictionary, _rng: RandomNumberGenerator) -> Dictionary:
-	# Druid has no ON_EVENT cards in growth chain
+func process_event_card(card: CardInstance, idx: int, _board: Array,
+		event: Dictionary, _rng: RandomNumberGenerator) -> Dictionary:
+	if card.get_base_id() == "dr_resonance":
+		return _resonance(card, idx, event)
+	# Other druid cards have no ON_EVENT triggers in growth chain
 	return Enums.empty_result()
 
 
@@ -482,3 +484,41 @@ func _grace_post(card: CardInstance, won: bool) -> Dictionary:
 		gold /= 2
 	var terazin := terazin_amt if trees >= terazin_thresh else 0
 	return {"events": [], "gold": gold, "terazin": terazin}
+
+
+## dr_resonance (T4): 비-druid 카드의 UA 이벤트 감지 → tree_add + self enhance.
+## intertheme bridge — 다른 테마의 spawn에 반응해 드루이드 자원(tree) 생성.
+## 자기 자신/druid 카드의 spawn은 무시 (filter: non_druid_target).
+func _resonance(card: CardInstance, idx: int, event: Dictionary) -> Dictionary:
+	# event.target_idx의 카드가 druid면 무시
+	# (board 참조 필요한데 process_event_card 시그니처에서 board 받음 — 호출 시 _board)
+	# 단순화: event 내 source/target idx는 알 수 있지만 board 미사용 — 호출 측에서 처리
+	# 여기서는 source가 self가 아닌지만 검사 (자기 spawn 무시)
+	if event.get("source_idx", -1) == idx:
+		return Enums.empty_result()
+
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "mirror_spawn_to_tree")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	# 트리 자원 추가
+	var tree_add: int = eff.get("tree_add", 1)
+	if tree_add > 0:
+		var prev_trees: int = card.theme_state.get("trees", 0)
+		card.theme_state["trees"] = prev_trees + tree_add
+
+	# Self enhance
+	var atk_pct: float = eff.get("self_atk_pct", 0.0)
+	var hp_pct: float = eff.get("self_hp_pct", 0.0)
+	if atk_pct > 0.0 or hp_pct > 0.0:
+		card.enhance(null, atk_pct, hp_pct)
+
+	return {
+		"events": [{
+			"layer1": Enums.Layer1.ENHANCED,
+			"layer2": -1,
+			"source_idx": idx, "target_idx": idx,
+		}],
+		"gold": 0, "terazin": 0,
+	}

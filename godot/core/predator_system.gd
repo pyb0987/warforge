@@ -23,13 +23,14 @@ func process_rs_card(card: CardInstance, idx: int, board: Array,
 
 
 func process_event_card(card: CardInstance, idx: int, board: Array,
-		event: Dictionary, _rng: RandomNumberGenerator) -> Dictionary:
+		event: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
 		"pr_molt": return _molt(card, idx)
 		"pr_harvest": return _harvest(card, idx, board, event)
 		"pr_carapace": return _carapace(card, idx, board)
 		"pr_apex_hunt": return _apex_hunt(card, idx)
 		"pr_transcend": return _transcend_event(card, idx, event)
+		"pr_parasitic_swarm": return _parasitic_swarm(card, idx, event, rng)
 	return Enums.empty_result()
 
 
@@ -479,3 +480,51 @@ func _farm_post(card: CardInstance, won: bool) -> Dictionary:
 	var terazin_dict = econ_eff.get("terazin", null)
 	var terazin := 1 if terazin_dict != null else 0
 	return {"events": [], "gold": gold, "terazin": terazin}
+
+
+## pr_parasitic_swarm: 다른 카드의 UA(spawn) 이벤트 감지 → self enhance.
+## intertheme listener — 모든 테마의 spawn 활동에 반응. ★3은 spawn + 이번
+## 라운드 관찰된 l2 종류 수에 비례한 추가 ATK.
+## 자기 자신이 source 인 이벤트는 무한 루프 방지로 무시.
+func _parasitic_swarm(card: CardInstance, idx: int, event: Dictionary,
+		rng: RandomNumberGenerator) -> Dictionary:
+	if event.get("source_idx", -1) == idx:
+		return Enums.empty_result()
+
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "mirror_l2")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	var atk_pct: float = eff.get("atk_pct", 0.0)
+	var hp_pct: float = eff.get("hp_pct", 0.0)
+	card.enhance(null, atk_pct, hp_pct)
+
+	var events: Array = [{
+		"layer1": Enums.Layer1.ENHANCED,
+		"layer2": -1,
+		"source_idx": idx, "target_idx": idx,
+	}]
+
+	# ★3 추가: 포식종 유닛 1기 spawn (HA 이벤트 emit)
+	var spawn_count: int = eff.get("spawn_unit", 0)
+	if spawn_count > 0 and card.get_total_units() < card.get_unit_cap():
+		card.spawn_random(rng)
+		events.append(_hatch_evt(idx, idx))
+
+	# ★3 추가: 라운드 중 새 l2 종류 발견 시 +diversity_bonus
+	var div_pct: float = eff.get("l2_diversity_bonus", 0.0)
+	if div_pct > 0.0:
+		# tenure 기반 라운드 경계 감지 (theme_state["l2_seen_round"] 리셋)
+		var tracked_tenure: int = card.theme_state.get("l2_seen_tenure", -1)
+		if tracked_tenure != card.tenure:
+			card.theme_state["l2_seen_round"] = []
+			card.theme_state["l2_seen_tenure"] = card.tenure
+		var l2: int = event.get("layer2", -1)
+		if l2 >= 0:
+			var seen: Array = card.theme_state["l2_seen_round"]
+			if not (l2 in seen):
+				seen.append(l2)
+				card.enhance(null, div_pct, 0.0)
+
+	return {"events": events, "gold": 0, "terazin": 0}
