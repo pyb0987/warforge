@@ -619,3 +619,403 @@ cards:
           shield:
             target: all_allies
             hp_pct: 0.3
+  ne_clone_seed:
+    name: 분열체
+    tier: 1
+    theme: neutral
+    comp:
+    - unit: ne_scrap
+      n: 2
+    tags:
+    - neutral
+    - clone
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          clone_self_to_bench:
+            star: 1
+        - trigger_timing: SELL
+          max_act: 1
+          grant_gold:
+            amount: -1
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          clone_self_to_bench:
+            star: 1
+          enhance:
+            target: self
+            atk_pct: 0.02
+        - trigger_timing: SELL
+          max_act: 1
+          grant_gold:
+            amount: -1
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          clone_self_to_bench:
+            star: 1
+          enhance:
+            target: self
+            atk_pct: 0.04
+        - trigger_timing: SELL
+          max_act: 1
+          grant_gold:
+            amount: -1
+          transfer_upgrade:
+            target: player_select
+            source: self
+            count: 1
+  ne_envoy:
+    name: 떠돌이 사절단
+    tier: 2
+    theme: neutral
+    comp:
+    - unit: ne_merc
+      n: 1
+    - unit: ne_archer
+      n: 1
+    - unit: ne_eagle
+      n: 1
+    tags:
+    - neutral
+    - economy
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          grant_gold:
+            amount: 2
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          grant_gold:
+            amount: 3
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          grant_gold:
+            amount: 4
+        - trigger_timing: BS
+          max_act: -1
+          grant_gold:
+            amount: 1
+  ne_hoarder:
+    name: 은닉자
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_beast
+      n: 1
+    - unit: ne_scrap
+      n: 2
+    tags:
+    - neutral
+    - economy
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          tenure_gold:
+            gold_per_tenure: 1
+      2:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          tenure_gold:
+            gold_per_tenure: 2
+      3:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          tenure_gold:
+            gold_per_tenure: 4
+            upgrade_chance: 0.05
+  ne_legion:
+    name: 복수군단
+    tier: 3
+    theme: neutral
+    comp:
+    - unit: ne_chimera
+      n: 1
+    - unit: ne_archer
+      n: 2
+    - unit: ne_scrap
+      n: 1
+    tags:
+    - neutral
+    - duplicate
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          duplicate_buff_aura:
+            atk_pct_per_n: 0.20
+            hp_pct_per_n: 0.10
+            scope: field
+      2:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          duplicate_buff_aura:
+            atk_pct_per_n: 0.30
+            hp_pct_per_n: 0.15
+            scope: field
+      3:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          duplicate_buff_aura:
+            atk_pct_per_n: 0.40
+            hp_pct_per_n: 0.20
+            scope: field
+            spawn_per_card: 1
+  ne_masquerade:
+    name: 융합의 가면
+    tier: 4
+    theme: neutral
+    comp:
+    - unit: ne_beast
+      n: 1
+    - unit: ne_chimera
+      n: 1
+    - unit: ne_mutant
+      n: 1
+    tags:
+    - neutral
+    - transform
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          require_tenure: 1
+          transform_theme:
+            offer_count: 3
+            allow_self: true
+            target: player_select
+            omni: false
+      2:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          require_tenure: 1
+          transform_theme:
+            offer_count: 5
+            allow_self: true
+            target: player_select
+            omni: false
+      3:
+        effects:
+        - trigger_timing: SELL
+          max_act: 1
+          require_tenure: 1
+          transform_theme:
+            offer_count: 5
+            allow_self: true
+            target: player_select
+            omni: true
+  ne_void_force:
+    name: 여백의 힘
+    tier: 4
+    theme: neutral
+    comp:
+    - unit: ne_mutant
+      n: 1
+    - unit: ne_chimera
+      n: 1
+    - unit: ne_eagle
+      n: 1
+    tags:
+    - neutral
+    - solo
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          empty_slot_scaling:
+            atk_pct_per_e: 0.30
+            hp_pct_per_e: 0.15
+      2:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          empty_slot_scaling:
+            atk_pct_per_e: 0.40
+            hp_pct_per_e: 0.20
+      3:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          empty_slot_scaling:
+            atk_pct_per_e: 0.50
+            hp_pct_per_e: 0.30
+            as_div_per_e: 0.05
+  ne_fusion_end:
+    name: 합성의 끝
+    tier: 4
+    theme: neutral
+    comp:
+    - unit: ne_mutant
+      n: 2
+    - unit: ne_scrap
+      n: 1
+    tags:
+    - neutral
+    - capstone
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          star3_count_scaling:
+            atk_pct_per_m: 0.40
+            hp_pct_per_m: 0.15
+            include_self: true
+      2:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          star3_count_scaling:
+            atk_pct_per_m: 0.55
+            hp_pct_per_m: 0.20
+            include_self: true
+      3:
+        effects:
+        - trigger_timing: BS
+          max_act: -1
+          star3_count_scaling:
+            atk_pct_per_m: 0.65
+            hp_pct_per_m: 0.35
+            include_self: true
+            allies_threshold: 3
+            allies_atk_pct_per_m: 0.07
+  ne_council:
+    name: 오대 평의회
+    tier: 5
+    theme: neutral
+    comp:
+    - unit: ne_merc
+      n: 1
+    - unit: ne_beast
+      n: 1
+    - unit: ne_guardian
+      n: 1
+    - unit: ne_mutant
+      n: 1
+    tags:
+    - neutral
+    - rainbow
+    - unique
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          all_themes_field_bonus:
+            slot_bonus: 1
+      2:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          all_themes_field_bonus:
+            slot_bonus: 1
+            allies_atk_pct: 0.05
+      3:
+        effects:
+        - trigger_timing: PERSISTENT
+          max_act: -1
+          all_themes_field_bonus:
+            slot_bonus: 1
+            allies_atk_pct: 0.07
+            allies_hp_pct: 0.05
+  ne_nexus:
+    name: 연결체
+    tier: 5
+    theme: neutral
+    comp:
+    - unit: ne_beast
+      n: 1
+    - unit: ne_chimera
+      n: 1
+    - unit: ne_mutant
+      n: 1
+    - unit: ne_merc
+      n: 1
+    tags:
+    - neutral
+    - mirror
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 5
+          listen:
+            l1: EN
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.02
+        - trigger_timing: OE
+          max_act: 5
+          listen:
+            l1: UA
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.02
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 7
+          listen:
+            l1: EN
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.03
+            hp_pct: 0.01
+        - trigger_timing: OE
+          max_act: 7
+          listen:
+            l1: UA
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.03
+            hp_pct: 0.01
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 7
+          listen:
+            l1: EN
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.04
+            hp_pct: 0.02
+            spawn_unit: 1
+        - trigger_timing: OE
+          max_act: 7
+          listen:
+            l1: UA
+          mirror_l1:
+            filter: non_neutral_target
+            atk_pct: 0.04
+            hp_pct: 0.02
+            spawn_unit: 1

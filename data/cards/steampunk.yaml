@@ -474,3 +474,44 @@ cards:
           max_act: -1
           growth_multiply:
             pct: 0.2
+  sp_global_workshop:
+    name: 국제 공방
+    tier: 3
+    theme: steampunk
+    comp:
+    - unit: sp_sawblade
+      n: 2
+    - unit: sp_crab
+      n: 1
+    - unit: sp_scout
+      n: 2
+    tags:
+    - steampunk
+    - diversity
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          gear_diversity_enhance:
+            min_non_steampunk: 1
+            atk_pct: 0.03
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          gear_diversity_enhance:
+            min_non_steampunk: 1
+            atk_pct: 0.05
+            hp_pct: 0.02
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          gear_diversity_enhance:
+            min_non_steampunk: 1
+            atk_pct: 0.07
+            hp_pct: 0.03
+            spawn_threshold: 3
+            spawn_unit: 1

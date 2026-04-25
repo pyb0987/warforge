@@ -798,3 +798,50 @@ cards:
             target: self_enhanced
             hp_pct: 1.0
             limit_per_combat: 1
+  ml_alliance:
+    name: 동맹군
+    tier: 3
+    theme: military
+    comp:
+    - unit: ml_recruit
+      n: 2
+    - unit: ml_shield
+      n: 1
+    - unit: ml_plasma
+      n: 1
+    - unit: ml_drone
+      n: 1
+    tags:
+    - military
+    - alliance
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          theme_count_conscript:
+            mult: 1
+      2:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          theme_count_conscript:
+            mult: 1
+        - trigger_timing: BS
+          max_act: -1
+          theme_count_spawn:
+            mult: 1
+            target: random_ally
+      3:
+        effects:
+        - trigger_timing: RS
+          max_act: -1
+          theme_count_conscript:
+            mult: 1
+        - trigger_timing: BS
+          max_act: -1
+          theme_count_spawn:
+            mult: 2
+            target: random_ally
+            instant_conscript_threshold: 3
