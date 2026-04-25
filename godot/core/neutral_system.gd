@@ -258,15 +258,16 @@ func _nexus(card: CardInstance, idx: int, board: Array, event: Dictionary) -> Di
 		if target.template.get("theme", -1) == Enums.CardTheme.NEUTRAL:
 			return Enums.empty_result()
 
-	# 두 OE block 중 현재 event 의 layer1 에 매칭되는 block 의 mirror_l1 액션 추출
+	# 두 OE block 중 현재 event 의 layer1 에 매칭되는 block 의 mirror_l1 액션 추출.
+	# codegen 출력은 block 직접에 trigger_layer1 키 (listen 중첩 dict 아님 — multi-
+	# review C-A/C-B veto 사항). _trigger_matches_block 과 동일 규약 사용.
 	var l1: int = event.get("layer1", -1)
 	var template: Dictionary = card.template
 	var matched_eff: Dictionary = {}
 	for block in template.get("effects", []):
 		if block.get("trigger_timing", -1) != Enums.TriggerTiming.ON_EVENT:
 			continue
-		var listen: Dictionary = block.get("listen", {})
-		if listen.get("l1", -1) != l1:
+		if block.get("trigger_layer1", -1) != l1:
 			continue
 		for action in block.get("actions", []):
 			if action.get("action", "") == "mirror_l1":
