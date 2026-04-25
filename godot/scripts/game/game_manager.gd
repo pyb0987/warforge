@@ -531,8 +531,18 @@ func _on_sell_performed(zone: String, idx: int, sold_card: CardInstance) -> void
 			print("[Talisman] 영혼 항아리: %d기 배분" % distributed)
 
 	# ON_SELL cards react when ANY card is sold (e.g., sp_arsenal absorb).
+	# 또한 sold_card 본인의 SELL block 효과(예: ne_hoarder tenure_gold)를 자원에 적용.
 	if sold_card != null:
-		chain_engine.process_sell_triggers(game_state.get_active_board(), sold_card)
+		var sell_result: Dictionary = chain_engine.process_sell_triggers(
+				game_state.get_active_board(), sold_card)
+		var gold_delta: int = sell_result.get("gold", 0)
+		var terazin_delta: int = sell_result.get("terazin", 0)
+		if gold_delta != 0:
+			game_state.gold = maxi(game_state.gold + gold_delta, 0)
+		if terazin_delta != 0:
+			game_state.terazin = maxi(game_state.terazin + terazin_delta, 0)
+		if gold_delta != 0 or terazin_delta != 0:
+			game_state.state_changed.emit()
 
 
 ## ON_MERGE trigger: delegate to chain_engine.process_merge_triggers().

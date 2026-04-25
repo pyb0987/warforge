@@ -56,6 +56,14 @@ func apply_post_combat(card: CardInstance, _idx: int, _board: Array,
 	return {"events": [], "gold": 0, "terazin": 0}
 
 
+## Self-sell hook: 카드 본인이 판매될 때 발동되는 효과 처리.
+## chain_engine.process_sell_triggers 가 sold_card의 ON_SELL block 존재 시 호출.
+## 기본 no-op — neutral_system 등이 override (예: ne_hoarder tenure_gold).
+## 반환값: {gold, terazin, events} — game_state에 자원 적용.
+func process_self_sell(_sold_card: CardInstance, _board: Array) -> Dictionary:
+	return {"events": [], "gold": 0, "terazin": 0}
+
+
 ## Fires when an ``impl: theme_system`` card reaches the base no-op — the
 ## derived theme class did not override the hook for this card_id.
 ## card_db-impl cards hit the base class legitimately (via the effects.is_empty
