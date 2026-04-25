@@ -494,11 +494,11 @@ func _resonance(card: CardInstance, idx: int, board: Array, event: Dictionary) -
 	# 자기 source 무시 (무한 루프 방지)
 	if event.get("source_idx", -1) == idx:
 		return Enums.empty_result()
-	# Target이 druid이면 무시 (filter: non_druid_target)
+	# Target이 druid이면 무시 (filter: non_druid_target). omni-theme 도 druid 매치.
 	var target_idx: int = event.get("target_idx", -1)
 	if target_idx >= 0 and target_idx < board.size() and board[target_idx] != null:
 		var target: CardInstance = board[target_idx]
-		if target.template.get("theme", -1) == Enums.CardTheme.DRUID:
+		if target.is_omni_theme or target.template.get("theme", -1) == Enums.CardTheme.DRUID:
 			return Enums.empty_result()
 
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)

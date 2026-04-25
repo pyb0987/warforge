@@ -257,12 +257,14 @@ func _global_workshop(card: CardInstance, idx: int, board: Array,
 	if eff.is_empty():
 		return Enums.empty_result()
 
-	# 보드의 비-스팀펑크 카드 수 카운트
+	# 보드의 비-스팀펑크 카드 수 카운트 (omni-theme 카드는 스팀펑크에도 매치 → 비-스팀펑크 제외)
 	var non_sp_count := 0
 	for c in board:
 		if c == null:
 			continue
 		var ci: CardInstance = c
+		if ci.is_omni_theme:
+			continue
 		if ci.template.get("theme", -1) != Enums.CardTheme.STEAMPUNK:
 			non_sp_count += 1
 

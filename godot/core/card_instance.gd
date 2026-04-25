@@ -37,6 +37,10 @@ var growth_hp_pct: float = 0.0
 var tag_growth_atk: Dictionary = {}
 var tag_growth_hp: Dictionary = {}
 
+## ne_masquerade ★3: 카드를 모든 5테마에 매치되는 omni-theme 으로 표시.
+## 다른 테마 비교 (diversity_gold count, 5-theme 조건 등) 시 모든 테마에 매치.
+var is_omni_theme: bool = false
+
 # --- Shield ---
 var shield_hp_pct: float = 0.0
 

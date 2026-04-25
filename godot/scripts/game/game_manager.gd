@@ -133,6 +133,8 @@ func _enter_phase(phase: Phase) -> void:
 				for card in game_state.get_active_board():
 					(card as CardInstance).spawn_random(_battle_rng)
 				print("[BossReward] 자동 징집: 전체 +1기")
+			# ne_council (오대 평의회): 5테마 모두 보드에 존재 시 field_slots +1 동적
+			_evaluate_council_field_bonus()
 			print("[Phase] BUILD — R%d | Gold:%d" % [game_state.round_num, game_state.gold])
 			if _logger:
 				_logger.log_round_start(game_state, build_phase.get_shop_offered())
@@ -146,6 +148,41 @@ func _enter_phase(phase: Phase) -> void:
 
 func _grant_pending_free_rerolls(n: int) -> void:
 	game_state.pending_free_rerolls += n
+
+
+## ne_council (오대 평의회) PERSISTENT 효과 평가:
+## 보드에 5테마(NEUTRAL+STEAMPUNK+MILITARY+DRUID+PREDATOR) 모두 존재하고
+## ne_council 도 보드에 있으면 field_slots +1 활성. 조건 깨지면 비활성.
+## 보스 보상 등 다른 보너스와 직교 (active 상태 토글로만 ±1).
+func _evaluate_council_field_bonus() -> void:
+	var has_council := false
+	var themes_seen: Dictionary = {}
+	for card in game_state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		# omni-theme 카드는 5테마 모두에 매치 — 단독으로 5테마 조건 충족
+		if ci.is_omni_theme:
+			themes_seen[Enums.CardTheme.NEUTRAL] = true
+			themes_seen[Enums.CardTheme.STEAMPUNK] = true
+			themes_seen[Enums.CardTheme.MILITARY] = true
+			themes_seen[Enums.CardTheme.DRUID] = true
+			themes_seen[Enums.CardTheme.PREDATOR] = true
+		else:
+			var t: int = ci.template.get("theme", -1)
+			if t >= 0:
+				themes_seen[t] = true
+		if ci.get_base_id() == "ne_council":
+			has_council = true
+	var should_be_active := has_council and themes_seen.size() >= 5
+	if should_be_active and not game_state.council_field_bonus_active:
+		game_state.field_slots = mini(game_state.field_slots + 1, Enums.MAX_FIELD_SLOTS)
+		game_state.council_field_bonus_active = true
+		print("[ne_council] 5테마 활성 — field_slots +1 → %d" % game_state.field_slots)
+	elif (not should_be_active) and game_state.council_field_bonus_active:
+		game_state.field_slots = maxi(game_state.field_slots - 1, 0)
+		game_state.council_field_bonus_active = false
+		print("[ne_council] 5테마 깨짐 — field_slots -1 → %d" % game_state.field_slots)
 
 
 func _run_chain() -> void:
@@ -170,6 +207,20 @@ func _run_chain() -> void:
 
 	game_state.gold += result["gold_earned"]
 	game_state.terazin += result["terazin_earned"]
+
+	# ne_clone_seed: RS 복제본을 벤치에 추가 (chain_engine 결과 누적)
+	var clones: Array = result.get("clones_to_bench", [])
+	for clone_spec in clones:
+		var template_id: String = clone_spec.get("template_id", "")
+		if template_id == "":
+			continue
+		var clone: CardInstance = CardInstance.create(template_id)
+		if clone == null:
+			continue
+		# 복사본은 항상 ★1 (clone_spec.star 무시 — 의도된 단순화)
+		# 벤치에 빈 슬롯 있을 때만 추가 (cap 도달 시 silent drop)
+		game_state.add_to_bench(clone)
+
 	game_state.state_changed.emit()
 
 	# Deferred conscription UI 제거 (2026-04-21): ml_conscript self 징집이
@@ -541,8 +592,59 @@ func _on_sell_performed(zone: String, idx: int, sold_card: CardInstance) -> void
 			game_state.gold = maxi(game_state.gold + gold_delta, 0)
 		if terazin_delta != 0:
 			game_state.terazin = maxi(game_state.terazin + terazin_delta, 0)
-		if gold_delta != 0 or terazin_delta != 0:
+
+		# ne_clone_seed ★3 SELL: source 카드의 업그레이드 1개를 보드 첫 카드로 이전
+		# (sim 결정성, live UI 분기는 Phase 6 deferred)
+		var transfer: Dictionary = sell_result.get("transfer_upgrade", {})
+		if not transfer.is_empty():
+			_apply_upgrade_transfer(transfer)
+
+		# ne_masquerade SELL: 보드 카드 1장 theme 변경 (★3 omni-theme)
+		var transform: Dictionary = sell_result.get("transform_theme", {})
+		if not transform.is_empty():
+			_apply_theme_transform(transform)
+
+		if gold_delta != 0 or terazin_delta != 0 or not transfer.is_empty() or not transform.is_empty():
 			game_state.state_changed.emit()
+
+
+## ne_clone_seed ★3 업그레이드 이전 처리. source 카드는 이미 판매된 상태이므로
+## 인스턴스만 보유 (board 슬롯에 없음). 보드 첫 카드(target_idx 0)에 부착.
+func _apply_upgrade_transfer(transfer: Dictionary) -> void:
+	var source: CardInstance = transfer.get("source_card")
+	if source == null or source.upgrades.is_empty():
+		return
+	var idx: int = transfer.get("source_upgrade_idx", 0)
+	if idx < 0 or idx >= source.upgrades.size():
+		return
+	var upg: Dictionary = source.upgrades[idx]
+	# 보드 첫 비-null 카드에 부착 (sim 결정성)
+	for c in game_state.board:
+		if c == null:
+			continue
+		var target: CardInstance = c
+		if target.upgrades.size() < target.get_max_upgrade_slots():
+			target.upgrades.append(upg)
+			print("[ne_clone_seed] 업그레이드 '%s' → '%s'" % [
+					upg.get("name", "?"), target.get_name()])
+			break
+
+
+## ne_masquerade theme transform 처리. handler가 CardInstance 참조 직접 전달.
+## ★3 omni: card.is_omni_theme = true (모든 theme 비교에 매치).
+func _apply_theme_transform(transform: Dictionary) -> void:
+	var target: CardInstance = transform.get("target_card")
+	if target == null:
+		return
+	var omni: bool = transform.get("omni", false)
+	if omni:
+		target.is_omni_theme = true
+		print("[ne_masquerade] %s → omni-theme" % target.get_name())
+	else:
+		var new_theme: int = transform.get("new_theme", -1)
+		if new_theme >= 0:
+			target.template["theme"] = new_theme
+			print("[ne_masquerade] %s → theme=%d" % [target.get_name(), new_theme])
 
 
 ## ON_MERGE trigger: delegate to chain_engine.process_merge_triggers().

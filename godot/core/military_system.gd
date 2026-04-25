@@ -1206,13 +1206,21 @@ func _supply_post(card: CardInstance, idx: int, board: Array, won: bool) -> Dict
 # ★3 BS: theme_count ≥ instant_conscript_threshold 시 즉시 징집 유닛 1기 등장
 
 
-## 보드의 고유 테마 수 카운트 (NEUTRAL 포함).
+## 보드의 고유 테마 수 카운트 (NEUTRAL 포함). omni-theme 카드는 5 모두 매치.
 func _count_board_themes(board: Array) -> int:
 	var seen: Dictionary = {}
 	for c in board:
 		if c == null:
 			continue
-		var t: int = (c as CardInstance).template.get("theme", -1)
+		var ci: CardInstance = c
+		if ci.is_omni_theme:
+			seen[Enums.CardTheme.NEUTRAL] = true
+			seen[Enums.CardTheme.STEAMPUNK] = true
+			seen[Enums.CardTheme.MILITARY] = true
+			seen[Enums.CardTheme.DRUID] = true
+			seen[Enums.CardTheme.PREDATOR] = true
+			continue
+		var t: int = ci.template.get("theme", -1)
 		if t >= 0:
 			seen[t] = true
 	return seen.size()

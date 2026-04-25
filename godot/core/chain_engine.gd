@@ -90,6 +90,7 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 	var chain_count := 0
 	var gold_earned := 0
 	var terazin_earned := 0
+	var clones_to_bench: Array = []  # Phase 3b-2b: ne_clone_seed RS 결과 누적
 
 	# Phase 1: ROUND_START cards fire (left → right)
 	chain_phase_started.emit("ROUND_START")
@@ -157,6 +158,9 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 		gold_earned += result["gold"]
 		terazin_earned += result["terazin"]
 		chain_count += 1
+		# ne_clone_seed RS — 벤치 복제 신호 누적 (game_manager 가 처리)
+		if result.has("clones_to_bench"):
+			clones_to_bench.append_array(result["clones_to_bench"])
 
 		if verbose:
 			print("    R.START %s[%d] → %devt" % [card.get_name(), i, result["events"].size()])
@@ -220,7 +224,12 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 
 	# pending_conscriptions 플럼빙 제거 (2026-04-21): 3택1 UI 폐기, 모든
 	# conscript 가 military_system 내에서 즉시 자동 처리.
-	return {"chain_count": chain_count, "gold_earned": gold_earned, "terazin_earned": terazin_earned}
+	return {
+		"chain_count": chain_count,
+		"gold_earned": gold_earned,
+		"terazin_earned": terazin_earned,
+		"clones_to_bench": clones_to_bench,
+	}
 
 
 ## Process ON_MERGE triggers (e.g., ne_spirit_blessing).
@@ -655,10 +664,19 @@ func _execute_actions(card: CardInstance, card_idx: int,
 
 				"diversity_gold":
 					# 차원 행상인: 테마 수 × gold_per_theme 골드
+					# omni-theme (ne_masquerade ★3) 카드는 모든 5 테마에 매치 — 단독으로 5 테마 카운트
 					var themes_seen: Dictionary = {}
 					for c in board:
-						var th: int = (c as CardInstance).template.get("theme", -1)
-						themes_seen[th] = true
+						var ci_dg: CardInstance = c
+						if ci_dg.is_omni_theme:
+							themes_seen[Enums.CardTheme.NEUTRAL] = true
+							themes_seen[Enums.CardTheme.STEAMPUNK] = true
+							themes_seen[Enums.CardTheme.MILITARY] = true
+							themes_seen[Enums.CardTheme.DRUID] = true
+							themes_seen[Enums.CardTheme.PREDATOR] = true
+						else:
+							var th: int = ci_dg.template.get("theme", -1)
+							themes_seen[th] = true
 					var theme_count: int = themes_seen.size()
 					var gpt: int = eff.get("gold_per_theme", 1)
 					gold += theme_count * gpt
