@@ -364,9 +364,20 @@ func _council_aura(card: CardInstance, board: Array) -> void:
 ## RS: 자기 ★1 복사본을 벤치에 추가. game_manager 가 결과 dict 의
 ## "clones_to_bench" 필드를 처리 (process_rs_card 반환에 포함).
 ## 복사본 생성 자체는 chain_engine 에서 즉시 못 함 — game_state 접근 필요.
+##
+## ★2/★3 추가: enhance(self, atk_pct) 도 함께 적용 (YAML enhance action).
+## ★2 atk_pct=0.02, ★3 atk_pct=0.04.
 func _clone_seed_rs(card: CardInstance, _idx: int) -> Dictionary:
 	# 복사본 1장 (★1) 을 bench 에 추가하라는 신호
 	var clones: Array = [{"template_id": card.template_id, "star": 1}]
+	# ★2/★3 self enhance 적용 (YAML enhance action)
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var enh := _find_eff(effs, "enhance")
+	if not enh.is_empty():
+		var atk_pct: float = enh.get("atk_pct", 0.0)
+		var hp_pct: float = enh.get("hp_pct", 0.0)
+		if atk_pct > 0.0 or hp_pct > 0.0:
+			card.enhance(null, atk_pct, hp_pct)
 	return {
 		"events": [],
 		"gold": 0,
