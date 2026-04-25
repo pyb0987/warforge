@@ -10,35 +10,35 @@ extends GutTest
 # 등록 수
 # ================================================================
 
-func test_total_card_count_55() -> void:
-	## 기본 카드 = 55장 (스팀10 + 중립15 + 드루10 + 포식10 + 군대10).
-	## 중립 15장: ne_scrapyard(폐품 상회, 2026-04-09 추가) 포함.
-	assert_eq(CardDB.get_all_ids().size(), 55, "기본 카드 55장")
+func test_total_card_count_68() -> void:
+	## 기본 카드 = 68장 (스팀11 + 중립24 + 드루11 + 포식11 + 군대11).
+	## 2026-04-25: 신규 13장 추가 (사일로 해소 + 신규 빌드 아키타입).
+	assert_eq(CardDB.get_all_ids().size(), 68, "기본 카드 68장")
 
 
 func test_steampunk_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.STEAMPUNK)
-	assert_eq(ids.size(), 10, "스팀펑크 기본 10장")
+	assert_eq(ids.size(), 11, "스팀펑크 기본 11장 (sp_global_workshop 추가)")
 
 
 func test_neutral_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.NEUTRAL)
-	assert_eq(ids.size(), 15, "중립 기본 15장 (폐품 상회 포함)")
+	assert_eq(ids.size(), 24, "중립 기본 24장 (신규 9장 포함)")
 
 
 func test_druid_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.DRUID)
-	assert_eq(ids.size(), 10, "드루이드 기본 10장")
+	assert_eq(ids.size(), 11, "드루이드 기본 11장 (dr_resonance 추가)")
 
 
 func test_predator_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.PREDATOR)
-	assert_eq(ids.size(), 10, "포식종 기본 10장")
+	assert_eq(ids.size(), 11, "포식종 기본 11장 (pr_parasitic_swarm 추가)")
 
 
 func test_military_base_count() -> void:
 	var ids := CardDB.get_ids_by_theme(Enums.CardTheme.MILITARY)
-	assert_eq(ids.size(), 10, "군대 기본 10장")
+	assert_eq(ids.size(), 11, "군대 기본 11장 (ml_alliance 추가)")
 
 
 # ================================================================
