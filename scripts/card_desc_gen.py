@@ -719,13 +719,10 @@ def desc_mirror_l2(p: dict) -> str:
     elif hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
     base = f"자신 {' '.join(parts)} 영구 강화"
-    extras = []
     if spawn:
-        extras.append(f"유닛 {spawn}기 추가")
+        base += f" + 유닛 {spawn}기 추가"
     if div:
-        extras.append(f"새 종류 첫 발견마다 추가 ATK +{fmt_pct(div)}%")
-    if extras:
-        base += " (" + ", ".join(extras) + ")"
+        base += f" (새 l2 종류 첫 발견마다 추가 ATK +{fmt_pct(div)}%)"
     return base
 
 
@@ -835,7 +832,7 @@ def desc_duplicate_buff_aura(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"보드 중복 카드들 각각 {' / '.join(parts)} × 같은 종류 수"
+    base = f"보드 중복 카드들 각각 {' / '.join(parts)} × (같은 종류 수 - 1)"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     return base
@@ -862,7 +859,7 @@ def desc_empty_slot_scaling(p: dict) -> str:
         parts.append(f"HP +{fmt_pct(hp)}%")
     base = f"필드 빈칸 1개당 자신 {' / '.join(parts)}"
     if as_div:
-        base += f" + AS / (1+{fmt_pct(as_div)}%×빈칸)"
+        base += f" + AS 가속 (빈칸 1개당 ÷(1+{fmt_pct(as_div)}%))"
     return base + " (이번 전투)"
 
 
@@ -1136,8 +1133,10 @@ def desc_r_conditional(r_cond: dict) -> str:
 # Prefix helpers
 # ═══════════════════════════════════════════════════════════════════
 
-def get_oe_prefix(card: dict) -> str:
-    listen = card.get("listen", {})
+def get_oe_prefix(card: dict, listen_override: dict | None = None) -> str:
+    """OE 섹션의 prefix 생성. listen_override 가 있으면 우선 사용
+    (Phase 6 fix: same-timing multi-block per-section prefix)."""
+    listen = listen_override if listen_override else card.get("listen", {})
     key = (listen.get("l1"), listen.get("l2"))
     base = OE_PREFIX.get(key, f"[반응] {key}:")
     # require_other: true 인 카드는 자기 자신이 방출한 이벤트에는 반응하지 않는다
@@ -1146,9 +1145,9 @@ def get_oe_prefix(card: dict) -> str:
         base = base.replace("[반응] ", "[반응] 다른 카드의 ", 1)
     return base
 
-def get_prefix(card: dict, timing: str) -> str:
+def get_prefix(card: dict, timing: str, listen_override: dict | None = None) -> str:
     if timing == "OE":
-        return get_oe_prefix(card)
+        return get_oe_prefix(card, listen_override)
     return TIMING_PREFIX.get(timing, timing + ":")
 
 def prefix_tenure(card: dict, star_data: dict) -> str:
@@ -1280,34 +1279,39 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
         params = eff[action]
         # Per-effect timing_override field (tree_shield etc.)
         eff_timing = None
+        eff_listen_override = None
         if isinstance(params, dict):
             eff_timing = params.get("timing_override")
+            eff_listen_override = params.get("listen_override")
         # ACTION_TIMING_OVERRIDE (economy, battle_buff etc.)
         if not eff_timing:
             eff_timing = ACTION_TIMING_OVERRIDE.get(action)
         # Default: card timing
         if not eff_timing:
             eff_timing = base_timing
-        timing_groups.setdefault(eff_timing, []).append(desc_effect(eff))
+        # Section key: (timing, listen_override) — 같은 timing 이지만 다른 listen
+        # 의 multi-block (예: ne_nexus EN+UA) 분리. listen_override 없으면 None
+        # 으로 fallback (단일 그룹).
+        listen_key = None
+        if eff_listen_override:
+            listen_key = (eff_listen_override.get("l1"),
+                          eff_listen_override.get("l2"))
+        section_key = (eff_timing, listen_key)
+        timing_groups.setdefault(section_key, []).append(desc_effect(eff))
 
-    # 3. Conditionals → base timing group
+    # 3. Conditionals → base timing group (listen=None → primary section)
     for cond in star_data.get("conditional", []):
-        timing_groups.setdefault(base_timing, []).append(
+        timing_groups.setdefault((base_timing, None), []).append(
             desc_conditional(cond))
 
     # 4. post_threshold → base timing group
     if star_data.get("post_threshold"):
-        timing_groups.setdefault(base_timing, []).append(
+        timing_groups.setdefault((base_timing, None), []).append(
             desc_post_threshold(star_data["post_threshold"]))
 
-    # 4.5. r_conditional (rank milestones, e.g. military R4/R10) → base timing
-    # Each milestone rendered with "[랭크 N 이상] ..." prefix on its own line.
-    # P2-1 (2026-04-17): base+R4+R10을 한 줄 prose로 합치면 플레이어가 경계를
-    # 찾지 못해 스캔 불가 (review H3 HIGH). r_conditional entry 앞에 '\n'을
-    # 끼워 tooltip 렌더러가 물리적 줄바꿈으로 분리하게 한다.
-    # 구분자는 '. ' 기준 join 후에도 살아남아 최종 출력에 반영됨.
+    # 4.5. r_conditional → base timing group (P2-1 newline 보존)
     for rcond in star_data.get("r_conditional") or []:
-        timing_groups.setdefault(base_timing, []).append(
+        timing_groups.setdefault((base_timing, None), []).append(
             "\n" + desc_r_conditional(rcond))
 
     # 5. Tenure prefix
@@ -1317,36 +1321,49 @@ def generate_star_desc(card: dict, star_data: dict) -> str:
     # 'X 1회당 카운터 +1'을 base 본문 앞에 삽입해 축적 전제 노출.
     counter_pfx = counter_prefix_for(card, star_data)
 
-    # 6. Assemble per-timing texts — each timing section carries its OWN
-    # max_act suffix when available (multi-block aware). Falls back to the
-    # star-level max_act for the base timing in legacy single-block cases.
+    # 6. Assemble per-section texts — section_key = (timing, listen_override).
+    # 각 (timing, listen) 조합마다 자신의 prefix + max_act suffix.
+    # Phase 6 fix: same-timing multi-block (예: ne_nexus EN+UA) 별도 섹션 분리.
     max_act_map: dict = star_data.get("max_act_by_timing", {})
+    max_act_by_section: dict = star_data.get("max_act_by_section", {})
     parts = []
-    # Base timing first, then others
-    ordered = [base_timing] + [t for t in timing_groups if t != base_timing]
-    for timing in ordered:
-        if timing not in timing_groups:
+    base_section = (base_timing, None)
+    # Primary 섹션 먼저, 그 외 순서대로
+    ordered_keys = ([base_section]
+            + [k for k in timing_groups if k != base_section])
+    card_listen = card.get("listen", {}) or {}
+    for section_key in ordered_keys:
+        if section_key not in timing_groups:
             continue
-        if timing == base_timing:
+        timing, listen_key = section_key
+        listen_override = None
+        if listen_key is not None:
+            listen_override = {"l1": listen_key[0], "l2": listen_key[1]}
+        # Prefix
+        if timing == base_timing and listen_override is None:
             pfx = get_prefix(card, base_timing)
             if tenure_pfx:
                 pfx = f"{tenure_pfx} {pfx}"
         else:
-            pfx = TIMING_PREFIX.get(timing, timing + ":")
-        body = ". ".join(timing_groups[timing])
-        # r_conditional 엔트리 앞에 삽입된 '\n'의 앞쪽 '. ' 소거 (P2-1).
+            pfx = get_prefix(card, timing, listen_override)
+        body = ". ".join(timing_groups[section_key])
         body = body.replace(". \n", "\n")
-        # 같은 target prefix 연속 반복 압축 (R5).
         body = compress_repeated_target(body)
-        if timing == base_timing and counter_pfx:
+        if section_key == base_section and counter_pfx:
             body = f"{counter_pfx} {body}"
-        # Per-block max_act suffix: attach to this timing's section, not the
-        # whole sentence. timing_override / ACTION_TIMING_OVERRIDE 로 만들어진
-        # 가짜 timing group 은 블록이 아니므로 map 에 없어 suffix 없음 (정상).
-        if timing in max_act_map:
+        # max_act 우선순위:
+        #   1) max_act_by_section[(timing, l1, l2)] — 정확한 섹션
+        #   2) max_act_by_timing[timing] — same-timing 단일 listen
+        #   3) star_data.max_act — legacy fallback
+        section_full = (timing,
+                listen_key[0] if listen_key else card_listen.get("l1"),
+                listen_key[1] if listen_key else card_listen.get("l2"))
+        if section_full in max_act_by_section:
+            block_suffix = desc_max_act_suffix(
+                    max_act_by_section[section_full], timing)
+        elif timing in max_act_map:
             block_suffix = desc_max_act_suffix(max_act_map[timing], timing)
-        elif timing == base_timing:
-            # Fallback for projections lacking max_act_by_timing (legacy).
+        elif section_key == base_section:
             block_suffix = desc_max_act_suffix(star_data["max_act"], base_timing)
         else:
             block_suffix = ""

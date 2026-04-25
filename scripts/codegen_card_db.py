@@ -1314,11 +1314,21 @@ def _project_to_desc_gen_input(all_cards: dict) -> dict:
                 # Flatten actions across all blocks. Non-primary block actions
                 # carry `timing_override` so card_desc_gen splits them into a
                 # separate prefixed section ("라운드 시작: …" / "[지속] …").
+                #
+                # Phase 6 fix (ne_nexus): same-timing blocks with DIFFERENT
+                # listen filters (예: 두 OE block — l1:EN + l1:UA) 도 별도
+                # 섹션으로 렌더링되도록 listen_override 부착. card_desc_gen
+                # 이 (timing, listen) 으로 grouping → 각 섹션별 prefix.
                 effects: list = []
                 primary_timing = first_block["trigger_timing"]
+                primary_listen = first_block.get("listen", {})
                 for block in blocks:
                     block_timing = block["trigger_timing"]
+                    block_listen = block.get("listen", {})
                     is_non_primary = block_timing != primary_timing
+                    # 같은 timing 이지만 listen 이 다르면 listen_override 로 분리
+                    listen_diff = (block_timing == primary_timing
+                            and block_listen != primary_listen)
                     for key, val in block.items():
                         if key in BLOCK_META_KEYS:
                             continue
@@ -1328,15 +1338,28 @@ def _project_to_desc_gen_input(all_cards: dict) -> dict:
                                 p_copy = dict(p)
                                 if is_non_primary:
                                     p_copy["timing_override"] = block_timing
+                                if listen_diff:
+                                    p_copy["listen_override"] = block_listen
                                 effects.append({key: p_copy})
                         elif isinstance(val, dict):
                             v_copy = dict(val)
                             if is_non_primary:
                                 v_copy["timing_override"] = block_timing
+                            if listen_diff:
+                                v_copy["listen_override"] = block_listen
                             effects.append({key: v_copy})
                         else:
                             effects.append({key: val})
                 proj_star["effects"] = effects
+                # Per-(timing, listen) max_act for same-timing multi-block.
+                # Key = (timing, l1, l2) tuple → max_act value.
+                max_act_per_section: dict = {}
+                for b in blocks:
+                    b_listen = b.get("listen", {}) or {}
+                    section_key = (b["trigger_timing"],
+                            b_listen.get("l1"), b_listen.get("l2"))
+                    max_act_per_section[section_key] = b.get("max_act", -1)
+                proj_star["max_act_by_section"] = max_act_per_section
                 projected_stars[star_n] = proj_star
             projected_card["stars"] = projected_stars
             out_cards[card_id] = projected_card
