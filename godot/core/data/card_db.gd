@@ -212,7 +212,7 @@ func _shield(target: String, hp_pct: float) -> Dictionary:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STEAMPUNK (10 cards)
+# STEAMPUNK (11 cards)
 # ═══════════════════════════════════════════════════════════════════
 func _register_steampunk() -> void:
 	var T := Enums.CardTheme.STEAMPUNK
@@ -719,9 +719,56 @@ func _register_steampunk() -> void:
 		},
 		"theme_system")
 
+	var gw_comp := [{"unit_id":"sp_sawblade","count":2},{"unit_id":"sp_crab","count":1},{"unit_id":"sp_scout","count":2}]
+	var gw_tags := PackedStringArray(["steampunk", "diversity"])
+	_c("sp_global_workshop", "국제 공방", 3, T,
+		gw_comp,
+		[
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "gear_diversity_enhance", "min_non_steampunk": 1, "atk_pct": 0.03}],
+			}
+		],
+		gw_tags,
+				{
+			2: {
+				"name": "국제 공방 ★2",
+				"composition": gw_comp,
+				"card_tags": gw_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "gear_diversity_enhance", "min_non_steampunk": 1, "atk_pct": 0.05, "hp_pct": 0.02}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "국제 공방 ★3",
+				"composition": gw_comp,
+				"card_tags": gw_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "gear_diversity_enhance", "min_non_steampunk": 1, "atk_pct": 0.07, "hp_pct": 0.03, "spawn_threshold": 3, "spawn_unit": 1}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
 
 # ═══════════════════════════════════════════════════════════════════
-# NEUTRAL (15 cards)
+# NEUTRAL (24 cards)
 # ═══════════════════════════════════════════════════════════════════
 func _register_neutral() -> void:
 	var T := Enums.CardTheme.NEUTRAL
@@ -730,7 +777,9 @@ func _register_neutral() -> void:
 	var OE := Enums.TriggerTiming.ON_EVENT
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var PCD := Enums.TriggerTiming.POST_COMBAT_DEFEAT
+	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
 	var RS := Enums.TriggerTiming.ROUND_START
+	var SELL := Enums.TriggerTiming.ON_SELL
 	var EN := Enums.Layer1.ENHANCED
 	var UA := Enums.Layer1.UNIT_ADDED
 	var ee_comp := [{"unit_id":"ne_scrap","count":2},{"unit_id":"ne_eagle","count":1}]
@@ -1450,16 +1499,486 @@ func _register_neutral() -> void:
 			},
 		})
 
+	var cs_comp := [{"unit_id":"ne_scrap","count":2}]
+	var cs_tags := PackedStringArray(["neutral", "clone"])
+	_c("ne_clone_seed", "분열체", 1, T,
+		cs_comp,
+		[
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "clone_self_to_bench", "star": 1}],
+			},
+			{
+				"trigger_timing": SELL, "max_activations": 1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "grant_gold", "amount": -1}],
+			}
+		],
+		cs_tags,
+				{
+			2: {
+				"name": "분열체 ★2",
+				"composition": cs_comp,
+				"card_tags": cs_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "clone_self_to_bench", "star": 1},
+						{"action": "enhance", "target": "self", "atk_pct": 0.02}
+					],
+				},
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "grant_gold", "amount": -1}],
+				}
+			],
+			},
+			3: {
+				"name": "분열체 ★3",
+				"composition": cs_comp,
+				"card_tags": cs_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "clone_self_to_bench", "star": 1},
+						{"action": "enhance", "target": "self", "atk_pct": 0.04}
+					],
+				},
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "grant_gold", "amount": -1},
+						{"action": "transfer_upgrade", "target": "player_select", "source": "self", "count": 1}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var env_comp := [{"unit_id":"ne_merc","count":1},{"unit_id":"ne_archer","count":1},{"unit_id":"ne_eagle","count":1}]
+	var env_tags := PackedStringArray(["neutral", "economy"])
+	_c("ne_envoy", "떠돌이 사절단", 2, T,
+		env_comp,
+		[
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "grant_gold", "amount": 2}],
+			}
+		],
+		env_tags,
+				{
+			2: {
+				"name": "떠돌이 사절단 ★2",
+				"composition": env_comp,
+				"card_tags": env_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "grant_gold", "amount": 3}],
+				}
+			],
+			},
+			3: {
+				"name": "떠돌이 사절단 ★3",
+				"composition": env_comp,
+				"card_tags": env_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "grant_gold", "amount": 4}],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "grant_gold", "amount": 1}],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var hoa_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_scrap","count":2}]
+	var hoa_tags := PackedStringArray(["neutral", "economy"])
+	_c("ne_hoarder", "은닉자", 3, T,
+		hoa_comp,
+		[
+			{
+				"trigger_timing": SELL, "max_activations": 1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "tenure_gold", "gold_per_tenure": 1}],
+			}
+		],
+		hoa_tags,
+				{
+			2: {
+				"name": "은닉자 ★2",
+				"composition": hoa_comp,
+				"card_tags": hoa_tags,
+				"effects": [
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "tenure_gold", "gold_per_tenure": 2}],
+				}
+			],
+			},
+			3: {
+				"name": "은닉자 ★3",
+				"composition": hoa_comp,
+				"card_tags": hoa_tags,
+				"effects": [
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "tenure_gold", "gold_per_tenure": 4, "upgrade_chance": 0.05}],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var leg_comp := [{"unit_id":"ne_chimera","count":1},{"unit_id":"ne_archer","count":2},{"unit_id":"ne_scrap","count":1}]
+	var leg_tags := PackedStringArray(["neutral", "duplicate"])
+	_c("ne_legion", "복수군단", 3, T,
+		leg_comp,
+		[
+			{
+				"trigger_timing": PERSISTENT, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "duplicate_buff_aura", "atk_pct_per_n": 0.2, "hp_pct_per_n": 0.1, "scope": "field"}
+				],
+			}
+		],
+		leg_tags,
+				{
+			2: {
+				"name": "복수군단 ★2",
+				"composition": leg_comp,
+				"card_tags": leg_tags,
+				"effects": [
+				{
+					"trigger_timing": PERSISTENT, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "duplicate_buff_aura", "atk_pct_per_n": 0.3, "hp_pct_per_n": 0.15, "scope": "field"}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "복수군단 ★3",
+				"composition": leg_comp,
+				"card_tags": leg_tags,
+				"effects": [
+				{
+					"trigger_timing": PERSISTENT, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "duplicate_buff_aura", "atk_pct_per_n": 0.4, "hp_pct_per_n": 0.2, "scope": "field", "spawn_per_card": 1}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var mas_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_chimera","count":1},{"unit_id":"ne_mutant","count":1}]
+	var mas_tags := PackedStringArray(["neutral", "transform"])
+	_c("ne_masquerade", "융합의 가면", 4, T,
+		mas_comp,
+		[
+			{
+				"trigger_timing": SELL, "max_activations": 1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 1, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "transform_theme", "offer_count": 3, "allow_self": true, "target": "player_select", "omni": false}
+				],
+			}
+		],
+		mas_tags,
+				{
+			2: {
+				"name": "융합의 가면 ★2",
+				"composition": mas_comp,
+				"card_tags": mas_tags,
+				"effects": [
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 1, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "transform_theme", "offer_count": 5, "allow_self": true, "target": "player_select", "omni": false}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "융합의 가면 ★3",
+				"composition": mas_comp,
+				"card_tags": mas_tags,
+				"effects": [
+				{
+					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 1, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "transform_theme", "offer_count": 5, "allow_self": true, "target": "player_select", "omni": true}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var vf_comp := [{"unit_id":"ne_mutant","count":1},{"unit_id":"ne_chimera","count":1},{"unit_id":"ne_eagle","count":1}]
+	var vf_tags := PackedStringArray(["neutral", "solo"])
+	_c("ne_void_force", "여백의 힘", 4, T,
+		vf_comp,
+		[
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "empty_slot_scaling", "atk_pct_per_e": 0.3, "hp_pct_per_e": 0.15}],
+			}
+		],
+		vf_tags,
+				{
+			2: {
+				"name": "여백의 힘 ★2",
+				"composition": vf_comp,
+				"card_tags": vf_tags,
+				"effects": [
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "empty_slot_scaling", "atk_pct_per_e": 0.4, "hp_pct_per_e": 0.2}],
+				}
+			],
+			},
+			3: {
+				"name": "여백의 힘 ★3",
+				"composition": vf_comp,
+				"card_tags": vf_tags,
+				"effects": [
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "empty_slot_scaling", "atk_pct_per_e": 0.5, "hp_pct_per_e": 0.3, "as_div_per_e": 0.05}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var fe_comp := [{"unit_id":"ne_mutant","count":2},{"unit_id":"ne_scrap","count":1}]
+	var fe_tags := PackedStringArray(["neutral", "capstone"])
+	_c("ne_fusion_end", "합성의 끝", 4, T,
+		fe_comp,
+		[
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "include_self": true}
+				],
+			}
+		],
+		fe_tags,
+				{
+			2: {
+				"name": "합성의 끝 ★2",
+				"composition": fe_comp,
+				"card_tags": fe_tags,
+				"effects": [
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "include_self": true}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "합성의 끝 ★3",
+				"composition": fe_comp,
+				"card_tags": fe_tags,
+				"effects": [
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var cou_comp := [{"unit_id":"ne_merc","count":1},{"unit_id":"ne_beast","count":1},{"unit_id":"ne_guardian","count":1},{"unit_id":"ne_mutant","count":1}]
+	var cou_tags := PackedStringArray(["neutral", "rainbow", "unique"])
+	_c("ne_council", "오대 평의회", 5, T,
+		cou_comp,
+		[
+			{
+				"trigger_timing": PERSISTENT, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "all_themes_field_bonus", "slot_bonus": 1}],
+			}
+		],
+		cou_tags,
+				{
+			2: {
+				"name": "오대 평의회 ★2",
+				"composition": cou_comp,
+				"card_tags": cou_tags,
+				"effects": [
+				{
+					"trigger_timing": PERSISTENT, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "all_themes_field_bonus", "slot_bonus": 1, "allies_atk_pct": 0.05}],
+				}
+			],
+			},
+			3: {
+				"name": "오대 평의회 ★3",
+				"composition": cou_comp,
+				"card_tags": cou_tags,
+				"effects": [
+				{
+					"trigger_timing": PERSISTENT, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "all_themes_field_bonus", "slot_bonus": 1, "allies_atk_pct": 0.07, "allies_hp_pct": 0.05}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var nex_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_chimera","count":1},{"unit_id":"ne_mutant","count":1},{"unit_id":"ne_merc","count":1}]
+	var nex_tags := PackedStringArray(["neutral", "mirror"])
+	_c("ne_nexus", "연결체", 5, T,
+		nex_comp,
+		[
+			{
+				"trigger_timing": OE, "max_activations": 5,
+				"trigger_layer1": EN, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.02}],
+			},
+			{
+				"trigger_timing": OE, "max_activations": 5,
+				"trigger_layer1": UA, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.02}],
+			}
+		],
+		nex_tags,
+				{
+			2: {
+				"name": "연결체 ★2",
+				"composition": nex_comp,
+				"card_tags": nex_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 7,
+					"trigger_layer1": EN, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.03, "hp_pct": 0.01}
+					],
+				},
+				{
+					"trigger_timing": OE, "max_activations": 7,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.03, "hp_pct": 0.01}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "연결체 ★3",
+				"composition": nex_comp,
+				"card_tags": nex_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 7,
+					"trigger_layer1": EN, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
+					],
+				},
+				{
+					"trigger_timing": OE, "max_activations": 7,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
 
 # ═══════════════════════════════════════════════════════════════════
-# DRUID (10 cards)
+# DRUID (11 cards)
 # ═══════════════════════════════════════════════════════════════════
 func _register_druid() -> void:
 	var T := Enums.CardTheme.DRUID
 	var BS := Enums.TriggerTiming.BATTLE_START
+	var OE := Enums.TriggerTiming.ON_EVENT
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
 	var RS := Enums.TriggerTiming.ROUND_START
+	var UA := Enums.Layer1.UNIT_ADDED
 	var cra_comp := [{"unit_id":"dr_turtle","count":1},{"unit_id":"dr_vine","count":1}]
 	var cra_tags := PackedStringArray(["druid", "creation"])
 	_c("dr_cradle", "숲의 요람", 1, T,
@@ -1982,9 +2501,58 @@ func _register_druid() -> void:
 		},
 		"theme_system")
 
+	var res_comp := [{"unit_id":"dr_treant_y","count":1},{"unit_id":"dr_spirit","count":1},{"unit_id":"dr_rootguard","count":1}]
+	var res_tags := PackedStringArray(["druid", "resonance"])
+	_c("dr_resonance", "공명수", 4, T,
+		res_comp,
+		[
+			{
+				"trigger_timing": OE, "max_activations": 2,
+				"trigger_layer1": UA, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 1, "self_atk_pct": 0.02}
+				],
+			}
+		],
+		res_tags,
+				{
+			2: {
+				"name": "공명수 ★2",
+				"composition": res_comp,
+				"card_tags": res_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 3,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 1, "self_atk_pct": 0.03, "self_hp_pct": 0.02}
+					],
+				}
+			],
+			},
+			3: {
+				"name": "공명수 ★3",
+				"composition": res_comp,
+				"card_tags": res_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 4,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 2, "self_atk_pct": 0.04, "self_hp_pct": 0.03}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
 
 # ═══════════════════════════════════════════════════════════════════
-# PREDATOR (10 cards)
+# PREDATOR (11 cards)
 # ═══════════════════════════════════════════════════════════════════
 func _register_predator() -> void:
 	var T := Enums.CardTheme.PREDATOR
@@ -1992,6 +2560,7 @@ func _register_predator() -> void:
 	var OE := Enums.TriggerTiming.ON_EVENT
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var RS := Enums.TriggerTiming.ROUND_START
+	var UA := Enums.Layer1.UNIT_ADDED
 	var HA := Enums.Layer2.HATCH
 	var MT := Enums.Layer2.METAMORPHOSIS
 	var nes_comp := [{"unit_id":"pr_larva","count":3},{"unit_id":"pr_worker","count":1}]
@@ -2561,9 +3130,54 @@ func _register_predator() -> void:
 		},
 		"theme_system")
 
+	var ps_comp := [{"unit_id":"pr_larva","count":2},{"unit_id":"pr_spider","count":2},{"unit_id":"pr_charger","count":2},{"unit_id":"pr_warrior","count":1}]
+	var ps_tags := PackedStringArray(["predator", "parasite"])
+	_c("pr_parasitic_swarm", "기생충 군체", 3, T,
+		ps_comp,
+		[
+			{
+				"trigger_timing": OE, "max_activations": 2,
+				"trigger_layer1": UA, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "mirror_l2", "atk_pct": 0.02}],
+			}
+		],
+		ps_tags,
+				{
+			2: {
+				"name": "기생충 군체 ★2",
+				"composition": ps_comp,
+				"card_tags": ps_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 4,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "mirror_l2", "atk_pct": 0.03, "hp_pct": 0.01}],
+				}
+			],
+			},
+			3: {
+				"name": "기생충 군체 ★3",
+				"composition": ps_comp,
+				"card_tags": ps_tags,
+				"effects": [
+				{
+					"trigger_timing": OE, "max_activations": 6,
+					"trigger_layer1": UA, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "mirror_l2", "atk_pct": 0.05, "hp_pct": 0.03, "spawn_unit": 1, "l2_diversity_bonus": 0.05}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
 
 # ═══════════════════════════════════════════════════════════════════
-# MILITARY (10 cards)
+# MILITARY (11 cards)
 # ═══════════════════════════════════════════════════════════════════
 func _register_military() -> void:
 	var T := Enums.CardTheme.MILITARY
@@ -3170,6 +3784,63 @@ func _register_military() -> void:
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "revive_scope_override", "target": "self_all"}]},
 						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "revive_scope_override", "target": "self_and_adj_all"}]}
+					],
+				}
+			],
+			},
+		},
+		"theme_system")
+
+	var all_comp := [{"unit_id":"ml_recruit","count":2},{"unit_id":"ml_shield","count":1},{"unit_id":"ml_plasma","count":1},{"unit_id":"ml_drone","count":1}]
+	var all_tags := PackedStringArray(["military", "alliance"])
+	_c("ml_alliance", "동맹군", 3, T,
+		all_comp,
+		[
+			{
+				"trigger_timing": RS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "theme_count_conscript", "mult": 1}],
+			}
+		],
+		all_tags,
+				{
+			2: {
+				"name": "동맹군 ★2",
+				"composition": all_comp,
+				"card_tags": all_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "theme_count_conscript", "mult": 1}],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "theme_count_spawn", "mult": 1, "target": "random_ally"}],
+				}
+			],
+			},
+			3: {
+				"name": "동맹군 ★3",
+				"composition": all_comp,
+				"card_tags": all_tags,
+				"effects": [
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "theme_count_conscript", "mult": 1}],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "theme_count_spawn", "mult": 2, "target": "random_ally", "instant_conscript_threshold": 3}
 					],
 				}
 			],
