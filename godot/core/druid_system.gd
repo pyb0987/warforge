@@ -48,7 +48,7 @@ func apply_post_combat(card: CardInstance, _idx: int, _board: Array,
 
 
 ## Persistent combat: dr_wrath ATK buff.
-func apply_persistent(card: CardInstance) -> void:
+func apply_persistent(card: CardInstance, _board: Array = []) -> void:
 	if card.get_base_id() != "dr_wrath":
 		return
 	var effs := CardDB.get_theme_effects("dr_wrath", card.star_level)

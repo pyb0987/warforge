@@ -55,7 +55,7 @@ func apply_post_combat(card: CardInstance, idx: int, _board: Array,
 ## card after 2026-04-21 (pr_transcend 가 OE 기반으로 재설계, death_atk_bonus
 ## / kill_hp_recover 효과 제거). base class no-op 이 충분하지만, combat_engine
 ## 이 theme_state 값 없을 때 자동으로 스킵하므로 safe.
-func apply_persistent(_card: CardInstance) -> void:
+func apply_persistent(_card: CardInstance, _board: Array = []) -> void:
 	pass
 
 
