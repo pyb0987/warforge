@@ -549,3 +549,51 @@ cards:
             as_base: 1.05
             as_per_tree: 0.05
             as_tree_step: 30
+  dr_resonance:
+    name: 공명수
+    tier: 4
+    theme: druid
+    comp:
+    - unit: dr_treant_y
+      n: 1
+    - unit: dr_spirit
+      n: 1
+    - unit: dr_rootguard
+      n: 1
+    tags:
+    - druid
+    - resonance
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l1: UA
+          mirror_spawn_to_tree:
+            filter: non_druid_target
+            tree_add: 1
+            self_atk_pct: 0.02
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 3
+          listen:
+            l1: UA
+          mirror_spawn_to_tree:
+            filter: non_druid_target
+            tree_add: 1
+            self_atk_pct: 0.03
+            self_hp_pct: 0.02
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 4
+          listen:
+            l1: UA
+          mirror_spawn_to_tree:
+            filter: non_druid_target
+            tree_add: 2
+            self_atk_pct: 0.04
+            self_hp_pct: 0.03

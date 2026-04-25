@@ -594,3 +594,49 @@ cards:
             target: self
             atk_pct: 0.03
             ol1: null
+  pr_parasitic_swarm:
+    name: 기생충 군체
+    tier: 3
+    theme: predator
+    comp:
+    - unit: pr_larva
+      n: 2
+    - unit: pr_spider
+      n: 2
+    - unit: pr_charger
+      n: 2
+    - unit: pr_warrior
+      n: 1
+    tags:
+    - predator
+    - parasite
+    impl: theme_system
+    stars:
+      1:
+        effects:
+        - trigger_timing: OE
+          max_act: 2
+          listen:
+            l2: any
+          mirror_l2:
+            atk_pct: 0.02
+      2:
+        effects:
+        - trigger_timing: OE
+          max_act: 4
+          listen:
+            l2: any
+          mirror_l2:
+            atk_pct: 0.03
+            hp_pct: 0.01
+      3:
+        effects:
+        - trigger_timing: OE
+          max_act: 6
+          listen:
+            l2: any
+          mirror_l2:
+            atk_pct: 0.05
+            hp_pct: 0.03
+            spawn_unit: 1
+            l2_diversity_bonus: 0.05
