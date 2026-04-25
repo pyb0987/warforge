@@ -15,6 +15,9 @@ signal card_sold(sold_card: CardInstance)  # ON_SELL 트리거용 (game_manager,
 var board: Array = []  # Array[CardInstance | null], size = MAX_FIELD_SLOTS
 var bench: Array = []  # Array[CardInstance | null], size = MAX_BENCH_SLOTS
 var field_slots: int = Enums.STARTING_FIELD_SLOTS  # 현재 사용 가능 필드 슬롯 수 (최대 MAX_FIELD_SLOTS)
+## ne_council (오대 평의회) 5테마 보너스 활성 여부. 라운드 시작에 평가, true ↔ false
+## 토글 시 field_slots 를 ±1. 보스 보상 등 다른 보너스와 직교적으로 누적/제거.
+var council_field_bonus_active: bool = false
 
 # --- Economy ---
 var gold: int = 0

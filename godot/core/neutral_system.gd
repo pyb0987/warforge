@@ -27,6 +27,7 @@ func process_rs_card(card: CardInstance, idx: int, _board: Array,
 		_rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
 		"ne_envoy": return _envoy_rs(card, idx)
+		"ne_clone_seed": return _clone_seed_rs(card, idx)
 	return Enums.empty_result()
 
 
@@ -54,16 +55,24 @@ func apply_post_combat(_card: CardInstance, _idx: int, _board: Array,
 
 
 func apply_persistent(card: CardInstance, board: Array = []) -> void:
-	if card.get_base_id() == "ne_legion":
-		_legion_aura(card, board)
+	match card.get_base_id():
+		"ne_legion": _legion_aura(card, board)
+		"ne_council": _council_aura(card, board)
 
 
 ## Self-sell hook: card 본인의 SELL block 효과를 처리.
 ## chain_engine.process_sell_triggers 에서 sold_card.theme이 NEUTRAL일 때 호출.
 ## sold_card.tenure 가 0일 수도 있으므로 require_tenure 체크는 호출 측에서.
-func process_self_sell(sold_card: CardInstance, _board: Array) -> Dictionary:
+##
+## 반환 dict 확장 필드 (Phase 3b-2b — game_manager 가 처리):
+##   - clones_to_bench: Array[Dict{template_id, star}] — ne_clone_seed RS 복제본
+##   - transfer_upgrade: Dict{source_card, source_idx} — ne_clone_seed ★3 SELL
+##   - transform_theme: Dict{target_idx, new_theme, omni} — ne_masquerade SELL
+func process_self_sell(sold_card: CardInstance, board: Array) -> Dictionary:
 	match sold_card.get_base_id():
 		"ne_hoarder": return _hoarder_sell(sold_card)
+		"ne_clone_seed": return _clone_seed_sell(sold_card)
+		"ne_masquerade": return _masquerade_sell(sold_card, board)
 	return {"events": [], "gold": 0, "terazin": 0}
 
 
@@ -302,3 +311,102 @@ func _nexus(card: CardInstance, idx: int, board: Array, event: Dictionary) -> Di
 					"source_idx": idx, "target_idx": idx,
 				})
 	return {"events": events, "gold": 0, "terazin": 0}
+
+
+# --- ne_council (T5) — PERSISTENT all_themes_field_bonus ---
+
+
+## ★2/★3에서 모든 아군에 ATK/HP 추가 buff (5테마 조건 충족 시).
+## field_slots +1 자체는 game_manager._evaluate_council_field_bonus 에서 처리.
+## 5테마 조건은 game_state.council_field_bonus_active 와 동일 — board 로 재평가.
+func _council_aura(card: CardInstance, board: Array) -> void:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "all_themes_field_bonus")
+	if eff.is_empty():
+		return
+	var allies_atk: float = eff.get("allies_atk_pct", 0.0)
+	var allies_hp: float = eff.get("allies_hp_pct", 0.0)
+	if allies_atk <= 0.0 and allies_hp <= 0.0:
+		return  # ★1 은 field_slots 만, 추가 스탯 없음
+	# 5테마 조건 재검사 (process_persistent 시점)
+	var themes_seen: Dictionary = {}
+	for c in board:
+		if c == null:
+			continue
+		var t: int = (c as CardInstance).template.get("theme", -1)
+		if t >= 0:
+			themes_seen[t] = true
+	if themes_seen.size() < 5:
+		return
+	var atk_mult: float = 1.0 + allies_atk
+	var hp_mult: float = 1.0 + allies_hp
+	for c in board:
+		if c == null:
+			continue
+		(c as CardInstance).temp_mult_buff(atk_mult, hp_mult)
+
+
+# --- ne_clone_seed (T1) — RS clone + SELL transfer_upgrade ---
+
+
+## RS: 자기 ★1 복사본을 벤치에 추가. game_manager 가 결과 dict 의
+## "clones_to_bench" 필드를 처리 (process_rs_card 반환에 포함).
+## 복사본 생성 자체는 chain_engine 에서 즉시 못 함 — game_state 접근 필요.
+func _clone_seed_rs(card: CardInstance, _idx: int) -> Dictionary:
+	# 복사본 1장 (★1) 을 bench 에 추가하라는 신호
+	var clones: Array = [{"template_id": card.template_id, "star": 1}]
+	return {
+		"events": [],
+		"gold": 0,
+		"terazin": 0,
+		"clones_to_bench": clones,
+	}
+
+
+## SELL: -1g (모든 ★ 공통). ★3 추가: 자신의 업그레이드 1개를 필드 카드 1장으로 이전.
+## 업그레이드 이전은 game_manager가 처리 (전이 대상 카드 선택 + UI는 sim에선 deterministic).
+func _clone_seed_sell(card: CardInstance) -> Dictionary:
+	var result: Dictionary = {"events": [], "gold": -1, "terazin": 0}
+	# ★3 + 업그레이드 보유 시 transfer 신호
+	if card.star_level >= 3 and card.upgrades.size() > 0:
+		result["transfer_upgrade"] = {
+			"source_card": card,
+			"source_upgrade_idx": 0,  # 첫 번째 업그레이드 (sim 결정성)
+		}
+	return result
+
+
+# --- ne_masquerade (T4) — SELL transform_theme ---
+
+
+## SELL (tenure ≥ 1): 필드 카드 1장 선택 → theme 변경.
+## ★1: 5개 중 무작위 3개 offering, ★2: 5개 전체, ★3: omni-theme.
+## game_manager 가 결과 dict의 "transform_theme" 필드를 처리.
+## sim 결정성: target = 첫 비-self 필드 카드, theme = 5개 중 첫 번째 (NEUTRAL).
+func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "transform_theme")
+	if eff.is_empty():
+		return Enums.empty_result()
+	# 대상 카드 선택 (sim 결정성)
+	# allow_self: true 라도 카드는 판매되어 board 에서 제거된 상태 — 사실상 self 불가
+	var target_idx: int = -1
+	for i in board.size():
+		if board[i] != null and board[i] != card:
+			target_idx = i
+			break
+	if target_idx < 0:
+		return Enums.empty_result()
+	# theme 선택 (★별 offering size, sim 은 첫 옵션)
+	var omni: bool = eff.get("omni", false)
+	var new_theme: int = Enums.CardTheme.NEUTRAL  # default 첫 옵션
+	return {
+		"events": [],
+		"gold": 0,
+		"terazin": 0,
+		"transform_theme": {
+			"target_idx": target_idx,
+			"new_theme": new_theme,
+			"omni": omni,
+		},
+	}
