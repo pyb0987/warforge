@@ -33,17 +33,13 @@ EVALUATOR = RESEARCH_DIR / "parity_evaluator.py"
 EXPERIMENTS = RESEARCH_DIR / "experiments.jsonl"
 BEST_SCORE = RESEARCH_DIR / "best_score.txt"
 
-# Phase 2 Option A: CP = BASE + (atk/as)^α × hp^β × (1+range)^γ × ms^δ
+# Phase 2 final: CP = BASE + (atk/as)^α × hp^β
 BOUNDS = {
     "FORMULA_BASE":  (0.0, 150.0),
     "FORMULA_ALPHA": (0.0, 1.2),
     "FORMULA_BETA":  (0.0, 1.2),
-    "FORMULA_GAMMA": (0.0, 1.5),
-    "FORMULA_DELTA": (0.0, 1.5),
 }
-# Seed from Phase 2 best (known optimum for 3-param subspace).
-DEFAULTS = {"FORMULA_BASE": 19.35, "FORMULA_ALPHA": 0.249, "FORMULA_BETA": 0.905,
-            "FORMULA_GAMMA": 0.0, "FORMULA_DELTA": 0.0}
+DEFAULTS = {"FORMULA_BASE": 19.35, "FORMULA_ALPHA": 0.249, "FORMULA_BETA": 0.905}
 
 
 # ================================================================

@@ -3,22 +3,21 @@ extends RefCounted
 ## Preset generator — target_cp → theme-based army composition.
 ## Mirrors scripts/preset_generator.py — keep in sync.
 ##
-## Phase 2 Option A (2026-04-24): Extended formula including range + ms.
+## Phase 2 final (2026-04-25): Multiplicative formula (confirmed optimal).
 ##
-##   CP = FORMULA_BASE + (atk/as)^ALPHA × hp^BETA × (1+range)^GAMMA × ms^DELTA
+##   CP = FORMULA_BASE + (atk/as)^FORMULA_ALPHA × hp^FORMULA_BETA
 ##
-## All 5 exponents tuned via autoresearch. Any exponent = 0 disables that term.
+## Confirmed across 5 independent lines. See
+## .claude/traces/experiments/002-cp-formula-theme-system.md.
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CP Formula Coefficients — AUTORESEARCH-TUNABLE
+# CP Formula Coefficients — FINAL (Phase 2)
 # ═══════════════════════════════════════════════════════════════════
 
 const FORMULA_BASE := 19.35
 const FORMULA_ALPHA := 0.249
 const FORMULA_BETA := 0.905
-const FORMULA_GAMMA := 0.0    # range exponent (0 = disabled, seed baseline)
-const FORMULA_DELTA := 0.0    # ms exponent
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -122,7 +121,7 @@ const THEME_RECIPES := {
 }
 
 
-## Formula: CP = BASE + (atk/as)^α × hp^β × (1+range)^γ × ms^δ, scaled by stat_mult².
+## Formula: CP = BASE + (atk/as)^α × hp^β, scaled by stat_mult².
 static func unit_intrinsic_cp(unit_id: String, stat_mult: float = 1.0) -> float:
 	var stats: Dictionary = UNIT_STATS.get(unit_id, {})
 	if stats.is_empty():
@@ -130,14 +129,8 @@ static func unit_intrinsic_cp(unit_id: String, stat_mult: float = 1.0) -> float:
 	var atk: float = float(stats.get("atk", 3))
 	var hp: float = float(stats.get("hp", 20))
 	var as_val: float = maxf(float(stats.get("as", 1.0)), 0.01)
-	var rng: float = float(stats.get("range", 0))
-	var ms: float = maxf(float(stats.get("ms", 2)), 0.01)
 	var dps: float = atk / as_val
-	var cp: float = (FORMULA_BASE
-		+ pow(dps, FORMULA_ALPHA)
-		* pow(hp, FORMULA_BETA)
-		* pow(1.0 + rng, FORMULA_GAMMA)
-		* pow(ms, FORMULA_DELTA))
+	var cp: float = FORMULA_BASE + pow(dps, FORMULA_ALPHA) * pow(hp, FORMULA_BETA)
 	return cp * stat_mult * stat_mult
 
 

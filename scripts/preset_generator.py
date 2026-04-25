@@ -2,18 +2,12 @@
 
 Mirrors godot/sim/preset_generator.gd — keep in sync.
 
-Phase 2 Option A (2026-04-24): Extended formula including range + ms.
+Phase 2 final (2026-04-25): Multiplicative formula (confirmed optimal).
 
-  CP = FORMULA_BASE + (atk/as)^ALPHA × hp^BETA × (1+range)^GAMMA × ms^DELTA
+  CP = FORMULA_BASE + (atk/as)^FORMULA_ALPHA × hp^FORMULA_BETA
 
-  Rationale:
-    - FORMULA_BASE: presence CP (every unit occupies a slot)
-    - FORMULA_ALPHA: DPS exponent (sub-linear damage returns in mass combat)
-    - FORMULA_BETA: HP exponent
-    - FORMULA_GAMMA: range exponent (ranged units have kiting advantage)
-    - FORMULA_DELTA: ms exponent (fast units engage more)
-
-  All 5 exponents tuned via autoresearch. Any γ/δ/α/β = 0 disables that term.
+  Confirmed across 5 exploration lines. See
+  .claude/traces/experiments/002-cp-formula-theme-system.md.
 
 THEME_RECIPES: enemy preset → weighted unit pool (unchanged).
 UNIT_STATS: mirror of UnitDB atk/hp/as/range/ms (immutable).
@@ -21,14 +15,12 @@ UNIT_STATS: mirror of UnitDB atk/hp/as/range/ms (immutable).
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CP Formula Coefficients — AUTORESEARCH-TUNABLE
+# CP Formula Coefficients — FINAL (Phase 2)
 # ═══════════════════════════════════════════════════════════════════
 
-FORMULA_BASE = 19.35       # presence CP
-FORMULA_ALPHA = 0.249      # DPS exponent
-FORMULA_BETA = 0.905       # HP exponent
-FORMULA_GAMMA = 0.0        # range exponent (0 = disabled — seed from Phase 2 baseline)
-FORMULA_DELTA = 0.0        # ms exponent (0 = disabled — seed from Phase 2 baseline)
+FORMULA_BASE = 19.35
+FORMULA_ALPHA = 0.249
+FORMULA_BETA = 0.905
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -140,21 +132,15 @@ THEME_RECIPES = {
 # ═══════════════════════════════════════════════════════════════════
 
 def unit_intrinsic_cp(unit_id: str, stat_mult: float = 1.0) -> float:
-    """Formula: CP = BASE + (atk/as)^α × hp^β × (1+range)^γ × ms^δ. Scaled by stat_mult²."""
+    """Formula: CP = BASE + (atk/as)^α × hp^β. Scaled by stat_mult²."""
     stats = UNIT_STATS.get(unit_id)
     if stats is None:
         return FORMULA_BASE * stat_mult * stat_mult
     atk = float(stats["atk"])
     hp = float(stats["hp"])
     as_val = max(float(stats["as"]), 0.01)
-    rng = float(stats.get("range", 0))
-    ms = max(float(stats.get("ms", 2)), 0.01)
     dps = atk / as_val
-    cp = (FORMULA_BASE
-          + (dps ** FORMULA_ALPHA)
-          * (hp ** FORMULA_BETA)
-          * ((1.0 + rng) ** FORMULA_GAMMA)
-          * (ms ** FORMULA_DELTA))
+    cp = FORMULA_BASE + (dps ** FORMULA_ALPHA) * (hp ** FORMULA_BETA)
     return cp * stat_mult * stat_mult
 
 

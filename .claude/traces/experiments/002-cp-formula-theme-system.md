@@ -187,3 +187,43 @@ either match or underperform. Autoresearch's result is confirmed robust across
    off-diag band vs per-unit WR) fundamentally changes the optimum.
 5. **Collinearity of combat features**: atk, hp, as contain enough information;
    range/ms add no independent signal for CP-ordering.
+
+### Option D — additive linear form (2026-04-25)
+
+Direct test of whether a structurally different function family (additive
+rather than multiplicative) could beat Phase 2 when optimized on parity directly.
+
+Formula: `CP = c0 + c_atk·atk + c_hp·hp + c_dps·(atk/as) + c_range·range + c_ms·ms`
+Bounds: c0 ∈ [0,50], c_atk ∈ [0,10], c_hp ∈ [0,1], c_dps ∈ [0,10], c_range ∈ [0,10], c_ms ∈ [0,20]
+
+Autoresearch (seed=808, 93 iter, 8 ADOPT):
+- Best: metric=0.386 (14/36 in_band) with (c0=3.1, c_atk=4.83, c_hp=0.92, c_dps=2.10, c_range=8.42, c_ms=2.41)
+- Phase 2 reference: 0.512 (17/36)
+- Option D loses by 0.126 (~24% worse)
+
+Converged parameters agree with Phase 2 qualitatively — HP weight high (c_hp=0.92 in
+its [0,1] bound), DPS weight moderate, range weight notable. Same "HP > DPS" lesson.
+
+**Why multiplicative wins**: combat value ≠ `HP contribution + DPS contribution`.
+Rather, `HP × DPS` interaction — a unit with 0 DPS (can't damage) or 0 HP (dies
+instantly) has no combat value regardless of the other stat. Multiplicative captures
+this interaction; additive approximates it but cannot represent `min(HP, DPS)`-like
+saturation. Phase 2's `dps^α × hp^β` encodes interaction directly.
+
+### Final Verdict (2026-04-25)
+
+Phase 2 formula confirmed optimal across **5 independent exploration lines**:
+1. Autoresearch seed 1337 (40 iter) → Phase 2 best found
+2. Autoresearch seed 99 (20 iter) → no improvement
+3. Autoresearch seed 4242 + 5-param (20 iter) → γ=δ=0 optimal
+4. Option C symbolic regression → F5 parity fail (0.04 vs 0.512)
+5. Option D additive linear (93 iter) → 0.39 vs 0.512
+
+**Result**: `CP = 19.35 + (atk/as)^0.249 × hp^0.905` is the production formula.
+
+### Final Additional Lesson
+
+6. **Multiplicative > additive for combat value formulas**: combat features interact
+   (HP×DPS is meaningful; HP alone or DPS alone without the other is useless).
+   Additive forms can't represent this interaction saturation. For any RTS/wargame
+   CP scoring, prefer multiplicative starting form.
