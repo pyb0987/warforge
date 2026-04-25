@@ -98,9 +98,11 @@ func card_board_value(card: CardInstance, strategy: String,
 	var star: int = card.star_level
 	var timing: int = tmpl.get("trigger_timing", -1)
 
-	# Base: CP (log scale)
-	var total_cp: float = card.get_total_atk() + card.get_total_hp()
-	var val: float = log(maxf(total_cp, 1.0)) * 5.0
+	# Base: AI heuristic feature (atk+hp), NOT the SSoT CP formula. Tuned for
+	# log-scaled card-value comparison; migrating to get_total_cp() shifts the
+	# magnitude (~100-2000 vs ~10-200) and would re-tune AI behavior.
+	var heuristic_size: float = card.get_total_atk() + card.get_total_hp()
+	var val: float = log(maxf(heuristic_size, 1.0)) * 5.0
 
 	# Star and tier
 	val += star * 8.0

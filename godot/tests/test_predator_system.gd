@@ -164,9 +164,15 @@ func test_apex_hunt_oe_unconditional_buff_from_other_card() -> void:
 	var card: CardInstance = CardInstance.create("pr_apex_hunt")
 	# source_idx=1 → 다른 카드가 방출한 MT
 	var event: Dictionary = _make_metamorphosis_event(1, 0)
-	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], event, _rng)
-	assert_gt(card.get_total_atk(), atk_before, "OE 반응 시 buff 적용 (조건 없음)")
+	# temp_atk > 0 on any stack proves temp_buff(atk_pct) was applied.
+	# Composition shifts via meta, so we verify the buff side-effect directly.
+	var buffed := false
+	for s in card.stacks:
+		if s["temp_atk"] > 0.0:
+			buffed = true
+			break
+	assert_true(buffed, "OE 반응 시 buff 적용 (조건 없음)")
 	assert_eq(card.get_total_units(), 3, "meta(2) 성공: 4-2+1=3기")
 
 
@@ -277,9 +283,14 @@ func test_apex_hunt_s2_consume_2_buff_50() -> void:
 	var card := _make_star("pr_apex_hunt", 2)
 	var meta_evt := {"layer1": -1, "layer2": Enums.Layer2.METAMORPHOSIS,
 		"source_idx": 1, "target_idx": 0}
-	var atk_before: float = card.get_total_atk()
 	_sys.process_event_card(card, 0, [card], meta_evt, _rng)
-	assert_gt(card.get_total_atk(), atk_before, "★2 ATK+50% (조건 없음)")
+	# temp_atk > 0 on any stack proves the +50% atk_pct buff was applied.
+	var buffed := false
+	for s in card.stacks:
+		if s["temp_atk"] > 0.0:
+			buffed = true
+			break
+	assert_true(buffed, "★2 ATK+50% (조건 없음)")
 
 
 func test_apex_hunt_s3_consume_1_mult_2x() -> void:

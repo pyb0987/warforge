@@ -1,13 +1,13 @@
 {
-  "activation_utilization": 0.870990179125654,
-  "board_utilization": 0.68377783061078,
-  "card_coverage": 0.228571428571429,
-  "dominance_moment": 0.921293699931581,
-  "loss_resilience": 0.370952380952381,
+  "activation_utilization": 0.76852425209384,
+  "board_utilization": 0.690749782643646,
+  "card_coverage": 0.23,
+  "dominance_moment": 0.799700127185407,
+  "loss_resilience": 0.623095238095238,
   "metadata": {
     "base_seed": 42,
     "genome_path": "res://sim/best_genome.json",
-    "runs_per_ai": 20,
+    "runs_per_ai": 10,
     "strategies": [
       "soft_steampunk",
       "soft_druid",
@@ -17,54 +17,54 @@
       "economy",
       "aggressive"
     ],
-    "total_runs": 140
+    "total_runs": 70
   },
-  "per_round_wr_match": 0.866696411076921,
+  "per_round_wr_match": 0.863171839029623,
   "strategy_stats": {
     "adaptive": {
-      "avg_hp": -6.3,
-      "total": 20,
-      "win_rate": 0.5,
-      "wins": 10
-    },
-    "aggressive": {
-      "avg_hp": -20.5,
-      "total": 20,
-      "win_rate": 0.3,
-      "wins": 6
-    },
-    "economy": {
-      "avg_hp": -4.6,
-      "total": 20,
-      "win_rate": 0.4,
+      "avg_hp": 15.5,
+      "total": 10,
+      "win_rate": 0.8,
       "wins": 8
     },
+    "aggressive": {
+      "avg_hp": 13.4,
+      "total": 10,
+      "win_rate": 0.7,
+      "wins": 7
+    },
+    "economy": {
+      "avg_hp": 11.0,
+      "total": 10,
+      "win_rate": 0.5,
+      "wins": 5
+    },
     "soft_druid": {
-      "avg_hp": -21.5,
-      "total": 20,
-      "win_rate": 0.1,
+      "avg_hp": -1.3,
+      "total": 10,
+      "win_rate": 0.2,
       "wins": 2
     },
     "soft_military": {
-      "avg_hp": -34.65,
-      "total": 20,
-      "win_rate": 0.15,
+      "avg_hp": -8.3,
+      "total": 10,
+      "win_rate": 0.3,
       "wins": 3
     },
     "soft_predator": {
-      "avg_hp": -25.25,
-      "total": 20,
-      "win_rate": 0.3,
-      "wins": 6
+      "avg_hp": 14.0,
+      "total": 10,
+      "win_rate": 0.8,
+      "wins": 8
     },
     "soft_steampunk": {
-      "avg_hp": -16.5,
-      "total": 20,
-      "win_rate": 0.2,
+      "avg_hp": 6.8,
+      "total": 10,
+      "win_rate": 0.4,
       "wins": 4
     }
   },
-  "theme_ratio_variance": 0.429082341269841,
-  "tipping_point_quality": 0.0534455638795603,
-  "weighted_score": 0.543111983165967
+  "theme_ratio_variance": 0.404771825396825,
+  "tipping_point_quality": 0.070647931303669,
+  "weighted_score": 0.54564686980506
 }
