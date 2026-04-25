@@ -758,7 +758,10 @@ def desc_theme_count_spawn(p: dict) -> str:
     block timing prefix ('전투 시작:')는 상위 desc_gen에서 추가 — 여기선 본문만."""
     mult = p.get("mult", 1)
     thresh = p.get("instant_conscript_threshold", 0)
-    base = f"보드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
+    if mult == 1:
+        base = "보드 테마 수만큼 랜덤 아군 유닛 추가"
+    else:
+        base = f"보드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
     if thresh:
         base += f" (테마 {thresh}+ 시 자신에 신병 1기 즉시 등장)"
     return base
@@ -776,7 +779,7 @@ def desc_mirror_spawn_to_tree(p: dict) -> str:
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
     self_part = f", 자신 {' '.join(parts)} 영구 강화" if parts else ""
-    return f"비-druid 대상이면 🌳 +{tree}{self_part}"
+    return f"비-드루이드 대상이면 🌳 +{tree}{self_part}"
 
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
