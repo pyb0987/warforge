@@ -379,7 +379,8 @@ func _materialize_army() -> Array:
 				unit_mechs.append(crit_mech)
 			# as_bonus (전술사령부 R10): attack_speed *= (1 + as_bonus).
 			# 수치가 1.0 증가하면 AS 2배가 아닌 (1 + 0.15) = 1.15배. 기존 SC1 스타일 유지.
-			var as_mult_total: float = c.upgrade_as_mult * (1.0 + as_bonus)
+			# temp_as_mult: 전투 한정 AS modifier (ne_void_force ★3 등). clear_temp_buffs 리셋.
+			var as_mult_total: float = c.upgrade_as_mult * c.temp_as_mult * (1.0 + as_bonus)
 			# 군대 revive: 이 카드가 통합사령부 scope에 속하면 revive 필드 주입.
 			var revive_info: Dictionary = revive_scope_map.get(card_idx, {})
 			var revive_limit_val: int = 0

@@ -23,6 +23,9 @@ enum Layer2 {
 	# 군대
 	TRAIN,
 	CONSCRIPT,
+	# Wildcard sentinel — listener에서만 사용 (event 자체엔 절대 ANY 가 emit 되지 않음).
+	# pr_parasitic_swarm 등 intertheme listener: l2: ANY → 모든 테마 키워드 매치.
+	ANY = 100,
 }
 
 # --- 트리거 타이밍 ---

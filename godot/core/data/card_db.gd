@@ -2560,7 +2560,7 @@ func _register_predator() -> void:
 	var OE := Enums.TriggerTiming.ON_EVENT
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var RS := Enums.TriggerTiming.ROUND_START
-	var UA := Enums.Layer1.UNIT_ADDED
+	var ANY := Enums.Layer2.ANY
 	var HA := Enums.Layer2.HATCH
 	var MT := Enums.Layer2.METAMORPHOSIS
 	var nes_comp := [{"unit_id":"pr_larva","count":3},{"unit_id":"pr_worker","count":1}]
@@ -3137,7 +3137,7 @@ func _register_predator() -> void:
 		[
 			{
 				"trigger_timing": OE, "max_activations": 2,
-				"trigger_layer1": UA, "trigger_layer2": -1,
+				"trigger_layer1": -1, "trigger_layer2": ANY,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "mirror_l2", "atk_pct": 0.02}],
 			}
@@ -3151,7 +3151,7 @@ func _register_predator() -> void:
 				"effects": [
 				{
 					"trigger_timing": OE, "max_activations": 4,
-					"trigger_layer1": UA, "trigger_layer2": -1,
+					"trigger_layer1": -1, "trigger_layer2": ANY,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [{"action": "mirror_l2", "atk_pct": 0.03, "hp_pct": 0.01}],
 				}
@@ -3164,7 +3164,7 @@ func _register_predator() -> void:
 				"effects": [
 				{
 					"trigger_timing": OE, "max_activations": 6,
-					"trigger_layer1": UA, "trigger_layer2": -1,
+					"trigger_layer1": -1, "trigger_layer2": ANY,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "mirror_l2", "atk_pct": 0.05, "hp_pct": 0.03, "spawn_unit": 1, "l2_diversity_bonus": 0.05}

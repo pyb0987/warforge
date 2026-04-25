@@ -55,6 +55,9 @@ var upgrade_def: int = 0
 var upgrade_range: int = 0
 var upgrade_move_speed: int = 0
 var upgrade_as_mult: float = 1.0
+## 전투 한정 AS multiplier (BS/PERSISTENT에서 누적, clear_temp_buffs로 리셋).
+## 값 1.0 = 변화 없음, 0.5 = 2배 빠름, 2.0 = 2배 느림 (AS = 시간 단위).
+var temp_as_mult: float = 1.0
 
 # --- Signals ---
 signal stats_changed
@@ -273,6 +276,7 @@ func clear_temp_buffs() -> void:
 		s["temp_atk"] = 0.0
 		s["temp_atk_mult"] = 1.0
 		s["temp_hp_mult"] = 1.0
+	temp_as_mult = 1.0
 
 
 ## Add 1 copy of the strongest unit (by CP) in this card.

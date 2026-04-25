@@ -189,10 +189,8 @@ func _legion_aura(card: CardInstance, board: Array) -> void:
 
 ## E = 빈 필드 슬롯 수. self ATK/HP/AS 가 E에 비례 강화.
 ## board는 active_board (non-null만), 따라서 empty = MAX_FIELD_SLOTS - board.size().
-## (정확한 field_slots 값은 game_state 접근 필요 — 현재는 MAX 기준 근사,
-## Phase 4에서 game_state 전달로 정확화 가능)
-## AS 스케일링 (★3 as_div_per_e)은 temp_as_mult 미지원 — 현재 ATK/HP 만,
-## AS는 Phase 4 deferred (combat engine AS pipeline 확장 시).
+## (정확한 field_slots 값은 game_state 접근 필요 — 현재는 MAX 기준 근사.)
+## ★3 as_div_per_e: AS / (1 + E × 0.05) — 전투 더 빠름 (Phase 4 temp_as_mult 적용).
 func _void_force_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "empty_slot_scaling")
@@ -207,6 +205,12 @@ func _void_force_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	var hp_mult: float = 1.0 + hp_per * empty_count
 	if atk_mult != 1.0 or hp_mult != 1.0:
 		card.temp_mult_buff(atk_mult, hp_mult)
+	# ★3: AS 가속 — temp_as_mult 누적
+	var as_div_per: float = eff.get("as_div_per_e", 0.0)
+	if as_div_per > 0.0:
+		var divisor: float = 1.0 + as_div_per * empty_count
+		if divisor > 0.0:
+			card.temp_as_mult /= divisor
 	return Enums.empty_result()
 
 

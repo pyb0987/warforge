@@ -66,12 +66,19 @@ func _find_block(tmpl: Dictionary, timing: int) -> Dictionary:
 
 
 ## Return true if the card's block at `timing` exists and listen/require filters match.
+## Wildcard sentinel: trigger_layer2 == Enums.Layer2.ANY 면 비-NONE l2 이벤트 모두 매치
+## (pr_parasitic_swarm 같은 intertheme listener 용).
 func _trigger_matches_block(block: Dictionary, event: Dictionary, card_idx: int) -> bool:
 	var listen_l1: int = block.get("trigger_layer1", -1)
 	if listen_l1 != -1 and event.get("layer1", -1) != listen_l1:
 		return false
 	var listen_l2: int = block.get("trigger_layer2", -1)
-	if listen_l2 != -1 and event.get("layer2", -1) != listen_l2:
+	if listen_l2 == Enums.Layer2.ANY:
+		# ANY: 이벤트가 NONE(0) 이거나 -1 (l2 없음) 이면 매치 안 함; 그 외 모든 l2 매치.
+		var ev_l2: int = event.get("layer2", -1)
+		if ev_l2 == -1 or ev_l2 == Enums.Layer2.NONE:
+			return false
+	elif listen_l2 != -1 and event.get("layer2", -1) != listen_l2:
 		return false
 	if block.get("require_other_card", false):
 		if event.get("source_idx", -1) == card_idx:

@@ -289,9 +289,9 @@ var _descs := {
 		3: "[반응] 다른 카드의 부화 시: 이 카드에 부화 2기. 이 카드 ATK +3% 성장. 변태(1기 소모) × 2회. 이 카드 ATK +3% 성장",
 	},
 	"pr_parasitic_swarm": {
-		1: "[반응] 유닛 추가 시: [TODO: mirror_l2] (최대 2/R)",
-		2: "[반응] 유닛 추가 시: [TODO: mirror_l2] (최대 4/R)",
-		3: "[반응] 유닛 추가 시: [TODO: mirror_l2] (최대 6/R)",
+		1: "[반응] (None, 'ANY'): [TODO: mirror_l2] (최대 2/R)",
+		2: "[반응] (None, 'ANY'): [TODO: mirror_l2] (최대 4/R)",
+		3: "[반응] (None, 'ANY'): [TODO: mirror_l2] (최대 6/R)",
 	},
 	# ═══════════════════════ MILITARY (11) ═══════════════════════
 	"ml_barracks": {
