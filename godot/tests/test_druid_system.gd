@@ -389,14 +389,15 @@ func test_world_applies_to_all_board_cards() -> void:
 		"비-드루이드 카드도 ATK ×1.10 성장")
 
 
-func test_world_as_multiplier_applies_to_upgrade_as() -> void:
-	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 upgrade_as_mult 누적.
-	## ★1 as_base 1.05 → RS 1회 후 upgrade_as_mult ×1.05.
+func test_world_as_multiplier_applies_to_unique_as() -> void:
+	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 mult 누적.
+	## 2026-04-26: 세계수는 [고유효과] → unique_as_mult 에 누적 (upgrade_as_mult 와 분리).
+	## ★1 as_base 1.05 → RS 1회 후 unique_as_mult ×1.05.
 	var card: CardInstance = CardInstance.create("dr_world")
-	var as_before: float = card.upgrade_as_mult
+	var as_before: float = card.unique_as_mult
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.upgrade_as_mult, as_before * 1.05, 0.001,
-		"★1 AS ×1.05 누적 (upgrade_as_mult)")
+	assert_almost_eq(card.unique_as_mult, as_before * 1.05, 0.001,
+		"★1 AS ×1.05 누적 (unique_as_mult)")
 
 
 func test_world_uses_forest_depth_all_druid_trees() -> void:

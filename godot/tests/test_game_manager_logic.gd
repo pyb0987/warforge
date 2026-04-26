@@ -56,7 +56,7 @@ func _materialize_army() -> Array:
 			for _n in s["count"]:
 				units.append({
 					"atk": eff_atk, "hp": eff_hp,
-					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult,
+					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult * c.unique_as_mult,
 					"range": ut["range"] + c.upgrade_range,
 					"move_speed": ut["move_speed"] + c.upgrade_move_speed,
 					"def": c.upgrade_def,

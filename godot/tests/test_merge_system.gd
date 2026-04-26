@@ -557,3 +557,72 @@ func test_merge_stack_mult_keeps_full_precision_internally() -> void:
 	for s in _state.board[0].stacks:
 		assert_almost_eq(s["upgrade_atk_mult"], 2.010029, 0.0001,
 			"stack mult full precision (UI floor 분리)")
+
+
+# ================================================================
+# 세계수 [고유효과] — unique_*_mult 분리 + max 합성 정책
+# ----------------------------------------------------------------
+# dr_world 매 RS 곱셈 누적이 합성 시 폭발(예: ★3 캐스케이드 ×100+)하지
+# 않도록, 세계수 발 mult는 별도 unique_*_mult 필드에 분리하고 합성 시
+# max로 합친다. 다른 입력원(% 업그레이드, 보스, 커맨더)은 기존 곱셈 그대로.
+# ================================================================
+
+func test_merge_takes_max_unique_atk_mult_per_stack() -> void:
+	var cs := _three_assembly()
+	for s in cs[0].stacks: s["unique_atk_mult"] = 1.30
+	for s in cs[1].stacks: s["unique_atk_mult"] = 1.80
+	for s in cs[2].stacks: s["unique_atk_mult"] = 1.50
+	_state.try_merge("sp_assembly")
+	# max(1.30, 1.80, 1.50) = 1.80 — 합성 시 max
+	for s in _state.board[0].stacks:
+		assert_almost_eq(s["unique_atk_mult"], 1.80, 0.0001,
+			"unique_atk_mult max 합성")
+
+
+func test_merge_takes_max_unique_hp_mult_per_stack() -> void:
+	var cs := _three_assembly()
+	for s in cs[0].stacks: s["unique_hp_mult"] = 1.10
+	for s in cs[1].stacks: s["unique_hp_mult"] = 1.40
+	for s in cs[2].stacks: s["unique_hp_mult"] = 1.20
+	_state.try_merge("sp_assembly")
+	for s in _state.board[0].stacks:
+		assert_almost_eq(s["unique_hp_mult"], 1.40, 0.0001,
+			"unique_hp_mult max 합성")
+
+
+func test_merge_takes_max_unique_as_mult() -> void:
+	var cs := _three_assembly()
+	cs[0].unique_as_mult = 0.90
+	cs[1].unique_as_mult = 0.70  # AS 값 작을수록 빠름 — 더 빠른 도너
+	cs[2].unique_as_mult = 0.85
+	_state.try_merge("sp_assembly")
+	# 사용자 정책: max(절대값) — 폭발 방지가 목적이므로 큰 값 유지
+	# 다만 AS는 작을수록 강함이라 의미 해석 주의. 정책은 일관 max.
+	assert_almost_eq(_state.board[0].unique_as_mult, 0.90, 0.0001,
+		"unique_as_mult max 합성")
+
+
+func test_multiply_unique_stats_writes_to_unique_field_only() -> void:
+	## multiply_unique_stats 호출은 unique_*_mult에만 적용,
+	## upgrade_*_mult는 영향받지 않음.
+	var card := CardInstance.create("sp_assembly")
+	var upg_before: float = card.stacks[0]["upgrade_atk_mult"]
+	card.multiply_unique_stats(0.30, 0.20)
+	assert_almost_eq(card.stacks[0]["unique_atk_mult"], 1.30, 0.0001,
+		"unique_atk_mult ×1.30")
+	assert_almost_eq(card.stacks[0]["unique_hp_mult"], 1.20, 0.0001,
+		"unique_hp_mult ×1.20")
+	assert_eq(card.stacks[0]["upgrade_atk_mult"], upg_before,
+		"upgrade_atk_mult 영향 없음")
+
+
+func test_eff_atk_combines_upgrade_and_unique_mults() -> void:
+	## eff_atk_for = base * (1+growth) * upgrade_mult * unique_mult * temp
+	var card := CardInstance.create("sp_assembly")
+	card.stacks[0]["upgrade_atk_mult"] = 1.50
+	card.stacks[0]["unique_atk_mult"] = 1.20
+	var base: float = card.stacks[0]["unit_type"]["atk"]
+	# Layer1 growth = 0, temp = 1.0
+	var expected: float = base * 1.50 * 1.20
+	assert_almost_eq(card.eff_atk_for(card.stacks[0]), expected, 0.001,
+		"eff_atk = base × upgrade_mult × unique_mult")
