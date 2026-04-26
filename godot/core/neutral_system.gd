@@ -214,24 +214,31 @@ func _void_force_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
-# --- ne_fusion_end (T4) — BS ★3 count scaling ---
+# --- ne_fusion_end (T4) — BS ★3 + ★2×weight count scaling ---
 
 
-## M = 보드의 ★3 카드 수 (self 포함). self ATK/HP × M 스케일.
-## ★3는 M≥3 시 모든 아군에게 ATK +M×% 추가 buff (오라).
+## M = 보드의 ★3 카드 수 + ★2 카드 수 × star2_weight (self 포함).
+## 이 카드 ATK/HP × M 스케일.
+## ★3는 ★3 카드 수가 allies_threshold 이상일 때 모든 아군에게 ATK +M×% 추가 buff (오라).
 func _fusion_end_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "star3_count_scaling")
 	if eff.is_empty():
 		return Enums.empty_result()
-	# M = ★3 카드 수
-	var m: int = 0
+	var s2_weight: float = eff.get("star2_weight", 0.0)
+	# M = ★3 카드 수 + ★2 카드 수 × star2_weight. star3_count는 aura threshold 용으로 별도.
+	var m: float = 0.0
+	var star3_count: int = 0
 	for c in board:
 		if c == null:
 			continue
-		if (c as CardInstance).star_level >= 3:
-			m += 1
-	if m <= 0:
+		var lvl: int = (c as CardInstance).star_level
+		if lvl >= 3:
+			m += 1.0
+			star3_count += 1
+		elif lvl == 2 and s2_weight > 0.0:
+			m += s2_weight
+	if m <= 0.0:
 		return Enums.empty_result()
 	var atk_per: float = eff.get("atk_pct_per_m", 0.0)
 	var hp_per: float = eff.get("hp_pct_per_m", 0.0)
@@ -240,11 +247,12 @@ func _fusion_end_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	if atk_mult != 1.0 or hp_mult != 1.0:
 		card.temp_mult_buff(atk_mult, hp_mult)
 
-	# ★3: M ≥ allies_threshold 시 모든 아군에게 ATK +M × allies_atk_pct_per_m
+	# ★3: ★3 카드 수 ≥ allies_threshold 시 모든 아군에게 ATK +★3수 × allies_atk_pct_per_m
+	# (threshold 와 aura 배율 모두 정수 ★3 카운트 기준 — ★2 는 self buff 에만 기여)
 	var threshold: int = eff.get("allies_threshold", 0)
 	var allies_atk_per: float = eff.get("allies_atk_pct_per_m", 0.0)
-	if threshold > 0 and m >= threshold and allies_atk_per > 0.0:
-		var allies_mult: float = 1.0 + allies_atk_per * m
+	if threshold > 0 and star3_count >= threshold and allies_atk_per > 0.0:
+		var allies_mult: float = 1.0 + allies_atk_per * star3_count
 		for c in board:
 			if c == null or c == card:
 				continue

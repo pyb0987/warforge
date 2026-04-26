@@ -1814,7 +1814,7 @@ func _register_neutral() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "include_self": true}
+					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "star2_weight": 0.5, "include_self": true}
 				],
 			}
 		],
@@ -1830,7 +1830,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "include_self": true}
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "star2_weight": 0.5, "include_self": true}
 					],
 				}
 			],
@@ -1845,7 +1845,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "star2_weight": 0.5, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
 					],
 				}
 			],

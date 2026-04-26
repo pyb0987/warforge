@@ -208,7 +208,8 @@ func test_fusion_end_m3_triggers_allies_aura() -> void:
 
 
 func test_fusion_end_star2_no_allies_aura() -> void:
-	## ★2: allies_atk_pct_per_m 없음 → M ≥ 3 라도 아군 buff 안 함 (multi-review 누락 ★)
+	## ★2: allies_atk_pct_per_m 없음 → ★3 N≥3 라도 아군 buff 안 함 (multi-review 누락 ★)
+	## A안: ★2 self 는 weight 0.5 로 M 에 포함 → M = 2 (★3) + 0.5 (★2 self) = 2.5
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
 	card.evolve_star()  # ★2
 	var ally1: CardInstance = CardInstance.create("sp_assembly")
@@ -218,12 +219,69 @@ func test_fusion_end_star2_no_allies_aura() -> void:
 	ally2.evolve_star()
 	ally2.evolve_star()
 	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
-	# ★2 self M=2 → ATK ×(1+0.55×2)=2.1, HP ×(1+0.20×2)=1.4
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2, 0.001,
-		"★2 self M=2 → ATK ×2.10")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2, 0.001,
-		"★2 self M=2 → HP ×1.40")
+	# ★2 self M=2.5 → ATK ×(1+0.55×2.5)=2.375, HP ×(1+0.20×2.5)=1.5
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2.5, 0.001,
+		"★2 self M=2.5 → ATK ×2.375")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2.5, 0.001,
+		"★2 self M=2.5 → HP ×1.50")
 	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001, "★2 → 아군 aura 없음")
+
+
+func test_fusion_end_star2_weight_self_only() -> void:
+	## A안: ★2 self 단독, ★3 0장 → M = 0.5 (★2 self × 0.5).
+	## 0 < M 이므로 self buff 발동.
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()  # ★2
+	var sp_card: CardInstance = CardInstance.create("sp_assembly")  # ★1
+	_sys.apply_battle_start(card, 0, [card, sp_card])
+	# ★2 self M=0.5 → ATK ×(1+0.55×0.5)=1.275, HP ×(1+0.20×0.5)=1.10
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 0.5, 0.001,
+		"★2 self only M=0.5 → ATK ×1.275")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 0.5, 0.001,
+		"★2 self only M=0.5 → HP ×1.10")
+
+
+func test_fusion_end_star3_with_star2_ally() -> void:
+	## A안: self ★3 + ally ★2 → star3=1, M = 1 + 0.5 = 1.5.
+	## ★3 self 스케일에 ★2 가중치 합산.
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()
+	card.evolve_star()  # ★3
+	var ally2: CardInstance = CardInstance.create("sp_assembly")
+	ally2.evolve_star()  # ★2
+	_sys.apply_battle_start(card, 0, [card, ally2])
+	# ★3 self M=1.5 → ATK ×(1+0.65×1.5)=1.975, HP ×(1+0.35×1.5)=1.525
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 1.5, 0.001,
+		"★3 self + ★2 ally M=1.5 → ATK ×1.975")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.35 * 1.5, 0.001,
+		"★3 self + ★2 ally M=1.5 → HP ×1.525")
+	# aura: star3_count=1 < threshold=3 → 아군 buff 없음
+	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"★3 1장만 → 아군 aura 미발동")
+
+
+func test_fusion_end_aura_threshold_strict_star3_count() -> void:
+	## ★3 self + ★2 ally 4장 → M = 1 + 4×0.5 = 3.0 (≥ threshold=3) 이지만
+	## aura threshold 는 정수 ★3 카운트 기준 (=1) → aura 미발동.
+	## (★2 가중 합산이 aura threshold 를 넘기지 못함을 검증)
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()
+	card.evolve_star()  # ★3
+	var allies: Array = []
+	for i in range(4):
+		var a: CardInstance = CardInstance.create("sp_assembly")
+		a.evolve_star()  # ★2
+		allies.append(a)
+	var board: Array = [card]
+	board.append_array(allies)
+	_sys.apply_battle_start(card, 0, board)
+	# self M=3.0 → ATK ×(1+0.65×3)=2.95
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 3.0, 0.001,
+		"M=3.0 self ATK ×2.95")
+	# aura 미발동: star3_count=1 < 3
+	for a in allies:
+		assert_almost_eq((a as CardInstance).stacks[0]["temp_atk_mult"], 1.0, 0.001,
+			"★3 카운트<3 → aura 미발동")
 
 
 func test_fusion_end_m2_below_threshold_no_aura() -> void:

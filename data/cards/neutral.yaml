@@ -888,6 +888,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.40
             hp_pct_per_m: 0.15
+            star2_weight: 0.5
             include_self: true
       2:
         effects:
@@ -896,6 +897,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.55
             hp_pct_per_m: 0.20
+            star2_weight: 0.5
             include_self: true
       3:
         effects:
@@ -904,6 +906,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.65
             hp_pct_per_m: 0.35
+            star2_weight: 0.5
             include_self: true
             allies_threshold: 3
             allies_atk_pct_per_m: 0.07

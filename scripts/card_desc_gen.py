@@ -97,8 +97,8 @@ TARGET = {
     "all_steampunk":     "모든 스팀펑크 카드",
     "all_enemy":         "적 전체",
     "event_target":      "해당 카드",
-    "event_source":      "발동 카드",
-    "self_and_both_adj": "이 카드 + 양쪽 인접",
+    "event_source":      "해당 카드",
+    "self_and_both_adj": "이 카드 + 양쪽 인접 카드",
     "adj_druids":        "인접 드루이드 카드",
     "adj_or_self":       "인접 카드",
     "both_adj_or_self":  "양쪽 인접 카드",
@@ -106,7 +106,7 @@ TARGET = {
     "enhanced_units":    "(강화) 유닛",
     # Military R4/R10 재설계 target (trace 012)
     "far_military":      "인접하지 않은 다른 군대 카드",
-    "event_target_adj":  "해당 카드 양쪽 인접",
+    "event_target_adj":  "해당 카드 양쪽 인접 카드",
     "far_event_military": "해당 카드·인접 제외 다른 군대 카드",
     # Military command revive scope (trace 014)
     "self_enhanced":     "이 카드 (강화) 유닛",
@@ -187,16 +187,19 @@ def desc_enhance(p: dict) -> str:
     return f"{t}{tag_text} ATK +{fmt_pct(atk_val)}% {verb}"
 
 def desc_buff(p: dict) -> str:
+    ## 버프 효과: tag 가 있으면 '{대상} #{tag} 유닛' (tag 필터 의미 보존),
+    ## 없으면 '{대상}' 만 사용해 '유닛' 군더더기 제거.
     t = resolve_target(p["target"])
-    tag = f" #{tag_kr(p['tag'])}" if p.get("tag") else ""
+    has_tag = bool(p.get("tag"))
+    scope = f"{t} #{tag_kr(p['tag'])} 유닛" if has_tag else t
     if p.get("atk_mult"):
-        text = f"{t}{tag} 유닛 ATK ×{p['atk_mult']}(이번 전투)"
+        text = f"{scope} ATK ×{p['atk_mult']}(이번 전투)"
     elif p.get("as_bonus"):
         # military ml_tactical R10: 모든 군대 카드 AS +15%
-        text = f"{t}{tag} 유닛 AS +{fmt_pct(p['as_bonus'])}%(이번 전투)"
+        text = f"{scope} AS +{fmt_pct(p['as_bonus'])}%(이번 전투)"
     else:
         atk = fmt_pct(p["atk_pct"])
-        text = f"{t}{tag} 유닛 ATK +{atk}%(이번 전투)"
+        text = f"{scope} ATK +{atk}%(이번 전투)"
     if p.get("kill_hp_recover"):
         text += ". 적 처치 HP 회복"
     return text
@@ -210,7 +213,7 @@ def desc_terazin(amount) -> str:
 def desc_shield(p: dict) -> str:
     t = resolve_target(p["target"])
     pct = fmt_pct(p["hp_pct"])
-    return f"{t} 유닛에 방어막(HP {pct}%)"
+    return f"{t}에 방어막(HP {pct}%)"
 
 def desc_scrap(p: dict) -> str:
     n = p["count"]
@@ -361,18 +364,18 @@ def desc_multiply_stats(p: dict) -> str:
     atk_per = p["atk_per_tree"]
     tgt_str = resolve_target(p.get("target", "all_allies"))
 
-    lines = [f"[지속] {tgt_str} 유닛 스탯 배수 적용:"]
-    lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}당 +{atk_per}×)")
+    lines = [f"[지속] {tgt_str} 스탯 배수 적용:"]
+    lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}개마다 +{atk_per}×)")
     if p.get("hp_base"):
         hp_step = p.get("hp_tree_step", atk_step)
         hp_per = p.get("hp_per_tree", 0)
-        hp_tail = (f" (전체 나무 수 {hp_step}당 +{hp_per}×)"
+        hp_tail = (f" (전체 나무 수 {hp_step}개마다 +{hp_per}×)"
                    if hp_per else "")
         lines.append(f"  HP ×{p['hp_base']}{hp_tail}")
     if p.get("as_base") and p["as_base"] != 1.0:
         as_step = p.get("as_tree_step", atk_step)
         as_per = p.get("as_per_tree", 0)
-        as_tail = (f" (전체 나무 수 {as_step}당 +{as_per}×)"
+        as_tail = (f" (전체 나무 수 {as_step}개마다 +{as_per}×)"
                    if as_per else "")
         lines.append(f"  AS ×{p['as_base']}{as_tail}")
     return "\n".join(lines)
@@ -450,8 +453,8 @@ def desc_swarm_buff(p: dict) -> str:
     ## P2-3 + iter3 N1 + iter4 L1:
     ## 집계 prefix가 atk_per_unit + ms_thresh 양쪽에 공통 적용됨을 명시.
     ## ms/as 조건 문장은 '+' 연결자로 단일 segment 내부에 머물게 해서
-    ## compress_repeated_target이 '동 대상'으로 축약하는 상황을 방지 —
-    ## 플레이어가 '동 대상'의 지시 대상을 혼동하지 않도록.
+    ## compress_repeated_target이 '그 카드'로 축약하는 상황을 방지 —
+    ## 플레이어가 '그 카드'의 지시 대상을 혼동하지 않도록.
     t = resolve_target(p["target"])
     atk = fmt_pct(p["atk_per_unit"])
     per_n = p.get("per_n", 1)
@@ -654,7 +657,7 @@ def desc_enhance_convert_target(p: dict) -> str:
 def desc_crit_buff(p: dict) -> str:
     chance = fmt_pct(p["chance"])
     mult = p["mult"]
-    return f"이 카드 유닛 치명타 {chance}% (×{mult} 피해)"
+    return f"이 카드 치명타 {chance}% (×{mult} 피해)"
 
 def desc_crit_splash(p: dict) -> str:
     pct = fmt_pct(p["splash_pct"])
@@ -668,7 +671,7 @@ def desc_rank_buff_hp(p: dict) -> str:
 def desc_lifesteal(p: dict) -> str:
     t = resolve_target(p["target"])
     pct = fmt_pct(p["pct"])
-    return f"{t} 유닛 라이프스틸 {pct}%"
+    return f"{t} 라이프스틸 {pct}%"
 
 def desc_high_rank_mult(p: dict) -> str:
     rank = p["rank"]
@@ -718,7 +721,7 @@ def desc_mirror_l2(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     elif hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"자신 {' '.join(parts)} 영구 강화"
+    base = f"이 카드 {' '.join(parts)} 영구 강화"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     if div:
@@ -727,7 +730,7 @@ def desc_mirror_l2(p: dict) -> str:
 
 
 def desc_gear_diversity_enhance(p: dict) -> str:
-    """sp_global_workshop — 보드에 비-스팀펑크 카드 1장+ 시 #기어 강화."""
+    """sp_global_workshop — 필드에 비-스팀펑크 카드 1장+ 시 #기어 강화."""
     min_n = p.get("min_non_steampunk", 1)
     atk = p.get("atk_pct", 0.0)
     hp = p.get("hp_pct", 0.0)
@@ -738,32 +741,32 @@ def desc_gear_diversity_enhance(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"보드에 비-스팀펑크 {min_n}장+ 시 #기어 유닛 {' '.join(parts)} 영구 강화"
+    base = f"필드에 비-스팀펑크 {min_n}장+ 시 #기어 유닛 {' '.join(parts)} 영구 강화"
     if spawn_n and spawn_thresh:
         base += f" (비-스팀펑크 {spawn_thresh}장+ 시 #기어 유닛 {spawn_n}기 추가)"
     return base
 
 
 def desc_theme_count_conscript(p: dict) -> str:
-    """ml_alliance RS — 보드 테마 수 × mult 만큼 신병(ml_recruit) 추가."""
+    """ml_alliance RS — 필드 테마 수 × mult 만큼 신병(ml_recruit) 추가."""
     mult = p.get("mult", 1)
     if mult == 1:
-        return "보드 테마 수만큼 자신에 신병 추가"
-    return f"보드 테마 수 × {mult}만큼 자신에 신병 추가"
+        return "필드 테마 수만큼 이 카드에 신병 추가"
+    return f"필드 테마 수 × {mult}만큼 이 카드에 신병 추가"
 
 
 def desc_theme_count_spawn(p: dict) -> str:
-    """ml_alliance BS — 보드 테마 수 × mult 만큼 랜덤 아군에 spawn,
+    """ml_alliance BS — 필드 테마 수 × mult 만큼 랜덤 아군에 spawn,
     instant_conscript_threshold 시 즉시 신병 등장.
     block timing prefix ('전투 시작:')는 상위 desc_gen에서 추가 — 여기선 본문만."""
     mult = p.get("mult", 1)
     thresh = p.get("instant_conscript_threshold", 0)
     if mult == 1:
-        base = "보드 테마 수만큼 랜덤 아군 유닛 추가"
+        base = "필드 테마 수만큼 랜덤 아군 유닛 추가"
     else:
-        base = f"보드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
+        base = f"필드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
     if thresh:
-        base += f" (테마 {thresh}+ 시 자신에 신병 1기 즉시 등장)"
+        base += f" (테마 {thresh}+ 시 이 카드에 신병 1기 즉시 등장)"
     return base
 
 
@@ -778,7 +781,7 @@ def desc_mirror_spawn_to_tree(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    self_part = f", 자신 {' '.join(parts)} 영구 강화" if parts else ""
+    self_part = f", 이 카드 {' '.join(parts)} 영구 강화" if parts else ""
     return f"비-드루이드 대상이면 🌳 +{tree}{self_part}"
 
 
@@ -798,16 +801,16 @@ def desc_mirror_l1(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"비-중립 대상이면 자신 {' '.join(parts)} 영구 강화"
+    base = f"비-중립 대상이면 이 카드 {' '.join(parts)} 영구 강화"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     return base
 
 
 def desc_clone_self_to_bench(p: dict) -> str:
-    """ne_clone_seed RS — 벤치에 자기 ★1 복사본 추가."""
+    """ne_clone_seed RS — 벤치에 이 카드의 ★1 복사본 추가."""
     star = p.get("star", 1)
-    return f"벤치에 자기 ★{star} 복사본 추가"
+    return f"벤치에 이 카드의 ★{star} 복사본 추가"
 
 
 def desc_tenure_gold(p: dict) -> str:
@@ -822,7 +825,7 @@ def desc_tenure_gold(p: dict) -> str:
 
 
 def desc_duplicate_buff_aura(p: dict) -> str:
-    """ne_legion PERSISTENT — 보드 중복 카드(같은 template_id 2장+)들에
+    """ne_legion PERSISTENT — 필드 중복 카드(같은 template_id 2장+)들에
     ATK/HP buff. N_excl=중복 카드 수-1."""
     atk = p.get("atk_pct_per_n", 0.0)
     hp = p.get("hp_pct_per_n", 0.0)
@@ -832,7 +835,7 @@ def desc_duplicate_buff_aura(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"보드 중복 카드들 각각 {' / '.join(parts)} × (같은 종류 수 - 1)"
+    base = f"필드 중복 카드들 각각 다른 사본 1장당 {' / '.join(parts)}"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     return base
@@ -857,17 +860,18 @@ def desc_empty_slot_scaling(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"필드 빈칸 1개당 자신 {' / '.join(parts)}"
+    base = f"필드 빈칸 1개당 이 카드 {' / '.join(parts)}"
     if as_div:
         base += f" + AS 가속 (빈칸 1개당 ÷(1+{fmt_pct(as_div)}%))"
     return base + " (이번 전투)"
 
 
 def desc_star3_count_scaling(p: dict) -> str:
-    """ne_fusion_end BS — 보드 ★3 카드 수 M 만큼 self ATK/HP scaling.
-    ★3은 allies_threshold 도달 시 모든 아군 ATK aura 추가."""
+    """ne_fusion_end BS — 필드 ★3 카드 수 + ★2 카드 수 × star2_weight 만큼
+    이 카드 ATK/HP scaling. ★3은 allies_threshold 도달 시 모든 아군 ATK aura 추가."""
     atk = p.get("atk_pct_per_m", 0.0)
     hp = p.get("hp_pct_per_m", 0.0)
+    s2_weight = p.get("star2_weight", 0.0)
     a_atk = p.get("allies_atk_pct_per_m", 0.0)
     a_thresh = p.get("allies_threshold", 0)
     parts = []
@@ -875,16 +879,20 @@ def desc_star3_count_scaling(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"보드 ★3 카드 1장당 자신 {' / '.join(parts)}"
+    if s2_weight:
+        unit_label = f"필드 ★3 1장 + ★2 {s2_weight:g}장당"
+    else:
+        unit_label = "필드 ★3 카드 1장당"
+    base = f"{unit_label} 이 카드 {' / '.join(parts)}"
     if a_atk and a_thresh:
         base += f" (★3 {a_thresh}장+ 시 모든 아군 ATK +{fmt_pct(a_atk)}%×★3수)"
     return base + " (이번 전투)"
 
 
 def desc_transfer_upgrade(p: dict) -> str:
-    """ne_clone_seed ★3 SELL — 자신의 업그레이드 1개를 필드 카드로 이전."""
+    """ne_clone_seed ★3 SELL — 이 카드의 업그레이드 1개를 필드 카드로 이전."""
     count = p.get("count", 1)
-    return f"자신의 업그레이드 {count}개를 필드 카드 1장에 이전"
+    return f"이 카드의 업그레이드 {count}개를 필드 카드 1장에 이전"
 
 
 def desc_all_themes_field_bonus(p: dict) -> str:
@@ -899,7 +907,7 @@ def desc_all_themes_field_bonus(p: dict) -> str:
         parts.append(f"모든 아군 ATK +{fmt_pct(a_atk)}%")
     if a_hp:
         parts.append(f"모든 아군 HP +{fmt_pct(a_hp)}%")
-    return "보드에 5테마 모두 존재 시 " + " + ".join(parts)
+    return "필드에 5테마 모두 존재 시 " + " + ".join(parts)
 
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
@@ -1210,7 +1218,7 @@ def compress_repeated_target(body: str) -> str:
     예 (ne_awakening ★1):
       '필드 위 모든 카드에 2기 유닛. 필드 위 모든 카드 ATK +10% 영구 강화.
        필드 위 모든 카드 유닛에 방어막(HP 20%)'
-    →  '필드 위 모든 카드에 2기 유닛, 동 대상 ATK +10% 영구 강화, 동 대상
+    →  '필드 위 모든 카드에 2기 유닛, 그 카드 ATK +10% 영구 강화, 그 카드
         유닛에 방어막(HP 20%)'
 
     대상 prefix 후보는 TARGET dict에 정의된 한국어 라벨 중 **4자 이상** 만
@@ -1240,9 +1248,11 @@ def compress_repeated_target(body: str) -> str:
                 matched = tlabel
                 break
         if matched:
-            # Replace the repeated prefix with "동 대상" and use comma join.
-            suffix = seg[len(matched):].lstrip()
-            out[-1] = out[-1] + ", 동 대상 " + suffix
+            # Replace the repeated prefix with "그 카드" and use comma join.
+            # suffix preserves leading space (or particle attached directly,
+            # e.g. '에 방어막') so '그 카드' bonds correctly without extra gap.
+            suffix = seg[len(matched):]
+            out[-1] = out[-1] + ", 그 카드" + suffix
         else:
             out.append(seg)
             current_prefix = ""
