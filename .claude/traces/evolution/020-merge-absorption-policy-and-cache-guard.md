@@ -59,8 +59,11 @@ Verification 중 stale class_cache 이슈 발견. commit `8532451` (Phase 3b-2b)
 - search-set SS-008 등재 (verify: cache rebuild 후 GUT 통과 확인)
 - CLAUDE.md Build 섹션에 cache rebuild 가이드 명시
 
-### Out-of-scope (향후)
+### Floor 작업 폐기 (post-implementation 검증)
 
-- UI/desc에 stack mult 0.01 floor 적용 (`card_desc_gen.py`, 카드 툴팁)
-- 드루이드 `low_unit thresh` / `unit_cap` 충돌 카드 재설계 — 합성 시 유닛 3배 흡수가 "소수 정예" 정체성과 정면 충돌 (생명의 맥동, 오래된 근원, 뿌리깊은 자, 태고의 분노)
-- DESIGN.md / docs/design/upgrade.md ★합성 섹션 동기화
+stack mult의 0.01 floor는 처음 "UI/desc 시점에만 적용" 안으로 결정됐으나, post-impl 검토 결과 **현재 UI 어디에서도 부동소수점 mult를 직접 표시하지 않음** ([card_visual.gd:107](godot/scripts/build/card_visual.gd:107) 모두 `%.0f` 정수, [card_tooltip.gd:122](godot/scripts/ui/card_tooltip.gd:122) `growth_*_pct`는 `%.0f%%` 정수 %, [card_desc_gen.py:355-378](scripts/card_desc_gen.py:355) `desc_multiply_stats`는 YAML 설계 파라미터만 표시). 세계수도 누적 mult 결과를 UI에 노출하지 않으므로 floor 작업 자체 불필요. 본 iteration에서 폐기.
+
+### Out-of-scope (향후) — iter 21에서 처리됨
+
+- ~~드루이드 `low_unit thresh` / `unit_cap` 충돌 카드 재설계~~ → traces/evolution/021
+- ~~DESIGN.md / docs/design/upgrade.md ★합성 섹션 동기화~~ → iter 21에서 함께 처리
