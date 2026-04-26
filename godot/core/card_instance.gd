@@ -285,14 +285,16 @@ func multiply_unique_stats(atk_pct: float, hp_pct: float) -> void:
 ##   OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade, high_rank_applied)
 ##   기타 theme_state (그룹C/D): survivor 유지
 ##   activations_used / threshold_fired: 호출자(try_merge)가 별도 리셋
-func absorb_donor(donor: CardInstance) -> void:
-	# 유닛 (cap 적용)
+func absorb_donor(donor: CardInstance, skip_units: bool = false) -> void:
+	# 유닛 (cap 적용). skip_units=true (fresh donor)면 유닛 흡수만 건너뜀.
+	# stack mult 등 다른 stat은 skip 여부와 무관하게 정상 흡수.
 	for si in donor.stacks.size():
 		if si < stacks.size():
-			var room: int = get_unit_cap() - get_total_units()
-			if room > 0:
-				var take: int = mini(donor.stacks[si]["count"], room)
-				stacks[si]["count"] += take
+			if not skip_units:
+				var room: int = get_unit_cap() - get_total_units()
+				if room > 0:
+					var take: int = mini(donor.stacks[si]["count"], room)
+					stacks[si]["count"] += take
 			# stack mult 곱셈 (count truncate와 무관하게 항상 흡수)
 			stacks[si]["upgrade_atk_mult"] *= donor.stacks[si]["upgrade_atk_mult"]
 			stacks[si]["upgrade_hp_mult"] *= donor.stacks[si]["upgrade_hp_mult"]
@@ -443,6 +445,8 @@ func add_specific_unit(unit_id: String, count: int) -> int:
 	stacks.append({
 		"unit_type": ut, "count": actual,
 		"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
+		# [고유효과] mult — _init_stacks와 동일한 키 셋 (multiply_unique_stats 안전 접근).
+		"unique_atk_mult": 1.0, "unique_hp_mult": 1.0,
 		"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0,
 	})
 	stats_changed.emit()
@@ -501,7 +505,13 @@ func metamorphosis(consume_count: int) -> bool:
 			found = true
 			break
 	if not found:
-		stacks.append({"unit_type": strongest_unit_type, "count": 1})
+		# _init_stacks와 동일한 키 셋 (multiply_unique_stats 등 안전 접근).
+		stacks.append({
+			"unit_type": strongest_unit_type, "count": 1,
+			"upgrade_atk_mult": 1.0, "upgrade_hp_mult": 1.0,
+			"unique_atk_mult": 1.0, "unique_hp_mult": 1.0,
+			"temp_atk": 0.0, "temp_atk_mult": 1.0, "temp_hp_mult": 1.0,
+		})
 	stats_changed.emit()
 	return true
 

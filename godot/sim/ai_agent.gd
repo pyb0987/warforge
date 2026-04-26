@@ -980,15 +980,15 @@ func _arrange_board(state: GameState) -> void:
 	# Solve optimal positions
 	var ordered: Array = _position_solver.solve_positions(active)
 
-	# Write back
+	# Write back — solve_positions 결과로 보드 재배치 (기존 카드 이동, 신규 spawn 아님)
 	for idx in active_indices:
-		state.board[idx] = null
+		state.board[idx] = null  # lint:allow zone-assign — 재배치 전 비우기
 	var slot := 0
 	for card in ordered:
 		while slot < state.field_slots and state.board[slot] != null:
 			slot += 1
 		if slot < state.field_slots:
-			state.board[slot] = card
+			state.board[slot] = card  # lint:allow zone-assign — 재배치 (이동)
 			slot += 1
 
 

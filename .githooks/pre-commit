@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# pre-commit: card spawn 단일 진입점 위반 차단.
+# 활성화: git config core.hooksPath .githooks (1회 / clone당)
+# 우회: SKIP_LINT=1 git commit ...
+
+set -e
+
+if [ -n "$SKIP_LINT" ]; then
+    echo "[pre-commit] SKIP_LINT=1 — lint 우회"
+    exit 0
+fi
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+LINT_SCRIPT="$REPO_ROOT/scripts/lint_card_spawn.py"
+
+if [ ! -f "$LINT_SCRIPT" ]; then
+    exit 0
+fi
+
+STAGED_GD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.gd$' || true)
+
+if [ -z "$STAGED_GD" ]; then
+    exit 0
+fi
+
+echo "$STAGED_GD" | xargs python3 "$LINT_SCRIPT"

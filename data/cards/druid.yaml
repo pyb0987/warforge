@@ -80,7 +80,7 @@ cards:
             base_pct: 0.08
             tree_scale_pct: 0.04
             low_unit:
-              thresh: 6
+              thresh: 4
               mult: 1.5
       3:
         effects:
@@ -94,7 +94,7 @@ cards:
             base_pct: 0.08
             tree_scale_pct: 0.05
             low_unit:
-              thresh: 18
+              thresh: 8
               mult: 1.5
   dr_origin:
     name: 오래된 근원
@@ -140,7 +140,7 @@ cards:
             target: all_druid
             base_pct: 0.006
             low_unit:
-              thresh: 6
+              thresh: 4
               pct: 0.009
       3:
         effects:
@@ -156,7 +156,7 @@ cards:
             target: all_druid
             base_pct: 0.006
             low_unit:
-              thresh: 18
+              thresh: 8
               pct: 0.009
             tree_bonus:
               thresh: 8
@@ -293,7 +293,7 @@ cards:
             target: self
             base_pct: 0.012
             low_unit:
-              thresh: 6
+              thresh: 4
               pct: 0.018
             tree_bonus:
               thresh: 8
@@ -309,7 +309,7 @@ cards:
             target: self
             base_pct: 0.012
             low_unit:
-              thresh: 18
+              thresh: 8
               pct: 0.018
             tree_bonus:
               thresh: 8
@@ -398,7 +398,7 @@ cards:
           max_act: -1
           tree_temp_buff:
             target: self
-            unit_cap: 9
+            unit_cap: 8
             atk_base_pct: 1.2
             atk_tree_pct: 0.08
             hp_pct: 0.6
@@ -408,7 +408,7 @@ cards:
           max_act: -1
           tree_temp_buff:
             target: self
-            unit_cap: 27
+            unit_cap: 16
             atk_mult: 1.5
             hp_mult: 1.3
             kill_hp_recover: true

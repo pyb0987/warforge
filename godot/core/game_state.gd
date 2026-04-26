@@ -122,6 +122,39 @@ func add_to_bench(card: CardInstance) -> int:
 	return -1  # bench full
 
 
+## Spawn a new card to bench and run auto-merge with fresh tracking.
+## 모든 "신규 카드 생성" 경로의 단일 진입점 (구매/보스 보상/부적/카드효과).
+## CardInstance.create + commander 보너스 + add_to_bench + try_merge(fresh_ref=card).
+##
+## Commander 보너스는 try_merge 전에 적용 — 이후 absorb_donor max 정책으로
+## survivor에 자연스럽게 전파됨.
+##
+## Returns: {card, bench_idx, merge_steps} on success, {} if create failed,
+##          {card, bench_idx=-1, merge_steps=[]} if bench full.
+func spawn_card(template_id: String) -> Dictionary:
+	var card := CardInstance.create(template_id)
+	if card == null:
+		return {}
+	Commander.apply_card_bonuses(self, card)
+	var bench_idx := add_to_bench(card)
+	if bench_idx < 0:
+		return {"card": card, "bench_idx": -1, "merge_steps": []}
+	var merge_steps := try_merge(template_id, card)
+	return {"card": card, "bench_idx": bench_idx, "merge_steps": merge_steps}
+
+
+## Spawn a clone (system-created card, e.g. ne_clone_seed). 벤치에만 추가하고
+## auto-merge는 트리거하지 않는다 — 클론은 라운드 종료 RS 결과로 들어오므로
+## 동일 라운드 합성 흐름에서 분리됨.
+func add_clone(template_id: String) -> CardInstance:
+	var clone := CardInstance.create(template_id)
+	if clone == null:
+		return null
+	if add_to_bench(clone) < 0:
+		return null  # bench full → silent drop (기존 클론 동작 보존)
+	return clone
+
+
 ## Remove card from zone. Returns the card or null.
 func remove_card(zone: String, idx: int) -> CardInstance:
 	var arr := _get_zone(zone)
@@ -167,10 +200,19 @@ func calc_interest() -> int:
 ## Returns Array[Dictionary] — each element is {card, old_star, new_star} for
 ## one merge step. Empty array if no merge happened.
 ## Cascade example: [★1→★2 step, ★2→★3 step].
-func try_merge(template_id: String) -> Array:
+##
+## fresh_ref (2026-04-26): "갓 생성된" 카드를 인자로 전달하면 합성 시 해당 카드의
+## 유닛 흡수를 skip하고 survivor 선정에서 후순위로 둠 (3장 → 2장분량 정책).
+## 캐스케이드 시 fresh-include step의 survivor도 다음 step에서 fresh로 추적
+## (로컬 set 전파). 카드 필드(is_fresh)는 도입하지 않음 — 호출 컨텍스트 한정.
+func try_merge(template_id: String, fresh_ref: CardInstance = null) -> Array:
 	var steps: Array = []
+	# 캐스케이드 fresh 전파용 로컬 set (CardInstance ref들).
+	var fresh_set: Array = []
+	if fresh_ref != null:
+		fresh_set.append(fresh_ref)
 	while true:
-		var step := _try_merge_once(template_id)
+		var step := _try_merge_once(template_id, fresh_set)
 		if step.is_empty():
 			break
 		steps.append(step)
@@ -179,7 +221,9 @@ func try_merge(template_id: String) -> Array:
 
 ## Perform a single merge step: find lowest ★ group with 3+ copies, merge 3.
 ## Returns {card, old_star, new_star} or {}.
-func _try_merge_once(template_id: String) -> Dictionary:
+## fresh_set: 이번 호출의 fresh 카드 ref 모음. 캐스케이드 단계에서 fresh-include시
+## 결과 survivor도 fresh_set에 추가하여 다음 단계 전파.
+func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 	# Group copies by star_level
 	var by_star: Dictionary = {}  # int star -> Array[{zone, idx, card}]
 	for i in board.size():
@@ -207,14 +251,25 @@ func _try_merge_once(template_id: String) -> Dictionary:
 	if copies.size() < 3:
 		return {}
 
-	# Survivor 선정: 업그레이드 수 최대 → 동점 시 iteration 순서 (board leftmost → bench leftmost)
+	# Survivor 선정 3-tier (2026-04-26):
+	#   1. 업그레이드 수 max
+	#   2. 동률 시 non-fresh 우선 (fresh_set에 없는 카드)
+	#   3. 동률 시 iteration 순서 (board leftmost → bench leftmost)
 	var survivor_idx := 0
 	var max_upg: int = copies[0]["card"].upgrades.size()
+	var survivor_is_fresh: bool = copies[0]["card"] in fresh_set
 	for ci in range(1, copies.size()):
-		var upg_count: int = copies[ci]["card"].upgrades.size()
+		var cand: CardInstance = copies[ci]["card"]
+		var upg_count: int = cand.upgrades.size()
+		var cand_is_fresh: bool = cand in fresh_set
 		if upg_count > max_upg:
 			max_upg = upg_count
 			survivor_idx = ci
+			survivor_is_fresh = cand_is_fresh
+		elif upg_count == max_upg and survivor_is_fresh and not cand_is_fresh:
+			# 업그레이드 동률 + 현 후보 fresh + cand non-fresh → 교체
+			survivor_idx = ci
+			survivor_is_fresh = false
 	# Reorder so survivor is at index 0
 	if survivor_idx != 0:
 		var tmp = copies[0]
@@ -223,15 +278,23 @@ func _try_merge_once(template_id: String) -> Dictionary:
 
 	var survivor: CardInstance = copies[0]["card"]
 	var old_star := survivor.star_level
+	# 이번 step에 fresh가 포함됐는지 (캐스케이드 전파용)
+	var step_has_fresh: bool = false
+	for ci in copies:
+		if ci["card"] in fresh_set:
+			step_has_fresh = true
+			break
 
 	# Absorb donors via CardInstance.absorb_donor (unified policy 2026-04-26).
 	# Sum: 유닛/업그레이드/growth_*/tag_growth/upgrade_def·range·ms/shield/theme_state 그룹A
 	# Mul: stack mult, upgrade_as_mult
 	# Max: tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"]
 	# OR:  is_omni_theme, theme_state 그룹B
+	# fresh_ref 정책: donor가 fresh_set이면 유닛 흡수만 skip (그 외 stat은 정상 흡수).
 	for i in range(1, 3):
 		var donor: CardInstance = copies[i]["card"]
-		survivor.absorb_donor(donor)
+		var skip_units: bool = donor in fresh_set
+		survivor.absorb_donor(donor, skip_units)
 		# Remove donor from board/bench
 		var zone_arr := _get_zone(copies[i]["zone"])
 		zone_arr[copies[i]["idx"]] = null
@@ -250,6 +313,11 @@ func _try_merge_once(template_id: String) -> Dictionary:
 	if survivor.get_base_id() == "sp_charger" and survivor.star_level == 3:
 		terazin += 3
 		survivor.theme_state["pending_epic_upgrade"] = true
+
+	# fresh 전파: 이번 step에 fresh donor가 있었으면 survivor도 fresh_set에 추가
+	# → 캐스케이드 다음 step에서 이 survivor가 다시 fresh donor로 처리됨.
+	if step_has_fresh and survivor not in fresh_set:
+		fresh_set.append(survivor)
 
 	state_changed.emit()
 	return {"card": survivor, "old_star": old_star, "new_star": survivor.star_level}

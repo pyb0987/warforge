@@ -235,8 +235,8 @@ func hero_swap(state: GameState, idx_a: int, idx_b: int) -> bool:
 		return false
 
 	var temp = state.board[idx_a]
-	state.board[idx_a] = state.board[idx_b]
-	state.board[idx_b] = temp
+	state.board[idx_a] = state.board[idx_b]  # lint:allow zone-assign — 보드 스왑 (이동)
+	state.board[idx_b] = temp  # lint:allow zone-assign — 보드 스왑 (이동)
 	state.commander_state["hero_used"] = true
 	return true
 
