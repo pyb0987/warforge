@@ -1,5 +1,7 @@
 # Combat Side-Bias Fix — Handoff (D)
 
+> **Status: RESOLVED (2026-04-25)** — wizardly-bassi-004ffa 병합으로 simultaneous damage queue 도입, 50/50 영역 도달. 후속 검증은 `preset_parity_runner.gd` 대각선으로 흡수. 본 문서는 history 보존용.
+>
 > 작성: 2026-04-23. 다른 세션이 이 문서만 읽고 이어갈 수 있는 self-contained handoff.
 > 선행 맥락 없음 가정.
 

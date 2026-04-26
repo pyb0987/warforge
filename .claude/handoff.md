@@ -56,10 +56,9 @@
 ## 신규 자료
 
 **핸드오프 / 계획**:
-- `docs/design/combat-symmetry-handoff.md` (D, 완료됨 — resolved 마킹 권장)
-- `docs/design/combat-cp-formula-handoff.md` (C, 완료됨 — archived to episodes/)
+- `docs/design/combat-symmetry-handoff.md` (D, RESOLVED 헤더 추가됨, history 보존)
 - `docs/design/unique-effect-plan.md` (보류, factory 자체-rank 변경으로 시급도 저하)
-- `docs/episodes/2026-04-25-cp-formula-applied.md`
+- `docs/episodes/2026-04-25-cp-formula-applied.md` (C 작업 archive)
 
 **Trace**:
 - `.claude/traces/failures/008-no-op-test-setup-lines.md`
@@ -75,21 +74,14 @@
 
 ## 다음 세션 진입 시 권장 순서
 
-1. **상태 검증**:
-   ```
-   side_bias_test.gd — D 완성도 (10/10 가까운지)
-   preset_parity_runner.gd — C 효과 (off-diagonal 30-70% 진입 여부)
-   ```
+1. **상태 검증**: `preset_parity_runner.gd` — C 효과 + D 잔여 (대각선 50/50, off-diagonal 30-70% 진입 여부)
+   - ※ `side_bias_test.gd`는 da0ca88에서 삭제됨 (broken old-API). 대각선이 D 검증을 흡수.
 2. **플레이테스트 1회** — 새 시스템 통합 체감
    - 새 13장 카드 등장
    - factory self-rank 스케일링
    - 보스 보상 생존 시 지급
    - 새 CP formula로 calibrated 난이도
-3. **maintenance**:
-   - `combat-symmetry-handoff.md` resolved 마킹 또는 episodes/ 이관
-   - `combat-cp-formula-handoff.md` 동일 (archive 이미 episodes/에 있음)
-   - 미커밋 .uid 파일들 (preset_parity_runner.gd.uid 등) 정리
-4. **r12_6 spawn task** 진행 상태 확인 (별도 진행 중인지)
+3. **r12_6 spawn task** 진행 상태 확인 (별도 진행 중인지)
 
 ## 기술부채 / Dormant
 - D side bias: simultaneous damage 후 잔여 검증 필요. 만약 50/50 미달이면 collision iteration 순서까지 검토.
