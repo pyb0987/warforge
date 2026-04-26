@@ -280,7 +280,8 @@ func multiply_unique_stats(atk_pct: float, hp_pct: float) -> void:
 ##         upgrade_def/range/move_speed, shield_hp_pct
 ##   곱셈: stacks[].upgrade_atk_mult/hp_mult, upgrade_as_mult
 ##   max:  tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"],
-##         stacks[].unique_atk_mult/hp_mult, unique_as_mult ([고유효과] 분리 layer)
+##         stacks[].unique_atk_mult/hp_mult ([고유효과] ATK/HP — 큰 값이 강함)
+##   min:  unique_as_mult ([고유효과] AS — 작을수록 빠름이라 min이 "가장 빠른 도너 보존")
 ##   OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade, high_rank_applied)
 ##   기타 theme_state (그룹C/D): survivor 유지
 ##   activations_used / threshold_fired: 호출자(try_merge)가 별도 리셋
@@ -320,8 +321,9 @@ func absorb_donor(donor: CardInstance) -> void:
 	upgrade_range += donor.upgrade_range
 	upgrade_move_speed += donor.upgrade_move_speed
 	upgrade_as_mult *= donor.upgrade_as_mult
-	# [고유효과] AS — max (폭발 방지)
-	unique_as_mult = maxf(unique_as_mult, donor.unique_as_mult)
+	# [고유효과] AS — min (AS 값은 시간 단위라 작을수록 빠름. min이 "가장 빠른
+	# 도너 보존"의 의미. ATK/HP unique mult는 큰 값이 강함이라 max, AS만 min.)
+	unique_as_mult = minf(unique_as_mult, donor.unique_as_mult)
 	# Shield 합산
 	shield_hp_pct += donor.shield_hp_pct
 	# 진행도/등급 max

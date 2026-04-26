@@ -590,16 +590,17 @@ func test_merge_takes_max_unique_hp_mult_per_stack() -> void:
 			"unique_hp_mult max 합성")
 
 
-func test_merge_takes_max_unique_as_mult() -> void:
+func test_merge_takes_min_unique_as_mult() -> void:
+	## AS 값은 시간 단위 — 작을수록 빠름. min이 "가장 빠른 도너 보존" 의미.
+	## ATK/HP unique mult는 max (큰 값이 강함), AS만 min — semantic 정합.
 	var cs := _three_assembly()
 	cs[0].unique_as_mult = 0.90
-	cs[1].unique_as_mult = 0.70  # AS 값 작을수록 빠름 — 더 빠른 도너
+	cs[1].unique_as_mult = 0.70  # 가장 빠른 도너
 	cs[2].unique_as_mult = 0.85
 	_state.try_merge("sp_assembly")
-	# 사용자 정책: max(절대값) — 폭발 방지가 목적이므로 큰 값 유지
-	# 다만 AS는 작을수록 강함이라 의미 해석 주의. 정책은 일관 max.
-	assert_almost_eq(_state.board[0].unique_as_mult, 0.90, 0.0001,
-		"unique_as_mult max 합성")
+	# min(0.90, 0.70, 0.85) = 0.70 — 가장 빠른 보존
+	assert_almost_eq(_state.board[0].unique_as_mult, 0.70, 0.0001,
+		"unique_as_mult min 합성 (AS 작을수록 빠름)")
 
 
 func test_multiply_unique_stats_writes_to_unique_field_only() -> void:
