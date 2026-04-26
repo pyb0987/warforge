@@ -255,6 +255,75 @@ func multiply_stats(atk_pct: float, hp_pct: float) -> void:
 	stats_changed.emit()
 
 
+## ★ 합성 시 도너 카드의 stat을 self(survivor)로 흡수.
+## 정책 (2026-04-26):
+##   합산: 유닛, 업그레이드 어레이, growth_*_pct, tag_growth_*, theme_state 그룹A,
+##         upgrade_def/range/move_speed, shield_hp_pct
+##   곱셈: stacks[].upgrade_atk_mult/hp_mult, upgrade_as_mult
+##   max:  tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"]
+##   OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade, high_rank_applied)
+##   기타 theme_state (그룹C/D): survivor 유지
+##   activations_used / threshold_fired: 호출자(try_merge)가 별도 리셋
+func absorb_donor(donor: CardInstance) -> void:
+	# 유닛 (cap 적용)
+	for si in donor.stacks.size():
+		if si < stacks.size():
+			var room: int = get_unit_cap() - get_total_units()
+			if room > 0:
+				var take: int = mini(donor.stacks[si]["count"], room)
+				stacks[si]["count"] += take
+			# stack mult 곱셈 (count truncate와 무관하게 항상 흡수)
+			stacks[si]["upgrade_atk_mult"] *= donor.stacks[si]["upgrade_atk_mult"]
+			stacks[si]["upgrade_hp_mult"] *= donor.stacks[si]["upgrade_hp_mult"]
+	# 업그레이드 어레이 (slot cap 적용, 초과분 truncate)
+	for upg in donor.upgrades:
+		if upgrades.size() < get_max_upgrade_slots():
+			upgrades.append(upg)
+		else:
+			print("[Merge] Upgrade overflow: dropped '%s' (slot cap)" % upg.get("name", "???"))
+	# 체인강화 합산
+	growth_atk_pct += donor.growth_atk_pct
+	growth_hp_pct += donor.growth_hp_pct
+	for tag in donor.tag_growth_atk.keys():
+		tag_growth_atk[tag] = tag_growth_atk.get(tag, 0.0) + donor.tag_growth_atk[tag]
+	for tag in donor.tag_growth_hp.keys():
+		tag_growth_hp[tag] = tag_growth_hp.get(tag, 0.0) + donor.tag_growth_hp[tag]
+	# 업그레이드 stat 합산/곱셈
+	upgrade_def += donor.upgrade_def
+	upgrade_range += donor.upgrade_range
+	upgrade_move_speed += donor.upgrade_move_speed
+	upgrade_as_mult *= donor.upgrade_as_mult
+	# Shield 합산
+	shield_hp_pct += donor.shield_hp_pct
+	# 진행도/등급 max
+	tenure = maxi(tenure, donor.tenure)
+	unit_cap_bonus = maxi(unit_cap_bonus, donor.unit_cap_bonus)
+	upgrade_slot_bonus = maxi(upgrade_slot_bonus, donor.upgrade_slot_bonus)
+	# omni-theme OR
+	is_omni_theme = is_omni_theme or donor.is_omni_theme
+	# theme_state per-key 정책
+	_absorb_theme_state(donor.theme_state)
+	stats_changed.emit()
+
+
+## theme_state 흡수 정책 (그룹별).
+const _THEME_STATE_SUM_KEYS := ["trees", "manufacture_counter", "attack_stack_pct", "range_bonus"]
+const _THEME_STATE_MAX_KEYS := ["rank"]
+const _THEME_STATE_OR_KEYS := ["pending_epic_upgrade", "high_rank_applied"]
+
+
+func _absorb_theme_state(donor_state: Dictionary) -> void:
+	for key in donor_state.keys():
+		var dv = donor_state[key]
+		if key in _THEME_STATE_SUM_KEYS:
+			theme_state[key] = theme_state.get(key, 0) + dv
+		elif key in _THEME_STATE_MAX_KEYS:
+			theme_state[key] = maxi(theme_state.get(key, 0), int(dv))
+		elif key in _THEME_STATE_OR_KEYS:
+			theme_state[key] = bool(theme_state.get(key, false)) or bool(dv)
+		# else: survivor 값 유지 (그룹 C/D)
+
+
 ## Apply temporary combat buff (cleared after combat).
 func temp_buff(tag_filter, atk_pct: float) -> void:
 	for s in stacks:

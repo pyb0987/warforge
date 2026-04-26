@@ -318,3 +318,242 @@ func test_merge_cascade_preserves_upgrades_through_star3() -> void:
 	var survivor: CardInstance = steps.back()["card"]
 	var max_slots: int = survivor.get_max_upgrade_slots()
 	assert_eq(survivor.upgrades.size(), mini(9, max_slots), "캐스케이드 통해 모든 업그레이드 흡수 (5 상한)")
+
+
+# ================================================================
+# 합성 정책 v2 (2026-04-26): 도너 stat 보존
+# ----------------------------------------------------------------
+# 정책 표:
+#   유닛/업그레이드/체인강화/나무/theme_state 그룹A: 합산
+#   stack mult / upgrade_as_mult: 곱셈 누적
+#   upgrade_def/range/move_speed/shield_hp_pct: 합산
+#   tenure / rank / unit_cap_bonus / upgrade_slot_bonus: max
+#   activations_used: 0 리셋
+#   threshold_fired: false (evolve_star가 처리, 검증)
+#   theme_state 그룹B (pending_epic_upgrade, high_rank_applied), is_omni_theme: OR
+#   theme_state 그룹C/D: survivor 유지 (검증 생략)
+# ================================================================
+
+func _three_assembly() -> Array:
+	var arr: Array = []
+	for i in 3:
+		var c := CardInstance.create("sp_assembly")
+		_state.board[i] = c
+		arr.append(c)
+	return arr
+
+
+# --- 체인강화 (growth_atk_pct/hp_pct, tag_growth_*) — 합산 ---
+
+func test_merge_sums_growth_atk_pct() -> void:
+	var cs := _three_assembly()
+	cs[0].growth_atk_pct = 0.10
+	cs[1].growth_atk_pct = 0.20
+	cs[2].growth_atk_pct = 0.30
+	_state.try_merge("sp_assembly")
+	assert_almost_eq(_state.board[0].growth_atk_pct, 0.60, 0.001, "growth_atk_pct 합산")
+
+
+func test_merge_sums_growth_hp_pct() -> void:
+	var cs := _three_assembly()
+	cs[0].growth_hp_pct = 0.05
+	cs[1].growth_hp_pct = 0.15
+	cs[2].growth_hp_pct = 0.10
+	_state.try_merge("sp_assembly")
+	assert_almost_eq(_state.board[0].growth_hp_pct, 0.30, 0.001, "growth_hp_pct 합산")
+
+
+func test_merge_sums_tag_growth_per_tag() -> void:
+	var cs := _three_assembly()
+	cs[0].tag_growth_atk = {"기계": 0.10}
+	cs[1].tag_growth_atk = {"기계": 0.20, "대형": 0.05}
+	cs[2].tag_growth_atk = {"대형": 0.10}
+	_state.try_merge("sp_assembly")
+	var s: CardInstance = _state.board[0]
+	assert_almost_eq(s.tag_growth_atk.get("기계", 0.0), 0.30, 0.001, "기계 태그 합산")
+	assert_almost_eq(s.tag_growth_atk.get("대형", 0.0), 0.15, 0.001, "대형 태그 합산")
+
+
+# --- stack mult (upgrade_atk_mult/hp_mult) — 곱셈 누적 ---
+
+func test_merge_multiplies_stack_atk_mult() -> void:
+	var cs := _three_assembly()
+	for s in cs[0].stacks: s["upgrade_atk_mult"] = 1.30
+	for s in cs[1].stacks: s["upgrade_atk_mult"] = 1.20
+	for s in cs[2].stacks: s["upgrade_atk_mult"] = 1.10
+	_state.try_merge("sp_assembly")
+	# 1.30 * 1.20 * 1.10 = 1.716
+	for s in _state.board[0].stacks:
+		assert_almost_eq(s["upgrade_atk_mult"], 1.716, 0.001, "stack atk_mult 곱셈 누적")
+
+
+func test_merge_multiplies_stack_hp_mult() -> void:
+	var cs := _three_assembly()
+	for s in cs[0].stacks: s["upgrade_hp_mult"] = 1.20
+	for s in cs[1].stacks: s["upgrade_hp_mult"] = 1.10
+	for s in cs[2].stacks: s["upgrade_hp_mult"] = 1.10
+	_state.try_merge("sp_assembly")
+	# 1.20 * 1.10 * 1.10 = 1.452
+	for s in _state.board[0].stacks:
+		assert_almost_eq(s["upgrade_hp_mult"], 1.452, 0.001, "stack hp_mult 곱셈 누적")
+
+
+# --- 업그레이드 stat (def/range/ms 가산, as_mult 곱셈) ---
+
+func test_merge_sums_upgrade_def_range_ms() -> void:
+	var cs := _three_assembly()
+	cs[0].upgrade_def = 1; cs[0].upgrade_range = 0; cs[0].upgrade_move_speed = 0
+	cs[1].upgrade_def = 2; cs[1].upgrade_range = 1; cs[1].upgrade_move_speed = 1
+	cs[2].upgrade_def = 0; cs[2].upgrade_range = 2; cs[2].upgrade_move_speed = 0
+	_state.try_merge("sp_assembly")
+	var s: CardInstance = _state.board[0]
+	assert_eq(s.upgrade_def, 3, "upgrade_def 합산")
+	assert_eq(s.upgrade_range, 3, "upgrade_range 합산")
+	assert_eq(s.upgrade_move_speed, 1, "upgrade_move_speed 합산")
+
+
+func test_merge_multiplies_upgrade_as_mult() -> void:
+	var cs := _three_assembly()
+	cs[0].upgrade_as_mult = 0.90
+	cs[1].upgrade_as_mult = 0.80
+	cs[2].upgrade_as_mult = 1.00
+	_state.try_merge("sp_assembly")
+	# 0.90 * 0.80 * 1.00 = 0.72
+	assert_almost_eq(_state.board[0].upgrade_as_mult, 0.72, 0.001, "upgrade_as_mult 곱셈 누적")
+
+
+func test_merge_sums_shield_hp_pct() -> void:
+	var cs := _three_assembly()
+	cs[0].shield_hp_pct = 0.10
+	cs[1].shield_hp_pct = 0.20
+	cs[2].shield_hp_pct = 0.05
+	_state.try_merge("sp_assembly")
+	assert_almost_eq(_state.board[0].shield_hp_pct, 0.35, 0.001, "shield_hp_pct 합산")
+
+
+# --- 진행도/등급 (tenure, rank, unit_cap_bonus, upgrade_slot_bonus) — max ---
+
+func test_merge_takes_max_tenure() -> void:
+	var cs := _three_assembly()
+	cs[0].tenure = 3
+	cs[1].tenure = 7
+	cs[2].tenure = 5
+	_state.try_merge("sp_assembly")
+	assert_eq(_state.board[0].tenure, 7, "tenure max")
+
+
+func test_merge_takes_max_rank_in_theme_state() -> void:
+	var cs := _three_assembly()
+	cs[0].theme_state["rank"] = 2
+	cs[1].theme_state["rank"] = 8
+	cs[2].theme_state["rank"] = 5
+	_state.try_merge("sp_assembly")
+	assert_eq(_state.board[0].theme_state.get("rank", 0), 8, "rank max")
+
+
+func test_merge_takes_max_unit_cap_bonus() -> void:
+	var cs := _three_assembly()
+	cs[0].unit_cap_bonus = 0
+	cs[1].unit_cap_bonus = 5
+	cs[2].unit_cap_bonus = 2
+	_state.try_merge("sp_assembly")
+	assert_eq(_state.board[0].unit_cap_bonus, 5, "unit_cap_bonus max")
+
+
+func test_merge_takes_max_upgrade_slot_bonus() -> void:
+	var cs := _three_assembly()
+	cs[0].upgrade_slot_bonus = 1
+	cs[1].upgrade_slot_bonus = 0
+	cs[2].upgrade_slot_bonus = 0
+	_state.try_merge("sp_assembly")
+	assert_eq(_state.board[0].upgrade_slot_bonus, 1, "upgrade_slot_bonus max")
+
+
+# --- theme_state 그룹A 합산 ---
+
+func test_merge_sums_theme_state_group_a() -> void:
+	var cs := _three_assembly()
+	for c in cs:
+		c.theme_state["trees"] = 0
+	cs[0].theme_state["trees"] = 5
+	cs[1].theme_state["trees"] = 3
+	cs[2].theme_state["trees"] = 2
+	cs[0].theme_state["manufacture_counter"] = 4
+	cs[1].theme_state["manufacture_counter"] = 1
+	cs[2].theme_state["attack_stack_pct"] = 0.10
+	cs[1].theme_state["attack_stack_pct"] = 0.05
+	cs[0].theme_state["range_bonus"] = 1
+	cs[2].theme_state["range_bonus"] = 2
+	_state.try_merge("sp_assembly")
+	var ts: Dictionary = _state.board[0].theme_state
+	assert_eq(ts.get("trees", 0), 10, "trees 합산")
+	assert_eq(ts.get("manufacture_counter", 0), 5, "manufacture_counter 합산")
+	assert_almost_eq(ts.get("attack_stack_pct", 0.0), 0.15, 0.001, "attack_stack_pct 합산")
+	assert_eq(ts.get("range_bonus", 0), 3, "range_bonus 합산")
+
+
+# --- theme_state 그룹B (OR) ---
+
+func test_merge_or_pending_epic_upgrade() -> void:
+	var cs := _three_assembly()
+	cs[1].theme_state["pending_epic_upgrade"] = true
+	_state.try_merge("sp_assembly")
+	assert_true(_state.board[0].theme_state.get("pending_epic_upgrade", false),
+		"donor 1장이 true → survivor true (OR)")
+
+
+func test_merge_or_high_rank_applied() -> void:
+	var cs := _three_assembly()
+	cs[2].theme_state["high_rank_applied"] = true
+	_state.try_merge("sp_assembly")
+	assert_true(_state.board[0].theme_state.get("high_rank_applied", false),
+		"donor 1장이 true → survivor true (OR)")
+
+
+# --- is_omni_theme OR ---
+
+func test_merge_or_is_omni_theme() -> void:
+	var cs := _three_assembly()
+	cs[1].is_omni_theme = true
+	_state.try_merge("sp_assembly")
+	assert_true(_state.board[0].is_omni_theme,
+		"donor 1장이 omni → survivor omni (OR)")
+
+
+# --- activations_used 0 리셋 ---
+
+func test_merge_resets_activations_used_to_zero() -> void:
+	var cs := _three_assembly()
+	cs[0].activations_used = 2
+	cs[1].activations_used = 1
+	cs[2].activations_used = 3
+	_state.try_merge("sp_assembly")
+	assert_eq(_state.board[0].activations_used, 0,
+		"합성 후 activations_used = 0 (다음 발동 가능)")
+
+
+# --- threshold_fired false (evolve_star 동작 확인) ---
+
+func test_merge_resets_threshold_fired_via_evolve_star() -> void:
+	var cs := _three_assembly()
+	cs[0].threshold_fired = true
+	cs[1].threshold_fired = true
+	cs[2].threshold_fired = true
+	_state.try_merge("sp_assembly")
+	assert_false(_state.board[0].threshold_fired,
+		"evolve_star가 threshold_fired를 false로 리셋")
+
+
+# --- stack mult floor는 표시 시점에만 적용 (내부는 full precision) ---
+
+func test_merge_stack_mult_keeps_full_precision_internally() -> void:
+	## floor(0.01)은 UI 표시 시점에만. 내부 stack mult는 부동소수점 그대로.
+	var cs := _three_assembly()
+	for s in cs[0].stacks: s["upgrade_atk_mult"] = 1.33
+	for s in cs[1].stacks: s["upgrade_atk_mult"] = 1.27
+	for s in cs[2].stacks: s["upgrade_atk_mult"] = 1.19
+	_state.try_merge("sp_assembly")
+	# 1.33 * 1.27 * 1.19 = 2.010029 — 내부 full precision 유지
+	for s in _state.board[0].stacks:
+		assert_almost_eq(s["upgrade_atk_mult"], 2.010029, 0.0001,
+			"stack mult full precision (UI floor 분리)")
