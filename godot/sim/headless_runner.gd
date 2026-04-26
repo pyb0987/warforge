@@ -67,7 +67,7 @@ func run() -> Dictionary:
 	chain_engine.chain_event_fired.connect(_on_chain_event)
 
 	# ON_SELL triggers (e.g., sp_arsenal absorb, ne_hoarder tenure_gold,
-	# ne_clone_seed ★3 transfer_upgrade, ne_masquerade transform_theme)
+	# ne_masquerade transform_theme)
 	state.card_sold.connect(func(sold_card: CardInstance):
 		var sell_result: Dictionary = chain_engine.process_sell_triggers(
 				state.get_active_board(), sold_card)
@@ -77,21 +77,6 @@ func run() -> Dictionary:
 			state.gold = maxi(state.gold + gold_delta, 0)
 		if terazin_delta != 0:
 			state.terazin = maxi(state.terazin + terazin_delta, 0)
-		# ne_clone_seed ★3 SELL: source 카드의 첫 업그레이드를 보드 첫 카드에 부착
-		var transfer: Dictionary = sell_result.get("transfer_upgrade", {})
-		if not transfer.is_empty():
-			var src: CardInstance = transfer.get("source_card")
-			if src != null and src.upgrades.size() > 0:
-				var u_idx: int = transfer.get("source_upgrade_idx", 0)
-				if u_idx >= 0 and u_idx < src.upgrades.size():
-					var upg: Dictionary = src.upgrades[u_idx]
-					for c in state.board:
-						if c == null:
-							continue
-						var ct: CardInstance = c
-						if ct.upgrades.size() < ct.get_max_upgrade_slots():
-							ct.upgrades.append(upg)
-							break
 		# ne_masquerade SELL: target 카드 theme 변경 (★3 omni)
 		var transform: Dictionary = sell_result.get("transform_theme", {})
 		if not transform.is_empty():
@@ -199,15 +184,6 @@ func run() -> Dictionary:
 		var chain_result := chain_engine.run_growth_chain(active_board, false)
 		state.gold += chain_result["gold_earned"]
 		state.terazin += chain_result["terazin_earned"]
-		# ne_clone_seed RS 복제본을 벤치에 추가 (chain_result.clones_to_bench)
-		var sim_clones: Array = chain_result.get("clones_to_bench", [])
-		for clone_spec in sim_clones:
-			var clone_tid: String = clone_spec.get("template_id", "")
-			if clone_tid == "":
-				continue
-			var clone_inst: CardInstance = CardInstance.create(clone_tid)
-			if clone_inst != null:
-				state.add_to_bench(clone_inst)
 
 		# ---- BATTLE ----
 		# Persistent + battle_start

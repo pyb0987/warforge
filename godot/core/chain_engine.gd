@@ -97,7 +97,6 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 	var chain_count := 0
 	var gold_earned := 0
 	var terazin_earned := 0
-	var clones_to_bench: Array = []  # Phase 3b-2b: ne_clone_seed RS 결과 누적
 
 	# Phase 1: ROUND_START cards fire (left → right)
 	chain_phase_started.emit("ROUND_START")
@@ -165,9 +164,11 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 		gold_earned += result["gold"]
 		terazin_earned += result["terazin"]
 		chain_count += 1
-		# ne_clone_seed RS — 벤치 복제 신호 누적 (game_manager 가 처리)
-		if result.has("clones_to_bench"):
-			clones_to_bench.append_array(result["clones_to_bench"])
+
+		# ne_pawnbroker ★3 RS: theme_system 이 free_rerolls 신호. 즉시 callback 호출.
+		var free_rerolls: int = result.get("free_rerolls", 0)
+		if free_rerolls > 0 and pending_free_reroll_callback.is_valid():
+			pending_free_reroll_callback.call(free_rerolls)
 
 		if verbose:
 			print("    R.START %s[%d] → %devt" % [card.get_name(), i, result["events"].size()])
@@ -235,7 +236,6 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 		"chain_count": chain_count,
 		"gold_earned": gold_earned,
 		"terazin_earned": terazin_earned,
-		"clones_to_bench": clones_to_bench,
 	}
 
 
@@ -307,12 +307,13 @@ func process_sell_triggers(board: Array, sold_card: CardInstance) -> Dictionary:
 	return _theme_systems[sold_theme].process_self_sell(sold_card, board)
 
 
-## Process ON_REROLL triggers (e.g., sp_interest).
+## Process ON_REROLL triggers (e.g., sp_interest, ne_pawnbroker).
 ## Called when shop reroll occurs.
-## Returns {"terazin": int, "gold": int, "events": Array}.
+## Returns {"terazin": int, "gold": int, "events": Array, "levelup_discount": int}.
 func process_reroll_triggers(board: Array) -> Dictionary:
 	var terazin := 0
 	var gold := 0
+	var levelup_discount := 0
 	var events: Array = []
 
 	for i in board.size():
@@ -330,9 +331,13 @@ func process_reroll_triggers(board: Array) -> Dictionary:
 		var result := _execute_actions(card, i, board, -1, 0, 1.0, actions)
 		terazin += result["terazin"]
 		gold += result["gold"]
+		levelup_discount += result.get("levelup_discount", 0)
 		events.append_array(result["events"])
 
-	return {"terazin": terazin, "gold": gold, "events": events}
+	return {
+		"terazin": terazin, "gold": gold, "events": events,
+		"levelup_discount": levelup_discount,
+	}
 
 
 ## Process PERSISTENT effects (e.g., sp_warmachine range_bonus, dr_wrath ATK buff).
@@ -558,9 +563,20 @@ func _execute_actions(card: CardInstance, card_idx: int,
 	var events: Array = []
 	var gold := 0
 	var terazin := 0
+	var levelup_discount := 0
 
 	for eff in actions:
 		var action: String = eff.get("action", "")
+
+		# levelup_discount: 보드/타겟 무관 게임 상태 변경 (RNG chance + amount).
+		# ne_pawnbroker REROLL trigger 전용. target 분기 우회.
+		if action == "levelup_discount":
+			var chance: float = eff.get("chance", 1.0)
+			var amount: int = int(eff.get("amount", 1))
+			if chance >= 1.0 or _rng.randf() < chance:
+				levelup_discount += amount
+			continue
+
 		var target: String = eff.get("target", "self")
 		var targets := _resolve_targets(target, card_idx, event_target_idx, board.size())
 
@@ -707,7 +723,10 @@ func _execute_actions(card: CardInstance, card_idx: int,
 									"layer2": Enums.Layer2.NONE,
 									"source_idx": card_idx, "target_idx": board.find(ci)})
 
-	return {"events": events, "gold": gold, "terazin": terazin}
+	return {
+		"events": events, "gold": gold, "terazin": terazin,
+		"levelup_discount": levelup_discount,
+	}
 
 
 ## 보드 전체 유닛 수 합계 (MAX_BOARD_UNITS 체크용, 2026-04-19 도입).

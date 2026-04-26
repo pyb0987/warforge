@@ -778,6 +778,7 @@ func _register_neutral() -> void:
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var PCD := Enums.TriggerTiming.POST_COMBAT_DEFEAT
 	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
+	var REROLL := Enums.TriggerTiming.ON_REROLL
 	var RS := Enums.TriggerTiming.ROUND_START
 	var SELL := Enums.TriggerTiming.ON_SELL
 	var EN := Enums.Layer1.ENHANCED
@@ -1499,70 +1500,49 @@ func _register_neutral() -> void:
 			},
 		})
 
-	var cs_comp := [{"unit_id":"ne_scrap","count":2}]
-	var cs_tags := PackedStringArray(["neutral", "clone"])
-	_c("ne_clone_seed", "분열체", 1, T,
-		cs_comp,
+	var paw_comp := [{"unit_id":"ne_scrap","count":2}]
+	var paw_tags := PackedStringArray(["neutral", "reroll"])
+	_c("ne_pawnbroker", "전당포", 1, T,
+		paw_comp,
 		[
 			{
-				"trigger_timing": RS, "max_activations": -1,
+				"trigger_timing": REROLL, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "clone_self_to_bench", "star": 1}],
-			},
-			{
-				"trigger_timing": SELL, "max_activations": 1,
-				"trigger_layer1": -1, "trigger_layer2": -1,
-				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "grant_gold", "amount": -1}],
+				"actions": [{"action": "levelup_discount", "chance": 0.5, "amount": 1}],
 			}
 		],
-		cs_tags,
+		paw_tags,
 				{
 			2: {
-				"name": "분열체 ★2",
-				"composition": cs_comp,
-				"card_tags": cs_tags,
+				"name": "전당포 ★2",
+				"composition": paw_comp,
+				"card_tags": paw_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": REROLL, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "clone_self_to_bench", "star": 1},
-						{"action": "enhance", "target": "self", "atk_pct": 0.02}
-					],
-				},
-				{
-					"trigger_timing": SELL, "max_activations": 1,
-					"trigger_layer1": -1, "trigger_layer2": -1,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "grant_gold", "amount": -1}],
+					"actions": [{"action": "levelup_discount", "chance": 0.5, "amount": 2}],
 				}
 			],
 			},
 			3: {
-				"name": "분열체 ★3",
-				"composition": cs_comp,
-				"card_tags": cs_tags,
+				"name": "전당포 ★3",
+				"composition": paw_comp,
+				"card_tags": paw_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": REROLL, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "clone_self_to_bench", "star": 1},
-						{"action": "enhance", "target": "self", "atk_pct": 0.04}
-					],
+					"actions": [{"action": "levelup_discount", "chance": 1.0, "amount": 2}],
 				},
 				{
-					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_timing": RS, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "grant_gold", "amount": -1},
-						{"action": "transfer_upgrade", "target": "player_select", "source": "self", "count": 1}
-					],
+					"actions": [{"action": "free_reroll", "value": 1}],
 				}
 			],
 			},
