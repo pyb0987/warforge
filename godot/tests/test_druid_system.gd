@@ -286,13 +286,13 @@ func test_wrath_s3_uses_mult_buff() -> void:
 
 
 func test_wrath_s3_skips_if_over_unit_cap() -> void:
-	## ★3 유닛 상한은 7기(★1=5, ★2=6, ★3=7). >7기이면 미적용.
-	## 기존 2기 + 6기 = 8기 > 7 → 버프 비적용.
+	## 2026-04-26 cap 상향 (3/9/27): ★ 합성 후 정원에 맞춤.
+	## ★3 cap=27 → 28기이면 미적용. 기존 3기 + 25기 = 28기.
 	var card := _make_star("dr_wrath", 3)
-	card.add_specific_unit("dr_boar", 6)
+	card.add_specific_unit("dr_boar", 25)
 	var atk_before: float = card.get_total_atk()
 	_sys.apply_persistent(card)
-	assert_eq(card.get_total_atk(), atk_before, "8기 → 미적용")
+	assert_eq(card.get_total_atk(), atk_before, "28기 → 미적용")
 
 
 # ================================================================
