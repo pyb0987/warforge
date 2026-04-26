@@ -286,13 +286,13 @@ func test_wrath_s3_uses_mult_buff() -> void:
 
 
 func test_wrath_s3_skips_if_over_unit_cap() -> void:
-	## ★3 유닛 상한은 7기(★1=5, ★2=6, ★3=7). >7기이면 미적용.
-	## 기존 2기 + 6기 = 8기 > 7 → 버프 비적용.
+	## 2026-04-26 cap 상향 (3/9/27): ★ 합성 후 정원에 맞춤.
+	## ★3 cap=27 → 28기이면 미적용. 기존 3기 + 25기 = 28기.
 	var card := _make_star("dr_wrath", 3)
-	card.add_specific_unit("dr_boar", 6)
+	card.add_specific_unit("dr_boar", 25)
 	var atk_before: float = card.get_total_atk()
 	_sys.apply_persistent(card)
-	assert_eq(card.get_total_atk(), atk_before, "8기 → 미적용")
+	assert_eq(card.get_total_atk(), atk_before, "28기 → 미적용")
 
 
 # ================================================================
@@ -389,14 +389,15 @@ func test_world_applies_to_all_board_cards() -> void:
 		"비-드루이드 카드도 ATK ×1.10 성장")
 
 
-func test_world_as_multiplier_applies_to_upgrade_as() -> void:
-	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 upgrade_as_mult 누적.
-	## ★1 as_base 1.05 → RS 1회 후 upgrade_as_mult ×1.05.
+func test_world_as_multiplier_applies_to_unique_as() -> void:
+	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 mult 누적.
+	## 2026-04-26: 세계수는 [고유효과] → unique_as_mult 에 누적 (upgrade_as_mult 와 분리).
+	## ★1 as_base 1.05 → RS 1회 후 unique_as_mult ×1.05.
 	var card: CardInstance = CardInstance.create("dr_world")
-	var as_before: float = card.upgrade_as_mult
+	var as_before: float = card.unique_as_mult
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.upgrade_as_mult, as_before * 1.05, 0.001,
-		"★1 AS ×1.05 누적 (upgrade_as_mult)")
+	assert_almost_eq(card.unique_as_mult, as_before * 1.05, 0.001,
+		"★1 AS ×1.05 누적 (unique_as_mult)")
 
 
 func test_world_uses_forest_depth_all_druid_trees() -> void:

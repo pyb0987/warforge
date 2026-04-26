@@ -224,29 +224,22 @@ func _try_merge_once(template_id: String) -> Dictionary:
 	var survivor: CardInstance = copies[0]["card"]
 	var old_star := survivor.star_level
 
-	# Absorb units + upgrades from donor 2 copies.
-	# 유닛 상한(get_unit_cap, 기본 60 + 커맨더 보너스) 준수 — 초과분은 버린다.
-	# (이전: cap 미적용으로 sp_arsenal 등 흡수형 카드가 ★2 병합 시 70+ 기로 불어남.)
+	# Absorb donors via CardInstance.absorb_donor (unified policy 2026-04-26).
+	# Sum: 유닛/업그레이드/growth_*/tag_growth/upgrade_def·range·ms/shield/theme_state 그룹A
+	# Mul: stack mult, upgrade_as_mult
+	# Max: tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"]
+	# OR:  is_omni_theme, theme_state 그룹B
 	for i in range(1, 3):
 		var donor: CardInstance = copies[i]["card"]
-		for si in donor.stacks.size():
-			if si < survivor.stacks.size():
-				var room: int = survivor.get_unit_cap() - survivor.get_total_units()
-				if room <= 0:
-					break
-				var take: int = mini(donor.stacks[si]["count"], room)
-				survivor.stacks[si]["count"] += take
-		# Absorb donor upgrades (5-slot cap with truncate)
-		for upg in donor.upgrades:
-			if survivor.upgrades.size() < survivor.get_max_upgrade_slots():
-				survivor.upgrades.append(upg)
-			else:
-				print("[Merge] Upgrade overflow: dropped '%s' (5-slot cap)" % upg.get("name", "???"))
+		survivor.absorb_donor(donor)
 		# Remove donor from board/bench
 		var zone_arr := _get_zone(copies[i]["zone"])
 		zone_arr[copies[i]["idx"]] = null
 
-	# Evolve to next star level
+	# 합성 직후 같은 라운드 내 추가 발동을 허용 (플레이어 이득).
+	survivor.activations_used = 0
+
+	# Evolve to next star level (threshold_fired는 evolve_star가 false로 리셋)
 	survivor.evolve_star()
 
 	# 2026-04-20: 합성 보너스 ×1.30 ATK/HP 제거 (사용자 의도 외 — 업그레이드와 이중 스택으로

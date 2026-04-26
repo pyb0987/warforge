@@ -60,6 +60,10 @@ var upgrade_as_mult: float = 1.0
 ## 값 1.0 = 변화 없음, 0.5 = 2배 빠름, 2.0 = 2배 느림 (AS = 시간 단위).
 var temp_as_mult: float = 1.0
 
+## [고유효과] AS multiplier — 세계수(dr_world) 등 카드 자체 고유효과 발.
+## 합성 시 max 정책 (곱셈 누적이 ★3 캐스케이드에서 폭발하는 것을 방지).
+var unique_as_mult: float = 1.0
+
 # --- Signals ---
 signal stats_changed
 
@@ -98,6 +102,9 @@ func _init_stacks() -> void:
 			"count": comp["count"],
 			"upgrade_atk_mult": 1.0,
 			"upgrade_hp_mult": 1.0,
+			# [고유효과] mult — 세계수 등 카드 자체 효과. 합성 시 max.
+			"unique_atk_mult": 1.0,
+			"unique_hp_mult": 1.0,
 			"temp_atk": 0.0,
 			"temp_atk_mult": 1.0,
 			"temp_hp_mult": 1.0,
@@ -130,15 +137,18 @@ func eff_atk_for(stack: Dictionary) -> float:
 	var base: float = stack["unit_type"]["atk"]
 	var layer1 := 1.0 + _growth_atk_for(stack)
 	var layer2: float = stack["upgrade_atk_mult"]
-	return (base * layer1 * layer2) * stack["temp_atk_mult"] + stack["temp_atk"]
+	# [고유효과] (세계수 등) 별도 layer — 합성 시 max 정책 대상.
+	var layer_unique: float = stack.get("unique_atk_mult", 1.0)
+	return (base * layer1 * layer2 * layer_unique) * stack["temp_atk_mult"] + stack["temp_atk"]
 
 
 func eff_hp_for(stack: Dictionary) -> float:
 	var base: float = stack["unit_type"]["hp"]
 	var layer1 := 1.0 + _growth_hp_for(stack)
 	var layer2: float = stack["upgrade_hp_mult"]
+	var layer_unique: float = stack.get("unique_hp_mult", 1.0)
 	var shield := base * shield_hp_pct
-	return base * layer1 * layer2 * stack.get("temp_hp_mult", 1.0) + shield
+	return base * layer1 * layer2 * layer_unique * stack.get("temp_hp_mult", 1.0) + shield
 
 
 func get_total_units() -> int:
@@ -253,6 +263,96 @@ func multiply_stats(atk_pct: float, hp_pct: float) -> void:
 		s["upgrade_atk_mult"] *= (1.0 + atk_pct)
 		s["upgrade_hp_mult"] *= (1.0 + hp_pct)
 	stats_changed.emit()
+
+
+## [고유효과] mult 누적 — 세계수(dr_world) 등 카드 자체 효과.
+## upgrade_*_mult과 분리된 layer로 관리, 합성 시 max 정책 적용 (폭발 방지).
+func multiply_unique_stats(atk_pct: float, hp_pct: float) -> void:
+	for s in stacks:
+		s["unique_atk_mult"] *= (1.0 + atk_pct)
+		s["unique_hp_mult"] *= (1.0 + hp_pct)
+	stats_changed.emit()
+
+
+## ★ 합성 시 도너 카드의 stat을 self(survivor)로 흡수.
+## 정책 (2026-04-26):
+##   합산: 유닛, 업그레이드 어레이, growth_*_pct, tag_growth_*, theme_state 그룹A,
+##         upgrade_def/range/move_speed, shield_hp_pct
+##   곱셈: stacks[].upgrade_atk_mult/hp_mult, upgrade_as_mult
+##   max:  tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"],
+##         stacks[].unique_atk_mult/hp_mult ([고유효과] ATK/HP — 큰 값이 강함)
+##   min:  unique_as_mult ([고유효과] AS — 작을수록 빠름이라 min이 "가장 빠른 도너 보존")
+##   OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade, high_rank_applied)
+##   기타 theme_state (그룹C/D): survivor 유지
+##   activations_used / threshold_fired: 호출자(try_merge)가 별도 리셋
+func absorb_donor(donor: CardInstance) -> void:
+	# 유닛 (cap 적용)
+	for si in donor.stacks.size():
+		if si < stacks.size():
+			var room: int = get_unit_cap() - get_total_units()
+			if room > 0:
+				var take: int = mini(donor.stacks[si]["count"], room)
+				stacks[si]["count"] += take
+			# stack mult 곱셈 (count truncate와 무관하게 항상 흡수)
+			stacks[si]["upgrade_atk_mult"] *= donor.stacks[si]["upgrade_atk_mult"]
+			stacks[si]["upgrade_hp_mult"] *= donor.stacks[si]["upgrade_hp_mult"]
+			# [고유효과] mult — max (폭발 방지)
+			stacks[si]["unique_atk_mult"] = maxf(
+				stacks[si].get("unique_atk_mult", 1.0),
+				donor.stacks[si].get("unique_atk_mult", 1.0))
+			stacks[si]["unique_hp_mult"] = maxf(
+				stacks[si].get("unique_hp_mult", 1.0),
+				donor.stacks[si].get("unique_hp_mult", 1.0))
+	# 업그레이드 어레이 (slot cap 적용, 초과분 truncate)
+	for upg in donor.upgrades:
+		if upgrades.size() < get_max_upgrade_slots():
+			upgrades.append(upg)
+		else:
+			print("[Merge] Upgrade overflow: dropped '%s' (slot cap)" % upg.get("name", "???"))
+	# 체인강화 합산
+	growth_atk_pct += donor.growth_atk_pct
+	growth_hp_pct += donor.growth_hp_pct
+	for tag in donor.tag_growth_atk.keys():
+		tag_growth_atk[tag] = tag_growth_atk.get(tag, 0.0) + donor.tag_growth_atk[tag]
+	for tag in donor.tag_growth_hp.keys():
+		tag_growth_hp[tag] = tag_growth_hp.get(tag, 0.0) + donor.tag_growth_hp[tag]
+	# 업그레이드 stat 합산/곱셈
+	upgrade_def += donor.upgrade_def
+	upgrade_range += donor.upgrade_range
+	upgrade_move_speed += donor.upgrade_move_speed
+	upgrade_as_mult *= donor.upgrade_as_mult
+	# [고유효과] AS — min (AS 값은 시간 단위라 작을수록 빠름. min이 "가장 빠른
+	# 도너 보존"의 의미. ATK/HP unique mult는 큰 값이 강함이라 max, AS만 min.)
+	unique_as_mult = minf(unique_as_mult, donor.unique_as_mult)
+	# Shield 합산
+	shield_hp_pct += donor.shield_hp_pct
+	# 진행도/등급 max
+	tenure = maxi(tenure, donor.tenure)
+	unit_cap_bonus = maxi(unit_cap_bonus, donor.unit_cap_bonus)
+	upgrade_slot_bonus = maxi(upgrade_slot_bonus, donor.upgrade_slot_bonus)
+	# omni-theme OR
+	is_omni_theme = is_omni_theme or donor.is_omni_theme
+	# theme_state per-key 정책
+	_absorb_theme_state(donor.theme_state)
+	stats_changed.emit()
+
+
+## theme_state 흡수 정책 (그룹별).
+const _THEME_STATE_SUM_KEYS := ["trees", "manufacture_counter", "attack_stack_pct", "range_bonus"]
+const _THEME_STATE_MAX_KEYS := ["rank"]
+const _THEME_STATE_OR_KEYS := ["pending_epic_upgrade", "high_rank_applied"]
+
+
+func _absorb_theme_state(donor_state: Dictionary) -> void:
+	for key in donor_state.keys():
+		var dv = donor_state[key]
+		if key in _THEME_STATE_SUM_KEYS:
+			theme_state[key] = theme_state.get(key, 0) + dv
+		elif key in _THEME_STATE_MAX_KEYS:
+			theme_state[key] = maxi(theme_state.get(key, 0), int(dv))
+		elif key in _THEME_STATE_OR_KEYS:
+			theme_state[key] = bool(theme_state.get(key, false)) or bool(dv)
+		# else: survivor 값 유지 (그룹 C/D)
 
 
 ## Apply temporary combat buff (cleared after combat).
