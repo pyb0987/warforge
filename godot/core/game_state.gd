@@ -280,9 +280,10 @@ func try_levelup() -> bool:
 	return true
 
 
-## Apply round-start discount: -1g (min 0).
-func apply_levelup_discount() -> void:
-	levelup_current_cost = maxi(levelup_current_cost - 1, 0)
+## Apply levelup discount: -amount g (min 0). Default amount=1 — round-start
+## 자연 감가에서 매개변수 없이 호출. 카드 효과(전당포 등)는 명시적 amount 전달.
+func apply_levelup_discount(amount: int = 1) -> void:
+	levelup_current_cost = maxi(levelup_current_cost - amount, 0)
 
 
 func _get_zone(zone: String) -> Array:

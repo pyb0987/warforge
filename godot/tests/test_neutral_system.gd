@@ -516,57 +516,35 @@ func test_council_omni_card_satisfies_all_themes() -> void:
 
 
 # ================================================================
-# ne_clone_seed (T1 RS clone + SELL transfer_upgrade ★3)
+# ne_pawnbroker (T1 REROLL levelup_discount + ★3 RS free_reroll)
 # ================================================================
 
 
-func test_clone_seed_rs_returns_clone_signal() -> void:
-	## RS handler 결과에 clones_to_bench 포함, 첫 항목은 self template_id ★1
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_star1_rs_no_signal() -> void:
+	## ★1 은 RS block 자체가 없음 — process_rs_card 가 free_rerolls 신호 없는
+	## empty_result 반환 (★1/★2 카드는 dispatch 미진입).
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	var clones: Array = result.get("clones_to_bench", [])
-	assert_eq(clones.size(), 1, "1 clone signal")
-	assert_eq(clones[0].get("template_id", ""), "ne_clone_seed", "복사본 template_id 매치")
-	assert_eq(clones[0].get("star", 0), 1, "★1 신선 복사본")
-	# Negative assertion: ★1 RS는 enhance 액션 없음 — growth_atk_pct 변화 없음
-	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "★1 RS → enhance 미적용")
+	assert_eq(result.get("free_rerolls", 0), 0, "★1 RS → free_rerolls 신호 없음")
 
 
-func test_clone_seed_star2_rs_includes_self_enhance() -> void:
-	## ★2 RS: 복사 + self ATK +2% (enhance action)
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_star3_rs_emits_one_free_reroll() -> void:
+	## ★3 RS: YAML 의 free_reroll: {value: 1} 을 result.free_rerolls 로 신호.
+	## ChainEngine 가 누적해 game_state.pending_free_rerolls 로 전달.
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	card.evolve_star()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★2 → self ATK +2%")
+	card.evolve_star()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(result.get("free_rerolls", 0), 1, "★3 RS → free_rerolls 1")
 
 
-func test_clone_seed_sell_grants_neg1_gold() -> void:
-	## SELL: gold -1 (페널티)
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_self_sell_empty() -> void:
+	## ne_pawnbroker 는 SELL block 정의가 없음 — self_sell 핸들러 미진입.
+	## 분열체와 달리 판매 페널티 없음 (T1 일반 카드 가격 환급).
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), -1, "★1 SELL → -1g")
-
-
-func test_clone_seed_star3_sell_with_upgrade_signals_transfer() -> void:
-	## ★3 SELL + upgrade 보유 시 → transfer_upgrade signal 포함
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
-	card.evolve_star()
-	card.evolve_star()
-	# 가짜 upgrade 부착 (★3 transfer 트리거 조건)
-	card.upgrades.append({"id": "test_upg", "name": "테스트업그", "rarity": "C"})
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_true(result.has("transfer_upgrade"), "★3+upgrade → transfer signal")
-	assert_eq(result.get("transfer_upgrade", {}).get("source_card"), card,
-		"source_card = self")
-
-
-func test_clone_seed_star3_sell_no_upgrade_no_transfer() -> void:
-	## ★3 SELL 이지만 upgrade 0개 → transfer signal 없음
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
-	card.evolve_star()
-	card.evolve_star()
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_false(result.has("transfer_upgrade"), "upgrade 없으면 transfer 없음")
+	assert_eq(result.get("gold", 0), 0, "전당포 SELL → 골드 효과 없음")
+	assert_false(result.has("transfer_upgrade"), "transfer signal 없음")
 
 
 # ================================================================

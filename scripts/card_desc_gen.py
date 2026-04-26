@@ -415,7 +415,11 @@ def desc_debuff_store(p: dict) -> str:
 def desc_epic_shop_unlock(p: dict) -> str:
     return f"🌳{p['tree_thresh']}+ → 매 라운드 에픽 업그레이드 후보 1장 상점 추가"
 
-def desc_free_reroll(amount) -> str:
+def desc_free_reroll(p) -> str:
+    if isinstance(p, dict):
+        amount = p.get("value", 0)
+    else:
+        amount = p
     return f"무료 리롤 +{amount}"
 
 # ═══════════════════════════════════════════════════════════════════
@@ -807,10 +811,13 @@ def desc_mirror_l1(p: dict) -> str:
     return base
 
 
-def desc_clone_self_to_bench(p: dict) -> str:
-    """ne_clone_seed RS — 벤치에 이 카드의 ★1 복사본 추가."""
-    star = p.get("star", 1)
-    return f"벤치에 이 카드의 ★{star} 복사본 추가"
+def desc_levelup_discount(p: dict) -> str:
+    """ne_pawnbroker REROLL — 리롤 시 chance 확률로 상점 업그레이드 가격 -amount."""
+    chance = p.get("chance", 1.0)
+    amount = p.get("amount", 1)
+    if chance >= 1.0:
+        return f"상점 업그레이드 가격 -{amount}"
+    return f"{fmt_pct(chance)}% 확률로 상점 업그레이드 가격 -{amount}"
 
 
 def desc_tenure_gold(p: dict) -> str:
@@ -1055,7 +1062,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "mirror_spawn_to_tree":     desc_mirror_spawn_to_tree,
     # Phase 6b: 9 중립 카드 (Phase 1-3 신규)
     "mirror_l1":                desc_mirror_l1,
-    "clone_self_to_bench":      desc_clone_self_to_bench,
+    "levelup_discount":         desc_levelup_discount,
     "tenure_gold":              desc_tenure_gold,
     "duplicate_buff_aura":      desc_duplicate_buff_aura,
     "transform_theme":          desc_transform_theme,
