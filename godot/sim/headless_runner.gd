@@ -200,14 +200,13 @@ func run() -> Dictionary:
 		state.gold += chain_result["gold_earned"]
 		state.terazin += chain_result["terazin_earned"]
 		# ne_clone_seed RS 복제본을 벤치에 추가 (chain_result.clones_to_bench)
+		# add_clone funnel — auto-merge 트리거 안 함 (시스템 카드 경로).
 		var sim_clones: Array = chain_result.get("clones_to_bench", [])
 		for clone_spec in sim_clones:
 			var clone_tid: String = clone_spec.get("template_id", "")
 			if clone_tid == "":
 				continue
-			var clone_inst: CardInstance = CardInstance.create(clone_tid)
-			if clone_inst != null:
-				state.add_to_bench(clone_inst)
+			state.add_clone(clone_tid)
 
 		# ---- BATTLE ----
 		# Persistent + battle_start

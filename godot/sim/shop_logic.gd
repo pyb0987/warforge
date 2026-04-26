@@ -63,21 +63,19 @@ func try_purchase(slot_idx: int) -> bool:
 	if _game_state.gold < cost:
 		return false
 
-	var card := CardInstance.create(card_id)
-	if card == null:
+	# spawn_card funnel: create + commander 보너스 + add_to_bench + try_merge(fresh_ref).
+	# 구매한 ★1은 fresh 추적 → 합성 시 유닛 흡수에서 제외(2장분량 정책).
+	var spawn_result := _game_state.spawn_card(card_id)
+	if spawn_result.is_empty():
 		return false
-	Commander.apply_card_bonuses(_game_state, card)
-
-	var bench_idx := _game_state.add_to_bench(card)
+	var bench_idx: int = spawn_result["bench_idx"]
 	if bench_idx < 0:
 		return false
 
 	_game_state.gold -= cost
 	offered_ids[slot_idx] = ""
 
-	# Auto-merge check (cascade: emit each step)
-	var merge_steps := _game_state.try_merge(card_id)
-	for step in merge_steps:
+	for step in spawn_result["merge_steps"] as Array:
 		var merged: CardInstance = step["card"]
 		card_merged.emit(merged, step["old_star"], step["new_star"])
 

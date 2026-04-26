@@ -209,17 +209,14 @@ func _run_chain() -> void:
 	game_state.terazin += result["terazin_earned"]
 
 	# ne_clone_seed: RS 복제본을 벤치에 추가 (chain_engine 결과 누적)
+	# add_clone funnel — auto-merge 트리거 안 함 (RS 결과로 들어오는 시스템 카드).
+	# 복사본은 항상 ★1 (clone_spec.star 무시 — 의도된 단순화)
 	var clones: Array = result.get("clones_to_bench", [])
 	for clone_spec in clones:
 		var template_id: String = clone_spec.get("template_id", "")
 		if template_id == "":
 			continue
-		var clone: CardInstance = CardInstance.create(template_id)
-		if clone == null:
-			continue
-		# 복사본은 항상 ★1 (clone_spec.star 무시 — 의도된 단순화)
-		# 벤치에 빈 슬롯 있을 때만 추가 (cap 도달 시 silent drop)
-		game_state.add_to_bench(clone)
+		game_state.add_clone(template_id)  # 벤치 풀이면 silent drop
 
 	game_state.state_changed.emit()
 
