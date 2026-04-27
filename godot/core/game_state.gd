@@ -39,9 +39,8 @@ var r4_4_initial_rerolls: int = 0
 ## r8_9 전선 확장 보상: R13 전투 승리 시 R12 보상 풀에서 1개 추가 선택 (1회 한정).
 var r8_9_bonus_pending: bool = false
 
-## ne_council ★2/★3: 5테마 활성 라운드마다 +1, 임계 도달 시 1회 에픽 부여 (게임당 1회).
+## ne_council ★2/★3: 5테마 활성 라운드마다 +1. 임계 도달 시 임계만큼 차감 + 에픽 부여 (반복 가능).
 var council_counter: int = 0
-var council_bonus_used: bool = false
 
 # --- Player ---
 var hp: int = 30
@@ -329,10 +328,10 @@ func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 	# ★2 쏠림 유발). ★합성의 매력은 카드 효과 강화(★1→★2→★3 effect)만으로 확보.
 	# r12_4 이중 합성 보스 보상은 별도 효과 없음 (기획 재검토 필요 시 episodes 기록).
 
-	# OBS-060: 태엽 과급기 ★3 합성 시 1회 보너스 — 에픽 업그레이드 + 3 테라진
+	# OBS-060: 태엽 과급기 ★3 합성 시 1회 보너스 — +3 테라진.
+	# (이전: pending_epic_upgrade flag도 set했으나 reader 없는 dead flag — 2026-04-27 제거)
 	if survivor.get_base_id() == "sp_charger" and survivor.star_level == 3:
 		terazin += 3
-		survivor.theme_state["pending_epic_upgrade"] = true
 
 	# fresh 전파: 이번 step에 fresh donor가 있었으면 survivor도 fresh_set에 추가
 	# → 캐스케이드 다음 step에서 이 survivor가 다시 fresh donor로 처리됨.

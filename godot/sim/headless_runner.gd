@@ -510,11 +510,9 @@ func _sim_evaluate_council_field_bonus(state: GameState) -> void:
 		state.council_field_bonus_active = false
 
 
-## ne_council ★2/★3 에픽 부여 sim 처리. 카드 1장 자동 선택 (가장 높은 CP) + 에픽 자동 부여.
+## ne_council ★2/★3 에픽 부여 sim 처리. 임계 도달 시 임계만큼 차감 + 에픽 자동 부여 (반복 가능).
 func _sim_evaluate_council_epic_grant(state: GameState, ai_reward: RefCounted,
 		rng: RandomNumberGenerator) -> void:
-	if state.council_bonus_used:
-		return
 	if not state.council_field_bonus_active:
 		return
 	var council_star := 0
@@ -530,7 +528,7 @@ func _sim_evaluate_council_epic_grant(state: GameState, ai_reward: RefCounted,
 	var threshold: int = 5 if council_star == 2 else 3
 	if state.council_counter < threshold:
 		return
-	state.council_bonus_used = true
+	state.council_counter -= threshold  # 임계만큼 차감 (반복 가능)
 	# 보드 가장 강한 카드 자동 선택
 	var best_card: CardInstance = null
 	var best_cp: float = -1.0

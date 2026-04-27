@@ -196,11 +196,8 @@ func _evaluate_council_field_bonus() -> void:
 
 
 ## ne_council ★2/★3: 5테마 활성 + ne_council 보드 보유 시 council_counter +1 누적.
-## 임계 도달 (★2=5, ★3=3) + 미사용 → 1회 발동: 카드 1장 선택 → 에픽 업글 3택1.
-## 게임당 1회만 (council_bonus_used flag).
+## 임계 도달 (★2=5, ★3=3) → 임계만큼 차감 + 에픽 부여 (반복 가능, 매번 5/3 차감).
 func _evaluate_council_epic_grant() -> void:
-	if game_state.council_bonus_used:
-		return
 	if not game_state.council_field_bonus_active:
 		return
 	# 보드의 ne_council ★ 등급 확인 (가장 높은 ★ 사용)
@@ -216,28 +213,26 @@ func _evaluate_council_epic_grant() -> void:
 	game_state.council_counter += 1
 	var threshold: int = 5 if council_star == 2 else 3
 	# 보드 ne_council 카드에 카운터 mirror (tooltip 표시용)
+	_mirror_council_counter()
+	print("[ne_council] 카운터 %d/%d (★%d)" % [
+		game_state.council_counter, threshold, council_star])
+	if game_state.council_counter >= threshold:
+		game_state.council_counter -= threshold  # 임계만큼 차감 (반복 가능)
+		_mirror_council_counter()
+		print("[ne_council] 임계 도달 — 카운터 -%d, 에픽 업글 부여 trigger" % threshold)
+		_pending_council_bonus = true
+		# build_phase 진입 직전 popup. 단순화: 현재 turn에서 보드 카드 자동 선택 + 3택1 popup.
+		call_deferred("_show_council_epic_choice")
+
+
+## 보드 ne_council 카드의 theme_state에 카운터 동기화 (tooltip용).
+func _mirror_council_counter() -> void:
 	for card in game_state.board:
 		if card == null:
 			continue
 		var ci: CardInstance = card
 		if ci.get_base_id() == "ne_council":
 			ci.theme_state["council_counter"] = game_state.council_counter
-			ci.theme_state["council_bonus_used"] = game_state.council_bonus_used
-	print("[ne_council] 카운터 %d/%d (★%d)" % [
-		game_state.council_counter, threshold, council_star])
-	if game_state.council_counter >= threshold:
-		game_state.council_bonus_used = true
-		# bonus_used flag도 보드 ne_council에 mirror
-		for card in game_state.board:
-			if card == null:
-				continue
-			var ci: CardInstance = card
-			if ci.get_base_id() == "ne_council":
-				ci.theme_state["council_bonus_used"] = true
-		print("[ne_council] 임계 도달 — 에픽 업글 부여 trigger")
-		_pending_council_bonus = true
-		# build_phase 진입 직전 popup. 단순화: 현재 turn에서 보드 카드 자동 선택 + 3택1 popup.
-		call_deferred("_show_council_epic_choice")
 
 
 func _show_council_epic_choice() -> void:

@@ -917,9 +917,10 @@ def desc_all_themes_field_bonus(p: dict) -> str:
     return "필드에 5테마 모두 존재 시 " + " + ".join(parts)
 
 def desc_council_epic_grant(p: dict) -> str:
-    """ne_council ★2/★3: 5테마 활성 라운드마다 카운터 +1, 임계 도달 시 1회 발동."""
+    """ne_council ★2/★3: 5테마 활성 라운드마다 +1, 임계 도달 시 차감 + 에픽 부여 (반복)."""
     return (f"5테마 활성 라운드마다 카운터 +1. "
-            f"카운터 {p['threshold']}+ 도달 시 1회 카드 1장에 에픽 업그레이드 3택1")
+            f"카운터 {p['threshold']}+ 도달 시 카운터 -{p['threshold']}, "
+            f"카드 1장에 에픽 업그레이드 3택1 (반복 가능)")
 
 
 def desc_rare_counter(p: dict) -> str:
