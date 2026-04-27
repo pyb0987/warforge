@@ -88,6 +88,10 @@ func run() -> Dictionary:
 					var nth: int = transform.get("new_theme", -1)
 					if nth >= 0:
 						target.template["theme"] = nth
+		# ne_awakening SELL: 무작위 등급 업글 + (★2/★3) 유닛 → target 카드
+		var awakening: Dictionary = sell_result.get("awakening_transfer", {})
+		if not awakening.is_empty():
+			_sim_apply_awakening_transfer(awakening, rng)
 	)
 
 	var shop := ShopLogic.new()
@@ -508,6 +512,42 @@ func _sim_evaluate_council_field_bonus(state: GameState) -> void:
 	elif (not should_be_active) and state.council_field_bonus_active:
 		state.field_slots = maxi(state.field_slots - 1, 0)
 		state.council_field_bonus_active = false
+
+
+## ne_awakening SELL sim 처리: 무작위 등급 업글 1개 + 유닛 stack → target 카드.
+func _sim_apply_awakening_transfer(awakening: Dictionary,
+		rng: RandomNumberGenerator) -> void:
+	var source: CardInstance = awakening.get("source_card")
+	var target: CardInstance = awakening.get("target_card")
+	if source == null or target == null:
+		return
+	var rarity_str: String = awakening.get("rarity", "common")
+	var transfer_units: bool = awakening.get("transfer_units", false)
+	var rarity_int: int = Enums.UpgradeRarity.COMMON
+	match rarity_str:
+		"rare": rarity_int = Enums.UpgradeRarity.RARE
+		"epic": rarity_int = Enums.UpgradeRarity.EPIC
+	# 1) 무작위 매치 등급 업글 1개 이전
+	var matching: Array = []
+	for upg in source.upgrades:
+		if int(upg.get("rarity", -1)) == rarity_int:
+			matching.append(upg)
+	if not matching.is_empty():
+		var picked: Dictionary = matching[rng.randi_range(0, matching.size() - 1)]
+		if target.upgrades.size() < target.get_max_upgrade_slots():
+			target.upgrades.append(picked)
+	# 2) ★2/★3: 유닛 stack 이전 (cap 60 적용)
+	if transfer_units:
+		for s in source.stacks:
+			if target.get_total_units() >= target.get_unit_cap():
+				break
+			var room: int = target.get_unit_cap() - target.get_total_units()
+			var take: int = mini(int(s.get("count", 0)), room)
+			if take <= 0:
+				continue
+			var new_stack: Dictionary = s.duplicate(true)
+			new_stack["count"] = take
+			target.stacks.append(new_stack)
 
 
 ## ne_council ★2/★3 에픽 부여 sim 처리. 임계 도달 시 임계만큼 차감 + 에픽 자동 부여 (반복 가능).

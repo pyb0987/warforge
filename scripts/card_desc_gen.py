@@ -916,6 +916,18 @@ def desc_all_themes_field_bonus(p: dict) -> str:
         parts.append(f"모든 아군 HP +{fmt_pct(a_hp)}%")
     return "필드에 5테마 모두 존재 시 " + " + ".join(parts)
 
+def desc_awakening_sell(p: dict) -> str:
+    """ne_awakening SELL: 카드 1장 선택 → (★별) 유닛 + 무작위 N등급 업글 1개 이전."""
+    rarity_kr = {"common": "커먼", "rare": "레어", "epic": "에픽"}
+    rarity = rarity_kr.get(p.get("rarity", "common"), "커먼")
+    transfer_units = p.get("transfer_units", False)
+    if transfer_units:
+        return (f"보드 카드 1장 선택 → 이 카드의 유닛 + 부착된 "
+                f"무작위 {rarity} 업그레이드 1개 이전")
+    return (f"보드 카드 1장 선택 → 부착된 "
+            f"무작위 {rarity} 업그레이드 1개 이전")
+
+
 def desc_council_epic_grant(p: dict) -> str:
     """ne_council ★2/★3: 5테마 활성 라운드마다 +1, 임계 도달 시 차감 + 에픽 부여 (반복)."""
     return (f"5테마 활성 라운드마다 카운터 +1. "
@@ -1077,6 +1089,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "star3_count_scaling":      desc_star3_count_scaling,
     "all_themes_field_bonus":   desc_all_themes_field_bonus,
     "council_epic_grant":       desc_council_epic_grant,
+    "awakening_sell":           desc_awakening_sell,
     "transfer_upgrade":         desc_transfer_upgrade,
 }
 

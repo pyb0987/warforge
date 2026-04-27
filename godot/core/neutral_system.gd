@@ -73,6 +73,7 @@ func process_self_sell(sold_card: CardInstance, board: Array) -> Dictionary:
 	match sold_card.get_base_id():
 		"ne_hoarder": return _hoarder_sell(sold_card)
 		"ne_masquerade": return _masquerade_sell(sold_card, board)
+		"ne_awakening": return _awakening_sell(sold_card, board)
 	return {"events": [], "gold": 0, "terazin": 0}
 
 
@@ -425,4 +426,42 @@ func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 			"new_theme": new_theme,
 			"omni": omni,
 		},
+		# UI 분기: live는 target_overlay로 사용자 선택, sim은 위 자동 target 사용.
+		"needs_target_select": "ne_masquerade",
+	}
+
+
+# --- ne_awakening (T4) — SELL transfer_units_and_upgrade ---
+
+
+## SELL: 판매 시 보드 카드 1장 선택 → ★별 등급 무작위 업글 1개 + (★2/★3) 유닛 이전.
+## ★1: 커먼 업글만, ★2: 레어 업글 + 유닛, ★3: 에픽 업글 + 유닛.
+## 자동 target은 sim 결정성을 위해 보드 첫 비-self 카드. live는 UI 선택.
+func _awakening_sell(card: CardInstance, board: Array) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "awakening_sell")
+	if eff.is_empty():
+		return Enums.empty_result()
+	var rarity_str: String = eff.get("rarity", "common")
+	var transfer_units: bool = eff.get("transfer_units", false)
+	# 자동 target (sim 결정성) — 보드 첫 비-self 카드
+	var target: CardInstance = null
+	for c in board:
+		if c == null or c == card:
+			continue
+		target = c
+		break
+	if target == null:
+		return Enums.empty_result()
+	return {
+		"events": [],
+		"gold": 0,
+		"terazin": 0,
+		"awakening_transfer": {
+			"source_card": card,
+			"target_card": target,
+			"rarity": rarity_str,
+			"transfer_units": transfer_units,
+		},
+		"needs_target_select": "ne_awakening",
 	}

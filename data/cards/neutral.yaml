@@ -570,55 +570,29 @@ cards:
     tags:
     - neutral
     - ancient
+    impl: theme_system
     stars:
       1:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          spawn:
-            target: all_allies
-            count: 2
-          enhance:
-            target: all_allies
-            atk_pct: 0.1
-          shield:
-            target: all_allies
-            hp_pct: 0.2
+        - trigger_timing: SELL
+          max_act: 1
+          awakening_sell:
+            rarity: common
+            transfer_units: false
       2:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          spawn:
-            target: all_allies
-            count: 3
-          enhance:
-            target: all_allies
-            atk_pct: 0.15
-          shield:
-            target: all_allies
-            hp_pct: 0.3
+        - trigger_timing: SELL
+          max_act: 1
+          awakening_sell:
+            rarity: rare
+            transfer_units: true
       3:
         effects:
-        - trigger_timing: RS
-          max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          post_threshold:
-            spawn:
-              target: all_allies
-            shield:
-              target: all_allies
-              hp_pct: 0.1
-          spawn:
-            target: all_allies
-            count: 3
-          shield:
-            target: all_allies
-            hp_pct: 0.3
+        - trigger_timing: SELL
+          max_act: 1
+          awakening_sell:
+            rarity: epic
+            transfer_units: true
   ne_pawnbroker:
     name: 전당포
     tier: 1

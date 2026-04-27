@@ -1452,32 +1452,24 @@ func _register_neutral() -> void:
 		awa_comp,
 		[
 			{
-				"trigger_timing": RS, "max_activations": -1,
+				"trigger_timing": SELL, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
-				"require_tenure": 4, "require_other_card": false, "is_threshold": true,
-				"actions": [
-					_spawn("all_allies", 2),
-					_enhance("all_allies", 0.1),
-					_shield("all_allies", 0.2)
-				],
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [{"action": "awakening_sell", "rarity": "common", "transfer_units": false}],
 			}
 		],
 		awa_tags,
-		{
+				{
 			2: {
 				"name": "고대의 각성 ★2",
 				"composition": awa_comp,
 				"card_tags": awa_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
-					"require_tenure": 4, "require_other_card": false, "is_threshold": true,
-					"actions": [
-						_spawn("all_allies", 3),
-						_enhance("all_allies", 0.15),
-						_shield("all_allies", 0.3)
-					],
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "awakening_sell", "rarity": "rare", "transfer_units": true}],
 				}
 			],
 			},
@@ -1487,18 +1479,15 @@ func _register_neutral() -> void:
 				"card_tags": awa_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
-					"require_tenure": 4, "require_other_card": false, "is_threshold": true,
-					"actions": [
-						_spawn("all_allies", 3),
-						_shield("all_allies", 0.3)
-					],
-					"post_threshold_effects": [_spawn("all_allies"), _shield("all_allies", 0.1)],
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "awakening_sell", "rarity": "epic", "transfer_units": true}],
 				}
 			],
 			},
-		})
+		},
+		"theme_system")
 
 	var paw_comp := [{"unit_id":"ne_scrap","count":2}]
 	var paw_tags := PackedStringArray(["neutral", "reroll"])

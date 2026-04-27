@@ -549,10 +549,62 @@ func test_council_star3_yaml_has_council_epic_grant() -> void:
 
 
 func test_game_state_council_counter_initial_zero() -> void:
-	## council_counter, council_bonus_used 초기값 검증
+	## council_counter 초기값 검증 (사용자 결정 후 council_bonus_used 폐기)
 	var state := GameState.new()
 	assert_eq(state.council_counter, 0, "초기 counter = 0")
-	assert_false(state.council_bonus_used, "초기 used = false")
+
+
+# ================================================================
+# ne_awakening SELL — transfer_units_and_upgrade
+# ================================================================
+
+
+func test_awakening_sell_returns_awakening_transfer() -> void:
+	## ne_awakening ★1 SELL → awakening_transfer dict 반환 (rarity=common, transfer_units=false)
+	var card: CardInstance = CardInstance.create("ne_awakening")
+	var other: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, other]
+	var result := _sys.process_self_sell(card, board)
+	var awakening: Dictionary = result.get("awakening_transfer", {})
+	assert_false(awakening.is_empty(), "★1 awakening_transfer 존재")
+	assert_eq(awakening.get("rarity", ""), "common", "★1 = common rarity")
+	assert_false(awakening.get("transfer_units", true), "★1 = transfer_units=false")
+	assert_eq(result.get("needs_target_select", ""), "ne_awakening",
+		"needs_target_select=ne_awakening")
+
+
+func test_awakening_star2_transfer_rare_with_units() -> void:
+	## ★2: rarity=rare, transfer_units=true
+	var card: CardInstance = CardInstance.create("ne_awakening")
+	card.evolve_star()  # ★2
+	var other: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, other]
+	var result := _sys.process_self_sell(card, board)
+	var awakening: Dictionary = result.get("awakening_transfer", {})
+	assert_eq(awakening.get("rarity", ""), "rare", "★2 = rare")
+	assert_true(awakening.get("transfer_units", false), "★2 = transfer_units=true")
+
+
+func test_awakening_star3_transfer_epic_with_units() -> void:
+	## ★3: rarity=epic, transfer_units=true
+	var card: CardInstance = CardInstance.create("ne_awakening")
+	card.evolve_star()
+	card.evolve_star()  # ★3
+	var other: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, other]
+	var result := _sys.process_self_sell(card, board)
+	var awakening: Dictionary = result.get("awakening_transfer", {})
+	assert_eq(awakening.get("rarity", ""), "epic", "★3 = epic")
+	assert_true(awakening.get("transfer_units", false), "★3 = transfer_units=true")
+
+
+func test_awakening_sell_no_target_returns_empty() -> void:
+	## ne_awakening 단독 보드 (다른 카드 없음) → target 없음 → 빈 결과
+	var card: CardInstance = CardInstance.create("ne_awakening")
+	var board: Array = [card]
+	var result := _sys.process_self_sell(card, board)
+	assert_true(result.get("awakening_transfer", {}).is_empty(),
+		"target 없으면 awakening_transfer 미발동")
 
 
 # ================================================================

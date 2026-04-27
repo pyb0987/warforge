@@ -174,36 +174,8 @@ func test_ruins_fires_every_round_after_tenure() -> void:
 	assert_gt(board[1].get_total_units(), units_after_r2, "tenure 후 매 라운드 발동")
 
 
-func test_awakening_no_fire_before_tenure_4() -> void:
-	## ne_awakening(RS, tenure=4, threshold=true): 4R 전 미발동
-	var board := _make_board(["ne_awakening"])
-	var units_before: int = board[0].get_total_units()
-	for _i in 3:
-		_engine.run_growth_chain(board)  # R1~R3
-	# tenure=3 < 4 → 미발동 → 유닛 수 불변
-	assert_eq(board[0].get_total_units(), units_before, "tenure 3 → 미발동 유닛 불변")
-	assert_eq(board[0].shield_hp_pct, 0.0, "tenure 3 → shield 미적용")
-
-
-func test_awakening_fires_at_tenure_4() -> void:
-	## ne_awakening: tenure=4에서 발동 (threshold → 1회만)
-	## spawn all_allies 2 + enhance all_allies 10% + shield 20%
-	var board := _make_board(["ne_awakening", "sp_assembly"])
-	for _i in 4:
-		_engine.run_growth_chain(board)  # R1~R4
-	# R4 (tenure 3→4): threshold 발동 → all_allies에 spawn 2 + enhance 10%
-	assert_gt(board[0].shield_hp_pct, 0.0, "shield 적용")
-
-
-func test_awakening_threshold_fires_once() -> void:
-	## is_threshold=true → 1회 발동 후 threshold_fired=true
-	var board := _make_board(["ne_awakening"])
-	for _i in 4:
-		_engine.run_growth_chain(board)
-	assert_true(board[0].threshold_fired, "threshold 발동 완료")
-	var units_after: int = board[0].get_total_units()
-	_engine.run_growth_chain(board)  # R5: threshold_fired → 재발동 안 함
-	assert_eq(board[0].get_total_units(), units_after, "threshold → 재발동 안 함")
+# ne_awakening 옛 효과(RS tenure threshold) 폐기 — SELL transfer 효과로 변경.
+# 새 효과 테스트는 test_neutral_system.gd 참조.
 
 
 # ================================================================
@@ -242,27 +214,8 @@ func _make_star_board(base_id: String, star: int, extras: Array = []) -> Array:
 	return board
 
 
-func test_awakening_s2_stronger_effects() -> void:
-	## ★2: spawn 3 + enhance 15% + shield 30% (★1은 2/10%/20%)
-	var board := _make_star_board("ne_awakening", 2, ["sp_assembly"])
-	var units_before: int = board[0].get_total_units()
-	var atk_before: float = board[0].get_total_atk()
-	for _i in 4:
-		_engine.run_growth_chain(board)  # R4: threshold 발동
-	# ★2: all_allies spawn 3 → 유닛 증가
-	assert_gt(board[0].get_total_units(), units_before, "★2 spawn 3 → 유닛 증가")
-	# ★2: all_allies enhance 15% → ATK 증가
-	assert_gt(board[0].get_total_atk(), atk_before, "★2 enhance 15% → ATK 증가")
-	# ★2 shield 30% > ★1 shield 20%
-	assert_almost_eq(board[0].shield_hp_pct, 0.30, 0.01, "★2 shield 30%")
-
-
-func test_awakening_s2_resets_threshold_on_evolve() -> void:
-	## evolve_star()가 threshold_fired를 리셋 → ★2 재발동 가능
-	var card: CardInstance = CardInstance.create("ne_awakening")
-	card.threshold_fired = true  # ★1에서 이미 발동됨
-	card.evolve_star()  # ★2로 진화
-	assert_false(card.threshold_fired, "evolve → threshold 리셋")
+# ne_awakening ★2/★3 옛 RS 효과 폐기 — SELL transfer 효과로 변경.
+# 새 효과 테스트는 test_neutral_system.gd 참조.
 
 
 func test_dim_merchant_s2_gold_per_theme_2() -> void:

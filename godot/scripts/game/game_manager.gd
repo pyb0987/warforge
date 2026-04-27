@@ -683,18 +683,23 @@ func _on_sell_performed(zone: String, idx: int, sold_card: CardInstance) -> void
 		if terazin_delta != 0:
 			game_state.terazin = maxi(game_state.terazin + terazin_delta, 0)
 
+		# UI target select: ne_masquerade / ne_awakening 판매 시 사용자 카드 선택 popup.
+		# sell_result에 needs_target_select가 있으면 target_overlay 시작 + 효과 적용.
+		var needs_select: String = sell_result.get("needs_target_select", "")
+		if needs_select != "":
+			_start_sell_target_select(needs_select, sell_result)
+			# UI 분기로 효과는 callback에서 적용. 자원만 emit.
+			if gold_delta != 0 or terazin_delta != 0:
+				game_state.state_changed.emit()
+			return
+
 		# ne_clone_seed ★3 SELL: source 카드의 업그레이드 1개를 보드 첫 카드로 이전
 		# (sim 결정성, live UI 분기는 Phase 6 deferred)
 		var transfer: Dictionary = sell_result.get("transfer_upgrade", {})
 		if not transfer.is_empty():
 			_apply_upgrade_transfer(transfer)
 
-		# ne_masquerade SELL: 보드 카드 1장 theme 변경 (★3 omni-theme)
-		var transform: Dictionary = sell_result.get("transform_theme", {})
-		if not transform.is_empty():
-			_apply_theme_transform(transform)
-
-		if gold_delta != 0 or terazin_delta != 0 or not transfer.is_empty() or not transform.is_empty():
+		if gold_delta != 0 or terazin_delta != 0 or not transfer.is_empty():
 			game_state.state_changed.emit()
 
 
@@ -718,6 +723,95 @@ func _apply_upgrade_transfer(transfer: Dictionary) -> void:
 			print("[ne_clone_seed] 업그레이드 '%s' → '%s'" % [
 					upg.get("name", "?"), target.get_name()])
 			break
+
+
+## SELL target_overlay UI flow 시작 — ne_masquerade / ne_awakening 판매 시 카드 선택.
+## sell_result는 needs_target_select handler_id + 자동 default target dict 보유.
+## 사용자 선택 후 _on_sell_target_selected에서 효과 적용 (자동 target은 보드 비어 시 fallback).
+var _pending_sell_select: Dictionary = {}
+
+func _start_sell_target_select(handler_id: String, sell_result: Dictionary) -> void:
+	_pending_sell_select = {
+		"handler_id": handler_id,
+		"sell_result": sell_result,
+	}
+	# build_phase가 visible 상태 (판매는 BUILD phase에서만 가능). target_overlay 시작.
+	build_phase.target_overlay.start_selection(
+		build_phase._field_visuals, game_state.board)
+	if not build_phase.target_overlay.target_selected.is_connected(_on_sell_target_selected):
+		build_phase.target_overlay.target_selected.connect(_on_sell_target_selected)
+
+
+func _on_sell_target_selected(field_idx: int) -> void:
+	if _pending_sell_select.is_empty():
+		return
+	# 시그널 정리
+	if build_phase.target_overlay.target_selected.is_connected(_on_sell_target_selected):
+		build_phase.target_overlay.target_selected.disconnect(_on_sell_target_selected)
+	var target: CardInstance = game_state.board[field_idx]
+	if target == null:
+		_pending_sell_select = {}
+		return
+	var handler_id: String = _pending_sell_select["handler_id"]
+	var sell_result: Dictionary = _pending_sell_select["sell_result"]
+	match handler_id:
+		"ne_masquerade":
+			# 자동 dict의 target_card를 사용자 선택으로 override
+			var transform: Dictionary = sell_result.get("transform_theme", {}).duplicate()
+			transform["target_card"] = target
+			_apply_theme_transform(transform)
+		"ne_awakening":
+			var awakening: Dictionary = sell_result.get("awakening_transfer", {}).duplicate()
+			awakening["target_card"] = target
+			_apply_awakening_transfer(awakening)
+	_pending_sell_select = {}
+	game_state.state_changed.emit()
+
+
+## ne_awakening SELL 효과 적용: source 카드의 유닛 stack + 무작위 N등급 업글 1개 → target 카드.
+## - transfer_units=true (★2/★3): source.stacks를 target.stacks에 그대로 append (cap 60 적용)
+## - 부착 업글 중 rarity 매치 무작위 1개를 target에 부착 (target 슬롯 부족 시 silent fail)
+func _apply_awakening_transfer(awakening: Dictionary) -> void:
+	var source: CardInstance = awakening.get("source_card")
+	var target: CardInstance = awakening.get("target_card")
+	if source == null or target == null:
+		return
+	var rarity_str: String = awakening.get("rarity", "common")
+	var transfer_units: bool = awakening.get("transfer_units", false)
+	var rarity_int: int = _rarity_str_to_int(rarity_str)
+	# 1) 무작위 매치 등급 업글 1개 이전
+	var matching: Array = []
+	for upg in source.upgrades:
+		if int(upg.get("rarity", -1)) == rarity_int:
+			matching.append(upg)
+	if not matching.is_empty():
+		var picked: Dictionary = matching[_battle_rng.randi_range(0, matching.size() - 1)]
+		if target.upgrades.size() < target.get_max_upgrade_slots():
+			target.upgrades.append(picked)
+			print("[ne_awakening] 업그레이드 '%s' (%s) → '%s'" % [
+				picked.get("name", "?"), rarity_str, target.get_name()])
+	# 2) ★2/★3: 유닛 stack 이전 (cap 60 적용)
+	if transfer_units:
+		for s in source.stacks:
+			if target.get_total_units() >= target.get_unit_cap():
+				break
+			var room: int = target.get_unit_cap() - target.get_total_units()
+			var take: int = mini(int(s.get("count", 0)), room)
+			if take <= 0:
+				continue
+			var new_stack: Dictionary = s.duplicate(true)
+			new_stack["count"] = take
+			target.stacks.append(new_stack)
+			print("[ne_awakening] 유닛 %d기 → '%s'" % [take, target.get_name()])
+	target.stats_changed.emit() if target.has_signal("stats_changed") else null
+
+
+func _rarity_str_to_int(s: String) -> int:
+	match s:
+		"common": return Enums.UpgradeRarity.COMMON
+		"rare": return Enums.UpgradeRarity.RARE
+		"epic": return Enums.UpgradeRarity.EPIC
+	return Enums.UpgradeRarity.COMMON
 
 
 ## ne_masquerade theme transform 처리. handler가 CardInstance 참조 직접 전달.
