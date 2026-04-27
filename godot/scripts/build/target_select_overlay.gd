@@ -12,11 +12,14 @@ var _click_connections: Array[Dictionary] = []  # [{visual, callable}]
 @onready var instruction_label: Label = $InstructionLabel
 
 
-func start_selection(field_visuals: Array, board: Array) -> void:
+## eligible_predicate: Callable(card: CardInstance) -> bool. null = 모든 비-null 카드 선택 가능.
+## upgrade 부착용은 can_attach_upgrade 필터, theme transform / unit transfer 등은 null.
+func start_selection(field_visuals: Array, board: Array,
+		eligible_predicate: Callable = Callable()) -> void:
 	_field_visuals = field_visuals
 	_active = true
 	visible = true
-	instruction_label.text = "Click a field card to attach upgrade (ESC to cancel)"
+	instruction_label.text = "Click a field card (ESC to cancel)"
 
 	# Highlight eligible cards and connect click handlers
 	for i in field_visuals.size():
@@ -24,7 +27,10 @@ func start_selection(field_visuals: Array, board: Array) -> void:
 		if i >= board.size():
 			continue
 		var card = board[i]
-		if card == null or not (card as CardInstance).can_attach_upgrade():
+		if card == null:
+			continue
+		# 핸들러별 predicate 적용 (default: 모든 비-null 카드 가능)
+		if eligible_predicate.is_valid() and not eligible_predicate.call(card):
 			continue
 		# Add highlight border
 		_set_highlight(vis, true)

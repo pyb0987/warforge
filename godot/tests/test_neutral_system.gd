@@ -608,6 +608,129 @@ func test_awakening_sell_no_target_returns_empty() -> void:
 
 
 # ================================================================
+# 통합 검증 — _sim_apply_awakening_transfer (sim 경로) edge cases
+# ================================================================
+
+
+func _attach_upgrade_helper(card: CardInstance, upgrade_id: String) -> void:
+	var u := UpgradeDB.get_upgrade(upgrade_id)
+	if not u.is_empty():
+		card.upgrades.append(u)
+
+
+func test_apply_awakening_transfer_no_matching_rarity_no_op() -> void:
+	## ne_awakening ★1 (rarity=common)인데 부착 업글이 모두 레어 → 매치 0개 → 업글 이전 X
+	var source: CardInstance = CardInstance.create("ne_awakening")
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	# 레어 업글 부착 (R2 산탄개조 등 — common이 아닌 것)
+	_attach_upgrade_helper(source, "R2")
+	var target_upg_before: int = target.upgrades.size()
+	# sim 경로 직접 시뮬: rarity_int = COMMON, matching = []
+	var awakening: Dictionary = {
+		"source_card": source,
+		"target_card": target,
+		"rarity": "common",
+		"transfer_units": false,
+	}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var runner_script = load("res://sim/headless_runner.gd")
+	var runner = runner_script.new(Genome.create_default(), "auto", 42)
+	runner._sim_apply_awakening_transfer(awakening, rng)
+	assert_eq(target.upgrades.size(), target_upg_before,
+		"매치 등급 없으면 target 업글 변화 없음")
+
+
+func test_apply_awakening_transfer_target_slot_full_silent_fail() -> void:
+	## target 업글 슬롯 5개 만석 → 업글 이전 silent fail (단순화: 업글만 검증)
+	var source: CardInstance = CardInstance.create("ne_awakening")
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	# source에 common 업글
+	_attach_upgrade_helper(source, "C1")
+	# target 슬롯 5개 만석 (C1~C5 또는 더미)
+	for upg_id in ["C1", "C2", "C3", "C4", "C5"]:
+		_attach_upgrade_helper(target, upg_id)
+	assert_eq(target.upgrades.size(), 5, "target 슬롯 만석")
+	var awakening: Dictionary = {
+		"source_card": source,
+		"target_card": target,
+		"rarity": "common",
+		"transfer_units": false,
+	}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var runner_script = load("res://sim/headless_runner.gd")
+	var runner = runner_script.new(Genome.create_default(), "auto", 42)
+	runner._sim_apply_awakening_transfer(awakening, rng)
+	# 업글 슬롯 만석이라 추가 안 됨 (silent fail)
+	assert_eq(target.upgrades.size(), 5, "만석 silent fail — 업글 5개 유지")
+
+
+func test_apply_awakening_transfer_units_cap_60() -> void:
+	## ★2 transfer_units=true, target 50기 + ne_awakening 30기 → cap 60 적용 → 10기만 이전
+	var source: CardInstance = CardInstance.create("ne_awakening")
+	source.evolve_star()  # ★2
+	# source의 stack을 30기로 설정 (기본 6기 → 30기 강제)
+	source.stacks[0]["count"] = 30
+	# target sp_assembly에 50기 부여
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	target.stacks[0]["count"] = 50
+	assert_eq(target.get_total_units(), 50, "target 50기")
+	var awakening: Dictionary = {
+		"source_card": source,
+		"target_card": target,
+		"rarity": "rare",
+		"transfer_units": true,
+	}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var runner_script = load("res://sim/headless_runner.gd")
+	var runner = runner_script.new(Genome.create_default(), "auto", 42)
+	runner._sim_apply_awakening_transfer(awakening, rng)
+	# cap 60 적용 — target은 60기 도달 (room 10만 추가)
+	assert_eq(target.get_total_units(), 60, "cap 60 적용")
+
+
+func test_apply_awakening_transfer_units_full_cap_no_transfer() -> void:
+	## target이 이미 cap 도달 → 유닛 0기 추가
+	var source: CardInstance = CardInstance.create("ne_awakening")
+	source.evolve_star()
+	source.stacks[0]["count"] = 30
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	target.stacks[0]["count"] = target.get_unit_cap()  # cap 도달
+	var units_before: int = target.get_total_units()
+	var awakening: Dictionary = {
+		"source_card": source,
+		"target_card": target,
+		"rarity": "rare",
+		"transfer_units": true,
+	}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var runner_script = load("res://sim/headless_runner.gd")
+	var runner = runner_script.new(Genome.create_default(), "auto", 42)
+	runner._sim_apply_awakening_transfer(awakening, rng)
+	assert_eq(target.get_total_units(), units_before, "cap 도달 → 추가 없음")
+
+
+# ================================================================
+# ne_masquerade UI flow 메타 검증
+# ================================================================
+
+
+func test_masquerade_sell_returns_needs_target_select() -> void:
+	## ne_masquerade SELL → needs_target_select="ne_masquerade" 메타 포함 (UI 분기용)
+	var card: CardInstance = CardInstance.create("ne_masquerade")
+	var other: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [card, other]
+	var result := _sys.process_self_sell(card, board)
+	assert_eq(result.get("needs_target_select", ""), "ne_masquerade",
+		"needs_target_select=ne_masquerade")
+	assert_false(result.get("transform_theme", {}).is_empty(),
+		"transform_theme dict 존재")
+
+
+# ================================================================
 # ne_pawnbroker (T1 REROLL levelup_discount + ★3 RS free_reroll)
 # ================================================================
 

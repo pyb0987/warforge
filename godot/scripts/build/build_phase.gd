@@ -174,7 +174,15 @@ func _on_upgrade_purchase_requested(upgrade_id: String, slot_idx: int) -> void:
 		return
 
 	_pending_upgrade = {"upgrade_id": upgrade_id, "slot_idx": slot_idx, "cost": cost}
-	target_overlay.start_selection(_field_visuals, game_state.board)
+	# 업그레이드 부착용 — can_attach_upgrade 카드만 highlight
+	target_overlay.start_selection(_field_visuals, game_state.board,
+		Callable(self, "_can_attach_upgrade_predicate"))
+
+
+func _can_attach_upgrade_predicate(card) -> bool:
+	if card == null:
+		return false
+	return (card as CardInstance).can_attach_upgrade()
 
 
 func _on_target_selected(field_idx: int) -> void:

@@ -736,18 +736,35 @@ func _start_sell_target_select(handler_id: String, sell_result: Dictionary) -> v
 		"sell_result": sell_result,
 	}
 	# build_phase가 visible 상태 (판매는 BUILD phase에서만 가능). target_overlay 시작.
+	# eligible_predicate=null → 모든 비-null 카드 선택 가능 (theme transform / unit transfer는 슬롯 무관)
 	build_phase.target_overlay.start_selection(
 		build_phase._field_visuals, game_state.board)
 	if not build_phase.target_overlay.target_selected.is_connected(_on_sell_target_selected):
 		build_phase.target_overlay.target_selected.connect(_on_sell_target_selected)
+	# ESC cancel 처리: 효과는 무시하나 _pending_sell_select 정리 (환불은 이미 적용됨, 사용자 손실 알림)
+	if not build_phase.target_overlay.target_cancelled.is_connected(_on_sell_target_cancelled):
+		build_phase.target_overlay.target_cancelled.connect(_on_sell_target_cancelled)
+
+
+func _on_sell_target_cancelled() -> void:
+	if _pending_sell_select.is_empty():
+		return
+	if build_phase.target_overlay.target_selected.is_connected(_on_sell_target_selected):
+		build_phase.target_overlay.target_selected.disconnect(_on_sell_target_selected)
+	if build_phase.target_overlay.target_cancelled.is_connected(_on_sell_target_cancelled):
+		build_phase.target_overlay.target_cancelled.disconnect(_on_sell_target_cancelled)
+	print("[SELL] target select cancelled — effect 무시 (환불은 이미 적용됨)")
+	_pending_sell_select = {}
 
 
 func _on_sell_target_selected(field_idx: int) -> void:
 	if _pending_sell_select.is_empty():
 		return
-	# 시그널 정리
+	# 시그널 정리 (selected + cancelled 둘 다)
 	if build_phase.target_overlay.target_selected.is_connected(_on_sell_target_selected):
 		build_phase.target_overlay.target_selected.disconnect(_on_sell_target_selected)
+	if build_phase.target_overlay.target_cancelled.is_connected(_on_sell_target_cancelled):
+		build_phase.target_overlay.target_cancelled.disconnect(_on_sell_target_cancelled)
 	var target: CardInstance = game_state.board[field_idx]
 	if target == null:
 		_pending_sell_select = {}
@@ -756,9 +773,17 @@ func _on_sell_target_selected(field_idx: int) -> void:
 	var sell_result: Dictionary = _pending_sell_select["sell_result"]
 	match handler_id:
 		"ne_masquerade":
-			# 자동 dict의 target_card를 사용자 선택으로 override
+			# 자동 dict의 target_card를 사용자 선택으로 override.
+			# new_theme도 사용자가 선택한 카드의 현재 theme 기준 재계산 (자동 target과 다를 수 있음).
 			var transform: Dictionary = sell_result.get("transform_theme", {}).duplicate()
 			transform["target_card"] = target
+			# omni가 아니면 사용자 카드 theme 기준 재계산: 첫 비-NEUTRAL이며 target과 다른 theme 우선
+			if not transform.get("omni", false):
+				var current: int = target.template.get("theme", -1)
+				var new_theme: int = Enums.CardTheme.STEAMPUNK
+				if current == Enums.CardTheme.STEAMPUNK:
+					new_theme = Enums.CardTheme.PREDATOR
+				transform["new_theme"] = new_theme
 			_apply_theme_transform(transform)
 		"ne_awakening":
 			var awakening: Dictionary = sell_result.get("awakening_transfer", {}).duplicate()
