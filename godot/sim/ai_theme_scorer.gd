@@ -29,7 +29,6 @@ const RANK_THRESHOLDS := {
 
 # --- 스팀펑크 카운터 임계값 ---
 const MANUFACTURE_THRESHOLD := 10
-const RARE_COUNTER_THRESHOLD := 20
 const CONSCRIPT_THRESHOLD := {1: 10, 2: 8, 3: 6}  # star → threshold
 
 # --- 드루이드 유닛캡 ---
@@ -316,13 +315,6 @@ func _value_steampunk(card: CardInstance, genome: RefCounted) -> float:
 		var remaining: int = MANUFACTURE_THRESHOLD - mfg_counter
 		if remaining > 0 and remaining <= 3:
 			bonus += near_bonus * (1.0 - float(remaining - 1) / 3.0)
-
-	# 레어 카운터 근접 (★2 sp_charger)
-	var rare_counter: int = card.theme_state.get("rare_counter", 0)
-	if rare_counter > 0:
-		var remaining: int = RARE_COUNTER_THRESHOLD - rare_counter
-		if remaining > 0 and remaining <= 4:
-			bonus += near_bonus * 0.7
 
 	return bonus
 
