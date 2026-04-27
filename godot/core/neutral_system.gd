@@ -12,8 +12,11 @@ extends "res://core/theme_system.gd"
 ##   - ne_fusion_end (T4): BS star3_count_scaling — ★3 카드 수 × 스케일
 ##   - ne_nexus (T5): OE mirror_l1 — 비-neutral 이벤트 미러
 ##
+## Reroll-trigger cards:
+##   - ne_pawnbroker (T1): REROLL levelup_discount (chain_engine action),
+##     ★3 RS free_reroll 1 (이 시스템이 처리)
+##
 ## Phase 3b-2b deferred (엔진 확장 필요):
-##   - ne_clone_seed (T1): RS clone_self_to_bench + SELL transfer_upgrade
 ##   - ne_masquerade (T4): SELL transform_theme + omni-theme
 ##   - ne_council (T5): PERSISTENT all_themes_field_bonus (field_slots 동적 변경)
 ##
@@ -27,7 +30,7 @@ func process_rs_card(card: CardInstance, idx: int, _board: Array,
 		_rng: RandomNumberGenerator) -> Dictionary:
 	match card.get_base_id():
 		"ne_envoy": return _envoy_rs(card, idx)
-		"ne_clone_seed": return _clone_seed_rs(card, idx)
+		"ne_pawnbroker": return _pawnbroker_rs(card)
 	return Enums.empty_result()
 
 
@@ -65,13 +68,10 @@ func apply_persistent(card: CardInstance, board: Array = []) -> void:
 ## sold_card.tenure 가 0일 수도 있으므로 require_tenure 체크는 호출 측에서.
 ##
 ## 반환 dict 확장 필드 (Phase 3b-2b — game_manager 가 처리):
-##   - clones_to_bench: Array[Dict{template_id, star}] — ne_clone_seed RS 복제본
-##   - transfer_upgrade: Dict{source_card, source_idx} — ne_clone_seed ★3 SELL
 ##   - transform_theme: Dict{target_idx, new_theme, omni} — ne_masquerade SELL
 func process_self_sell(sold_card: CardInstance, board: Array) -> Dictionary:
 	match sold_card.get_base_id():
 		"ne_hoarder": return _hoarder_sell(sold_card)
-		"ne_clone_seed": return _clone_seed_sell(sold_card)
 		"ne_masquerade": return _masquerade_sell(sold_card, board)
 	return {"events": [], "gold": 0, "terazin": 0}
 
@@ -214,24 +214,31 @@ func _void_force_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
-# --- ne_fusion_end (T4) — BS ★3 count scaling ---
+# --- ne_fusion_end (T4) — BS ★3 + ★2×weight count scaling ---
 
 
-## M = 보드의 ★3 카드 수 (self 포함). self ATK/HP × M 스케일.
-## ★3는 M≥3 시 모든 아군에게 ATK +M×% 추가 buff (오라).
+## M = 보드의 ★3 카드 수 + ★2 카드 수 × star2_weight (self 포함).
+## 이 카드 ATK/HP × M 스케일.
+## ★3는 ★3 카드 수가 allies_threshold 이상일 때 모든 아군에게 ATK +M×% 추가 buff (오라).
 func _fusion_end_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "star3_count_scaling")
 	if eff.is_empty():
 		return Enums.empty_result()
-	# M = ★3 카드 수
-	var m: int = 0
+	var s2_weight: float = eff.get("star2_weight", 0.0)
+	# M = ★3 카드 수 + ★2 카드 수 × star2_weight. star3_count는 aura threshold 용으로 별도.
+	var m: float = 0.0
+	var star3_count: int = 0
 	for c in board:
 		if c == null:
 			continue
-		if (c as CardInstance).star_level >= 3:
-			m += 1
-	if m <= 0:
+		var lvl: int = (c as CardInstance).star_level
+		if lvl >= 3:
+			m += 1.0
+			star3_count += 1
+		elif lvl == 2 and s2_weight > 0.0:
+			m += s2_weight
+	if m <= 0.0:
 		return Enums.empty_result()
 	var atk_per: float = eff.get("atk_pct_per_m", 0.0)
 	var hp_per: float = eff.get("hp_pct_per_m", 0.0)
@@ -240,11 +247,12 @@ func _fusion_end_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	if atk_mult != 1.0 or hp_mult != 1.0:
 		card.temp_mult_buff(atk_mult, hp_mult)
 
-	# ★3: M ≥ allies_threshold 시 모든 아군에게 ATK +M × allies_atk_pct_per_m
+	# ★3: ★3 카드 수 ≥ allies_threshold 시 모든 아군에게 ATK +★3수 × allies_atk_pct_per_m
+	# (threshold 와 aura 배율 모두 정수 ★3 카운트 기준 — ★2 는 self buff 에만 기여)
 	var threshold: int = eff.get("allies_threshold", 0)
 	var allies_atk_per: float = eff.get("allies_atk_pct_per_m", 0.0)
-	if threshold > 0 and m >= threshold and allies_atk_per > 0.0:
-		var allies_mult: float = 1.0 + allies_atk_per * m
+	if threshold > 0 and star3_count >= threshold and allies_atk_per > 0.0:
+		var allies_mult: float = 1.0 + allies_atk_per * star3_count
 		for c in board:
 			if c == null or c == card:
 				continue
@@ -358,45 +366,23 @@ func _council_aura(card: CardInstance, board: Array) -> void:
 		(c as CardInstance).temp_mult_buff(atk_mult, hp_mult)
 
 
-# --- ne_clone_seed (T1) — RS clone + SELL transfer_upgrade ---
+# --- ne_pawnbroker (T1) — REROLL levelup_discount + ★3 RS free_reroll ---
 
 
-## RS: 자기 ★1 복사본을 벤치에 추가. game_manager 가 결과 dict 의
-## "clones_to_bench" 필드를 처리 (process_rs_card 반환에 포함).
-## 복사본 생성 자체는 chain_engine 에서 즉시 못 함 — game_state 접근 필요.
-##
-## ★2/★3 추가: enhance(self, atk_pct) 도 함께 적용 (YAML enhance action).
-## ★2 atk_pct=0.02, ★3 atk_pct=0.04.
-func _clone_seed_rs(card: CardInstance, _idx: int) -> Dictionary:
-	# 복사본 1장 (★1) 을 bench 에 추가하라는 신호
-	var clones: Array = [{"template_id": card.template_id, "star": 1}]
-	# ★2/★3 self enhance 적용 (YAML enhance action)
+## RS (★3 only): YAML free_reroll 액션을 result dict 의 "free_rerolls" 필드로
+## 신호. ChainEngine 가 누적해 pending_free_reroll_callback 으로 game_state 에
+## 전달. ★1/★2 는 RS block 자체가 없으므로 호출되지 않음.
+## REROLL trigger 의 levelup_discount 액션은 chain_engine._execute_actions 가 처리.
+func _pawnbroker_rs(card: CardInstance) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var enh := _find_eff(effs, "enhance")
-	if not enh.is_empty():
-		var atk_pct: float = enh.get("atk_pct", 0.0)
-		var hp_pct: float = enh.get("hp_pct", 0.0)
-		if atk_pct > 0.0 or hp_pct > 0.0:
-			card.enhance(null, atk_pct, hp_pct)
+	var fr := _find_eff(effs, "free_reroll")
+	var amount := 0
+	if not fr.is_empty():
+		amount = int(fr.get("value", 0))
 	return {
-		"events": [],
-		"gold": 0,
-		"terazin": 0,
-		"clones_to_bench": clones,
+		"events": [], "gold": 0, "terazin": 0,
+		"free_rerolls": amount,
 	}
-
-
-## SELL: -1g (모든 ★ 공통). ★3 추가: 자신의 업그레이드 1개를 필드 카드 1장으로 이전.
-## 업그레이드 이전은 game_manager가 처리 (전이 대상 카드 선택 + UI는 sim에선 deterministic).
-func _clone_seed_sell(card: CardInstance) -> Dictionary:
-	var result: Dictionary = {"events": [], "gold": -1, "terazin": 0}
-	# ★3 + 업그레이드 보유 시 transfer 신호
-	if card.star_level >= 3 and card.upgrades.size() > 0:
-		result["transfer_upgrade"] = {
-			"source_card": card,
-			"source_upgrade_idx": 0,  # 첫 번째 업그레이드 (sim 결정성)
-		}
-	return result
 
 
 # --- ne_masquerade (T4) — SELL transform_theme ---

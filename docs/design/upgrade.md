@@ -85,6 +85,27 @@
   - 흡수 순서: 배치 순서상 앞쪽(보드 왼→오 → 벤치 왼→오) donor부터 흡수
   - 5슬롯 상한 초과 시 뒤쪽 donor의 업그레이드부터 버림 (truncate)
   - survivor 선정: "업그레이드 수 최대 → 동점 시 leftmost(보드→벤치)"
+
+★합성 시 도너 stat 흡수 정책 (2026-04-26):
+  - 합산: 유닛(cap 60), 업그레이드 어레이(5슬롯), growth_atk_pct/hp_pct,
+          tag_growth_*, upgrade_def/range/move_speed, shield_hp_pct,
+          theme_state 그룹A (trees, manufacture_counter, attack_stack_pct,
+          range_bonus)
+  - 곱셈: stacks[].upgrade_atk_mult/hp_mult, upgrade_as_mult
+          (% 업그레이드, 보스 보상, 커맨더 RAIDER 입력원 통합)
+  - max:  tenure, theme_state["rank"], unit_cap_bonus, upgrade_slot_bonus,
+          stacks[].unique_atk_mult/hp_mult, unique_as_mult ([고유효과] layer)
+  - OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade,
+          high_rank_applied)
+  - 0/false 리셋: activations_used, threshold_fired (evolve_star)
+  - 기타 theme_state (그룹C/D, 라운드/전투 한정): survivor 유지
+
+[고유효과] 분리 (2026-04-26):
+  - 세계수(dr_world)의 multiply_stats는 매 RS 곱셈 누적이라 ★ 합성 시
+    도너 누적분이 모두 곱해져 폭발할 위험. 별도 unique_*_mult 필드에
+    누적하고 합성 시 max 정책 적용 (폭발 방지).
+  - effective ATK = base × (1+growth) × upgrade_mult × unique_mult × temp
+  - 향후 다른 [고유효과] 카드도 같은 layer 사용
 ```
 
 ## ★합성과의 역할 분리

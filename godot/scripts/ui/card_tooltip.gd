@@ -5,7 +5,14 @@ extends PanelContainer
 @onready var cost_label: Label = $VBox/CostLabel
 @onready var info_label: Label = $VBox/InfoLabel
 @onready var effect_label: RichTextLabel = $VBox/EffectLabel
+@onready var upgrades_label: RichTextLabel = $VBox/UpgradesLabel
 @onready var units_label: Label = $VBox/UnitsLabel
+
+var _rarity_tag := {
+	Enums.UpgradeRarity.COMMON: "[color=#a0a0a0]C[/color]",
+	Enums.UpgradeRarity.RARE: "[color=#7090f0]R[/color]",
+	Enums.UpgradeRarity.EPIC: "[color=#c060f0]E[/color]",
+}
 
 var _keyword_popup: PanelContainer
 var _keyword_label: Label
@@ -179,6 +186,9 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 				if mt > 0:
 					info_label.text += "\n⚙ %d/%d" % [mc, mt]
 
+	# Attached upgrades — list with rarity tag + brief effect summary
+	_render_upgrades(card)
+
 	# Unit composition + total CP
 	var unit_lines: PackedStringArray = []
 	for s in card.stacks:
@@ -255,6 +265,72 @@ func _update_keyword_panel(raw_text: String) -> void:
 	else:
 		_keyword_label.text = "\n".join(found)
 		_keyword_popup.visible = true
+
+
+func _render_upgrades(card: CardInstance) -> void:
+	if card.upgrades.is_empty():
+		upgrades_label.visible = false
+		return
+	var max_slots: int = card.get_max_upgrade_slots()
+	var lines: PackedStringArray = []
+	lines.append("🔧 업그레이드 (%d/%d):" % [card.upgrades.size(), max_slots])
+	for upg in card.upgrades:
+		var rarity: int = upg.get("rarity", Enums.UpgradeRarity.COMMON)
+		var tag: String = _rarity_tag.get(rarity, "?")
+		var effect: String = _format_upgrade_effect(upg)
+		var nm: String = upg.get("name", "???")
+		if effect.is_empty():
+			lines.append("  [%s] %s" % [tag, nm])
+		else:
+			lines.append("  [%s] %s — %s" % [tag, nm, effect])
+	upgrades_label.clear()
+	upgrades_label.append_text("\n".join(lines))
+	upgrades_label.visible = true
+
+
+func _format_upgrade_effect(tmpl: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	var mods: Dictionary = tmpl.get("stat_mods", {})
+	if mods.has("atk_pct"):
+		parts.append("ATK +%d%%" % int(mods["atk_pct"] * 100))
+	if mods.has("hp_pct"):
+		parts.append("HP +%d%%" % int(mods["hp_pct"] * 100))
+	if mods.has("def"):
+		parts.append("DEF +%d" % int(mods["def"]))
+	if mods.has("range"):
+		parts.append("Range +%d" % int(mods["range"]))
+	if mods.has("move_speed"):
+		parts.append("MS +%d" % int(mods["move_speed"]))
+	if mods.has("as_mult"):
+		var as_pct: int = int((1.0 - float(mods["as_mult"])) * 100)
+		parts.append("AS +%d%%" % as_pct)
+	for m in tmpl.get("mechanics", []):
+		parts.append(_format_mechanic(m))
+	return ", ".join(parts)
+
+
+func _format_mechanic(m: Dictionary) -> String:
+	match m.get("type", ""):
+		"thorns": return "반사 %d%%" % int(m["reflect_pct"] * 100)
+		"battle_start_heal": return "전투 시작 HP +%d%%" % int(m["heal_hp_pct"] * 100)
+		"armor_pierce": return "DEF %d%% 무시" % int(m["ignore_def_pct"] * 100)
+		"focus_fire": return "집중 ATK +%d%%/타" % int(m["stack_atk_pct"] * 100)
+		"battle_start_shield": return "방어막 HP %d%%" % int(m["shield_hp_pct"] * 100)
+		"lifesteal": return "흡혈 %d%%" % int(m["steal_pct"] * 100)
+		"splash": return "스플래시 %d%%" % int(m["splash_pct"] * 100)
+		"phase_shift": return "첫 피격 무효"
+		"tactical_retreat": return "HP %d%%↓ 후퇴+무적" % int(m["hp_threshold"] * 100)
+		"chain_discharge": return "처치 시 ATK %d%% 연쇄" % int(m["chain_dmg_pct"] * 100)
+		"regen": return "%.0f초마다 HP %d%% 회복" % [m["interval_sec"], int(m["heal_hp_pct"] * 100)]
+		"slow_aura": return "적 MS -%d%%" % int(m["slow_pct"] * 100)
+		"critical": return "크리 %d%% ×%.1f" % [int(m["crit_chance"] * 100), m["crit_mult"]]
+		"berserk": return "HP %d%%↓ ATK×%d AS×%d" % [int(m["hp_threshold"] * 100), int(m["atk_mult"]), int(m["as_mult"])]
+		"chain_explosion": return "스플래시 %d%% + 처치 폭발" % int(m["splash_pct"] * 100)
+		"immortal_core": return "치명타 생존 + 무적"
+		"soul_harvest": return "처치 ATK +%d%% 누적" % int(m["kill_atk_pct"] * 100)
+		"fission": return "사망 시 %d기 분열" % m["clone_count"]
+		"hp_percent_dmg": return "현재 HP %d%% 추가뎀" % int(m["dmg_pct"] * 100)
+	return m.get("type", "???")
 
 
 func _describe_effect(eff: Dictionary) -> String:

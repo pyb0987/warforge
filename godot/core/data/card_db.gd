@@ -778,6 +778,7 @@ func _register_neutral() -> void:
 	var PC := Enums.TriggerTiming.POST_COMBAT
 	var PCD := Enums.TriggerTiming.POST_COMBAT_DEFEAT
 	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
+	var REROLL := Enums.TriggerTiming.ON_REROLL
 	var RS := Enums.TriggerTiming.ROUND_START
 	var SELL := Enums.TriggerTiming.ON_SELL
 	var EN := Enums.Layer1.ENHANCED
@@ -1499,70 +1500,49 @@ func _register_neutral() -> void:
 			},
 		})
 
-	var cs_comp := [{"unit_id":"ne_scrap","count":2}]
-	var cs_tags := PackedStringArray(["neutral", "clone"])
-	_c("ne_clone_seed", "분열체", 1, T,
-		cs_comp,
+	var paw_comp := [{"unit_id":"ne_scrap","count":2}]
+	var paw_tags := PackedStringArray(["neutral", "reroll"])
+	_c("ne_pawnbroker", "전당포", 1, T,
+		paw_comp,
 		[
 			{
-				"trigger_timing": RS, "max_activations": -1,
+				"trigger_timing": REROLL, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "clone_self_to_bench", "star": 1}],
-			},
-			{
-				"trigger_timing": SELL, "max_activations": 1,
-				"trigger_layer1": -1, "trigger_layer2": -1,
-				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "grant_gold", "amount": -1}],
+				"actions": [{"action": "levelup_discount", "chance": 0.5, "amount": 1}],
 			}
 		],
-		cs_tags,
+		paw_tags,
 				{
 			2: {
-				"name": "분열체 ★2",
-				"composition": cs_comp,
-				"card_tags": cs_tags,
+				"name": "전당포 ★2",
+				"composition": paw_comp,
+				"card_tags": paw_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": REROLL, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "clone_self_to_bench", "star": 1},
-						{"action": "enhance", "target": "self", "atk_pct": 0.02}
-					],
-				},
-				{
-					"trigger_timing": SELL, "max_activations": 1,
-					"trigger_layer1": -1, "trigger_layer2": -1,
-					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "grant_gold", "amount": -1}],
+					"actions": [{"action": "levelup_discount", "chance": 0.5, "amount": 2}],
 				}
 			],
 			},
 			3: {
-				"name": "분열체 ★3",
-				"composition": cs_comp,
-				"card_tags": cs_tags,
+				"name": "전당포 ★3",
+				"composition": paw_comp,
+				"card_tags": paw_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": REROLL, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "clone_self_to_bench", "star": 1},
-						{"action": "enhance", "target": "self", "atk_pct": 0.04}
-					],
+					"actions": [{"action": "levelup_discount", "chance": 1.0, "amount": 2}],
 				},
 				{
-					"trigger_timing": SELL, "max_activations": 1,
+					"trigger_timing": RS, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "grant_gold", "amount": -1},
-						{"action": "transfer_upgrade", "target": "player_select", "source": "self", "count": 1}
-					],
+					"actions": [{"action": "free_reroll", "value": 1}],
 				}
 			],
 			},
@@ -1814,7 +1794,7 @@ func _register_neutral() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "include_self": true}
+					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "star2_weight": 0.5, "include_self": true}
 				],
 			}
 		],
@@ -1830,7 +1810,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "include_self": true}
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "star2_weight": 0.5, "include_self": true}
 					],
 				}
 			],
@@ -1845,7 +1825,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
+						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "star2_weight": 0.5, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
 					],
 				}
 			],
@@ -2042,7 +2022,7 @@ func _register_druid() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
 					{"action": "tree_add", "target": "self", "count": 1},
-					{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.05, "tree_scale_pct": 0.03, "low_unit": {"thresh": 3, "mult": 1.5}}
+					{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.05, "tree_scale_pct": 0.03, "low_unit": {"thresh": 2, "mult": 1.5}}
 				],
 			}
 		],
@@ -2075,7 +2055,7 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
-						{"action": "tree_shield", "target": "all_druid", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 5, "mult": 1.5}}
+						{"action": "tree_shield", "target": "all_druid", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 8, "mult": 1.5}}
 					],
 				}
 			],
@@ -2095,7 +2075,7 @@ func _register_druid() -> void:
 				"actions": [
 					{"action": "tree_add", "target": "self", "count": 1},
 					{"action": "tree_absorb", "target": "adj_druids", "count": 1},
-					{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.004, "low_unit": {"thresh": 3, "pct": 0.006}}
+					{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.004, "low_unit": {"thresh": 2, "pct": 0.006}}
 				],
 			}
 		],
@@ -2130,7 +2110,7 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "tree_absorb", "target": "adj_druids", "count": 2},
-						{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 5, "pct": 0.009}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.08}}
+						{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 8, "pct": 0.009}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.08}}
 					],
 				}
 			],
@@ -2251,7 +2231,7 @@ func _register_druid() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
 					{"action": "tree_add", "target": "self", "count": 1},
-					{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 3, "pct": 0.012}, "tree_bonus": {"thresh": 10, "mult": 1.3}}
+					{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 2, "pct": 0.012}, "tree_bonus": {"thresh": 10, "mult": 1.3}}
 				],
 			}
 		],
@@ -2268,7 +2248,7 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 1},
-						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.3}}
+						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 4, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.3}}
 					],
 				}
 			],
@@ -2284,7 +2264,7 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
-						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 3, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.5}}
+						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 8, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.5}}
 					],
 				}
 			],
@@ -2354,7 +2334,7 @@ func _register_druid() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "tree_temp_buff", "target": "self", "unit_cap": 5, "atk_base_pct": 0.8, "atk_tree_pct": 0.05}
+					{"action": "tree_temp_buff", "target": "self", "unit_cap": 3, "atk_base_pct": 0.8, "atk_tree_pct": 0.05}
 				],
 			}
 		],
@@ -2370,7 +2350,7 @@ func _register_druid() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "tree_temp_buff", "target": "self", "unit_cap": 6, "atk_base_pct": 1.2, "atk_tree_pct": 0.08, "hp_pct": 0.6}
+						{"action": "tree_temp_buff", "target": "self", "unit_cap": 8, "atk_base_pct": 1.2, "atk_tree_pct": 0.08, "hp_pct": 0.6}
 					],
 				}
 			],
@@ -2385,7 +2365,7 @@ func _register_druid() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "tree_temp_buff", "target": "self", "unit_cap": 7, "atk_mult": 1.5, "hp_mult": 1.3, "kill_hp_recover": true}
+						{"action": "tree_temp_buff", "target": "self", "unit_cap": 16, "atk_mult": 1.5, "hp_mult": 1.3, "kill_hp_recover": true}
 					],
 				}
 			],

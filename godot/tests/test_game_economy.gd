@@ -298,7 +298,7 @@ func _materialize_card(card: CardInstance) -> Array:
 			units.append({
 				"atk": eff_atk,
 				"hp": eff_hp,
-				"attack_speed": ut["attack_speed"] * card.upgrade_as_mult,
+				"attack_speed": ut["attack_speed"] * card.upgrade_as_mult * card.unique_as_mult,
 				"range": ut["range"] + card.upgrade_range,
 				"move_speed": ut["move_speed"] + card.upgrade_move_speed,
 				"def": card.upgrade_def,

@@ -208,7 +208,8 @@ func test_fusion_end_m3_triggers_allies_aura() -> void:
 
 
 func test_fusion_end_star2_no_allies_aura() -> void:
-	## ★2: allies_atk_pct_per_m 없음 → M ≥ 3 라도 아군 buff 안 함 (multi-review 누락 ★)
+	## ★2: allies_atk_pct_per_m 없음 → ★3 N≥3 라도 아군 buff 안 함 (multi-review 누락 ★)
+	## A안: ★2 self 는 weight 0.5 로 M 에 포함 → M = 2 (★3) + 0.5 (★2 self) = 2.5
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
 	card.evolve_star()  # ★2
 	var ally1: CardInstance = CardInstance.create("sp_assembly")
@@ -218,12 +219,69 @@ func test_fusion_end_star2_no_allies_aura() -> void:
 	ally2.evolve_star()
 	ally2.evolve_star()
 	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
-	# ★2 self M=2 → ATK ×(1+0.55×2)=2.1, HP ×(1+0.20×2)=1.4
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2, 0.001,
-		"★2 self M=2 → ATK ×2.10")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2, 0.001,
-		"★2 self M=2 → HP ×1.40")
+	# ★2 self M=2.5 → ATK ×(1+0.55×2.5)=2.375, HP ×(1+0.20×2.5)=1.5
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2.5, 0.001,
+		"★2 self M=2.5 → ATK ×2.375")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2.5, 0.001,
+		"★2 self M=2.5 → HP ×1.50")
 	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001, "★2 → 아군 aura 없음")
+
+
+func test_fusion_end_star2_weight_self_only() -> void:
+	## A안: ★2 self 단독, ★3 0장 → M = 0.5 (★2 self × 0.5).
+	## 0 < M 이므로 self buff 발동.
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()  # ★2
+	var sp_card: CardInstance = CardInstance.create("sp_assembly")  # ★1
+	_sys.apply_battle_start(card, 0, [card, sp_card])
+	# ★2 self M=0.5 → ATK ×(1+0.55×0.5)=1.275, HP ×(1+0.20×0.5)=1.10
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 0.5, 0.001,
+		"★2 self only M=0.5 → ATK ×1.275")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 0.5, 0.001,
+		"★2 self only M=0.5 → HP ×1.10")
+
+
+func test_fusion_end_star3_with_star2_ally() -> void:
+	## A안: self ★3 + ally ★2 → star3=1, M = 1 + 0.5 = 1.5.
+	## ★3 self 스케일에 ★2 가중치 합산.
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()
+	card.evolve_star()  # ★3
+	var ally2: CardInstance = CardInstance.create("sp_assembly")
+	ally2.evolve_star()  # ★2
+	_sys.apply_battle_start(card, 0, [card, ally2])
+	# ★3 self M=1.5 → ATK ×(1+0.65×1.5)=1.975, HP ×(1+0.35×1.5)=1.525
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 1.5, 0.001,
+		"★3 self + ★2 ally M=1.5 → ATK ×1.975")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.35 * 1.5, 0.001,
+		"★3 self + ★2 ally M=1.5 → HP ×1.525")
+	# aura: star3_count=1 < threshold=3 → 아군 buff 없음
+	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"★3 1장만 → 아군 aura 미발동")
+
+
+func test_fusion_end_aura_threshold_strict_star3_count() -> void:
+	## ★3 self + ★2 ally 4장 → M = 1 + 4×0.5 = 3.0 (≥ threshold=3) 이지만
+	## aura threshold 는 정수 ★3 카운트 기준 (=1) → aura 미발동.
+	## (★2 가중 합산이 aura threshold 를 넘기지 못함을 검증)
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()
+	card.evolve_star()  # ★3
+	var allies: Array = []
+	for i in range(4):
+		var a: CardInstance = CardInstance.create("sp_assembly")
+		a.evolve_star()  # ★2
+		allies.append(a)
+	var board: Array = [card]
+	board.append_array(allies)
+	_sys.apply_battle_start(card, 0, board)
+	# self M=3.0 → ATK ×(1+0.65×3)=2.95
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 3.0, 0.001,
+		"M=3.0 self ATK ×2.95")
+	# aura 미발동: star3_count=1 < 3
+	for a in allies:
+		assert_almost_eq((a as CardInstance).stacks[0]["temp_atk_mult"], 1.0, 0.001,
+			"★3 카운트<3 → aura 미발동")
 
 
 func test_fusion_end_m2_below_threshold_no_aura() -> void:
@@ -458,57 +516,35 @@ func test_council_omni_card_satisfies_all_themes() -> void:
 
 
 # ================================================================
-# ne_clone_seed (T1 RS clone + SELL transfer_upgrade ★3)
+# ne_pawnbroker (T1 REROLL levelup_discount + ★3 RS free_reroll)
 # ================================================================
 
 
-func test_clone_seed_rs_returns_clone_signal() -> void:
-	## RS handler 결과에 clones_to_bench 포함, 첫 항목은 self template_id ★1
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_star1_rs_no_signal() -> void:
+	## ★1 은 RS block 자체가 없음 — process_rs_card 가 free_rerolls 신호 없는
+	## empty_result 반환 (★1/★2 카드는 dispatch 미진입).
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	var clones: Array = result.get("clones_to_bench", [])
-	assert_eq(clones.size(), 1, "1 clone signal")
-	assert_eq(clones[0].get("template_id", ""), "ne_clone_seed", "복사본 template_id 매치")
-	assert_eq(clones[0].get("star", 0), 1, "★1 신선 복사본")
-	# Negative assertion: ★1 RS는 enhance 액션 없음 — growth_atk_pct 변화 없음
-	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "★1 RS → enhance 미적용")
+	assert_eq(result.get("free_rerolls", 0), 0, "★1 RS → free_rerolls 신호 없음")
 
 
-func test_clone_seed_star2_rs_includes_self_enhance() -> void:
-	## ★2 RS: 복사 + self ATK +2% (enhance action)
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_star3_rs_emits_one_free_reroll() -> void:
+	## ★3 RS: YAML 의 free_reroll: {value: 1} 을 result.free_rerolls 로 신호.
+	## ChainEngine 가 누적해 game_state.pending_free_rerolls 로 전달.
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	card.evolve_star()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★2 → self ATK +2%")
+	card.evolve_star()
+	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
+	assert_eq(result.get("free_rerolls", 0), 1, "★3 RS → free_rerolls 1")
 
 
-func test_clone_seed_sell_grants_neg1_gold() -> void:
-	## SELL: gold -1 (페널티)
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
+func test_pawnbroker_self_sell_empty() -> void:
+	## ne_pawnbroker 는 SELL block 정의가 없음 — self_sell 핸들러 미진입.
+	## 분열체와 달리 판매 페널티 없음 (T1 일반 카드 가격 환급).
+	var card: CardInstance = CardInstance.create("ne_pawnbroker")
 	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), -1, "★1 SELL → -1g")
-
-
-func test_clone_seed_star3_sell_with_upgrade_signals_transfer() -> void:
-	## ★3 SELL + upgrade 보유 시 → transfer_upgrade signal 포함
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
-	card.evolve_star()
-	card.evolve_star()
-	# 가짜 upgrade 부착 (★3 transfer 트리거 조건)
-	card.upgrades.append({"id": "test_upg", "name": "테스트업그", "rarity": "C"})
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_true(result.has("transfer_upgrade"), "★3+upgrade → transfer signal")
-	assert_eq(result.get("transfer_upgrade", {}).get("source_card"), card,
-		"source_card = self")
-
-
-func test_clone_seed_star3_sell_no_upgrade_no_transfer() -> void:
-	## ★3 SELL 이지만 upgrade 0개 → transfer signal 없음
-	var card: CardInstance = CardInstance.create("ne_clone_seed")
-	card.evolve_star()
-	card.evolve_star()
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_false(result.has("transfer_upgrade"), "upgrade 없으면 transfer 없음")
+	assert_eq(result.get("gold", 0), 0, "전당포 SELL → 골드 효과 없음")
+	assert_false(result.has("transfer_upgrade"), "transfer signal 없음")
 
 
 # ================================================================

@@ -3,8 +3,17 @@
 ## Build
 
 ```bash
-# GDScript 단위 테스트 (GUT v9.6.0)
-godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/ -glog=1 -gexit
+# GDScript 단위 테스트 (GUT v9.6.0) — 디렉토리 전체
+godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit
+
+# 단일 파일
+godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_X.gd -glog=1 -gexit
+
+# Fresh worktree / CI 첫 실행 또는 새 class_name 추가 후: cache 재빌드 필수
+# (생략 시 stale class_cache로 ~149개 false-positive 카스케이드 실패 발생.
+#  근거: traces/failures/010-stale-class-cache-cascade.md, search-set SS-008)
+rm -f godot/.godot/global_script_class_cache.cfg
+godot --headless --path godot/ --import
 ```
 
 ## Architecture

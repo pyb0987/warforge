@@ -619,8 +619,8 @@ cards:
           shield:
             target: all_allies
             hp_pct: 0.3
-  ne_clone_seed:
-    name: 분열체
+  ne_pawnbroker:
+    name: 전당포
     tier: 1
     theme: neutral
     comp:
@@ -628,49 +628,34 @@ cards:
       n: 2
     tags:
     - neutral
-    - clone
+    - reroll
     impl: theme_system
     stars:
       1:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: REROLL
           max_act: -1
-          clone_self_to_bench:
-            star: 1
-        - trigger_timing: SELL
-          max_act: 1
-          grant_gold:
-            amount: -1
+          levelup_discount:
+            chance: 0.5
+            amount: 1
       2:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: REROLL
           max_act: -1
-          clone_self_to_bench:
-            star: 1
-          enhance:
-            target: self
-            atk_pct: 0.02
-        - trigger_timing: SELL
-          max_act: 1
-          grant_gold:
-            amount: -1
+          levelup_discount:
+            chance: 0.5
+            amount: 2
       3:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: REROLL
           max_act: -1
-          clone_self_to_bench:
-            star: 1
-          enhance:
-            target: self
-            atk_pct: 0.04
-        - trigger_timing: SELL
+          levelup_discount:
+            chance: 1.0
+            amount: 2
+        - trigger_timing: RS
           max_act: 1
-          grant_gold:
-            amount: -1
-          transfer_upgrade:
-            target: player_select
-            source: self
-            count: 1
+          free_reroll:
+            value: 1
   ne_envoy:
     name: 떠돌이 사절단
     tier: 2
@@ -888,6 +873,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.40
             hp_pct_per_m: 0.15
+            star2_weight: 0.5
             include_self: true
       2:
         effects:
@@ -896,6 +882,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.55
             hp_pct_per_m: 0.20
+            star2_weight: 0.5
             include_self: true
       3:
         effects:
@@ -904,6 +891,7 @@ cards:
           star3_count_scaling:
             atk_pct_per_m: 0.65
             hp_pct_per_m: 0.35
+            star2_weight: 0.5
             include_self: true
             allies_threshold: 3
             allies_atk_pct_per_m: 0.07

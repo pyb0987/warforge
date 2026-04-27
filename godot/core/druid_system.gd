@@ -395,9 +395,10 @@ func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		var target: CardInstance = board[i]
 		if target == null:
 			continue
-		# multiply_stats 는 upgrade_atk_mult / upgrade_hp_mult 에 곱셈 누적.
-		target.multiply_stats(atk_mult - 1.0, hp_mult - 1.0)
-		target.upgrade_as_mult *= as_mult
+		# 2026-04-26: 세계수는 [고유효과]이므로 unique_*_mult 에 누적
+		# (★ 합성 시 max 정책 — 곱셈 누적 폭발 방지). upgrade_*_mult 와 분리.
+		target.multiply_unique_stats(atk_mult - 1.0, hp_mult - 1.0)
+		target.unique_as_mult *= as_mult
 		target.stats_changed.emit()
 
 	return {

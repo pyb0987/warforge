@@ -150,6 +150,13 @@ func _grant_pending_free_rerolls(n: int) -> void:
 	game_state.pending_free_rerolls += n
 
 
+## 전당포(ne_pawnbroker): REROLL 결과의 levelup_discount 누적치 적용. 0이면 no-op.
+func _apply_reroll_levelup_discount(reroll_result: Dictionary) -> void:
+	var amount: int = int(reroll_result.get("levelup_discount", 0))
+	if amount > 0:
+		game_state.apply_levelup_discount(amount)
+
+
 ## ne_council (오대 평의회) PERSISTENT 효과 평가:
 ## 보드에 5테마(NEUTRAL+STEAMPUNK+MILITARY+DRUID+PREDATOR) 모두 존재하고
 ## ne_council 도 보드에 있으면 field_slots +1 활성. 조건 깨지면 비활성.
@@ -218,19 +225,6 @@ func _run_chain() -> void:
 
 	game_state.gold += result["gold_earned"]
 	game_state.terazin += result["terazin_earned"]
-
-	# ne_clone_seed: RS 복제본을 벤치에 추가 (chain_engine 결과 누적)
-	var clones: Array = result.get("clones_to_bench", [])
-	for clone_spec in clones:
-		var template_id: String = clone_spec.get("template_id", "")
-		if template_id == "":
-			continue
-		var clone: CardInstance = CardInstance.create(template_id)
-		if clone == null:
-			continue
-		# 복사본은 항상 ★1 (clone_spec.star 무시 — 의도된 단순화)
-		# 벤치에 빈 슬롯 있을 때만 추가 (cap 도달 시 silent drop)
-		game_state.add_to_bench(clone)
 
 	game_state.state_changed.emit()
 
@@ -398,7 +392,7 @@ func _materialize_army() -> Array:
 			# as_bonus (전술사령부 R10): attack_speed *= (1 + as_bonus).
 			# 수치가 1.0 증가하면 AS 2배가 아닌 (1 + 0.15) = 1.15배. 기존 SC1 스타일 유지.
 			# temp_as_mult: 전투 한정 AS modifier (ne_void_force ★3 등). clear_temp_buffs 리셋.
-			var as_mult_total: float = c.upgrade_as_mult * c.temp_as_mult * (1.0 + as_bonus)
+			var as_mult_total: float = c.upgrade_as_mult * c.unique_as_mult * c.temp_as_mult * (1.0 + as_bonus)
 			# 군대 revive: 이 카드가 통합사령부 scope에 속하면 revive 필드 주입.
 			var revive_info: Dictionary = revive_scope_map.get(card_idx, {})
 			var revive_limit_val: int = 0
@@ -910,6 +904,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						var reroll_result := chain_engine.process_reroll_triggers(game_state.get_active_board())
 						game_state.terazin += reroll_result["terazin"]
 						game_state.gold += reroll_result["gold"]
+						_apply_reroll_levelup_discount(reroll_result)
 						game_state.state_changed.emit()
 						print("[Reroll] FREE (gambler)! Gold=%d" % game_state.gold)
 						if _logger:
@@ -923,6 +918,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						var reroll_result := chain_engine.process_reroll_triggers(game_state.get_active_board())
 						game_state.terazin += reroll_result["terazin"]
 						game_state.gold += reroll_result["gold"]
+						_apply_reroll_levelup_discount(reroll_result)
 						game_state.state_changed.emit()
 						print("[Reroll] FREE (pending, %d left)! Gold=%d" % [
 							game_state.pending_free_rerolls, game_state.gold])
@@ -933,6 +929,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						var reroll_result := chain_engine.process_reroll_triggers(game_state.get_active_board())
 						game_state.terazin += reroll_result["terazin"]
 						game_state.gold += reroll_result["gold"]
+						_apply_reroll_levelup_discount(reroll_result)
 						print("[Reroll] -%dg, Gold=%d" % [_genome.get_reroll_cost(), game_state.gold])
 						if _logger:
 							_logger.log_reroll(_genome.get_reroll_cost(), false, game_state.gold)

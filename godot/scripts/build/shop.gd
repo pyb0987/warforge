@@ -79,12 +79,13 @@ func try_purchase(slot_idx: int) -> bool:
 		print("[Shop] Not enough gold (%d < %d)" % [_game_state.gold, cost])
 		return false
 
-	var card := CardInstance.create(card_id)
-	if card == null:
-		return false
-	Commander.apply_card_bonuses(_game_state, card)
-
-	var bench_idx := _game_state.add_to_bench(card)
+	# spawn_card funnel: create + commander 보너스 + add_to_bench + try_merge(fresh_ref).
+	# 구매한 ★1은 fresh로 추적되어 합성 시 유닛 흡수에서 제외(2장분량 정책).
+	var spawn_result := _game_state.spawn_card(card_id)
+	if spawn_result.is_empty():
+		return false  # create 실패
+	var card: CardInstance = spawn_result["card"]
+	var bench_idx: int = spawn_result["bench_idx"]
 	if bench_idx < 0:
 		print("[Shop] Bench full!")
 		return false
@@ -94,8 +95,7 @@ func try_purchase(slot_idx: int) -> bool:
 	print("[Shop] Bought %s for %dg → bench[%d]" % [tmpl.get("name", card_id), cost, bench_idx])
 	card_purchased.emit(card_id, slot_idx, cost)
 
-	# Auto-merge check (cascade: emit each step so build_phase can grant rewards)
-	var merge_steps := _game_state.try_merge(card_id)
+	var merge_steps: Array = spawn_result["merge_steps"]
 	for step in merge_steps:
 		var merged: CardInstance = step["card"]
 		print("[Merge] ★ %s evolved! ★%d→★%d (%du)" % [
@@ -145,7 +145,8 @@ func _update_visuals() -> void:
 	for i in _shop_slots.size():
 		var slot: Panel = _shop_slots[i]
 		if i < _offered_ids.size() and _offered_ids[i] != "":
-			var card := CardInstance.create(_offered_ids[i])
+			# 상점 슬롯 시각 미리보기 — 벤치/보드 미진입.
+			var card := CardInstance.create(_offered_ids[i])  # lint:allow card-create
 			slot.call("setup", card, "shop", i)
 		else:
 			slot.call("clear")

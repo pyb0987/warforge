@@ -1,6 +1,6 @@
 ---
 description: "하네스 변경의 효과를 검증하는 과거 실패 사례 모음. 변경 후 이 사례들이 재발하지 않는지 확인한다."
-last_updated: "2026-04-18"
+last_updated: "2026-04-26 (SS-009 신설)"
 ---
 
 # Harness Search Set
@@ -48,6 +48,18 @@ print('FAIL:',fails) if fails else print('PASS: bounds via single source')"`
 - **verify**: `cd /Users/fainders/personal/chain-army && python3 -c "import re; t=open('godot/core/data/card_db.gd').read(); checks=[('pr_molt',2),('pr_harvest',3),('pr_carapace',2),('ml_academy',2),('ml_conscript',1)]; fails=[c for c,v in checks if not re.search(c+r'.*max_activations.*'+str(v), t, re.DOTALL)]; print('FAIL: max_act mismatch:', fails) if fails else print('PASS: all max_activations correct')"`
 - **ref**: traces/failures/006-card-design-code-audit.md
 - **status**: active (2026-04-12)
+
+### SS-008: stale class_cache 환경 의존 false-positive 통과 방지
+- **증상**: fresh worktree/CI 첫 실행 시 `.godot/global_script_class_cache.cfg` 누락 또는 stale 상태에서 `class_name X` 등록과 의존 스크립트 컴파일 동시 진행 → NeutralSystem 같은 클래스 인식 실패 → chain_engine.gd 컴파일 실패 → 카스케이드 149개 false-positive 실패. 작업자 cache warm 환경에서는 통과로 보여 머지됨.
+- **verify**: `cd /Users/fainders/personal/chain-army && rm -f godot/.godot/global_script_class_cache.cfg && godot --headless --path godot/ --import 2>&1 | tail -1 && godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit 2>&1 | grep -E "^Failing Tests|^Passing Tests|All tests" | head -3`
+- **ref**: traces/failures/010-stale-class-cache-cascade.md
+- **status**: active (2026-04-26)
+
+### SS-009: card spawn 단일 진입점 우회 방지 (P5 2.5단계 구조적 강제)
+- **증상**: 신규 카드 생성 경로(구매/보스 보상/부적/카드효과)가 `GameState.spawn_card`/`add_clone`을 우회하여 `CardInstance.create` + `bench/board[i] = ...` 직접 대입 → fresh_ref 누락으로 합성 시 유닛 흡수 정책(2장분량) 미적용, drift 발생. iter 22 도입.
+- **verify**: `cd /Users/fainders/personal/chain-army && python3 scripts/lint_card_spawn.py && python3 -m unittest scripts.tests.test_lint_card_spawn 2>&1 | tail -3`
+- **ref**: traces/evolution/022-merge-fresh-policy-and-spawn-funnel.md
+- **status**: active (2026-04-26 신설, P5 2.5단계 — pre-commit lint hook + 단위 테스트 10건)
 
 ## Archived
 
