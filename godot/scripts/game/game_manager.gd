@@ -15,6 +15,7 @@ var _card_effect_gold: int = 0  # POST_COMBAT card gold for settlement log (OBS-
 var _unit_card_map: Array[int] = []  # combat unit idx → board card idx
 var _pending_boss_reward: Dictionary = {}  # {reward_id, needs_target, targets_remaining}
 var _boss_reward_targets: Array = []  # field_idx list for logging
+var _pending_council_bonus: bool = false  # ne_council 임계 도달 flag
 var _game_over: bool = false
 
 @onready var build_phase: Control = $BuildPhase
@@ -135,6 +136,8 @@ func _enter_phase(phase: Phase) -> void:
 				print("[BossReward] 자동 징집: 전체 +1기")
 			# ne_council (오대 평의회): 5테마 모두 보드에 존재 시 field_slots +1 동적
 			_evaluate_council_field_bonus()
+			# ne_council ★2/★3: 5테마 활성 시 council_counter +1, 임계 도달 시 1회 에픽 부여
+			_evaluate_council_epic_grant()
 			print("[Phase] BUILD — R%d | Gold:%d" % [game_state.round_num, game_state.gold])
 			if _logger:
 				_logger.log_round_start(game_state, build_phase.get_shop_offered())
@@ -190,6 +193,86 @@ func _evaluate_council_field_bonus() -> void:
 		game_state.field_slots = maxi(game_state.field_slots - 1, 0)
 		game_state.council_field_bonus_active = false
 		print("[ne_council] 5테마 깨짐 — field_slots -1 → %d" % game_state.field_slots)
+
+
+## ne_council ★2/★3: 5테마 활성 + ne_council 보드 보유 시 council_counter +1 누적.
+## 임계 도달 (★2=5, ★3=3) + 미사용 → 1회 발동: 카드 1장 선택 → 에픽 업글 3택1.
+## 게임당 1회만 (council_bonus_used flag).
+func _evaluate_council_epic_grant() -> void:
+	if game_state.council_bonus_used:
+		return
+	if not game_state.council_field_bonus_active:
+		return
+	# 보드의 ne_council ★ 등급 확인 (가장 높은 ★ 사용)
+	var council_star := 0
+	for card in game_state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		if ci.get_base_id() == "ne_council":
+			council_star = maxi(council_star, ci.star_level)
+	if council_star < 2:
+		return  # ★1은 카운터 없음
+	game_state.council_counter += 1
+	var threshold: int = 5 if council_star == 2 else 3
+	# 보드 ne_council 카드에 카운터 mirror (tooltip 표시용)
+	for card in game_state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		if ci.get_base_id() == "ne_council":
+			ci.theme_state["council_counter"] = game_state.council_counter
+			ci.theme_state["council_bonus_used"] = game_state.council_bonus_used
+	print("[ne_council] 카운터 %d/%d (★%d)" % [
+		game_state.council_counter, threshold, council_star])
+	if game_state.council_counter >= threshold:
+		game_state.council_bonus_used = true
+		# bonus_used flag도 보드 ne_council에 mirror
+		for card in game_state.board:
+			if card == null:
+				continue
+			var ci: CardInstance = card
+			if ci.get_base_id() == "ne_council":
+				ci.theme_state["council_bonus_used"] = true
+		print("[ne_council] 임계 도달 — 에픽 업글 부여 trigger")
+		_pending_council_bonus = true
+		# build_phase 진입 직전 popup. 단순화: 현재 turn에서 보드 카드 자동 선택 + 3택1 popup.
+		call_deferred("_show_council_epic_choice")
+
+
+func _show_council_epic_choice() -> void:
+	# 보드 카드 1장 선택 — 단순화: 가장 높은 CP 카드 자동 선택 (UI 단순화)
+	var best_card: CardInstance = null
+	var best_cp: float = -1.0
+	for card in game_state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		var cp: float = ci.get_total_cp()
+		if cp > best_cp:
+			best_cp = cp
+			best_card = ci
+	if best_card == null:
+		_pending_council_bonus = false
+		return
+	# 에픽 업글 3택1 popup
+	upgrade_choice_popup.show_choices(Enums.UpgradeRarity.EPIC)
+	var chosen_id: String = await upgrade_choice_popup.upgrade_chosen
+	if chosen_id != "" and best_card.can_attach_upgrade():
+		best_card.attach_upgrade(chosen_id)
+		game_state.upgrade_attached_to_card.emit(
+			chosen_id, "ne_council", best_card.get_base_id(),
+			_find_board_idx(best_card))
+		print("[ne_council] 에픽 %s → %s 부착" % [chosen_id, best_card.get_base_id()])
+	_pending_council_bonus = false
+	game_state.state_changed.emit()
+
+
+func _find_board_idx(card: CardInstance) -> int:
+	for i in game_state.board.size():
+		if game_state.board[i] == card:
+			return i
+	return -1
 
 
 func _run_chain() -> void:

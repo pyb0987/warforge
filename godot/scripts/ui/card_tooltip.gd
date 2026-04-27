@@ -186,6 +186,14 @@ func show_card(card: CardInstance, at_pos: Vector2) -> void:
 				if mt > 0:
 					info_label.text += "\n⚙ %d/%d" % [mc, mt]
 
+	# ne_council ★2/★3: council_counter 표시 (theme_state mirror, game_manager가 동기화)
+	if card.get_base_id() == "ne_council" and card.star_level >= 2:
+		var ct: int = 5 if card.star_level == 2 else 3
+		var cc: int = card.theme_state.get("council_counter", 0)
+		var used: bool = card.theme_state.get("council_bonus_used", false)
+		var status: String = " (사용 완료)" if used else ""
+		info_label.text += "\n🏛 %d/%d%s" % [cc, ct, status]
+
 	# Attached upgrades — list with rarity tag + brief effect summary
 	_render_upgrades(card)
 

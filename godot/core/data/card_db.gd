@@ -1857,6 +1857,12 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [{"action": "all_themes_field_bonus", "slot_bonus": 1, "allies_atk_pct": 0.05}],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "council_epic_grant", "threshold": 5}],
 				}
 			],
 			},
@@ -1872,6 +1878,12 @@ func _register_neutral() -> void:
 					"actions": [
 						{"action": "all_themes_field_bonus", "slot_bonus": 1, "allies_atk_pct": 0.07, "allies_hp_pct": 0.05}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "council_epic_grant", "threshold": 3}],
 				}
 			],
 			},

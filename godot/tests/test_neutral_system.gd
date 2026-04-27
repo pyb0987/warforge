@@ -516,6 +516,46 @@ func test_council_omni_card_satisfies_all_themes() -> void:
 
 
 # ================================================================
+# ne_council ★2/★3 council_epic_grant — 카운터 시스템
+# ================================================================
+
+
+func test_council_star2_yaml_has_council_epic_grant() -> void:
+	## ★2 effects의 RS block에 council_epic_grant action threshold=5
+	var blocks := CardDB.get_effect_blocks("ne_council", 2)
+	var found := false
+	for block in blocks:
+		if block.get("trigger_timing") != Enums.TriggerTiming.RS:
+			continue
+		for a in block.get("actions", []):
+			if a.get("action") == "council_epic_grant":
+				assert_eq(a.get("threshold", 0), 5, "★2 threshold = 5")
+				found = true
+	assert_true(found, "★2에 council_epic_grant 존재")
+
+
+func test_council_star3_yaml_has_council_epic_grant() -> void:
+	## ★3 effects의 RS block에 council_epic_grant action threshold=3
+	var blocks := CardDB.get_effect_blocks("ne_council", 3)
+	var found := false
+	for block in blocks:
+		if block.get("trigger_timing") != Enums.TriggerTiming.RS:
+			continue
+		for a in block.get("actions", []):
+			if a.get("action") == "council_epic_grant":
+				assert_eq(a.get("threshold", 0), 3, "★3 threshold = 3")
+				found = true
+	assert_true(found, "★3에 council_epic_grant 존재")
+
+
+func test_game_state_council_counter_initial_zero() -> void:
+	## council_counter, council_bonus_used 초기값 검증
+	var state := GameState.new()
+	assert_eq(state.council_counter, 0, "초기 counter = 0")
+	assert_false(state.council_bonus_used, "초기 used = false")
+
+
+# ================================================================
 # ne_pawnbroker (T1 REROLL levelup_discount + ★3 RS free_reroll)
 # ================================================================
 

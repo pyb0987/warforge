@@ -927,6 +927,10 @@ cards:
           all_themes_field_bonus:
             slot_bonus: 1
             allies_atk_pct: 0.05
+        - trigger_timing: RS
+          max_act: -1
+          council_epic_grant:
+            threshold: 5
       3:
         effects:
         - trigger_timing: PERSISTENT
@@ -935,6 +939,10 @@ cards:
             slot_bonus: 1
             allies_atk_pct: 0.07
             allies_hp_pct: 0.05
+        - trigger_timing: RS
+          max_act: -1
+          council_epic_grant:
+            threshold: 3
   ne_nexus:
     name: 연결체
     tier: 5

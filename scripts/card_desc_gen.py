@@ -916,6 +916,12 @@ def desc_all_themes_field_bonus(p: dict) -> str:
         parts.append(f"모든 아군 HP +{fmt_pct(a_hp)}%")
     return "필드에 5테마 모두 존재 시 " + " + ".join(parts)
 
+def desc_council_epic_grant(p: dict) -> str:
+    """ne_council ★2/★3: 5테마 활성 라운드마다 카운터 +1, 임계 도달 시 1회 발동."""
+    return (f"5테마 활성 라운드마다 카운터 +1. "
+            f"카운터 {p['threshold']}+ 도달 시 1회 카드 1장에 에픽 업그레이드 3택1")
+
+
 def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
             f"{p['threshold']} 소비, 레어 업그레이드 3택1")
@@ -1069,6 +1075,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "empty_slot_scaling":       desc_empty_slot_scaling,
     "star3_count_scaling":      desc_star3_count_scaling,
     "all_themes_field_bonus":   desc_all_themes_field_bonus,
+    "council_epic_grant":       desc_council_epic_grant,
     "transfer_upgrade":         desc_transfer_upgrade,
 }
 

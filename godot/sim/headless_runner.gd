@@ -179,6 +179,7 @@ func run() -> Dictionary:
 		state.round_rerolls = 0
 		# ne_council 보너스 평가 (game_manager._evaluate_council_field_bonus 와 동일 로직)
 		_sim_evaluate_council_field_bonus(state)
+		_sim_evaluate_council_epic_grant(state, ai_reward, rng)
 		var active_board := state.get_active_board()
 		var chain_result := chain_engine.run_growth_chain(active_board, false)
 		state.gold += chain_result["gold_earned"]
@@ -507,3 +508,43 @@ func _sim_evaluate_council_field_bonus(state: GameState) -> void:
 	elif (not should_be_active) and state.council_field_bonus_active:
 		state.field_slots = maxi(state.field_slots - 1, 0)
 		state.council_field_bonus_active = false
+
+
+## ne_council ★2/★3 에픽 부여 sim 처리. 카드 1장 자동 선택 (가장 높은 CP) + 에픽 자동 부여.
+func _sim_evaluate_council_epic_grant(state: GameState, ai_reward: RefCounted,
+		rng: RandomNumberGenerator) -> void:
+	if state.council_bonus_used:
+		return
+	if not state.council_field_bonus_active:
+		return
+	var council_star := 0
+	for card in state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		if ci.get_base_id() == "ne_council":
+			council_star = maxi(council_star, ci.star_level)
+	if council_star < 2:
+		return
+	state.council_counter += 1
+	var threshold: int = 5 if council_star == 2 else 3
+	if state.council_counter < threshold:
+		return
+	state.council_bonus_used = true
+	# 보드 가장 강한 카드 자동 선택
+	var best_card: CardInstance = null
+	var best_cp: float = -1.0
+	for card in state.board:
+		if card == null:
+			continue
+		var ci: CardInstance = card
+		var cp: float = ci.get_total_cp()
+		if cp > best_cp:
+			best_cp = cp
+			best_card = ci
+	if best_card == null or not best_card.can_attach_upgrade():
+		return
+	var choice: Dictionary = ai_reward.choose_upgrade(
+			Enums.UpgradeRarity.EPIC, state, _strategy)
+	if choice.upgrade_id != "":
+		best_card.attach_upgrade(choice.upgrade_id)

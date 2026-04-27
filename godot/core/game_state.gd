@@ -39,6 +39,10 @@ var r4_4_initial_rerolls: int = 0
 ## r8_9 전선 확장 보상: R13 전투 승리 시 R12 보상 풀에서 1개 추가 선택 (1회 한정).
 var r8_9_bonus_pending: bool = false
 
+## ne_council ★2/★3: 5테마 활성 라운드마다 +1, 임계 도달 시 1회 에픽 부여 (게임당 1회).
+var council_counter: int = 0
+var council_bonus_used: bool = false
+
 # --- Player ---
 var hp: int = 30
 var round_num: int = 0
