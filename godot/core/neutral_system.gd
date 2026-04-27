@@ -9,7 +9,7 @@ extends "res://core/theme_system.gd"
 ## Phase 3b-2a cards (구현 완료):
 ##   - ne_legion (T3): PERSISTENT duplicate_buff_aura — 보드 중복 카드 buff
 ##   - ne_void_force (T4): BS empty_slot_scaling — 빈칸 × 스케일
-##   - ne_fusion_end (T4): BS star3_count_scaling — ★3 카드 수 × 스케일
+##   - ne_fusion_end (T4): PERSISTENT star_aura — 각 ★≥2 아군 buff (이번 전투)
 ##   - ne_nexus (T5): OE mirror_l1 — 비-neutral 이벤트 미러
 ##
 ## Reroll-trigger cards:
@@ -45,10 +45,10 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 
 
 func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	# ne_fusion_end 는 2026-04-27 재설계로 PERSISTENT 로 이관 — BS dispatch 제거.
 	match card.get_base_id():
 		"ne_envoy": return _envoy_bs(card)
 		"ne_void_force": return _void_force_bs(card, idx, board)
-		"ne_fusion_end": return _fusion_end_bs(card, idx, board)
 	return Enums.empty_result()
 
 
@@ -61,6 +61,7 @@ func apply_persistent(card: CardInstance, board: Array = []) -> void:
 	match card.get_base_id():
 		"ne_legion": _legion_aura(card, board)
 		"ne_council": _council_aura(card, board)
+		"ne_fusion_end": _fusion_end_aura(card, board)
 
 
 ## Self-sell hook: card 본인의 SELL block 효과를 처리.
@@ -214,57 +215,46 @@ func _void_force_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
 	return Enums.empty_result()
 
 
-# --- ne_fusion_end (T4) — BS ★3 + ★2×weight count scaling ---
+# --- ne_fusion_end (T4) — PERSISTENT aura: 각 ★≥min_star 아군 buff ---
 
 
-## M = 보드의 ★3 카드 수 + ★2 카드 수 × star2_weight (self 포함).
-## 이 카드 ATK/HP × M 스케일.
-## ★3는 ★3 카드 수가 allies_threshold 이상일 때 모든 아군에게 ATK +M×% 추가 buff (오라).
-func _fusion_end_bs(card: CardInstance, _idx: int, board: Array) -> Dictionary:
+## 2026-04-27 재설계 (사용자 피드백):
+##   필드의 각 ★≥min_star 아군 카드 (자기 포함 옵션) 에게 ATK/HP 배율 buff.
+##   ★1: 30/15  ★2: 40/20  ★3: 50/30 (ne_fusion_end 자신의 ★ 별 수치).
+## chain_engine.process_persistent → apply_persistent 에서 호출.
+## temp_mult_buff 는 이번 전투 한정 (PERSISTENT aura 표준).
+func _fusion_end_aura(card: CardInstance, board: Array) -> void:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var eff := _find_eff(effs, "star3_count_scaling")
+	var eff := _find_eff(effs, "star_aura")
 	if eff.is_empty():
-		return Enums.empty_result()
-	var s2_weight: float = eff.get("star2_weight", 0.0)
-	# M = ★3 카드 수 + ★2 카드 수 × star2_weight. star3_count는 aura threshold 용으로 별도.
-	var m: float = 0.0
-	var star3_count: int = 0
+		return
+	var min_star: int = eff.get("min_star", 2)
+	var atk_pct: float = eff.get("atk_pct", 0.0)
+	var hp_pct: float = eff.get("hp_pct", 0.0)
+	var include_self: bool = eff.get("include_self", true)
+	if atk_pct == 0.0 and hp_pct == 0.0:
+		return
+	var atk_mult: float = 1.0 + atk_pct
+	var hp_mult: float = 1.0 + hp_pct
 	for c in board:
 		if c == null:
 			continue
-		var lvl: int = (c as CardInstance).star_level
-		if lvl >= 3:
-			m += 1.0
-			star3_count += 1
-		elif lvl == 2 and s2_weight > 0.0:
-			m += s2_weight
-	if m <= 0.0:
-		return Enums.empty_result()
-	var atk_per: float = eff.get("atk_pct_per_m", 0.0)
-	var hp_per: float = eff.get("hp_pct_per_m", 0.0)
-	var atk_mult: float = 1.0 + atk_per * m
-	var hp_mult: float = 1.0 + hp_per * m
-	if atk_mult != 1.0 or hp_mult != 1.0:
-		card.temp_mult_buff(atk_mult, hp_mult)
-
-	# ★3: ★3 카드 수 ≥ allies_threshold 시 모든 아군에게 ATK +★3수 × allies_atk_pct_per_m
-	# (threshold 와 aura 배율 모두 정수 ★3 카운트 기준 — ★2 는 self buff 에만 기여)
-	var threshold: int = eff.get("allies_threshold", 0)
-	var allies_atk_per: float = eff.get("allies_atk_pct_per_m", 0.0)
-	if threshold > 0 and star3_count >= threshold and allies_atk_per > 0.0:
-		var allies_mult: float = 1.0 + allies_atk_per * star3_count
-		for c in board:
-			if c == null or c == card:
-				continue
-			(c as CardInstance).temp_mult_buff(allies_mult, 1.0)
-	return Enums.empty_result()
+		var ci: CardInstance = c
+		if not include_self and ci == card:
+			continue
+		if ci.star_level < min_star:
+			continue
+		ci.temp_mult_buff(atk_mult, hp_mult)
 
 
 # --- ne_nexus (T5) — OE mirror_l1 ---
 
 
-## listen l1: EN or UA, filter non_neutral_target — 다른 테마 카드가 대상인
-## EN/UA 이벤트마다 self 누적 enhance. ★3은 추가 spawn.
+## listen l1: EN or UA, filter cross_theme — 발동 카드와 이벤트 대상 카드의 테마가
+## 다를 때만 self 누적 enhance. ★3은 추가 spawn.
+## 2026-04-27 변경: filter non_neutral_target → cross_theme. 사용자 의도(b 옵션):
+## "트리거를 일으킨 카드와 대상의 테마가 다를 때". 같은 테마 안 상호작용은 미반응.
+## omni 카드는 모든 테마 매치이므로 cross_theme false (영원히 발동 안 함).
 ## YAML에 두 개의 OE block (EN listen + UA listen) 존재 — chain_engine이
 ## 각각 별도 dispatch. 본 handler는 어느 block에서 호출됐는지 event.layer1 으로
 ## 분기.
@@ -272,12 +262,22 @@ func _nexus(card: CardInstance, idx: int, board: Array, event: Dictionary) -> Di
 	# 자기 source 무시 (자체 spawn으로 인한 cyclic 방지)
 	if event.get("source_idx", -1) == idx:
 		return Enums.empty_result()
-	# Target이 neutral이면 무시 (filter: non_neutral_target). omni-theme 도 neutral 매치.
+	# cross_theme 필터: 발동 카드 테마 ≠ 대상 카드 테마. omni 양쪽이면 무조건 매치 → fail.
+	var source_idx: int = event.get("source_idx", -1)
 	var target_idx: int = event.get("target_idx", -1)
-	if target_idx >= 0 and target_idx < board.size() and board[target_idx] != null:
-		var target: CardInstance = board[target_idx]
-		if target.is_omni_theme or target.template.get("theme", -1) == Enums.CardTheme.NEUTRAL:
-			return Enums.empty_result()
+	if source_idx < 0 or source_idx >= board.size() or board[source_idx] == null:
+		return Enums.empty_result()
+	if target_idx < 0 or target_idx >= board.size() or board[target_idx] == null:
+		return Enums.empty_result()
+	var source_card: CardInstance = board[source_idx]
+	var target_card: CardInstance = board[target_idx]
+	# omni 카드는 모든 테마 매치 → 같은 테마로 간주 (cross_theme false).
+	if source_card.is_omni_theme or target_card.is_omni_theme:
+		return Enums.empty_result()
+	var src_theme: int = source_card.template.get("theme", -1)
+	var tgt_theme: int = target_card.template.get("theme", -1)
+	if src_theme == tgt_theme:
+		return Enums.empty_result()
 
 	# 두 OE block 중 현재 event 의 layer1 에 매칭되는 block 의 mirror_l1 액션 추출.
 	# codegen 출력은 block 직접에 trigger_layer1 키 (listen 중첩 dict 아님 — multi-
@@ -391,8 +391,11 @@ func _pawnbroker_rs(card: CardInstance) -> Dictionary:
 ## SELL (tenure ≥ 1): 필드 카드 1장 선택 → theme 변경.
 ## ★1: 5개 중 무작위 3개 offering, ★2: 5개 전체, ★3: omni-theme.
 ## game_manager 가 결과 dict의 "transform_theme" 필드를 처리.
-## sim 결정성: target = 첫 비-self 필드 카드, theme = 5개 중 첫 번째 비-NEUTRAL theme
-## (NEUTRAL 디폴트는 diversity 효과 무용 — 의미 있는 변환 위해 STEAMPUNK 우선).
+##
+## ⚠ UI 미구현 (TODO): 본 핸들러는 sim 결정성 fallback 만 구현 — target = 첫
+## 비-self 카드, theme = STEAMPUNK 우선. 실제 게임 UI 에서 플레이어가 카드/테마를
+## 선택하도록 popup 이 필요 (failures/011 참조). 별도 task 로 분리 — 본 함수는
+## 그때까지 sim/headless 경로에서만 사용.
 ##
 ## CardInstance 참조를 직접 반환 (active_board↔board sparse-compact 인덱스 불일치 방지).
 func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:

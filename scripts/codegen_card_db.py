@@ -1690,6 +1690,21 @@ def run_validators(all_cards: dict) -> None:
         for e in primary_timing_errors:
             print(f"  - {e}")
         sys.exit(2)
+    # Keyword glossary drift guard (failures/011): card_desc_gen.py 가
+    # data/keywords.yaml 의 [반응] prefix / 필터 텍스트를 우회해 raw 한글로
+    # 작성하면 차단. unittest 모듈을 직접 invoke 해 테스트 결과로 판정.
+    import subprocess
+    glossary_test = subprocess.run(
+        [sys.executable, "-m", "unittest",
+         "scripts.tests.test_keywords_glossary", "-q"],
+        cwd=str(Path(__file__).resolve().parent.parent),
+        capture_output=True, text=True,
+    )
+    if glossary_test.returncode != 0:
+        print("❌ keyword glossary drift detected:")
+        print(glossary_test.stdout)
+        print(glossary_test.stderr)
+        sys.exit(2)
 
 
 # ═══════════════════════════════════════════════════════════════════

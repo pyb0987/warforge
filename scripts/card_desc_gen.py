@@ -13,6 +13,64 @@ import sys
 from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════
+# Keyword glossary — Single Source of Truth (data/keywords.yaml)
+# ═══════════════════════════════════════════════════════════════════
+# desc 핸들러는 키워드 한글 표기를 하드코딩하지 않고 _kw / _kw_reaction
+# 으로 lookup. P5 사다리 3단계 — 사전 우회 시 codegen guard 가 차단.
+
+_KEYWORDS_CACHE: dict | None = None
+
+def _load_keywords() -> dict:
+    global _KEYWORDS_CACHE
+    if _KEYWORDS_CACHE is None:
+        path = Path(__file__).resolve().parent.parent / "data/keywords.yaml"
+        try:
+            import yaml
+            with open(path, encoding="utf-8") as f:
+                _KEYWORDS_CACHE = yaml.safe_load(f)
+        except Exception as e:
+            raise RuntimeError(f"data/keywords.yaml 로드 실패: {e}")
+    return _KEYWORDS_CACHE
+
+def _kw(layer: str, code: str) -> str:
+    """이벤트 키워드 표기 (예: _kw('layer2', 'CO') → '징집').
+
+    layer: 'layer1' | 'layer2'
+    drift 방지: desc 핸들러는 'CO', '징집' 같은 한글 키워드 문자열을 직접 쓰지 말 것.
+    """
+    g = _load_keywords()
+    entry = g.get(layer, {}).get(code)
+    if not entry:
+        raise KeyError(f"keywords.yaml: {layer}.{code} 미정의")
+    return entry["name"]
+
+def _kw_reaction(l1: str | None, l2: str | None, *, other_only: bool) -> str:
+    """[반응] prefix 생성.
+
+    l1/l2 중 더 구체적인 prefix 선택 (l2 우선). other_only=True 면 '다른 카드의'
+    한정자, False 면 '어디서든' 한정자. 기존 OE_PREFIX 의 ambiguity 해소.
+    """
+    g = _load_keywords()
+    src_label = g["reaction_origin"]["other_only"] if other_only \
+        else g["reaction_origin"]["any"]
+    if l2 and l2 in g.get("layer2", {}):
+        body = g["layer2"][l2]["reaction_prefix"]
+    elif l1 and l1 in g.get("layer1", {}):
+        body = g["layer1"][l1]["reaction_prefix"]
+    else:
+        body = "이벤트 시"
+    return f"[반응] {src_label} {body}:"
+
+def _kw_filter(filter_id: str) -> str:
+    """target_filters lookup (예: 'cross_theme' → '이 카드와 다른 테마의 대상이면').
+    """
+    g = _load_keywords()
+    entry = g.get("target_filters", {}).get(filter_id)
+    if not entry:
+        raise KeyError(f"keywords.yaml: target_filters.{filter_id} 미정의")
+    return entry["text"]
+
+# ═══════════════════════════════════════════════════════════════════
 # Unit id → Korean name (parsed lazily from godot/core/data/unit_db.gd)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -53,24 +111,13 @@ TIMING_PREFIX = {
     "DEATH":      "[지속] 사망 시:",
 }
 
-OE_PREFIX = {
-    # (l1, l2) → prefix
-    ("UA", None):  "[반응] 유닛 추가 시:",
-    ("EN", None):  "[반응] 강화 발동 시:",
-    ("UA", "MF"):  "[반응] 제조 발동 시:",
-    ("EN", "UP"):  "[반응] 개량 발동 시:",
-    ("UA", "HA"):  "[반응] 부화 시:",
-    ("EN", "MT"):  "[반응] 변태 시:",
-    (None, "TR"):  "[반응] 훈련 시:",
-    (None, "CO"):  "[반응] 징집 시:",
-    (None, "HA"):  "[반응] 부화 시:",
-    (None, "MT"):  "[반응] 변태 시:",
-    (None, "UP"):  "[반응] 개량 발동 시:",
-    ("UA", "MERGE"): "★합성 시:",
+# OE_PREFIX 는 keywords.yaml + _kw_reaction 으로 동적 생성한다 (lookup 타임).
+# 비-glossary 키 (MERGE, REROLL, SELL, ANY) 는 별도 핸들링.
+# 사용처: build_oe_prefix(card) — require_other 플래그까지 함께 평가.
+NON_GLOSSARY_OE_PREFIX = {
+    ("UA", "MERGE"):  "★합성 시:",
     ("UA", "REROLL"): "리롤 시:",
     ("UA", "SELL"):   "[반응] 판매 시:",
-    # Phase 6a: pr_parasitic_swarm intertheme listener (l2: ANY wildcard)
-    (None, "ANY"):   "[반응] 테마 효과 발동 시:",
 }
 
 # Action types whose intrinsic timing differs from the card's base timing
@@ -183,7 +230,10 @@ def desc_enhance(p: dict) -> str:
     if hp_val and not atk_val:
         return f"{t}{tag_text} HP +{fmt_pct(hp_val)}% {verb}"
     if hp_val:
-        return f"{t}{tag_text} ATK+HP +{fmt_pct(atk_val)}% {verb}"
+        # ATK/HP 분리 표기 (값이 같아도 '+' 으로 합치지 않음 — 사용자 요청).
+        atk_pct = fmt_pct(atk_val)
+        hp_pct = fmt_pct(hp_val)
+        return f"{t}{tag_text} ATK +{atk_pct}% / HP +{hp_pct}% {verb}"
     return f"{t}{tag_text} ATK +{fmt_pct(atk_val)}% {verb}"
 
 def desc_buff(p: dict) -> str:
@@ -435,10 +485,14 @@ def desc_hatch_enhance(p: dict) -> str:
     return f"부화 유닛 ATK +{pct}% 성장"
 
 def desc_meta_consume(p: dict) -> str:
-    base = f"변태({p['consume']}기 소모)"
+    # 대상 명시 (target 미지정 시 implicit self → '이 카드' prefix).
+    # count > 1 이면 'N회' suffix (× 기호 없이) — 사용자 선호 (2026-04-27).
+    target = p.get("target", "self")
+    t = resolve_target(target) if target else "이 카드"
+    base = f"{t}에 변태({p['consume']}기 소모)"
     count = p.get("count", 1)
     if count > 1:
-        return f"{base} × {count}회"
+        return f"{base} {count}회"
     return base
 
 def desc_hatch_scaled(p: dict) -> str:
@@ -465,9 +519,9 @@ def desc_swarm_buff(p: dict) -> str:
     ec = int(p.get("enhanced_count", 1))
     enh_note = (f"(강화) 유닛은 {ec}기로 집계. " if ec > 1 else "")
     text = enh_note + (
-        f"{t} 유닛 1기당 ATK +{atk}% 전투 버프"
+        f"{t} 유닛 1기당 ATK +{atk}%"
         if per_n == 1 else
-        f"{t} 유닛 {per_n}기당 ATK +{atk}% 전투 버프"
+        f"{t} 유닛 {per_n}기당 ATK +{atk}%"
     )
     if p.get("ms_bonus"):
         ms = p["ms_bonus"]
@@ -478,7 +532,7 @@ def desc_swarm_buff(p: dict) -> str:
         if hr.get("as_bonus"):
             text += (f" + {t} 유닛 합계 {hr['unit_thresh']}기 이상이면 "
                      f"AS +{fmt_pct(hr['as_bonus'])}%")
-    return text
+    return text + " (이번 전투)"
 
 def desc_persistent(p: dict) -> str:
     parts = []
@@ -712,20 +766,19 @@ def desc_revive_scope_override(p: dict) -> str:
 
 
 def desc_mirror_l2(p: dict) -> str:
-    """pr_parasitic_swarm — OE_PREFIX (None, ANY) prefix 가 '[반응] 테마 효과 발동 시:'를
-    이미 붙이므로 본문만 작성."""
+    """pr_parasitic_swarm — OE_PREFIX (None, ANY) prefix 가 키워드 나열 prefix
+    (data/keywords.yaml 기반) 를 붙이므로 본문만 작성.
+    ATK/HP 분리 표기 (' / ') — 사용자 요청 일관성 (failures/011 multi-review C2 fix)."""
     atk = p.get("atk_pct", 0.0)
     hp = p.get("hp_pct", 0.0)
     spawn = p.get("spawn_unit", 0)
     div = p.get("l2_diversity_bonus", 0.0)
     parts = []
-    if atk and hp:
-        parts.append(f"ATK +{fmt_pct(atk)}% HP +{fmt_pct(hp)}%")
-    elif atk:
+    if atk:
         parts.append(f"ATK +{fmt_pct(atk)}%")
-    elif hp:
+    if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"이 카드 {' '.join(parts)} 영구 강화"
+    base = f"이 카드 {' / '.join(parts)} 영구 강화"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     if div:
@@ -734,7 +787,8 @@ def desc_mirror_l2(p: dict) -> str:
 
 
 def desc_gear_diversity_enhance(p: dict) -> str:
-    """sp_global_workshop — 필드에 비-스팀펑크 카드 1장+ 시 #기어 강화."""
+    """sp_global_workshop — 필드에 비-스팀펑크 카드 1장+ 시 #기어 강화.
+    'non_steampunk_card' 필터 표기는 keywords.yaml glossary lookup."""
     min_n = p.get("min_non_steampunk", 1)
     atk = p.get("atk_pct", 0.0)
     hp = p.get("hp_pct", 0.0)
@@ -745,23 +799,25 @@ def desc_gear_diversity_enhance(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"필드에 비-스팀펑크 {min_n}장+ 시 #기어 유닛 {' '.join(parts)} 영구 강화"
+    flt_text = _kw_filter("non_steampunk_card")
+    base = f"필드에 {flt_text} {min_n}장+ 시 #기어 유닛 {' / '.join(parts)} 영구 강화"
     if spawn_n and spawn_thresh:
-        base += f" (비-스팀펑크 {spawn_thresh}장+ 시 #기어 유닛 {spawn_n}기 추가)"
+        base += f" ({flt_text} {spawn_thresh}장+ 시 #기어 유닛 {spawn_n}기 추가)"
     return base
 
 
 def desc_theme_count_conscript(p: dict) -> str:
-    """ml_alliance RS — 필드 테마 수 × mult 만큼 신병(ml_recruit) 추가."""
+    """ml_alliance RS — 필드 테마 수 × mult 만큼 이 카드에 징집 (glossary CO)."""
     mult = p.get("mult", 1)
+    co = _kw("layer2", "CO")
     if mult == 1:
-        return "필드 테마 수만큼 이 카드에 신병 추가"
-    return f"필드 테마 수 × {mult}만큼 이 카드에 신병 추가"
+        return f"필드 테마 수만큼 이 카드에 {co}"
+    return f"필드 테마 수 × {mult}만큼 이 카드에 {co}"
 
 
 def desc_theme_count_spawn(p: dict) -> str:
     """ml_alliance BS — 필드 테마 수 × mult 만큼 랜덤 아군에 spawn,
-    instant_conscript_threshold 시 즉시 신병 등장.
+    instant_conscript_threshold 시 즉시 징집.
     block timing prefix ('전투 시작:')는 상위 desc_gen에서 추가 — 여기선 본문만."""
     mult = p.get("mult", 1)
     thresh = p.get("instant_conscript_threshold", 0)
@@ -770,13 +826,14 @@ def desc_theme_count_spawn(p: dict) -> str:
     else:
         base = f"필드 테마 수 × {mult}만큼 랜덤 아군 유닛 추가"
     if thresh:
-        base += f" (테마 {thresh}+ 시 이 카드에 신병 1기 즉시 등장)"
+        co = _kw("layer2", "CO")
+        base += f" (테마 {thresh}+ 시 이 카드에 즉시 {co})"
     return base
 
 
 def desc_mirror_spawn_to_tree(p: dict) -> str:
     """dr_resonance — OE_PREFIX (UA) prefix 가 '[반응] 유닛 추가 시:'를
-    이미 붙이므로 'non-druid' 필터와 본문만 작성."""
+    이미 붙이므로 필터(non_druid_target glossary lookup)와 본문만 작성."""
     tree = p.get("tree_add", 1)
     atk = p.get("self_atk_pct", 0.0)
     hp = p.get("self_hp_pct", 0.0)
@@ -785,8 +842,8 @@ def desc_mirror_spawn_to_tree(p: dict) -> str:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    self_part = f", 이 카드 {' '.join(parts)} 영구 강화" if parts else ""
-    return f"비-드루이드 대상이면 🌳 +{tree}{self_part}"
+    self_part = f", 이 카드 {' / '.join(parts)} 영구 강화" if parts else ""
+    return f"{_kw_filter('non_druid_target')} 🌳 +{tree}{self_part}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -795,17 +852,19 @@ def desc_mirror_spawn_to_tree(p: dict) -> str:
 
 
 def desc_mirror_l1(p: dict) -> str:
-    """ne_nexus — listen l1: EN/UA, filter non_neutral_target.
+    """ne_nexus — listen l1: EN/UA, filter (target_filters glossary).
+    기본 filter = cross_theme: 발동 카드 테마 ≠ 대상 카드 테마.
     OE_PREFIX (UA, None) / (EN, None) 가 '[반응] 유닛 추가 시:' / '강화 발동 시:' 붙임."""
     atk = p.get("atk_pct", 0.0)
     hp = p.get("hp_pct", 0.0)
     spawn = p.get("spawn_unit", 0)
+    flt = p.get("filter", "cross_theme")
     parts = []
     if atk:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    base = f"비-중립 대상이면 이 카드 {' '.join(parts)} 영구 강화"
+    base = f"{_kw_filter(flt)} 이 카드 {' / '.join(parts)} 영구 강화"
     if spawn:
         base += f" + 유닛 {spawn}기 추가"
     return base
@@ -873,27 +932,22 @@ def desc_empty_slot_scaling(p: dict) -> str:
     return base + " (이번 전투)"
 
 
-def desc_star3_count_scaling(p: dict) -> str:
-    """ne_fusion_end BS — 필드 ★3 카드 수 + ★2 카드 수 × star2_weight 만큼
-    이 카드 ATK/HP scaling. ★3은 allies_threshold 도달 시 모든 아군 ATK aura 추가."""
-    atk = p.get("atk_pct_per_m", 0.0)
-    hp = p.get("hp_pct_per_m", 0.0)
-    s2_weight = p.get("star2_weight", 0.0)
-    a_atk = p.get("allies_atk_pct_per_m", 0.0)
-    a_thresh = p.get("allies_threshold", 0)
+def desc_star_aura(p: dict) -> str:
+    """ne_fusion_end PERSISTENT — 필드의 각 ★≥min_star 아군에게 ATK/HP buff.
+    PERSISTENT timing prefix ('[지속]')는 상위 desc_gen 에서 추가."""
+    min_star = p.get("min_star", 2)
+    atk = p.get("atk_pct", 0.0)
+    hp = p.get("hp_pct", 0.0)
+    include_self = p.get("include_self", True)
     parts = []
     if atk:
         parts.append(f"ATK +{fmt_pct(atk)}%")
     if hp:
         parts.append(f"HP +{fmt_pct(hp)}%")
-    if s2_weight:
-        unit_label = f"필드 ★3 1장 + ★2 {s2_weight:g}장당"
-    else:
-        unit_label = "필드 ★3 카드 1장당"
-    base = f"{unit_label} 이 카드 {' / '.join(parts)}"
-    if a_atk and a_thresh:
-        base += f" (★3 {a_thresh}장+ 시 모든 아군 ATK +{fmt_pct(a_atk)}%×★3수)"
-    return base + " (이번 전투)"
+    star_label = "★" * min_star + "+ " if min_star > 1 else ""
+    self_label = "" if include_self else " (이 카드 제외)"
+    return (f"필드의 각 {star_label}아군 카드{self_label} "
+            f"{' / '.join(parts)} (이번 전투)")
 
 
 def desc_transfer_upgrade(p: dict) -> str:
@@ -943,17 +997,43 @@ def desc_range_bonus(p: dict) -> str:
                  f"ATK +{fmt_pct(p['attack_stack_pct'])}%(이번 전투)")
     return text
 
+def _normalize_per_unit_ratio(per: float, counter: str) -> str:
+    """`gold/unit` 분수 비율을 정수 비율 한글 표기로 변환.
+
+    counter: '기' (유닛 단위) | '장' (카드 단위).
+    예: 0.2,'기' → '5기당 1골드', 0.5,'장' → '2장당 1골드',
+        1.0,'기' → '1기당 1골드', 2.0,'장' → '1장당 2골드'.
+    정수 비율이 아니면 fallback "× per골드".
+    """
+    if per > 0 and per <= 1:
+        inv = 1.0 / per
+        if abs(inv - round(inv)) < 1e-6:
+            n = int(round(inv))
+            return f"{n}{counter}당 1골드"
+    if per >= 1 and abs(per - round(per)) < 1e-6:
+        return f"1{counter}당 {int(round(per))}골드"
+    return f"× {per}골드"
+
+
 def desc_economy(p: dict) -> str:
     base = p.get("gold_base", 0)
     per = p.get("gold_per", 0)
     unit = p.get("gold_per_unit", "units")
-    unit_text = "유닛 수" if unit == "units" else "군대 카드 수"
+    if unit == "units":
+        prefix, counter = "유닛", "기"
+    else:
+        prefix, counter = "군대 카드", "장"
     halve = p.get("halve_on_loss", False)
     max_g = p.get("max_gold")
-    if base:
-        text = f"{base}골드 + {unit_text} × {per}골드"
+    ratio = _normalize_per_unit_ratio(per, counter)
+    if ratio.startswith("×"):
+        body = f"{prefix} 수 {ratio}"
     else:
-        text = f"{unit_text} × {per}골드"
+        body = f"{prefix} {ratio}"
+    if base:
+        text = f"{base}골드 + {body}"
+    else:
+        text = body
     if max_g:
         text += f"(최대 {max_g})"
     if halve:
@@ -1057,7 +1137,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "duplicate_buff_aura":      desc_duplicate_buff_aura,
     "transform_theme":          desc_transform_theme,
     "empty_slot_scaling":       desc_empty_slot_scaling,
-    "star3_count_scaling":      desc_star3_count_scaling,
+    "star_aura":                desc_star_aura,
     "all_themes_field_bonus":   desc_all_themes_field_bonus,
     "transfer_upgrade":         desc_transfer_upgrade,
 }
@@ -1140,15 +1220,36 @@ def desc_r_conditional(r_cond: dict) -> str:
 
 def get_oe_prefix(card: dict, listen_override: dict | None = None) -> str:
     """OE 섹션의 prefix 생성. listen_override 가 있으면 우선 사용
-    (Phase 6 fix: same-timing multi-block per-section prefix)."""
+    (Phase 6 fix: same-timing multi-block per-section prefix).
+
+    [반응] 출처 한정자 (어디서든 / 다른 카드의):
+      require_other: true  → '다른 카드의'
+      require_other: false → '어디서든'   (이 카드 자신 이벤트 포함)
+
+    키워드 글로서리(keywords.yaml) 기반 — desc_gen 내부 하드코딩 금지.
+    """
     listen = listen_override if listen_override else card.get("listen", {})
-    key = (listen.get("l1"), listen.get("l2"))
-    base = OE_PREFIX.get(key, f"[반응] {key}:")
-    # require_other: true 인 카드는 자기 자신이 방출한 이벤트에는 반응하지 않는다
-    # (chain_engine.gd: require_other_card 체크). 이 의미를 툴팁에 반영.
-    if card.get("require_other"):
-        base = base.replace("[반응] ", "[반응] 다른 카드의 ", 1)
-    return base
+    l1, l2 = listen.get("l1"), listen.get("l2")
+    key = (l1, l2)
+    other_only = bool(card.get("require_other"))
+
+    # ANY wildcard (pr_parasitic_swarm intertheme listener):
+    # 모든 layer2 키워드를 명시적으로 나열.
+    if l2 == "ANY":
+        g = _load_keywords()
+        kws = " / ".join(v["name"] for v in g["layer2"].values())
+        src = g["reaction_origin"]["other_only" if other_only else "any"]
+        return f"[반응] {src} 키워드({kws}) 발동 시:"
+
+    # 비-glossary 트리거 (MERGE/REROLL/SELL): 자기 자신 이벤트 개념 없음.
+    if key in NON_GLOSSARY_OE_PREFIX:
+        base = NON_GLOSSARY_OE_PREFIX[key]
+        if other_only:
+            base = base.replace("[반응] ", "[반응] 다른 카드의 ", 1)
+        return base
+
+    # Glossary 기반 동적 prefix.
+    return _kw_reaction(l1, l2, other_only=other_only)
 
 def get_prefix(card: dict, timing: str, listen_override: dict | None = None) -> str:
     if timing == "OE":
@@ -1186,16 +1287,9 @@ def counter_prefix_for(card: dict, star_data: dict) -> str:
     if not has_counter:
         return ""
     l2 = (card.get("listen") or {}).get("l2")
-    event_name = {
-        "MF": "제조",
-        "CO": "징집",
-        "TR": "훈련",
-        "HA": "부화",
-        "MT": "변태",
-        "UP": "개량",
-        "BR": "번식",
-        "TG": "나무 성장",
-    }.get(l2, "발동")
+    g = _load_keywords()
+    layer2 = g.get("layer2", {})
+    event_name = layer2[l2]["name"] if l2 in layer2 else "발동"
     # self_target_multiplier — counter_produce 의 self-target bonus 표시.
     self_mult = None
     for e in star_data.get("effects", []) or []:

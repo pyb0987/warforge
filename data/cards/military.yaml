@@ -569,10 +569,12 @@ cards:
     impl: theme_system
     star_scalable_actions:
     - crit_buff
+    # 2026-04-27 재설계: RS → multi-block (PERSISTENT crit + RS conscript).
+    # 사용자 피드백: 치명타는 라운드 시작에 부여되는 것처럼 보이지만 실제는 지속 상태.
     stars:
       1:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: PERSISTENT
           max_act: -1
           r_conditional:
           - when:
@@ -599,7 +601,7 @@ cards:
             mult: 2.0
       2:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: PERSISTENT
           max_act: -1
           r_conditional:
           - when:
@@ -624,13 +626,15 @@ cards:
             target: self
             chance: 0.1
             mult: 3.0
+        - trigger_timing: RS
+          max_act: -1
           conscript:
             target: self
             count: 1
             rank_upgrade: true
       3:
         effects:
-        - trigger_timing: RS
+        - trigger_timing: PERSISTENT
           max_act: -1
           r_conditional:
           - when:
@@ -655,6 +659,8 @@ cards:
             target: self
             chance: 0.1
             mult: 6.0
+        - trigger_timing: RS
+          max_act: -1
           conscript:
             target: self
             count: 3

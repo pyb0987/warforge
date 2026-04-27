@@ -1,0 +1,67 @@
+# Single Source of Truth — 이벤트/타겟 필터 키워드 → 한글 표기 매핑.
+#
+# 모든 desc 핸들러(scripts/card_desc_gen.py)는 키워드 표기를 하드코딩하지 않고
+# 이 사전을 lookup 한다. P5 사다리 3단계: 같은 키워드를 두 곳에서 쓰면 drift.
+#
+# 추가/변경 절차:
+#   1. 여기 항목 수정
+#   2. codegen 재실행 (godot/core/data/card_descs.gd 갱신)
+#   3. tests: scripts/tests/test_keywords_glossary.py 통과 확인
+#
+# 검증: scripts/tests/test_keywords_glossary.py 가 desc_gen 의 하드코딩 위반 차단.
+
+# Layer1 결과 범주
+layer1:
+  UA:
+    name: "유닛 추가"
+    reaction_prefix: "유닛 추가 시"
+  EN:
+    name: "강화 발동"
+    reaction_prefix: "강화 발동 시"
+
+# Layer2 테마 키워드 (이벤트 방출 액션의 결과)
+layer2:
+  MF:
+    name: "제조"
+    reaction_prefix: "제조 발동 시"
+  UP:
+    name: "개량"
+    reaction_prefix: "개량 발동 시"
+  TG:
+    name: "나무 성장"
+    reaction_prefix: "나무 성장 시"
+  BR:
+    name: "번식"
+    reaction_prefix: "번식 시"
+  HA:
+    name: "부화"
+    reaction_prefix: "부화 시"
+  MT:
+    name: "변태"
+    reaction_prefix: "변태 시"
+  TR:
+    name: "훈련"
+    reaction_prefix: "훈련 시"
+  CO:
+    name: "징집"
+    reaction_prefix: "징집 시"
+
+# 반응 prefix 의 출처 한정자.
+# require_other 가 false (기본) 이고 설계상 자기 이벤트도 반응할 수 있는 카드는
+# 출처가 "어디서든" 임을 명시 — pr_molt 류 ambiguity 해소.
+reaction_origin:
+  any: "어디서든"
+  other_only: "다른 카드의"
+
+# 필터 키워드 (mirror_l1 / mirror_l2 / gear_diversity_enhance 등에서 사용)
+# 의미:
+#   cross_theme        = 트리거 발동 카드와 이벤트 대상 카드의 테마가 서로 다름 (ne_nexus 전용)
+#   non_druid_target   = 대상 카드 테마 ≠ DRUID (dr_resonance 전용)
+#   non_steampunk_card = 보드 위 카드 중 테마 ≠ STEAMPUNK (sp_global_workshop 전용)
+target_filters:
+  cross_theme:
+    text: "이 카드와 다른 테마의 대상이면"
+  non_druid_target:
+    text: "비-드루이드 대상이면"
+  non_steampunk_card:
+    text: "비-스팀펑크"

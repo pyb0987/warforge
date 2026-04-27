@@ -406,13 +406,14 @@ func test_assault_rs_conscripts_fixed_biker() -> void:
 
 
 # ================================================================
-# ml_special_ops (RS): 재설계로 훈련 제거, crit_buff 중심
+# ml_special_ops: 2026-04-27 재설계 — crit_buff/r_conditional 을 PERSISTENT
+# block 으로 이관 (apply_persistent dispatch). RS block 은 ★2/★3 conscript 만.
 # ================================================================
 
 func test_special_ops_sets_crit_chance() -> void:
-	## ★1: crit_chance 0.10, mult 2.0 → theme_state에 저장.
+	## ★1: crit_chance 0.10, mult 2.0 → PERSISTENT 호출 시 theme_state 저장.
 	var card: CardInstance = CardInstance.create("ml_special_ops")
-	_sys.process_rs_card(card, 0, [card], _rng)
+	_sys.apply_persistent(card, [card])
 	assert_almost_eq(card.theme_state.get("crit_chance", 0.0), 0.10, 0.001, "★1: 크리 확률 10%")
 	assert_almost_eq(card.theme_state.get("crit_mult", 0.0), 2.0, 0.001, "★1: 크리 배율 2.0")
 
@@ -769,8 +770,8 @@ func test_assault_r0_no_shield_no_lifesteal() -> void:
 # --- 특수작전대 ★/R: crit_buff + crit_splash ---
 
 func test_special_ops_s2_conscripts_and_emits_co() -> void:
-	## ★2 (2026-04-21): spawn_unit(sniper) → conscript. base pool 1 회 뽑기.
-	## 유닛 최소 1 기 추가 + CO 이벤트 방출 (ml_outpost 체인용).
+	## ★2: RS block 의 conscript 1 회 (CO 이벤트 방출, ml_outpost 체인용).
+	## crit 은 PERSISTENT block — RS dispatch 에서 평가 안 함.
 	var card := _make_star("ml_special_ops", 2)
 	var before: int = card.get_total_units()
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
@@ -784,30 +785,32 @@ func test_special_ops_s2_conscripts_and_emits_co() -> void:
 
 
 func test_special_ops_s3_conscripts_thrice_and_mult_6() -> void:
-	## ★3: conscript 3 회 뽑기 + crit_mult 6.0.
+	## ★3 RS: conscript 3 회. crit_mult 는 PERSISTENT 검증.
 	var card := _make_star("ml_special_ops", 3)
 	var before: int = card.get_total_units()
 	_sys.process_rs_card(card, 0, [card], _rng)
 	var added: int = card.get_total_units() - before
 	assert_between(added, 3, 9, "★3: conscript 3 회 → 3~9 기 추가")
-	assert_almost_eq(card.theme_state.get("crit_mult", 0.0), 6.0, 0.001, "★3: 크리 배율 6.0")
+	# crit_mult 는 PERSISTENT block 에서만 적용 — RS 후엔 0.
+	_sys.apply_persistent(card, [card])
+	assert_almost_eq(card.theme_state.get("crit_mult", 0.0), 6.0, 0.001, "★3 PERSISTENT: 크리 배율 6.0")
 
 
 func test_special_ops_r4_crit_chance_20_splash_25() -> void:
-	## R4: 크리 확률 0.20 + 인접 스플래시 0.25.
+	## R4: 크리 확률 0.20 + 인접 스플래시 0.25 (PERSISTENT block).
 	var card: CardInstance = CardInstance.create("ml_special_ops")
 	card.theme_state["rank"] = 4
-	_sys.process_rs_card(card, 0, [card], _rng)
+	_sys.apply_persistent(card, [card])
 	assert_almost_eq(card.theme_state.get("crit_chance", 0.0), 0.20, 0.001, "R4: 확률 0.20")
 	assert_almost_eq(card.theme_state.get("crit_splash_pct", 0.0), 0.25, 0.001,
 		"R4: 스플래시 0.25")
 
 
 func test_special_ops_r10_crit_chance_30_splash_50() -> void:
-	## R10: 크리 확률 0.30 + 스플래시 0.50 (R4 효과 덮어쓰기).
+	## R10: 크리 확률 0.30 + 스플래시 0.50 (R4 효과 덮어쓰기, PERSISTENT block).
 	var card: CardInstance = CardInstance.create("ml_special_ops")
 	card.theme_state["rank"] = 10
-	_sys.process_rs_card(card, 0, [card], _rng)
+	_sys.apply_persistent(card, [card])
 	assert_almost_eq(card.theme_state.get("crit_chance", 0.0), 0.30, 0.001, "R10: 확률 0.30")
 	assert_almost_eq(card.theme_state.get("crit_splash_pct", 0.0), 0.50, 0.001,
 		"R10: 스플래시 0.50")

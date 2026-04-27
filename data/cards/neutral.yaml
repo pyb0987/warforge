@@ -488,24 +488,24 @@ cards:
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.08
-            hp_pct: 0.08
+            atk_pct: 0.30
+            hp_pct: 0.30
       2:
         effects:
         - trigger_timing: PCD
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.12
-            hp_pct: 0.12
+            atk_pct: 0.40
+            hp_pct: 0.40
       3:
         effects:
         - trigger_timing: PC
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.12
-            hp_pct: 0.12
+            atk_pct: 0.50
+            hp_pct: 0.50
           spawn:
             target: both_adj
             count: 2
@@ -570,55 +570,33 @@ cards:
     tags:
     - neutral
     - ancient
+    # 2026-04-27 재설계 (A. 고고학적 발굴): 1회성 임계점 → 매 라운드 영구 누적.
+    # tenure 자체가 자원, 슬로우 스타트 슈퍼 스케일러. ★ 합성과 충돌 없음.
     stars:
       1:
         effects:
         - trigger_timing: RS
           max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          spawn:
-            target: all_allies
-            count: 2
           enhance:
-            target: all_allies
-            atk_pct: 0.1
-          shield:
-            target: all_allies
-            hp_pct: 0.2
+            target: self
+            atk_pct: 0.06
+            hp_pct: 0.06
       2:
         effects:
         - trigger_timing: RS
           max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          spawn:
-            target: all_allies
-            count: 3
           enhance:
-            target: all_allies
-            atk_pct: 0.15
-          shield:
-            target: all_allies
-            hp_pct: 0.3
+            target: self
+            atk_pct: 0.12
+            hp_pct: 0.12
       3:
         effects:
         - trigger_timing: RS
           max_act: -1
-          require_tenure: 4
-          is_threshold: true
-          post_threshold:
-            spawn:
-              target: all_allies
-            shield:
-              target: all_allies
-              hp_pct: 0.1
-          spawn:
-            target: all_allies
-            count: 3
-          shield:
-            target: all_allies
-            hp_pct: 0.3
+          enhance:
+            target: self
+            atk_pct: 0.25
+            hp_pct: 0.25
   ne_pawnbroker:
     name: 전당포
     tier: 1
@@ -865,36 +843,36 @@ cards:
     - neutral
     - capstone
     impl: theme_system
+    # 2026-04-27 재설계: BS self-scaling → PERSISTENT aura.
+    # 필드의 각 ★≥2 아군 (자기 포함) 에게 +%ATK / +%HP 부여 (이번 전투).
     stars:
       1:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.40
-            hp_pct_per_m: 0.15
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.30
+            hp_pct: 0.15
             include_self: true
       2:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.55
-            hp_pct_per_m: 0.20
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.40
+            hp_pct: 0.20
             include_self: true
       3:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.65
-            hp_pct_per_m: 0.35
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.50
+            hp_pct: 0.30
             include_self: true
-            allies_threshold: 3
-            allies_atk_pct_per_m: 0.07
   ne_council:
     name: 오대 평의회
     tier: 5
@@ -960,14 +938,14 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.02
         - trigger_timing: OE
           max_act: 5
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.02
       2:
         effects:
@@ -976,7 +954,7 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.03
             hp_pct: 0.01
         - trigger_timing: OE
@@ -984,7 +962,7 @@ cards:
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.03
             hp_pct: 0.01
       3:
@@ -994,7 +972,7 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.04
             hp_pct: 0.02
             spawn_unit: 1
@@ -1003,7 +981,7 @@ cards:
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.04
             hp_pct: 0.02
             spawn_unit: 1

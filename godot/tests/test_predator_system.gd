@@ -73,19 +73,20 @@ func test_farm_rs_hatches_1_larva() -> void:
 
 
 # ================================================================
-# pr_molt (OE): metamorphosis(3)
+# pr_molt (OE): metamorphosis(1)
+# 2026-04-27: consume 3/2/2 → 1/1/1 (사용자 피드백 — 유닛 누수 방지).
 # ================================================================
 
 func test_molt_triggers_metamorphosis() -> void:
-	## pr_molt: larva×2 + guardian×1 = 3기. meta(3) 조건: total >= 4 → 실패
-	## add 5 larvae first → 8기 → meta(3): 3소비+1최강 = 8-3+1=6
+	## pr_molt: larva×2 + guardian×1 = 3기. add 5 → 8기.
+	## meta(1): 1 consume + 1 strongest spawn = 8-1+1 = 8 (net 0).
 	var card: CardInstance = CardInstance.create("pr_molt")
 	card.add_specific_unit("pr_larva", 5)
 	var before: int = card.get_total_units()
 	var event: Dictionary = _make_hatch_event(0, 0)
 	_sys.process_event_card(card, 0, [card], event, _rng)
-	# meta(3): 3 consume + 1 strongest = before - 3 + 1 = before - 2
-	assert_eq(card.get_total_units(), before - 2, "meta(3) → -2기")
+	# meta(1): 1 consume + 1 strongest spawn → net 0
+	assert_eq(card.get_total_units(), before, "meta(1) → net 0 (1소비+1최강)")
 
 
 # ================================================================

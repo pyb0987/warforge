@@ -174,36 +174,28 @@ func test_ruins_fires_every_round_after_tenure() -> void:
 	assert_gt(board[1].get_total_units(), units_after_r2, "tenure 후 매 라운드 발동")
 
 
-func test_awakening_no_fire_before_tenure_4() -> void:
-	## ne_awakening(RS, tenure=4, threshold=true): 4R 전 미발동
+## 2026-04-27 재설계 (A. 고고학적 발굴):
+## tenure threshold + spawn/shield → 매 라운드 self ATK/HP 영구 누적.
+## ★1: +6/+6  ★2: +12/+12  ★3: +25/+25 (per 라운드, 한도 없음).
+
+func test_awakening_accumulates_each_round() -> void:
+	## ne_awakening: 매 라운드 RS self enhance ATK +6%/HP +6% (★1).
 	var board := _make_board(["ne_awakening"])
-	var units_before: int = board[0].get_total_units()
-	for _i in 3:
-		_engine.run_growth_chain(board)  # R1~R3
-	# tenure=3 < 4 → 미발동 → 유닛 수 불변
-	assert_eq(board[0].get_total_units(), units_before, "tenure 3 → 미발동 유닛 불변")
-	assert_eq(board[0].shield_hp_pct, 0.0, "tenure 3 → shield 미적용")
+	var atk0: float = board[0].growth_atk_pct
+	_engine.run_growth_chain(board)  # R1
+	assert_almost_eq(board[0].growth_atk_pct, atk0 + 0.06, 0.001, "R1: +6%")
+	_engine.run_growth_chain(board)  # R2
+	assert_almost_eq(board[0].growth_atk_pct, atk0 + 0.12, 0.001, "R2: +12% 누적")
+	_engine.run_growth_chain(board)  # R3
+	assert_almost_eq(board[0].growth_atk_pct, atk0 + 0.18, 0.001, "R3: +18% 누적")
 
 
-func test_awakening_fires_at_tenure_4() -> void:
-	## ne_awakening: tenure=4에서 발동 (threshold → 1회만)
-	## spawn all_allies 2 + enhance all_allies 10% + shield 20%
-	var board := _make_board(["ne_awakening", "sp_assembly"])
-	for _i in 4:
-		_engine.run_growth_chain(board)  # R1~R4
-	# R4 (tenure 3→4): threshold 발동 → all_allies에 spawn 2 + enhance 10%
-	assert_gt(board[0].shield_hp_pct, 0.0, "shield 적용")
-
-
-func test_awakening_threshold_fires_once() -> void:
-	## is_threshold=true → 1회 발동 후 threshold_fired=true
+func test_awakening_no_threshold_gate() -> void:
+	## 1회성 threshold 제거 — 첫 라운드부터 효과 발동.
 	var board := _make_board(["ne_awakening"])
-	for _i in 4:
-		_engine.run_growth_chain(board)
-	assert_true(board[0].threshold_fired, "threshold 발동 완료")
-	var units_after: int = board[0].get_total_units()
-	_engine.run_growth_chain(board)  # R5: threshold_fired → 재발동 안 함
-	assert_eq(board[0].get_total_units(), units_after, "threshold → 재발동 안 함")
+	var atk_before: float = board[0].growth_atk_pct
+	_engine.run_growth_chain(board)
+	assert_gt(board[0].growth_atk_pct, atk_before, "첫 라운드부터 발동")
 
 
 # ================================================================
@@ -242,27 +234,21 @@ func _make_star_board(base_id: String, star: int, extras: Array = []) -> Array:
 	return board
 
 
-func test_awakening_s2_stronger_effects() -> void:
-	## ★2: spawn 3 + enhance 15% + shield 30% (★1은 2/10%/20%)
-	var board := _make_star_board("ne_awakening", 2, ["sp_assembly"])
-	var units_before: int = board[0].get_total_units()
-	var atk_before: float = board[0].get_total_atk()
-	for _i in 4:
-		_engine.run_growth_chain(board)  # R4: threshold 발동
-	# ★2: all_allies spawn 3 → 유닛 증가
-	assert_gt(board[0].get_total_units(), units_before, "★2 spawn 3 → 유닛 증가")
-	# ★2: all_allies enhance 15% → ATK 증가
-	assert_gt(board[0].get_total_atk(), atk_before, "★2 enhance 15% → ATK 증가")
-	# ★2 shield 30% > ★1 shield 20%
-	assert_almost_eq(board[0].shield_hp_pct, 0.30, 0.01, "★2 shield 30%")
+func test_awakening_s2_stronger_per_round() -> void:
+	## ★2: 매 라운드 ATK +12% / HP +12% 영구 누적.
+	var board := _make_star_board("ne_awakening", 2, [])
+	var atk0: float = board[0].growth_atk_pct
+	_engine.run_growth_chain(board)
+	assert_almost_eq(board[0].growth_atk_pct, atk0 + 0.12, 0.001, "★2 R1: +12%")
+	assert_almost_eq(board[0].growth_hp_pct, 0.12, 0.001, "★2 R1: HP +12%")
 
 
-func test_awakening_s2_resets_threshold_on_evolve() -> void:
-	## evolve_star()가 threshold_fired를 리셋 → ★2 재발동 가능
-	var card: CardInstance = CardInstance.create("ne_awakening")
-	card.threshold_fired = true  # ★1에서 이미 발동됨
-	card.evolve_star()  # ★2로 진화
-	assert_false(card.threshold_fired, "evolve → threshold 리셋")
+func test_awakening_s3_stronger_per_round() -> void:
+	## ★3: 매 라운드 ATK +25% / HP +25% 영구 누적.
+	var board := _make_star_board("ne_awakening", 3, [])
+	_engine.run_growth_chain(board)
+	assert_almost_eq(board[0].growth_atk_pct, 0.25, 0.001, "★3 R1: +25%")
+	assert_almost_eq(board[0].growth_hp_pct, 0.25, 0.001, "★3 R1: HP +25%")
 
 
 func test_dim_merchant_s2_gold_per_theme_2() -> void:

@@ -1,6 +1,6 @@
 ---
 description: "하네스 변경의 효과를 검증하는 과거 실패 사례 모음. 변경 후 이 사례들이 재발하지 않는지 확인한다."
-last_updated: "2026-04-26 (SS-009 신설)"
+last_updated: "2026-04-27 (SS-011 신설)"
 ---
 
 # Harness Search Set
@@ -60,6 +60,12 @@ print('FAIL:',fails) if fails else print('PASS: bounds via single source')"`
 - **verify**: `cd /Users/fainders/personal/chain-army && python3 scripts/lint_card_spawn.py && python3 -m unittest scripts.tests.test_lint_card_spawn 2>&1 | tail -3`
 - **ref**: traces/evolution/022-merge-fresh-policy-and-spawn-funnel.md
 - **status**: active (2026-04-26 신설, P5 2.5단계 — pre-commit lint hook + 단위 테스트 10건)
+
+### SS-011: keyword glossary drift 방지 (P5 사다리 3단계)
+- **증상**: card_desc_gen.py 가 data/keywords.yaml glossary 를 우회해 한글 키워드 표기 ('징집', '제조', '비-중립' 등) 를 raw 문자열로 하드코딩 → enum/이벤트 키워드와 desc 텍스트 drift. 사용자 피드백 4건 (ml_alliance "신병 추가", pr_parasitic_swarm "테마 효과", ne_nexus "비-중립", desc_economy "× 0.2골드") 누적.
+- **verify**: `cd /Users/fainders/personal/chain-army && python3 -m unittest scripts.tests.test_keywords_glossary 2>&1 | tail -3`
+- **ref**: traces/failures/011-new-card-desc-codegen-pattern-violation.md
+- **status**: active (2026-04-27 신설, P5 사다리 3단계 — keywords.yaml 단일 진실 + _kw/_kw_reaction/_kw_filter 헬퍼 + codegen 통합 validator)
 
 ## Archived
 
