@@ -461,3 +461,115 @@ func test_get_shop_size_bonus_r12_4() -> void:
 
 func test_get_revive_pool_size_none() -> void:
 	assert_eq(BossReward.get_revive_pool_size(state), 0)
+
+
+# ================================================================
+# 통합 검증 — 보스 보상 효과가 실제 시스템 경로에 적용되는지
+# ================================================================
+
+func test_r8_4_calc_interest_uncaps_above_max() -> void:
+	## r8_4 무한 금고: gold=50일 때 일반 cap=4 → 우회 시 10
+	state.gold = 50
+	state.interest_per_5g = 1
+	state.max_interest = 4
+	## 일반 (보상 미보유): cap 4 적용
+	assert_eq(state.calc_interest(), 4, "기본: cap 4")
+	## r8_4 보유: cap 우회 → 10
+	state.boss_rewards.append("r8_4")
+	assert_eq(state.calc_interest(), 10, "r8_4: cap 우회")
+
+
+func test_r8_4_calc_interest_below_cap_no_change() -> void:
+	## gold=10 → raw 2, cap 4. r8_4 보유 무관 (raw < cap)
+	state.gold = 10
+	state.interest_per_5g = 1
+	state.max_interest = 4
+	state.boss_rewards.append("r8_4")
+	assert_eq(state.calc_interest(), 2, "raw < cap → 우회 동일")
+
+
+func test_r8_8_def_bonus_combines_with_upgrade_def() -> void:
+	## r8_8 보유 + 업글로 추가 DEF 부여 시 둘이 합산되어 materialize에 반영되는지
+	## 직접 materialize 호출 어려우므로 helper 합산 검증 (game_manager.gd:401에서 c.upgrade_def + bonus)
+	var card := CardInstance.create("sp_assembly")
+	assert_not_null(card)
+	card.upgrade_def = 1
+	## 보상 미보유: bonus = 0 → 총 def = 1
+	assert_eq(card.upgrade_def + BossReward.get_def_bonus(state), 1, "upgrade_def 단독 = 1")
+	## 보상 보유: bonus = 2 → 총 def = 3
+	state.boss_rewards.append("r8_8")
+	assert_eq(card.upgrade_def + BossReward.get_def_bonus(state), 3, "+r8_8 = 3")
+
+
+func test_r12_5_theme_count_buff_application() -> void:
+	## r12_5 오색 군단: 보드 테마 개수 × 10% buff 매 라운드 갱신.
+	## game_manager._run_chain의 hook을 직접 시뮬: buff 적용 → ATK 변화 검증
+	var c1 := CardInstance.create("sp_assembly")
+	var c2 := CardInstance.create("sp_workshop")
+	assert_not_null(c1)
+	assert_not_null(c2)
+	state.board[0] = c1
+	state.board[1] = c2
+	state.boss_rewards.append("r12_5")
+	## 단일 테마 (둘 다 스팀펑크) → 1테마 → ×1.10
+	var theme_count: int = BossReward.count_board_themes(state)
+	assert_eq(theme_count, 1, "1테마")
+	var atk_before := c1.get_total_atk()
+	var mult: float = 1.0 + 0.10 * theme_count
+	c1.temp_mult_buff(mult, mult)
+	assert_almost_eq(c1.get_total_atk(), atk_before * 1.10, 0.5, "ATK ×1.10")
+	## 리셋 후 다시 보드 변경 (c2 → 다른 테마로 가정 시 갱신 가능 검증은 어려우므로 reset만 검증)
+	c1.clear_temp_buffs()
+	assert_almost_eq(c1.get_total_atk(), atk_before, 0.5, "리셋 후 원복")
+
+
+func test_r12_8_revive_pool_persists_alive_after_kill() -> void:
+	## r12_8 보드 부활 풀: combat_engine에 풀 주입 + kill_unit 호출 → alive 유지
+	var CombatEngineScript = load("res://combat/combat_engine.gd")
+	var engine = CombatEngineScript.new()
+	engine.headless = true
+	## ally 1유닛 (HP 100) vs enemy 1유닛 (ATK 1000)
+	var ally_units = [{"atk": 10.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	var enemy_units = [{"atk": 1000.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	engine.setup(ally_units, enemy_units)
+	## board_revive_pool 주입 (보스 보상 r12_8 가정)
+	engine.board_revive_pool = 1
+	## 아군 0번에 1000 데미지 강제 (kill_unit 직접 호출 → 부활 처리 path)
+	engine.alive[0] = 1
+	engine.hp[0] = 1.0
+	engine.kill_unit(0)
+	## 풀 1 → 0으로 소비, alive=1 유지, hp=max_hp 복원
+	assert_eq(engine.board_revive_pool, 0, "풀 1 소비 → 0")
+	assert_eq(engine.alive[0], 1, "alive 유지")
+	assert_almost_eq(engine.hp[0], engine.max_hp[0], 0.001, "100% HP 복원")
+
+
+func test_r12_8_revive_pool_depleted_unit_dies() -> void:
+	## 풀 0이면 부활 안 됨, alive = 0
+	var CombatEngineScript = load("res://combat/combat_engine.gd")
+	var engine = CombatEngineScript.new()
+	engine.headless = true
+	var ally_units = [{"atk": 10.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	var enemy_units = [{"atk": 1000.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	engine.setup(ally_units, enemy_units)
+	engine.board_revive_pool = 0
+	engine.kill_unit(0)
+	assert_eq(engine.alive[0], 0, "풀 0 → 사망")
+
+
+func test_r12_8_revive_pool_resets_each_setup() -> void:
+	## setup 호출 시 board_revive_pool = 0으로 초기화 (caller 재주입 필요)
+	var CombatEngineScript = load("res://combat/combat_engine.gd")
+	var engine = CombatEngineScript.new()
+	engine.headless = true
+	engine.board_revive_pool = 5  # 직전 전투 잔여
+	var ally_units = [{"atk": 10.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	var enemy_units = [{"atk": 1000.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
+	engine.setup(ally_units, enemy_units)
+	assert_eq(engine.board_revive_pool, 0, "setup 시 0으로 reset")
