@@ -746,6 +746,15 @@ func _start_sell_target_select(handler_id: String, sell_result: Dictionary) -> v
 		build_phase.target_overlay.target_cancelled.connect(_on_sell_target_cancelled)
 
 
+## ESC cancel design intent (의도적 비대칭, 2026-04-28 multi-review 2차 결정):
+## sell_card → 환불 + 카드 제거 + 효과 트리거가 atomic 묶음.
+## ESC는 부분 취소 — 효과만 무시, 환불 + 카드 제거는 그대로 유지.
+##
+## 사용자 영향: 손해 없음 (환불 받음, 효과 안 받음 = 의도적 ESC). 시스템 비대칭이지만 의도적.
+## 대안 검토:
+##   A) 현재 상태 (효과 무시, 환불 유지) — 채택 [docs/episodes/2026-04-28-sell-esc-asymmetry.md]
+##   B) 환불 회수 — 카드 복원 안 하면 사용자 더 큰 손해 (UX ↓)
+##   C) 카드+환불 모두 복원 — 구현 복잡, sell signal 측면 부작용
 func _on_sell_target_cancelled() -> void:
 	if _pending_sell_select.is_empty():
 		return
@@ -753,7 +762,7 @@ func _on_sell_target_cancelled() -> void:
 		build_phase.target_overlay.target_selected.disconnect(_on_sell_target_selected)
 	if build_phase.target_overlay.target_cancelled.is_connected(_on_sell_target_cancelled):
 		build_phase.target_overlay.target_cancelled.disconnect(_on_sell_target_cancelled)
-	print("[SELL] target select cancelled — effect 무시 (환불은 이미 적용됨)")
+	print("[SELL] target select cancelled — effect 무시 (환불은 의도적 비대칭으로 유지)")
 	_pending_sell_select = {}
 
 
@@ -774,16 +783,12 @@ func _on_sell_target_selected(field_idx: int) -> void:
 	match handler_id:
 		"ne_masquerade":
 			# 자동 dict의 target_card를 사용자 선택으로 override.
-			# new_theme도 사용자가 선택한 카드의 현재 theme 기준 재계산 (자동 target과 다를 수 있음).
+			# new_theme도 사용자가 선택한 카드의 현재 theme 기준 재계산.
+			# DRY: NeutralSystem.compute_masquerade_new_theme static helper 사용 (sim/live 동일 로직).
 			var transform: Dictionary = sell_result.get("transform_theme", {}).duplicate()
 			transform["target_card"] = target
-			# omni가 아니면 사용자 카드 theme 기준 재계산: 첫 비-NEUTRAL이며 target과 다른 theme 우선
 			if not transform.get("omni", false):
-				var current: int = target.template.get("theme", -1)
-				var new_theme: int = Enums.CardTheme.STEAMPUNK
-				if current == Enums.CardTheme.STEAMPUNK:
-					new_theme = Enums.CardTheme.PREDATOR
-				transform["new_theme"] = new_theme
+				transform["new_theme"] = NeutralSystem.compute_masquerade_new_theme(target)
 			_apply_theme_transform(transform)
 		"ne_awakening":
 			var awakening: Dictionary = sell_result.get("awakening_transfer", {}).duplicate()
@@ -972,13 +977,26 @@ func _on_boss_reward_selected(reward_id: String) -> void:
 			"needs_target": needs_target,
 			"targets_remaining": needs_target,
 		}
-		# 빌드 페이즈의 타겟 오버레이 재활용
+		# 빌드 페이즈의 타겟 오버레이 재활용.
+		# Attach 보상(r8_1/r8_7/r12_7)은 can_attach_upgrade predicate로 슬롯 만석 카드 제외 →
+		# attach_upgrade silent fail UX 회귀 방지 (multi-review 2차 발견).
+		# 다른 보상(r4_1/r4_7/r12_1 등)은 슬롯 무관이라 default null.
 		build_phase.visible = true
+		var predicate: Callable = Callable()
+		if reward_id in ["r8_1", "r8_7", "r12_7"]:
+			predicate = Callable(self, "_can_attach_upgrade_predicate")
 		build_phase.target_overlay.start_selection(
-			build_phase._field_visuals, game_state.board)
+			build_phase._field_visuals, game_state.board, predicate)
 		# 일시적으로 타겟 시그널 리다이렉트
 		if not build_phase.target_overlay.target_selected.is_connected(_on_boss_target_selected):
 			build_phase.target_overlay.target_selected.connect(_on_boss_target_selected)
+
+
+## Boss reward attach 보상용 predicate — can_attach_upgrade 카드만 선택 가능.
+func _can_attach_upgrade_predicate(card) -> bool:
+	if card == null:
+		return false
+	return (card as CardInstance).can_attach_upgrade()
 
 
 func _on_boss_target_selected(field_idx: int) -> void:

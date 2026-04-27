@@ -389,6 +389,16 @@ func _pawnbroker_rs(card: CardInstance) -> Dictionary:
 # --- ne_masquerade (T4) — SELL transform_theme ---
 
 
+## ne_masquerade theme 변환 규칙 (sim/live DRY, static).
+## target의 현재 theme와 다른 비-NEUTRAL theme 중 첫 번째를 선택.
+## STEAMPUNK 카드면 PREDATOR로, 그 외 (NEUTRAL/MILITARY/DRUID/PREDATOR)는 STEAMPUNK로 변환.
+static func compute_masquerade_new_theme(target: CardInstance) -> int:
+	var current: int = target.template.get("theme", -1)
+	if current == Enums.CardTheme.STEAMPUNK:
+		return Enums.CardTheme.PREDATOR
+	return Enums.CardTheme.STEAMPUNK
+
+
 ## SELL (tenure ≥ 1): 필드 카드 1장 선택 → theme 변경.
 ## ★1: 5개 중 무작위 3개 offering, ★2: 5개 전체, ★3: omni-theme.
 ## game_manager 가 결과 dict의 "transform_theme" 필드를 처리.
@@ -410,13 +420,9 @@ func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 		break
 	if target == null:
 		return Enums.empty_result()
-	# theme 선택 (sim 은 첫 비-NEUTRAL — 다양성에 의미 있는 변환).
-	# 첫 비-NEUTRAL 이면서 target 의 현재 theme 와 다른 것을 우선.
+	# theme 선택 (DRY: live/sim 모두 compute_masquerade_new_theme 사용)
 	var omni: bool = eff.get("omni", false)
-	var current: int = target.template.get("theme", -1)
-	var new_theme: int = Enums.CardTheme.STEAMPUNK
-	if current == Enums.CardTheme.STEAMPUNK:
-		new_theme = Enums.CardTheme.PREDATOR
+	var new_theme: int = compute_masquerade_new_theme(target)
 	return {
 		"events": [],
 		"gold": 0,
