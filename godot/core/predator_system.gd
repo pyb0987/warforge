@@ -251,14 +251,20 @@ func _find_transcend_oe_block(card: CardInstance, l2_target: int) -> Dictionary:
 
 
 func _molt(card: CardInstance, idx: int) -> Dictionary:
-	# ★1: meta 3  |  ★2: meta 2  |  ★3: meta 2 + ATK+5% growth
+	# 2026-04-27 재설계: consume 1/1/1 통일, max_act 1/2/3 (★별 라운드당 발동 수),
+	# count 1/2/2 (1회 발동당 변태 시도 수). 사용자 피드백 반영.
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var meta_eff := _find_eff(effs, "meta_consume")
-	var consume: int = meta_eff.get("consume", 3)
+	var consume: int = meta_eff.get("consume", 1)
+	var count: int = meta_eff.get("count", 1)
 
 	var events: Array = []
-	if card.metamorphosis(consume):
-		events.append(_meta_evt(idx, idx))
+	var triggered := false
+	for _n in count:
+		if card.metamorphosis(consume):
+			events.append(_meta_evt(idx, idx))
+			triggered = true
+	if triggered:
 		var enhance_eff := _find_eff(effs, "enhance", "self")
 		if not enhance_eff.is_empty():
 			card.enhance(null, enhance_eff.get("atk_pct", 0.05), 0.0)

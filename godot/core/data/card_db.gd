@@ -1355,7 +1355,7 @@ func _register_neutral() -> void:
 				"trigger_timing": PCD, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [_enhance("self", 0.08, 0.08)],
+				"actions": [_enhance("self", 0.3, 0.3)],
 			}
 		],
 		cc_tags,
@@ -1369,7 +1369,7 @@ func _register_neutral() -> void:
 					"trigger_timing": PCD, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [_enhance("self", 0.12, 0.12)],
+					"actions": [_enhance("self", 0.4, 0.4)],
 				}
 			],
 			},
@@ -1383,7 +1383,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						_enhance("self", 0.12, 0.12),
+						_enhance("self", 0.5, 0.5),
 						_spawn("both_adj", 2),
 						_shield("self", 0.15)
 					],
@@ -1779,11 +1779,11 @@ func _register_neutral() -> void:
 		fe_comp,
 		[
 			{
-				"trigger_timing": BS, "max_activations": -1,
+				"trigger_timing": PERSISTENT, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "star3_count_scaling", "atk_pct_per_m": 0.4, "hp_pct_per_m": 0.15, "star2_weight": 0.5, "include_self": true}
+					{"action": "star_aura", "min_star": 2, "atk_pct": 0.3, "hp_pct": 0.15, "include_self": true}
 				],
 			}
 		],
@@ -1795,11 +1795,11 @@ func _register_neutral() -> void:
 				"card_tags": fe_tags,
 				"effects": [
 				{
-					"trigger_timing": BS, "max_activations": -1,
+					"trigger_timing": PERSISTENT, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.55, "hp_pct_per_m": 0.2, "star2_weight": 0.5, "include_self": true}
+						{"action": "star_aura", "min_star": 2, "atk_pct": 0.4, "hp_pct": 0.2, "include_self": true}
 					],
 				}
 			],
@@ -1810,11 +1810,11 @@ func _register_neutral() -> void:
 				"card_tags": fe_tags,
 				"effects": [
 				{
-					"trigger_timing": BS, "max_activations": -1,
+					"trigger_timing": PERSISTENT, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "star3_count_scaling", "atk_pct_per_m": 0.65, "hp_pct_per_m": 0.35, "star2_weight": 0.5, "include_self": true, "allies_threshold": 3, "allies_atk_pct_per_m": 0.07}
+						{"action": "star_aura", "min_star": 2, "atk_pct": 0.5, "hp_pct": 0.3, "include_self": true}
 					],
 				}
 			],
@@ -1888,13 +1888,13 @@ func _register_neutral() -> void:
 				"trigger_timing": OE, "max_activations": 5,
 				"trigger_layer1": EN, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.02}],
+				"actions": [{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.02}],
 			},
 			{
 				"trigger_timing": OE, "max_activations": 5,
 				"trigger_layer1": UA, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.02}],
+				"actions": [{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.02}],
 			}
 		],
 		nex_tags,
@@ -1909,7 +1909,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": EN, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.03, "hp_pct": 0.01}
+						{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.03, "hp_pct": 0.01}
 					],
 				},
 				{
@@ -1917,7 +1917,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": UA, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.03, "hp_pct": 0.01}
+						{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.03, "hp_pct": 0.01}
 					],
 				}
 			],
@@ -1932,7 +1932,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": EN, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
+						{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
 					],
 				},
 				{
@@ -1940,7 +1940,7 @@ func _register_neutral() -> void:
 					"trigger_layer1": UA, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "mirror_l1", "filter": "non_neutral_target", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
+						{"action": "mirror_l1", "filter": "cross_theme", "atk_pct": 0.04, "hp_pct": 0.02, "spawn_unit": 1}
 					],
 				}
 			],
@@ -2655,10 +2655,10 @@ func _register_predator() -> void:
 		mol_comp,
 		[
 			{
-				"trigger_timing": OE, "max_activations": 2,
+				"trigger_timing": OE, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": HA,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "meta_consume", "consume": 3}],
+				"actions": [{"action": "meta_consume", "consume": 1}],
 			}
 		],
 		mol_tags,
@@ -2669,10 +2669,10 @@ func _register_predator() -> void:
 				"card_tags": mol_tags,
 				"effects": [
 				{
-					"trigger_timing": OE, "max_activations": 3,
+					"trigger_timing": OE, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": HA,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "meta_consume", "consume": 2}],
+					"actions": [{"action": "meta_consume", "consume": 1, "count": 2}],
 				}
 			],
 			},
@@ -2686,7 +2686,7 @@ func _register_predator() -> void:
 					"trigger_layer1": -1, "trigger_layer2": HA,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "meta_consume", "consume": 2},
+						{"action": "meta_consume", "consume": 1, "count": 2},
 						{"action": "enhance", "target": "self", "atk_pct": 0.05}
 					],
 				}
@@ -3165,6 +3165,7 @@ func _register_military() -> void:
 	var BS := Enums.TriggerTiming.BATTLE_START
 	var OE := Enums.TriggerTiming.ON_EVENT
 	var PC := Enums.TriggerTiming.POST_COMBAT
+	var PERSISTENT := Enums.TriggerTiming.PERSISTENT
 	var RS := Enums.TriggerTiming.ROUND_START
 	var CO := Enums.Layer2.CONSCRIPT
 	var TR := Enums.Layer2.TRAIN
@@ -3586,7 +3587,7 @@ func _register_military() -> void:
 		so_comp,
 		[
 			{
-				"trigger_timing": RS, "max_activations": -1,
+				"trigger_timing": PERSISTENT, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 2.0}],
@@ -3604,17 +3605,20 @@ func _register_military() -> void:
 				"card_tags": so_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": PERSISTENT, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0},
-						{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true}
-					],
+					"actions": [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 3.0}],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
 						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 3.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "conscript", "target": "self", "count": 1, "rank_upgrade": true}],
 				}
 			],
 			},
@@ -3624,17 +3628,20 @@ func _register_military() -> void:
 				"card_tags": so_tags,
 				"effects": [
 				{
-					"trigger_timing": RS, "max_activations": -1,
+					"trigger_timing": PERSISTENT, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0},
-						{"action": "conscript", "target": "self", "count": 3, "rank_upgrade": true}
-					],
+					"actions": [{"action": "crit_buff", "target": "self", "chance": 0.1, "mult": 6.0}],
 					"r_conditional_effects": [
 						{"condition": "rank_gte", "threshold": 4, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.2, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.25}]},
 						{"condition": "rank_gte", "threshold": 10, "effects": [{"action": "crit_buff", "target": "self", "chance": 0.3, "mult": 6.0}, {"action": "crit_splash", "target": "self", "splash_pct": 0.5}]}
 					],
+				},
+				{
+					"trigger_timing": RS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [{"action": "conscript", "target": "self", "count": 3, "rank_upgrade": true}],
 				}
 			],
 			},

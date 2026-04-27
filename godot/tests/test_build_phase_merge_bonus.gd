@@ -47,3 +47,23 @@ func test_star2_to_star3_merge_does_not_show_epic_popup() -> void:
 	_bp._on_card_merged(card, 2, 3)
 	assert_eq(_popup.calls.size(), 0, "epic 팝업 호출되지 않아야 함")
 	assert_null(_bp._pending_merge_card, "pending_merge_card 설정되지 않음")
+
+
+func test_cascade_star1_to_star3_retargets_pending_to_final_survivor() -> void:
+	## 캐스케이드 ★1→★2→★3: step1 ★2 survivor 가 step2 에서 도너로 흡수되므로
+	## free rare 부착 대상을 ★3 최종 survivor 로 retarget 해야 함 (분실 방지).
+	var step1_survivor: CardInstance = CardInstance.create("sp_assembly")
+	var final_survivor: CardInstance = CardInstance.create("sp_assembly")
+	_bp._on_card_merged(step1_survivor, 1, 2)
+	assert_eq(_bp._pending_merge_card, step1_survivor, "step1 후 pending = step1 survivor")
+	_bp._on_card_merged(final_survivor, 2, 3)
+	assert_eq(_bp._pending_merge_card, final_survivor,
+		"step2 후 pending = ★3 final survivor (retarget)")
+	assert_eq(_popup.calls.size(), 1, "RARE popup 만 1회 (sp_assembly 는 epic popup 없음)")
+
+
+func test_plain_star2_to_star3_no_pending_no_retarget() -> void:
+	## 캐스케이드 아닌 단순 ★2→★3 머지: _pending_merge_card 가 null 이면 retarget 발생 X.
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	_bp._on_card_merged(card, 2, 3)
+	assert_null(_bp._pending_merge_card, "단순 ★2→★3 은 pending 미설정 유지")

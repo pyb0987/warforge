@@ -75,6 +75,13 @@ func apply_post_combat(card: CardInstance, idx: int, board: Array,
 	return Enums.empty_result()
 
 
+## PERSISTENT timing dispatch — chain_engine.process_persistent 가 호출.
+## 2026-04-27: ml_special_ops 치명타/r_conditional 을 RS → PERSISTENT 로 이관.
+func apply_persistent(card: CardInstance, board: Array = []) -> void:
+	match card.get_base_id():
+		"ml_special_ops": _special_ops_persistent(card, board)
+
+
 ## NOTE: apply_persistent(ml_command) 제거 (2026-04-16, trace 012 후속 cleanup).
 ## 이전에는 이곳에서 theme_state["revive_hp_pct/limit"]을 설정했으나,
 ## chain_engine.process_persistent는 PERSISTENT timing 카드만 순회함 (ml_command는 RS).
@@ -921,38 +928,59 @@ func _assault_rs(card: CardInstance, idx: int, board: Array,
 
 func _special_ops(card: CardInstance, idx: int, board: Array,
 		rng: RandomNumberGenerator) -> Dictionary:
-	# 특수작전대 재설계:
-	#   trace 012: 훈련 전파 제거, 치명타 중심 전환.
-	#   2026-04-21: ★2/★3 spawn_unit(sniper fixed) → conscript (base pool 뽑기 +
-	#               CO 이벤트 방출, ml_outpost 체인 활성화). biker_rebirth 없음
-	#               (특작은 정예 컨셉, base pool 랜덤이어도 R4/R10 로 질적 보상).
-	# R4/R10: crit_buff 확률 교체 + crit_splash 해금. 매 RS 실행 시 덮어쓰기.
-	# 이전 전투의 theme_state 잔류 방지를 위해 매번 초기화 후 재적용.
-	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	# 2026-04-27 재설계: 치명타/r_conditional → PERSISTENT block 으로 이관
+	# (apply_persistent → _special_ops_persistent). 본 RS handler 는 conscript
+	# (★2: 1 회, ★3: 3 회 뽑기) 만 처리. ★1 은 RS block 자체가 없으므로
+	# process_rs_card 가 본 함수를 호출 안 함 (chain_engine 가 block 부재 시 skip).
+	var effs := _so_rs_block_effs(card)
+	if effs.is_empty():
+		return Enums.empty_result()
 	var events: Array = []
-
-	# theme_state 초기화 (이전 ★/R 수치 재적용 보장)
-	card.theme_state.erase("crit_chance")
-	card.theme_state.erase("crit_mult")
-	card.theme_state.erase("crit_splash_pct")
-
-	# ★ 기본 crit_buff (R0 수치)
-	var crit_eff := _find_eff(effs, "crit_buff", "self")
-	if not crit_eff.is_empty():
-		_apply_crit_buff(crit_eff, card)
-
-	# conscript (★2: 1 회, ★3: 3 회 뽑기)
 	var con_eff := _find_eff(effs, "conscript", "self")
 	if not con_eff.is_empty():
 		var tries: int = int(con_eff.get("count", 1))
 		if tries > 0:
 			_conscript(card, tries, rng, card)
 			events.append(_conscript_evt(idx, idx))
-
-	# R4/R10 milestone (enhance_convert_card + crit_buff chance 덮어쓰기 + crit_splash)
-	events.append_array(_process_r_conditional(card, idx, board))
-
+	# board 인자는 본 분기에서 미사용 (PERSISTENT 로 이관됨).
+	var _unused := board
 	return {"events": events, "gold": 0, "terazin": 0}
+
+
+## ml_special_ops PERSISTENT block — 치명타 + r_conditional.
+## chain_engine.process_persistent → apply_persistent 경로에서 호출.
+## 매 전투 시작 전 theme_state 재적용 (이전 ★/rank 수치 잔류 방지).
+func _special_ops_persistent(card: CardInstance, board: Array) -> void:
+	var effs := _so_persistent_block_effs(card)
+	if effs.is_empty():
+		return
+	card.theme_state.erase("crit_chance")
+	card.theme_state.erase("crit_mult")
+	card.theme_state.erase("crit_splash_pct")
+	var crit_eff := _find_eff(effs, "crit_buff", "self")
+	if not crit_eff.is_empty():
+		_apply_crit_buff(crit_eff, card)
+	# R4/R10 milestone — board idx 검색 후 _process_r_conditional 호출.
+	# 반환 events 는 PERSISTENT 에서 발동 못 시키므로 무시.
+	var idx: int = board.find(card)
+	if idx >= 0:
+		_process_r_conditional(card, idx, board)
+
+
+## ml_special_ops 의 RS block(★2/★3 conscript) actions 추출.
+func _so_rs_block_effs(card: CardInstance) -> Array:
+	for block in card.template.get("effects", []):
+		if block.get("trigger_timing", -1) == Enums.TriggerTiming.ROUND_START:
+			return block.get("actions", [])
+	return []
+
+
+## ml_special_ops 의 PERSISTENT block(crit + r_conditional) actions 추출.
+func _so_persistent_block_effs(card: CardInstance) -> Array:
+	for block in card.template.get("effects", []):
+		if block.get("trigger_timing", -1) == Enums.TriggerTiming.PERSISTENT:
+			return block.get("actions", [])
+	return []
 
 
 func _command(card: CardInstance, idx: int, board: Array) -> Dictionary:

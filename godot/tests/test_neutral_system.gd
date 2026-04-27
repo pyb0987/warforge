@@ -6,7 +6,7 @@ extends GutTest
 ##   - ne_envoy (T2): RS +Ng + ★3 BS +1g
 ##   - ne_hoarder (T3): SELL tenure × Ng
 ##   - ne_void_force (T4): BS empty_slot_scaling (temp_mult_buff)
-##   - ne_fusion_end (T4): BS star3_count_scaling
+##   - ne_fusion_end (T4): PERSISTENT star_aura — 각 ★≥2 아군 buff (이번 전투)
 
 
 var _sys: NeutralSystem = null
@@ -163,143 +163,82 @@ func test_void_force_clear_temp_buffs_resets_as() -> void:
 
 
 # ================================================================
-# ne_fusion_end (T4 BS) — star3_count_scaling
+# ne_fusion_end (T4 PERSISTENT) — star_aura
+# 2026-04-27 재설계 (사용자 피드백):
+#   각 ★≥2 아군 카드 (자기 포함) 에게 ATK/HP 배율 buff. flat per-card,
+#   M scaling 없음. ★1: 30/15  ★2: 40/20  ★3: 50/30 (이번 전투 한정).
 # ================================================================
 
 
-func test_fusion_end_no_star3_no_buff() -> void:
-	## 보드에 ★3 카드 0장 → M=0 → no fire
+func test_fusion_end_star1_no_star2_or_higher_no_buff() -> void:
+	## 보드에 ★≥2 카드 0장 (self ★1 + ally ★1) → 누구도 buff 안 받음.
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	var sp_card: CardInstance = CardInstance.create("sp_assembly")
-	_sys.apply_battle_start(card, 0, [card, sp_card])
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001, "M=0 → no buff")
-
-
-func test_fusion_end_star3_self_only_m1() -> void:
-	## self ★3 + 다른 카드 ★1 → M=1 (self) → ATK ×1.65, HP ×1.35
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()
-	card.evolve_star()
-	var sp_card: CardInstance = CardInstance.create("sp_assembly")
-	_sys.apply_battle_start(card, 0, [card, sp_card])
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65, 0.001,
-		"★3 self M=1 → ATK ×1.65")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.35, 0.001,
-		"★3 self M=1 → HP ×1.35")
-
-
-func test_fusion_end_m3_triggers_allies_aura() -> void:
-	## M=3 (self ★3 + 2 ★3) → self 강화 + 모든 아군 ATK +M×7%
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()
-	card.evolve_star()
-	var ally1: CardInstance = CardInstance.create("sp_assembly")
-	ally1.evolve_star()
-	ally1.evolve_star()
-	var ally2: CardInstance = CardInstance.create("ne_earth_echo")
-	ally2.evolve_star()
-	ally2.evolve_star()
-	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
-	# M=3, self ATK +0.65×3=+195%, HP +0.35×3=+105%
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 3, 0.001, "self ATK ×2.95")
-	# allies ATK +M×7% = +21% (자기 제외) — ally1 + ally2 모두 검증
-	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0 + 0.07 * 3, 0.001, "ally1 ATK ×1.21")
-	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.0 + 0.07 * 3, 0.001, "ally2 ATK ×1.21")
-
-
-func test_fusion_end_star2_no_allies_aura() -> void:
-	## ★2: allies_atk_pct_per_m 없음 → ★3 N≥3 라도 아군 buff 안 함 (multi-review 누락 ★)
-	## A안: ★2 self 는 weight 0.5 로 M 에 포함 → M = 2 (★3) + 0.5 (★2 self) = 2.5
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()  # ★2
-	var ally1: CardInstance = CardInstance.create("sp_assembly")
-	ally1.evolve_star()
-	ally1.evolve_star()
-	var ally2: CardInstance = CardInstance.create("ne_earth_echo")
-	ally2.evolve_star()
-	ally2.evolve_star()
-	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
-	# ★2 self M=2.5 → ATK ×(1+0.55×2.5)=2.375, HP ×(1+0.20×2.5)=1.5
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 2.5, 0.001,
-		"★2 self M=2.5 → ATK ×2.375")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 2.5, 0.001,
-		"★2 self M=2.5 → HP ×1.50")
-	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001, "★2 → 아군 aura 없음")
-
-
-func test_fusion_end_star2_weight_self_only() -> void:
-	## A안: ★2 self 단독, ★3 0장 → M = 0.5 (★2 self × 0.5).
-	## 0 < M 이므로 self buff 발동.
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()  # ★2
 	var sp_card: CardInstance = CardInstance.create("sp_assembly")  # ★1
-	_sys.apply_battle_start(card, 0, [card, sp_card])
-	# ★2 self M=0.5 → ATK ×(1+0.55×0.5)=1.275, HP ×(1+0.20×0.5)=1.10
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.55 * 0.5, 0.001,
-		"★2 self only M=0.5 → ATK ×1.275")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.20 * 0.5, 0.001,
-		"★2 self only M=0.5 → HP ×1.10")
+	_sys.apply_persistent(card, [card, sp_card])
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"self ★1 < min_star → no buff")
+	assert_almost_eq(sp_card.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"ally ★1 < min_star → no buff")
 
 
-func test_fusion_end_star3_with_star2_ally() -> void:
-	## A안: self ★3 + ally ★2 → star3=1, M = 1 + 0.5 = 1.5.
-	## ★3 self 스케일에 ★2 가중치 합산.
+func test_fusion_end_star1_buffs_each_star2_ally() -> void:
+	## ★1 fusion_end + ★2 ally → ally 만 +30%/+15% (★1 self 는 < min_star).
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	var ally: CardInstance = CardInstance.create("sp_assembly")
+	ally.evolve_star()  # ★2
+	_sys.apply_persistent(card, [card, ally])
+	assert_almost_eq(ally.stacks[0]["temp_atk_mult"], 1.30, 0.001,
+		"★2 ally → ATK +30%")
+	assert_almost_eq(ally.stacks[0]["temp_hp_mult"], 1.15, 0.001,
+		"★2 ally → HP +15%")
+	# self ★1 < min_star=2 → 무영향
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"★1 self < min_star → no buff")
+
+
+func test_fusion_end_star3_self_buffs_self_too() -> void:
+	## ★3 fusion_end + ★3 ally → 둘 다 +50%/+30% (include_self: true).
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
 	card.evolve_star()
 	card.evolve_star()  # ★3
+	var ally: CardInstance = CardInstance.create("sp_assembly")
+	ally.evolve_star()
+	ally.evolve_star()  # ★3
+	_sys.apply_persistent(card, [card, ally])
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.50, 0.001,
+		"★3 self → ATK +50% (include_self)")
+	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.30, 0.001,
+		"★3 self → HP +30%")
+	assert_almost_eq(ally.stacks[0]["temp_atk_mult"], 1.50, 0.001,
+		"★3 ally → ATK +50%")
+
+
+func test_fusion_end_star2_buff_each_qualifying() -> void:
+	## ★2 fusion_end + ★2 ally + ★1 ally → ★2 둘에만 +40%/+20%.
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()  # ★2
 	var ally2: CardInstance = CardInstance.create("sp_assembly")
 	ally2.evolve_star()  # ★2
-	_sys.apply_battle_start(card, 0, [card, ally2])
-	# ★3 self M=1.5 → ATK ×(1+0.65×1.5)=1.975, HP ×(1+0.35×1.5)=1.525
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 1.5, 0.001,
-		"★3 self + ★2 ally M=1.5 → ATK ×1.975")
-	assert_almost_eq(card.stacks[0]["temp_hp_mult"], 1.0 + 0.35 * 1.5, 0.001,
-		"★3 self + ★2 ally M=1.5 → HP ×1.525")
-	# aura: star3_count=1 < threshold=3 → 아군 buff 없음
-	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.0, 0.001,
-		"★3 1장만 → 아군 aura 미발동")
-
-
-func test_fusion_end_aura_threshold_strict_star3_count() -> void:
-	## ★3 self + ★2 ally 4장 → M = 1 + 4×0.5 = 3.0 (≥ threshold=3) 이지만
-	## aura threshold 는 정수 ★3 카운트 기준 (=1) → aura 미발동.
-	## (★2 가중 합산이 aura threshold 를 넘기지 못함을 검증)
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()
-	card.evolve_star()  # ★3
-	var allies: Array = []
-	for i in range(4):
-		var a: CardInstance = CardInstance.create("sp_assembly")
-		a.evolve_star()  # ★2
-		allies.append(a)
-	var board: Array = [card]
-	board.append_array(allies)
-	_sys.apply_battle_start(card, 0, board)
-	# self M=3.0 → ATK ×(1+0.65×3)=2.95
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 3.0, 0.001,
-		"M=3.0 self ATK ×2.95")
-	# aura 미발동: star3_count=1 < 3
-	for a in allies:
-		assert_almost_eq((a as CardInstance).stacks[0]["temp_atk_mult"], 1.0, 0.001,
-			"★3 카운트<3 → aura 미발동")
-
-
-func test_fusion_end_m2_below_threshold_no_aura() -> void:
-	## ★3 self M=2 (★3 ally 1장만) → allies_threshold(3) 미달 → 아군 aura 없음
-	## (boundary 검증 — multi-review 누락)
-	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	card.evolve_star()
-	card.evolve_star()
-	var ally1: CardInstance = CardInstance.create("sp_assembly")
-	ally1.evolve_star()
-	ally1.evolve_star()
-	_sys.apply_battle_start(card, 0, [card, ally1])
-	# self ATK ×(1+0.65×2)=2.30
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.65 * 2, 0.001,
-		"M=2 self ATK ×2.30")
-	# 아군 aura 없음 (M=2 < threshold 3)
+	var ally1: CardInstance = CardInstance.create("ne_earth_echo")  # ★1
+	_sys.apply_persistent(card, [card, ally2, ally1])
+	# self ★2 ≥ min_star → buff 받음
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.40, 0.001,
+		"★2 self → ATK +40%")
+	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.40, 0.001,
+		"★2 ally → ATK +40%")
+	# ★1 ally → 미적용
 	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001,
-		"M<3 → aura 미발동")
+		"★1 ally → no buff")
+
+
+func test_fusion_end_includes_self_when_qualifying() -> void:
+	## ★2 fusion_end 자기 자신 ★≥2 만족 → 자기 포함 buff.
+	## (사용자 명시 확인: include_self true 의도된 동작)
+	var card: CardInstance = CardInstance.create("ne_fusion_end")
+	card.evolve_star()  # ★2
+	_sys.apply_persistent(card, [card])
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.40, 0.001,
+		"★2 self solo → ATK +40% (include_self)")
 
 
 # ================================================================
@@ -359,7 +298,9 @@ func test_legion_star3_spawns_per_card() -> void:
 
 
 # ================================================================
-# ne_nexus (T5 OE) — mirror_l1, non_neutral_target filter, multi-block
+# ne_nexus (T5 OE) — mirror_l1, cross_theme filter, multi-block
+# 2026-04-27: filter non_neutral_target → cross_theme.
+# 발동 카드(source) 와 이벤트 대상(target) 의 테마가 서로 다를 때만 fire.
 # ================================================================
 
 
@@ -376,70 +317,76 @@ func test_nexus_self_source_ignored() -> void:
 	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "self-source → no fire")
 
 
-func test_nexus_neutral_target_filtered() -> void:
-	## target이 NEUTRAL → 무시 (filter: non_neutral_target)
+func test_nexus_same_theme_filtered() -> void:
+	## source/target 같은 테마 (steampunk → steampunk) → cross_theme false → 무시.
 	var card: CardInstance = CardInstance.create("ne_nexus")
-	var ne_target: CardInstance = CardInstance.create("ne_earth_echo")
-	var board: Array = [card, ne_target]
-	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	var sp1: CardInstance = CardInstance.create("sp_assembly")
+	var sp2: CardInstance = CardInstance.create("sp_furnace")
+	var board: Array = [card, sp1, sp2]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "NEUTRAL target → 무시")
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "같은 테마 → 무시")
 
 
-func test_nexus_star1_non_neutral_target_enhances() -> void:
-	## 비-NEUTRAL target (sp_assembly) UA → self ATK +2%
+func test_nexus_star1_cross_theme_enhances() -> void:
+	## 다른 테마 (sp → ne_target) UA → self ATK +2%.
 	var card: CardInstance = CardInstance.create("ne_nexus")
-	var sp: CardInstance = CardInstance.create("sp_assembly")
-	var board: Array = [card, sp]
-	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	var sp: CardInstance = CardInstance.create("sp_assembly")  # source
+	var ne_t: CardInstance = CardInstance.create("ne_earth_echo")  # target (neutral)
+	var board: Array = [card, sp, ne_t]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 UA → +2% ATK")
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 cross-theme UA → +2% ATK")
 
 
 func test_nexus_star1_en_event_also_fires() -> void:
-	## EN 이벤트도 별도 OE block으로 listen → ATK +2%
+	## EN 이벤트도 별도 OE block 으로 listen → cross-theme 시 ATK +2%.
 	var card: CardInstance = CardInstance.create("ne_nexus")
 	var sp: CardInstance = CardInstance.create("sp_assembly")
-	var board: Array = [card, sp]
-	var event := _make_event(Enums.Layer1.ENHANCED, 1, 1)
+	var ml_t: CardInstance = CardInstance.create("ml_barracks")
+	var board: Array = [card, sp, ml_t]
+	var event := _make_event(Enums.Layer1.ENHANCED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 EN → +2% ATK")
+	assert_almost_eq(card.growth_atk_pct, 0.02, 0.001, "★1 cross-theme EN → +2% ATK")
 
 
 func test_nexus_star3_spawns_unit() -> void:
-	## ★3: spawn_unit=1 → 첫 stack unit 1기 추가
+	## ★3: spawn_unit=1 → cross-theme 시 첫 stack unit 1기 추가.
 	var card: CardInstance = CardInstance.create("ne_nexus")
 	card.evolve_star()
 	card.evolve_star()
 	var sp: CardInstance = CardInstance.create("sp_assembly")
-	var board: Array = [card, sp]
+	var ml_t: CardInstance = CardInstance.create("ml_barracks")
+	var board: Array = [card, sp, ml_t]
 	var before_units: int = card.get_total_units()
-	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_eq(card.get_total_units(), before_units + 1, "★3 → 유닛 1기 spawn")
+	assert_eq(card.get_total_units(), before_units + 1, "★3 cross-theme → 유닛 1기 spawn")
 
 
 func test_nexus_star2_atk_and_hp() -> void:
-	## ★2: ATK +3%, HP +1% (multi-review missing ★ branch)
+	## ★2: cross-theme ATK +3%, HP +1%.
 	var card: CardInstance = CardInstance.create("ne_nexus")
 	card.evolve_star()
 	var sp: CardInstance = CardInstance.create("sp_assembly")
-	var board: Array = [card, sp]
-	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	var ml_t: CardInstance = CardInstance.create("ml_barracks")
+	var board: Array = [card, sp, ml_t]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 UA → ATK +3%")
-	assert_almost_eq(card.growth_hp_pct, 0.01, 0.001, "★2 UA → HP +1%")
+	assert_almost_eq(card.growth_atk_pct, 0.03, 0.001, "★2 cross-theme UA → ATK +3%")
+	assert_almost_eq(card.growth_hp_pct, 0.01, 0.001, "★2 cross-theme UA → HP +1%")
 
 
-func test_nexus_omni_target_filtered_as_neutral() -> void:
-	## omni-theme target 은 NEUTRAL 매치 → 무시
+func test_nexus_omni_target_filtered() -> void:
+	## omni-theme target 은 모든 테마 매치 → cross_theme false → 무시.
 	var card: CardInstance = CardInstance.create("ne_nexus")
-	var omni: CardInstance = CardInstance.create("sp_assembly")
+	var sp: CardInstance = CardInstance.create("sp_assembly")
+	var omni: CardInstance = CardInstance.create("ml_barracks")
 	omni.is_omni_theme = true
-	var board: Array = [card, omni]
-	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 1)
+	var board: Array = [card, sp, omni]
+	var event := _make_event(Enums.Layer1.UNIT_ADDED, 1, 2)
 	_sys.process_event_card(card, 0, board, event, _rng)
-	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "omni target → 무시 (NEUTRAL 매치)")
+	assert_almost_eq(card.growth_atk_pct, 0.0, 0.001, "omni target → 무시 (모든 테마 매치)")
 
 
 # ================================================================
@@ -838,19 +785,23 @@ func test_masquerade_target_is_steampunk_picks_predator() -> void:
 		"sp target → predator로 변환")
 
 
-func test_fusion_end_star1_no_allies_aura() -> void:
-	## ★1: allies_atk_pct_per_m 0 → 아군 buff 안 함 (M ≥ 3 라도)
+func test_fusion_end_star1_aura_buffs_star3_allies_only() -> void:
+	## ★1 fusion_end: 각 ★≥2 아군 +30%/+15% buff. self ★1 < min_star → 자기 미적용.
 	var card: CardInstance = CardInstance.create("ne_fusion_end")
-	# self ★1 + 2 다른 ★3 → M=2 (self ★1, 자기는 not ★3)
 	var ally1: CardInstance = CardInstance.create("sp_assembly")
 	ally1.evolve_star()
-	ally1.evolve_star()
+	ally1.evolve_star()  # ★3
 	var ally2: CardInstance = CardInstance.create("ne_earth_echo")
 	ally2.evolve_star()
-	ally2.evolve_star()
-	_sys.apply_battle_start(card, 0, [card, ally1, ally2])
-	# self ★1 ATK ×(1+0.40×2)=1.8 (M=2)
-	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0 + 0.40 * 2, 0.001,
-		"★1 self M=2 → ATK ×1.8")
-	# allies 변화 없음
-	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.0, 0.001, "★1 → 아군 aura 없음")
+	ally2.evolve_star()  # ★3
+	_sys.apply_persistent(card, [card, ally1, ally2])
+	# self ★1 < min_star=2 → no buff
+	assert_almost_eq(card.stacks[0]["temp_atk_mult"], 1.0, 0.001,
+		"★1 self < min_star → no buff")
+	# 두 ★3 ally 각자 +30%/+15%
+	assert_almost_eq(ally1.stacks[0]["temp_atk_mult"], 1.30, 0.001,
+		"★3 ally1 → ATK +30%")
+	assert_almost_eq(ally1.stacks[0]["temp_hp_mult"], 1.15, 0.001,
+		"★3 ally1 → HP +15%")
+	assert_almost_eq(ally2.stacks[0]["temp_atk_mult"], 1.30, 0.001,
+		"★3 ally2 → ATK +30%")

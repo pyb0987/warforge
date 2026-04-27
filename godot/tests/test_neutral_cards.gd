@@ -174,8 +174,8 @@ func test_ruins_fires_every_round_after_tenure() -> void:
 	assert_gt(board[1].get_total_units(), units_after_r2, "tenure 후 매 라운드 발동")
 
 
-# ne_awakening 옛 효과(RS tenure threshold) 폐기 — SELL transfer 효과로 변경.
-# 새 효과 테스트는 test_neutral_system.gd 참조.
+# ne_awakening 효과 폐기 (RS tenure threshold + RS 매 라운드 누적 둘 다) — SELL transfer 채택.
+# 2026-04-28 multi-review 결정. 새 효과 테스트는 test_neutral_system.gd 참조.
 
 
 # ================================================================
@@ -214,7 +214,7 @@ func _make_star_board(base_id: String, star: int, extras: Array = []) -> Array:
 	return board
 
 
-# ne_awakening ★2/★3 옛 RS 효과 폐기 — SELL transfer 효과로 변경.
+# ne_awakening ★2/★3 RS 효과 폐기 (옛 + main RS 누적 둘 다) — SELL transfer 채택.
 # 새 효과 테스트는 test_neutral_system.gd 참조.
 
 

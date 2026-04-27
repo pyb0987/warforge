@@ -553,12 +553,6 @@ def desc_counter_produce(p):
     reward_text = " + ".join(parts)
     return f"카운터 {thresh}+ → {thresh} 소비, {reward_text}"
 
-def desc_rare_counter(p):
-    return f"카운터 {p['threshold']}+ → {p['threshold']} 소비, 레어 업그레이드 3택1"
-
-def desc_epic_counter(p):
-    return f"카운터 {p['threshold']}+ → {p['threshold']} 소비, 에픽 업그레이드"
-
 def desc_total_counter(p):
     per = p["per_manufacture"]
     tz = p["reward_terazin"]
@@ -826,7 +820,7 @@ def fmt_pct(f):
 
 ### Phase 5: 군대 테마 DSL
 - train, conscript, rank_threshold, rank_buff, revive, revive_override,
-  counter_produce, economy, upgrade_discount, rare_counter, epic_counter, total_counter
+  counter_produce, economy, upgrade_discount, total_counter
 - 대상: 10장
 
 ### Phase 6: 통합 + card_descs.gd 교체

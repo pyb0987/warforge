@@ -488,24 +488,24 @@ cards:
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.08
-            hp_pct: 0.08
+            atk_pct: 0.30
+            hp_pct: 0.30
       2:
         effects:
         - trigger_timing: PCD
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.12
-            hp_pct: 0.12
+            atk_pct: 0.40
+            hp_pct: 0.40
       3:
         effects:
         - trigger_timing: PC
           max_act: 1
           enhance:
             target: self
-            atk_pct: 0.12
-            hp_pct: 0.12
+            atk_pct: 0.50
+            hp_pct: 0.50
           spawn:
             target: both_adj
             count: 2
@@ -571,6 +571,8 @@ cards:
     - neutral
     - ancient
     impl: theme_system
+    # 2026-04-28 재설계 (multi-review 결정): SELL transfer 효과.
+    # ★ 합성 보너스 업글(★1→★2 = rare, ★2→★3 = epic)을 활용해 카드 1장에 이전.
     stars:
       1:
         effects:
@@ -839,36 +841,36 @@ cards:
     - neutral
     - capstone
     impl: theme_system
+    # 2026-04-27 재설계: BS self-scaling → PERSISTENT aura.
+    # 필드의 각 ★≥2 아군 (자기 포함) 에게 +%ATK / +%HP 부여 (이번 전투).
     stars:
       1:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.40
-            hp_pct_per_m: 0.15
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.30
+            hp_pct: 0.15
             include_self: true
       2:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.55
-            hp_pct_per_m: 0.20
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.40
+            hp_pct: 0.20
             include_self: true
       3:
         effects:
-        - trigger_timing: BS
+        - trigger_timing: PERSISTENT
           max_act: -1
-          star3_count_scaling:
-            atk_pct_per_m: 0.65
-            hp_pct_per_m: 0.35
-            star2_weight: 0.5
+          star_aura:
+            min_star: 2
+            atk_pct: 0.50
+            hp_pct: 0.30
             include_self: true
-            allies_threshold: 3
-            allies_atk_pct_per_m: 0.07
   ne_council:
     name: 오대 평의회
     tier: 5
@@ -942,14 +944,14 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.02
         - trigger_timing: OE
           max_act: 5
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.02
       2:
         effects:
@@ -958,7 +960,7 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.03
             hp_pct: 0.01
         - trigger_timing: OE
@@ -966,7 +968,7 @@ cards:
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.03
             hp_pct: 0.01
       3:
@@ -976,7 +978,7 @@ cards:
           listen:
             l1: EN
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.04
             hp_pct: 0.02
             spawn_unit: 1
@@ -985,7 +987,7 @@ cards:
           listen:
             l1: UA
           mirror_l1:
-            filter: non_neutral_target
+            filter: cross_theme
             atk_pct: 0.04
             hp_pct: 0.02
             spawn_unit: 1

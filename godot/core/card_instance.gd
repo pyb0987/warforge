@@ -282,7 +282,7 @@ func multiply_unique_stats(atk_pct: float, hp_pct: float) -> void:
 ##   max:  tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"],
 ##         stacks[].unique_atk_mult/hp_mult ([고유효과] ATK/HP — 큰 값이 강함)
 ##   min:  unique_as_mult ([고유효과] AS — 작을수록 빠름이라 min이 "가장 빠른 도너 보존")
-##   OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade, high_rank_applied)
+##   OR:   is_omni_theme, theme_state 그룹B (high_rank_applied)
 ##   기타 theme_state (그룹C/D): survivor 유지
 ##   activations_used / threshold_fired: 호출자(try_merge)가 별도 리셋
 func absorb_donor(donor: CardInstance, skip_units: bool = false) -> void:
@@ -342,7 +342,7 @@ func absorb_donor(donor: CardInstance, skip_units: bool = false) -> void:
 ## theme_state 흡수 정책 (그룹별).
 const _THEME_STATE_SUM_KEYS := ["trees", "manufacture_counter", "attack_stack_pct", "range_bonus"]
 const _THEME_STATE_MAX_KEYS := ["rank"]
-const _THEME_STATE_OR_KEYS := ["pending_epic_upgrade", "high_rank_applied"]
+const _THEME_STATE_OR_KEYS := ["high_rank_applied"]
 
 
 func _absorb_theme_state(donor_state: Dictionary) -> void:

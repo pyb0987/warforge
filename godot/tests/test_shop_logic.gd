@@ -54,7 +54,7 @@ func test_tier_weights_lv6_no_t1_t2() -> void:
 	var w: Array = ShopPicker.DEFAULT_TIER_WEIGHTS[6]
 	assert_eq(w[0], 0, "Lv6: T1=0")
 	assert_eq(w[1], 0, "Lv6: T2=0")
-	assert_eq(w[4], 50, "Lv6: T5=50")
+	assert_eq(w[4], 35, "Lv6: T5=35")
 
 
 # ================================================================

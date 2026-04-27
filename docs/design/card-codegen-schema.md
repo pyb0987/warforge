@@ -434,29 +434,11 @@ theme_system 카드도 YAML로 완전 선언한다. 테마 메카닉의 **행동
     atk_buff_pct: float  # 기본 0.0 — 태그 유닛 ATK 버프
     attack_stack_pct: float  # 기본 0.0 — 공격당 ATK 스택 (★3)
 
-# 희귀 업그레이드 카운터 (sp_charger ★2)
-# 누적 MF 횟수가 threshold에 도달하면 pending_rare_upgrade 보상
-- rare_counter:
-    threshold: int       # 누적 이벤트 수 (회차 누적, 리셋 없음)
-    reward: string       # pending_rare_upgrade
-
-# 에픽 업그레이드 카운터 (sp_charger ★3)
-# 누적 MF 횟수가 threshold에 도달하면 pending_epic_upgrade 보상 (레어→에픽 승격)
-- epic_counter:
-    threshold: int       # 누적 이벤트 수 (회차 누적, 리셋 없음)
-    reward: string       # pending_epic_upgrade
-
 # 총 누적 카운터 기반 보상 (sp_charger ★3)
 # 라운드 리셋 없이 누적 — threshold마다 테라진 지급
 - total_counter:
     per_manufacture: int # MF N회마다 발동
     reward_terazin: int  # 지급 테라진
-
-# 합성 시 1회 발동 효과 (sp_charger ★3, on_merge 타이밍 카드와 별도)
-# 주석 처리 보류 중 — theme_system 내부 on_merge 훅으로 구현 예정
-- on_merge:
-    epic_upgrade: int    # 무료 에픽 업그레이드 수
-    terazin: int         # 지급 테라진
 
 # 경제 카드 (dr_grace, ml_supply 등 공용)
 - economy:
@@ -879,15 +861,11 @@ cards:
         max_act: -1
         effects:
           - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - rare_counter: {threshold: 20, reward: pending_rare_upgrade}
       3:
         max_act: -1
         effects:
           - counter_produce: {event: MF, threshold: 10, rewards: {terazin: 1, enhance_atk_pct: 0.05}}
-          - epic_counter: {threshold: 15, reward: pending_epic_upgrade}
           - total_counter: {per_manufacture: 10, reward_terazin: 1}
-          # ★3 합성 시 1회: 무료 에픽 업그레이드 + 3 테라진 (on_merge 훅, theme_system 내부)
-          # - on_merge: {epic_upgrade: 1, terazin: 3}
 ```
 
 ---
