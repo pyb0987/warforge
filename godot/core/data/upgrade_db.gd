@@ -136,10 +136,10 @@ func _register_rare() -> void:
 func _register_epic() -> void:
 	var E := Enums.UpgradeRarity.EPIC
 
-	# E1 광폭화 — HP 30% 이하 시 ATK ×2, AS ×2, 회복 불가
+	# E1 광폭화 — HP 40% 이하 시 ATK ×2, AS ×2, 회복 불가
 	_reg("E1", "광폭화", E, 0,
 		{}, [{"type": "berserk",
-			"hp_threshold": 0.30, "atk_mult": 2.0, "as_mult": 2.0,
+			"hp_threshold": 0.40, "atk_mult": 2.0, "as_mult": 2.0,
 			"no_heal": true}])
 
 	# E2 연쇄폭발 — 스플래시 70% + 처치 시 ATK 50% AOE (반경 2칸)
@@ -147,22 +147,22 @@ func _register_epic() -> void:
 		{}, [{"type": "chain_explosion",
 			"splash_pct": 0.70, "kill_aoe_pct": 0.50, "aoe_range": 2}])
 
-	# E3 불멸의핵 — 치명타 시 HP 1 생존 + 3초 무적 (1회), HP 50% 회복
+	# E3 불멸의핵 — 치명타 시 HP 1 생존 + 3초 무적 (전투당 2회), HP 50% 회복
 	_reg("E3", "불멸의핵", E, 0,
 		{}, [{"type": "immortal_core",
-			"uses_per_combat": 1, "invuln_sec": 3.0, "recover_hp_pct": 0.50}])
+			"uses_per_combat": 2, "invuln_sec": 3.0, "recover_hp_pct": 0.50}])
 
 	# E4 영혼수확 — 처치 시 ATK +5% 영구 누적, 10킬 시 AS ×1.5
 	_reg("E4", "영혼수확", E, 0,
 		{}, [{"type": "soul_harvest",
 			"kill_atk_pct": 0.05, "kill_threshold": 10, "as_bonus_mult": 1.5}])
 
-	# E5 분열증식 — 사망 시 같은 유닛 2기 소환 (HP 50%, ATK 50%), 분열 불가
+	# E5 분열증식 — 사망 시 같은 유닛 2기 소환 (HP 75%, ATK 75%), 분열 불가
 	_reg("E5", "분열증식", E, 0,
 		{}, [{"type": "fission",
-			"clone_count": 2, "clone_hp_pct": 0.50, "clone_atk_pct": 0.50}])
+			"clone_count": 2, "clone_hp_pct": 0.75, "clone_atk_pct": 0.75}])
 
-	# E6 차원붕괴 — 공격 시 대상 현재 HP 8% 추가 데미지 (DEF 무시)
+	# E6 차원붕괴 — 공격 시 대상 현재 HP 10% 추가 데미지 (DEF 무시)
 	_reg("E6", "차원붕괴", E, 0,
 		{}, [{"type": "hp_percent_dmg",
-			"dmg_pct": 0.08, "ignore_def": true}])
+			"dmg_pct": 0.10, "ignore_def": true}])

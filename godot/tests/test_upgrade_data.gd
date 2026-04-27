@@ -181,7 +181,7 @@ func test_E1_광폭화() -> void:
 	var t := UpgradeDB.get_upgrade("E1")
 	var m := _find_mechanic(t["mechanics"], "berserk")
 	assert_false(m.is_empty(), "메카닉 존재")
-	assert_almost_eq(m.get("hp_threshold", 0.0), 0.30, 0.001, "HP 30% 임계")
+	assert_almost_eq(m.get("hp_threshold", 0.0), 0.40, 0.001, "HP 40% 임계")
 	assert_almost_eq(m.get("atk_mult", 0.0), 2.0, 0.001, "ATK ×2")
 	assert_almost_eq(m.get("as_mult", 0.0), 2.0, 0.001, "AS ×2")
 
@@ -197,6 +197,7 @@ func test_E3_불멸의핵() -> void:
 	var t := UpgradeDB.get_upgrade("E3")
 	var m := _find_mechanic(t["mechanics"], "immortal_core")
 	assert_false(m.is_empty(), "메카닉 존재")
+	assert_eq(m.get("uses_per_combat", 0), 2, "전투당 2회 발동")
 
 
 func test_E4_영혼수확() -> void:
@@ -211,13 +212,15 @@ func test_E5_분열증식() -> void:
 	var m := _find_mechanic(t["mechanics"], "fission")
 	assert_false(m.is_empty(), "메카닉 존재")
 	assert_eq(m.get("clone_count", 0), 2, "2기 복제")
+	assert_almost_eq(m.get("clone_hp_pct", 0.0), 0.75, 0.001, "클론 HP 75%")
+	assert_almost_eq(m.get("clone_atk_pct", 0.0), 0.75, 0.001, "클론 ATK 75%")
 
 
 func test_E6_차원붕괴() -> void:
 	var t := UpgradeDB.get_upgrade("E6")
 	var m := _find_mechanic(t["mechanics"], "hp_percent_dmg")
 	assert_false(m.is_empty(), "메카닉 존재")
-	assert_almost_eq(m.get("dmg_pct", 0.0), 0.08, 0.001, "현재 HP 8% 추가뎀")
+	assert_almost_eq(m.get("dmg_pct", 0.0), 0.10, 0.001, "현재 HP 10% 추가뎀")
 
 
 func test_unknown_id_returns_empty() -> void:
