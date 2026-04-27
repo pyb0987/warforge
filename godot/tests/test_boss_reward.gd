@@ -90,11 +90,11 @@ func test_r4_1_star_evolve_plus_terazin() -> void:
 	assert_eq(state.terazin, 4, "+4 테라진")
 
 
-func test_r4_2_t3_shop_plus_gold() -> void:
-	## 용병단 초청: +10 골드 (상점 갱신은 UI 레벨)
+func test_r4_2_gold_grant() -> void:
+	## 긴급 자금: +12 골드
 	state.gold = 5
 	BossReward.apply_no_target("r4_2", state, rng)
-	assert_eq(state.gold, 15, "+10 골드")
+	assert_eq(state.gold, 17, "+12 골드")
 
 
 func test_r4_3_permanent_chain_reaction() -> void:
@@ -103,10 +103,22 @@ func test_r4_3_permanent_chain_reaction() -> void:
 	assert_true(BossReward.has_reward(state, "r4_3"))
 
 
-func test_r4_4_permanent_double_reroll() -> void:
-	## 이중 리롤: 영구 보상 등록
+func test_r4_4_shop_expansion() -> void:
+	## 상점 확장: 영구 보상 등록 + 즉시 5회 무료 리롤 예약
 	BossReward.apply_no_target("r4_4", state, rng)
 	assert_true(BossReward.has_reward(state, "r4_4"))
+	assert_eq(state.r4_4_initial_rerolls, 5, "즉시 5회 예약")
+
+
+func test_r4_4_round_start_consumes_initial_then_one_per_round() -> void:
+	## 첫 라운드 시작: +5 (즉시) + 1 (영구) = 6, 이후 매 라운드 +1
+	BossReward.apply_no_target("r4_4", state, rng)
+	var first := BossReward.consume_round_start_free_rerolls(state)
+	assert_eq(first, 6, "첫 라운드: 5 + 1")
+	var second := BossReward.consume_round_start_free_rerolls(state)
+	assert_eq(second, 1, "다음 라운드: 1")
+	var third := BossReward.consume_round_start_free_rerolls(state)
+	assert_eq(third, 1, "또 다음 라운드: 1")
 
 
 func test_r4_5_permanent_enhance_amp() -> void:
@@ -132,13 +144,53 @@ func test_r4_7_elite_awakening() -> void:
 	assert_gt(card.get_total_hp(), hp_before * 1.29, "HP +30%")
 
 
-func test_r4_8_emergency_reinforcement() -> void:
-	## 비상 증원: 유닛 +5기
-	var card := CardInstance.create("sp_assembly")
-	assert_not_null(card)
-	var units_before := card.get_total_units()
-	BossReward.apply_with_target("r4_8", state, card, rng)
-	assert_eq(card.get_total_units(), units_before + 5, "+5기")
+func test_r4_8_random_t4_t3_grant() -> void:
+	## 보급 호송: 랜덤 T4 1장 + T3 1장 획득. 벤치 만석 시 못 받음.
+	## 빈 벤치(8칸) → 두 장 다 받음
+	var bench_before := 0
+	for slot in state.bench:
+		if slot != null:
+			bench_before += 1
+	BossReward.apply_no_target("r4_8", state, rng)
+	var bench_after := 0
+	var t4_found := false
+	var t3_found := false
+	for slot in state.bench:
+		if slot != null:
+			bench_after += 1
+			var tier: int = CardDB.get_template(slot.get_base_id()).get("tier", 0)
+			if tier == 4:
+				t4_found = true
+			elif tier == 3:
+				t3_found = true
+	assert_eq(bench_after - bench_before, 2, "벤치에 2장 추가")
+	assert_true(t4_found, "T4 카드 1장")
+	assert_true(t3_found, "T3 카드 1장")
+
+
+func test_r4_8_bench_full_no_grant() -> void:
+	## 벤치 만석이면 아무 카드도 못 받음
+	for i in state.bench.size():
+		state.bench[i] = CardInstance.create("sp_assembly")
+	var occupied := state.bench.size()
+	BossReward.apply_no_target("r4_8", state, rng)
+	var still_occupied := 0
+	for slot in state.bench:
+		if slot != null:
+			still_occupied += 1
+	assert_eq(still_occupied, occupied, "벤치 만석 → 추가 없음")
+
+
+func test_r4_8_bench_one_slot_only_t4() -> void:
+	## 벤치 1칸만 비었을 때: T4 우선 획득, T3는 못 받음
+	for i in range(1, state.bench.size()):
+		state.bench[i] = CardInstance.create("sp_assembly")
+	BossReward.apply_no_target("r4_8", state, rng)
+	var added: CardInstance = state.bench[0]
+	assert_not_null(added, "T4 1장 추가")
+	if added != null:
+		var tier: int = CardDB.get_template(added.get_base_id()).get("tier", 0)
+		assert_eq(tier, 4, "추가된 카드는 T4")
 
 
 func test_r4_9_expand_bench() -> void:
@@ -152,31 +204,32 @@ func test_r4_9_expand_bench() -> void:
 # R8 보상 적용
 # ================================================================
 
-func test_r8_1_star_evolve_needs_target() -> void:
-	## 대규모 징집: ★승급 (에픽 업그레이드는 UI 레벨에서 처리)
+func test_r8_1_star_evolve_with_rare_upgrade() -> void:
+	## 대규모 징집: ★승급 + 레어 업글 1개 부착
 	var card := CardInstance.create("sp_assembly")
 	assert_not_null(card)
 	BossReward.apply_with_target("r8_1", state, card, rng)
 	assert_eq(card.star_level, 2, "★승급")
+	assert_eq(card.upgrades.size(), 1, "레어 업글 1개 부착")
 
 
 func test_r8_2_war_fund() -> void:
-	## 전쟁 기금: 15골드 + 8 테라진
+	## 전쟁 기금: 18골드 + 4 테라진
 	state.gold = 0
 	state.terazin = 0
 	BossReward.apply_no_target("r8_2", state, rng)
-	assert_eq(state.gold, 15, "+15g")
-	assert_eq(state.terazin, 8, "+8t")
+	assert_eq(state.gold, 18, "+18g")
+	assert_eq(state.terazin, 4, "+4t")
 
 
-func test_r8_3_permanent_overload_engine() -> void:
-	## 과부하 엔진: 영구
+func test_r8_3_permanent_artisan_refund() -> void:
+	## 장인의 회수: 영구 (★ 합성 시 티어 비용 환급)
 	BossReward.apply_no_target("r8_3", state, rng)
 	assert_true(BossReward.has_reward(state, "r8_3"))
 
 
-func test_r8_4_permanent_loot_recovery() -> void:
-	## 전리품 회수: 영구
+func test_r8_4_permanent_unlimited_interest() -> void:
+	## 무한 금고: 영구 (이자 cap 무제한)
 	BossReward.apply_no_target("r8_4", state, rng)
 	assert_true(BossReward.has_reward(state, "r8_4"))
 
@@ -193,60 +246,77 @@ func test_r8_6_permanent_victory_will() -> void:
 	assert_true(BossReward.has_reward(state, "r8_6"))
 
 
-func test_r8_7_gene_enhance() -> void:
-	## 유전자 강화: 유닛 2배 + 레어 업글
+func test_r8_7_gene_enhance_epic_only() -> void:
+	## 유전자 강화: 에픽 업글 1개만 부착
 	var card := CardInstance.create("sp_assembly")
 	assert_not_null(card)
 	var units_before := card.get_total_units()
 	BossReward.apply_with_target("r8_7", state, card, rng)
-	assert_eq(card.get_total_units(), units_before * 2, "유닛 2배")
-	assert_eq(card.upgrades.size(), 1, "레어 업글 1개 부착")
+	assert_eq(card.get_total_units(), units_before, "유닛 수 변화 없음")
+	assert_eq(card.upgrades.size(), 1, "에픽 업글 1개 부착")
 
 
-func test_r8_8_mass_reinforcement() -> void:
-	## 일괄 증원: 전체 카드 +3기
-	var c1 := CardInstance.create("sp_assembly")
-	var c2 := CardInstance.create("sp_workshop")
-	assert_not_null(c1)
-	assert_not_null(c2)
-	state.board[0] = c1
-	state.board[1] = c2
-	var u1 := c1.get_total_units()
-	var u2 := c2.get_total_units()
+func test_r8_8_permanent_def_bonus() -> void:
+	## 방어선 구축: 영구 (전체 카드 DEF +2)
 	BossReward.apply_no_target("r8_8", state, rng)
-	assert_eq(c1.get_total_units(), u1 + 3, "카드1 +3기")
-	assert_eq(c2.get_total_units(), u2 + 3, "카드2 +3기")
+	assert_true(BossReward.has_reward(state, "r8_8"))
 
 
-func test_r8_9_expand_field() -> void:
-	## 전선 확장: 필드 +1칸
-	var before := state.field_slots
+func test_r8_9_sets_r13_bonus_pending() -> void:
+	## 전선 확장: R13 전투 승리 시 R12 보상 추가 (1회 한정 flag 설정)
+	assert_false(state.r8_9_bonus_pending, "초기 false")
 	BossReward.apply_no_target("r8_9", state, rng)
-	assert_eq(state.field_slots, before + 1, "필드 +1")
+	assert_true(state.r8_9_bonus_pending, "flag 설정")
+
+
+func test_consume_r8_9_bonus_one_shot() -> void:
+	## 한 번만 소비 후 flag 클리어
+	state.r8_9_bonus_pending = true
+	assert_true(BossReward.consume_r8_9_bonus(state), "1회 트리거")
+	assert_false(BossReward.consume_r8_9_bonus(state), "재호출 시 false")
+	assert_false(state.r8_9_bonus_pending, "flag 클리어")
+
+
+func test_consume_r8_9_bonus_no_reward() -> void:
+	## 보상 안 받았으면 false
+	assert_false(BossReward.consume_r8_9_bonus(state))
 
 
 # ================================================================
 # R12 보상 적용
 # ================================================================
 
-func test_r12_1_ultimate_evolve() -> void:
-	## 궁극 진화: 카드 ★승급 (2장은 game_manager에서 2회 호출)
-	var card := CardInstance.create("sp_assembly")
-	assert_not_null(card)
-	BossReward.apply_with_target("r12_1", state, card, rng)
-	assert_eq(card.star_level, 2, "★승급")
+func test_r12_1_two_stage_evolve() -> void:
+	## 궁극 진화: step 1 = ★2→★3, step 2 = ★1→★2 (game_manager에서 step 전달)
+	## step 1: ★2 카드만 ★3 승급 (★1 카드 전달 시 효과 무시)
+	var c1 := CardInstance.create("sp_assembly")
+	assert_not_null(c1)
+	c1.evolve_star()  # ★1 → ★2
+	BossReward.apply_with_target("r12_1", state, c1, rng, 1)
+	assert_eq(c1.star_level, 3, "step 1: ★2 → ★3")
+	## step 2: ★1 카드만 ★2 승급 (★3 카드 전달 시 효과 무시)
+	var c2 := CardInstance.create("sp_workshop")
+	assert_not_null(c2)
+	BossReward.apply_with_target("r12_1", state, c2, rng, 2)
+	assert_eq(c2.star_level, 2, "step 2: ★1 → ★2")
+	## step 1에 ★1 카드 전달 시 효과 무시
+	var c3 := CardInstance.create("sp_furnace")
+	assert_not_null(c3)
+	BossReward.apply_with_target("r12_1", state, c3, rng, 1)
+	assert_eq(c3.star_level, 1, "step 1에 ★1 전달 → 효과 무시")
+	## step 2에 ★3 카드 전달 시 효과 무시 (★1→★3 직행 방지)
+	BossReward.apply_with_target("r12_1", state, c1, rng, 2)
+	assert_eq(c1.star_level, 3, "step 2에 ★3 전달 → 효과 무시")
 
 
 func test_r12_2_legacy_of_empire() -> void:
-	## 제국의 유산: 전체 ATK+20% HP+20% + 15t
+	## 제국의 유산: 전체 ATK+25% HP+25%
 	var c1 := CardInstance.create("sp_assembly")
 	assert_not_null(c1)
 	state.board[0] = c1
-	state.terazin = 0
 	var atk_before := c1.get_total_atk()
 	BossReward.apply_no_target("r12_2", state, rng)
-	assert_gt(c1.get_total_atk(), atk_before * 1.19, "ATK +20%")
-	assert_eq(state.terazin, 15, "+15t")
+	assert_gt(c1.get_total_atk(), atk_before * 1.24, "ATK +25%")
 
 
 func test_r12_3_permanent_overload_chain() -> void:
@@ -255,16 +325,30 @@ func test_r12_3_permanent_overload_chain() -> void:
 	assert_true(BossReward.has_reward(state, "r12_3"))
 
 
-func test_r12_4_permanent_double_merge() -> void:
-	## 이중 합성: 영구
+func test_r12_4_shop_mega_expansion() -> void:
+	## 상점 대확장: 영구 (상점 슬롯 +2 + 매턴 리롤 +2)
 	BossReward.apply_no_target("r12_4", state, rng)
 	assert_true(BossReward.has_reward(state, "r12_4"))
+	assert_eq(BossReward.get_shop_size_bonus(state), 2, "상점 슬롯 +2")
+	assert_eq(BossReward.consume_round_start_free_rerolls(state), 2, "매턴 리롤 +2")
 
 
-func test_r12_5_permanent_battlefield_echo() -> void:
-	## 전장의 메아리: 영구
+func test_r12_5_permanent_five_color_legion() -> void:
+	## 오색 군단: 영구
 	BossReward.apply_no_target("r12_5", state, rng)
 	assert_true(BossReward.has_reward(state, "r12_5"))
+
+
+func test_count_board_themes_basic() -> void:
+	## 보드 distinct 테마 개수 (중립 포함)
+	var c1 := CardInstance.create("sp_assembly")
+	var c2 := CardInstance.create("sp_workshop")
+	assert_not_null(c1)
+	assert_not_null(c2)
+	state.board[0] = c1
+	state.board[1] = c2
+	# 둘 다 스팀펑크 → 1테마
+	assert_eq(BossReward.count_board_themes(state), 1, "스팀펑크만 = 1테마")
 
 
 func test_r12_6_permanent_quantity_law() -> void:
@@ -273,23 +357,21 @@ func test_r12_6_permanent_quantity_law() -> void:
 	assert_true(BossReward.has_reward(state, "r12_6"))
 
 
-func test_r12_7_divine_strike() -> void:
-	## 신의 일격: ATK ×2 + 에픽 업글
-	var card := CardInstance.create("sp_assembly")
-	assert_not_null(card)
-	var atk_before := card.get_total_atk()
-	BossReward.apply_with_target("r12_7", state, card, rng)
-	assert_almost_eq(card.get_total_atk(), atk_before * 2.0, 1.0, "ATK ×2")
-	assert_eq(card.upgrades.size(), 1, "에픽 업글 1개 부착")
-
-
-func test_r12_8_legion_clone() -> void:
-	## 군단 복제: 유닛 3배
+func test_r12_7_divine_strike_epic_plus_rare() -> void:
+	## 신의 일격: 에픽 + 레어 업글 1개씩 부착 (ATK×2 폐기)
 	var card := CardInstance.create("sp_assembly")
 	assert_not_null(card)
 	var units_before := card.get_total_units()
-	BossReward.apply_with_target("r12_8", state, card, rng)
-	assert_eq(card.get_total_units(), units_before * 3, "유닛 3배")
+	BossReward.apply_with_target("r12_7", state, card, rng)
+	assert_eq(card.get_total_units(), units_before, "유닛 변화 없음")
+	assert_eq(card.upgrades.size(), 2, "에픽 + 레어 = 2개 부착")
+
+
+func test_r12_8_warrior_soul_revive_pool() -> void:
+	## 전사의 영혼: 영구 (보드 부활 풀 20기, 100% HP)
+	BossReward.apply_no_target("r12_8", state, rng)
+	assert_true(BossReward.has_reward(state, "r12_8"))
+	assert_eq(BossReward.get_revive_pool_size(state), 20, "풀 크기 20")
 
 
 func test_r12_9_dimension_rift() -> void:
@@ -312,23 +394,42 @@ func test_get_activation_bonus_none() -> void:
 	assert_eq(BossReward.get_activation_bonus(state), 0)
 
 
-func test_get_activation_bonus_r8_3() -> void:
-	## 과부하 엔진: +1
-	state.boss_rewards.append("r8_3")
+func test_get_activation_bonus_r12_3() -> void:
+	## 과부하 연쇄: +1 (너프 후)
+	state.boss_rewards.append("r12_3")
 	assert_eq(BossReward.get_activation_bonus(state), 1)
 
 
-func test_get_activation_bonus_r12_3() -> void:
-	## 과부하 연쇄: +2
-	state.boss_rewards.append("r12_3")
-	assert_eq(BossReward.get_activation_bonus(state), 2)
+func test_get_def_bonus_none() -> void:
+	assert_eq(BossReward.get_def_bonus(state), 0)
 
 
-func test_get_activation_bonus_stacks() -> void:
-	## 과부하 엔진 + 과부하 연쇄 = +3
+func test_get_def_bonus_r8_8() -> void:
+	## 방어선 구축: DEF +2
+	state.boss_rewards.append("r8_8")
+	assert_eq(BossReward.get_def_bonus(state), 2)
+
+
+func test_get_merge_refund_none() -> void:
+	assert_eq(BossReward.get_merge_refund(state, 4), 0)
+
+
+func test_get_merge_refund_r8_3() -> void:
+	## 장인의 회수: 합성 대상 티어 비용 환급
 	state.boss_rewards.append("r8_3")
-	state.boss_rewards.append("r12_3")
-	assert_eq(BossReward.get_activation_bonus(state), 3)
+	assert_eq(BossReward.get_merge_refund(state, 1), 2, "T1 → 2g")
+	assert_eq(BossReward.get_merge_refund(state, 4), 5, "T4 → 5g")
+	assert_eq(BossReward.get_merge_refund(state, 5), 6, "T5 → 6g")
+
+
+func test_is_interest_uncapped_none() -> void:
+	assert_false(BossReward.is_interest_uncapped(state))
+
+
+func test_is_interest_uncapped_r8_4() -> void:
+	## 무한 금고: 이자 cap 우회
+	state.boss_rewards.append("r8_4")
+	assert_true(BossReward.is_interest_uncapped(state))
 
 
 func test_get_enhance_amp_none() -> void:
@@ -336,33 +437,27 @@ func test_get_enhance_amp_none() -> void:
 
 
 func test_get_enhance_amp_r4_5() -> void:
-	## 강화 증폭기: ×1.5
+	## 강화 증폭기: ×1.2
 	state.boss_rewards.append("r4_5")
-	assert_almost_eq(BossReward.get_enhance_amp(state), 1.5, 0.001)
+	assert_almost_eq(BossReward.get_enhance_amp(state), 1.2, 0.001)
 
 
-func test_get_settlement_gold_bonus_none() -> void:
-	assert_eq(BossReward.get_settlement_gold_bonus(state, true), 0)
-	assert_eq(BossReward.get_settlement_gold_bonus(state, false), 0)
+func test_consume_round_start_free_rerolls_none() -> void:
+	assert_eq(BossReward.consume_round_start_free_rerolls(state), 0)
 
 
-func test_get_settlement_gold_bonus_r8_4_win() -> void:
-	## 전리품 회수: 승리 +3g
-	state.boss_rewards.append("r8_4")
-	assert_eq(BossReward.get_settlement_gold_bonus(state, true), 3)
-
-
-func test_get_settlement_terazin_bonus_r8_4_loss() -> void:
-	## 전리품 회수: 패배 +2t
-	state.boss_rewards.append("r8_4")
-	assert_eq(BossReward.get_settlement_terazin_bonus(state, false), 2)
-
-
-func test_get_shop_size_bonus_none() -> void:
-	assert_eq(BossReward.get_shop_size_bonus(state), 0)
-
-
-func test_get_shop_size_bonus_r4_4() -> void:
-	## 상점 확장: +1 (6→7)
+func test_round_start_rerolls_r4_4_plus_r12_4() -> void:
+	## 두 보상 동시 보유: +1 (r4_4) + +2 (r12_4) = 3
 	state.boss_rewards.append("r4_4")
-	assert_eq(BossReward.get_shop_size_bonus(state), 1)
+	state.boss_rewards.append("r12_4")
+	assert_eq(BossReward.consume_round_start_free_rerolls(state), 3)
+
+
+func test_get_shop_size_bonus_r12_4() -> void:
+	## 상점 대확장: +2
+	state.boss_rewards.append("r12_4")
+	assert_eq(BossReward.get_shop_size_bonus(state), 2)
+
+
+func test_get_revive_pool_size_none() -> void:
+	assert_eq(BossReward.get_revive_pool_size(state), 0)

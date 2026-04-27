@@ -199,31 +199,26 @@ func test_runner_result_has_upgrades_purchased() -> void:
 # ================================================================
 
 func test_activation_bonus_increases_max() -> void:
+	## r8_3 효과 변경(장인의 회수)으로 r12_3가 유일한 발동 상한 보스 보상.
 	var state := _make_state()
-	state.boss_rewards.append("r8_3")
+	state.boss_rewards.append("r12_3")
 	var bonus := BossReward.get_activation_bonus(state)
-	assert_eq(bonus, 1, "r8_3 → activation +1")
+	assert_eq(bonus, 1, "r12_3 → activation +1 (너프 후)")
 
 
 func test_enhance_amp_returns_multiplier() -> void:
 	var state := _make_state()
 	state.boss_rewards.append("r4_5")
 	var amp := BossReward.get_enhance_amp(state)
-	assert_almost_eq(amp, 1.5, 0.01, "r4_5 → enhance ×1.5")
+	assert_almost_eq(amp, 1.2, 0.01, "r4_5 → enhance ×1.2")
 
 
-func test_settlement_bonus_on_win() -> void:
-	var state := _make_state()
-	state.boss_rewards.append("r8_4")
-	var gold := BossReward.get_settlement_gold_bonus(state, true)
-	assert_eq(gold, 3, "r8_4 승리 → +3g")
-
-
-func test_field_slot_expansion() -> void:
+func test_field_slot_expansion_via_r12_9() -> void:
+	## r8_9 효과 변경(필드+1 → R13 보상 추가)으로 r12_9가 유일한 필드+1 보상.
 	var state := _make_state()
 	var before := state.field_slots
-	BossReward.apply_no_target("r8_9", state, RandomNumberGenerator.new())
-	assert_eq(state.field_slots, before + 1, "r8_9 → field +1")
+	BossReward.apply_no_target("r12_9", state, RandomNumberGenerator.new())
+	assert_eq(state.field_slots, before + 1, "r12_9 → field +1")
 
 
 # ================================================================

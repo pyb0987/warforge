@@ -171,7 +171,7 @@ func run() -> Dictionary:
 			_upgrades_purchased.append_array(bought)
 
 		# ---- Propagate boss reward effects before chain ----
-		# Activation bonus from r8_3/r12_3 — route through chain_engine.activation_bonus
+		# Activation bonus from r12_3 — route through chain_engine.activation_bonus
 		# (matches game_manager.gd), no template mutation.
 		chain_engine.activation_bonus = BossReward.get_activation_bonus(state)
 		# Enhance amp from r4_5
@@ -181,7 +181,7 @@ func run() -> Dictionary:
 		# Bonus spawn chance from r4_3
 		if BossReward.has_reward(state, "r4_3"):
 			chain_engine.bonus_spawn_chance = maxf(
-				Commander.get_bonus_spawn_chance(state), 0.5)
+				Commander.get_bonus_spawn_chance(state), 0.25)
 			chain_engine.propagate_bonus_spawn()
 		# Auto-conscript from r4_6: +1 unit per card per round
 		if BossReward.has_reward(state, "r4_6"):
@@ -216,13 +216,21 @@ func run() -> Dictionary:
 		state.gold += bs_result["gold"]
 		state.terazin += bs_result["terazin"]
 
-		# r12_6: 50+ units → ATK ×1.5, AS ×1.3
+		# r12_6: 50+ units → ATK ×1.4, AS ×1.2 (전투 한정, clear_temp_buffs로 reset)
 		if BossReward.has_reward(state, "r12_6"):
 			for card in active_board:
 				var c: CardInstance = card as CardInstance
 				if c.get_total_units() >= 50:
-					c.temp_mult_buff(1.5)
-					c.upgrade_as_mult *= (1.0 / 1.3)  # Lower AS value = faster
+					c.temp_mult_buff(1.4)
+					c.temp_as_mult *= (1.0 / 1.2)  # Lower AS value = faster
+
+		# r12_5 오색 군단: 보드 distinct 테마 개수 × ATK/HP +10% (매 라운드 갱신).
+		if BossReward.has_reward(state, "r12_5"):
+			var theme_count: int = BossReward.count_board_themes(state)
+			if theme_count > 0:
+				var theme_mult: float = 1.0 + 0.10 * theme_count
+				for card in active_board:
+					(card as CardInstance).temp_mult_buff(theme_mult, theme_mult)
 
 		# Collector ATK bonus
 		var collector_bonus: float = Commander.calc_collector_atk_bonus(state)
@@ -256,6 +264,8 @@ func run() -> Dictionary:
 			var engine := CombatEngine.new()
 			engine.headless = true
 			engine.setup(ally_data, enemy_data)
+			# r12_8 전사의 영혼: 보드 부활 풀
+			engine.board_revive_pool = BossReward.get_revive_pool_size(state)
 			while engine.tick():
 				pass
 			combat_result = {
@@ -286,6 +296,9 @@ func run() -> Dictionary:
 		var is_boss := round_num in [4, 8, 12]
 		if is_boss and won:
 			_apply_boss_reward(round_num, state, ai_reward, rng, chain_engine)
+		# r8_9 전선 확장: R13 전투 승리 시 R12 보상 풀에서 1개 추가 (1회 한정).
+		elif round_num == 13 and won and BossReward.consume_r8_9_bonus(state):
+			_apply_boss_reward(12, state, ai_reward, rng, chain_engine)
 		# r8_6: 승리 시 전체 ATK +3% (영구 누적)
 		if won and BossReward.has_reward(state, "r8_6"):
 			for card in state.get_active_board():
@@ -339,10 +352,6 @@ func run() -> Dictionary:
 
 		# Terazin
 		state.terazin += _genome.economy.terazin_win if won else _genome.economy.terazin_lose
-
-		# Boss reward settlement bonuses (r8_4)
-		state.gold += BossReward.get_settlement_gold_bonus(state, won)
-		state.terazin += BossReward.get_settlement_terazin_bonus(state, won)
 
 		# Commander terazin
 		var cmd_terazin: int = Commander.calc_settlement_terazin(state)
@@ -413,10 +422,11 @@ func _apply_boss_reward(boss_round: int, state: GameState,
 		else:
 			BossReward.apply_no_target(reward_id, state, rng)
 	elif needs_target == 2:
-		# r12_1: 2 cards each get ★ upgrade
-		for tc in decision.target_cards:
+		# r12_1: step 1 = ★2→★3, step 2 = ★1→★2 (★1→★3 직행 방지)
+		for i in decision.target_cards.size():
+			var tc = decision.target_cards[i]
 			if tc:
-				BossReward.apply_with_target(reward_id, state, tc, rng)
+				BossReward.apply_with_target(reward_id, state, tc, rng, i + 1)
 
 	_boss_rewards_applied.append({
 		"round": state.round_num,
@@ -428,11 +438,11 @@ func _apply_boss_reward(boss_round: int, state: GameState,
 	# r4_3 spawn bonus
 	if reward_id == "r4_3":
 		chain_engine.bonus_spawn_chance = maxf(
-			chain_engine.bonus_spawn_chance, 0.5)
+			chain_engine.bonus_spawn_chance, 0.25)
 		chain_engine.propagate_bonus_spawn()
 	# r4_5 enhance amp
 	if reward_id == "r4_5":
-		chain_engine.enhance_multiplier *= 1.5
+		chain_engine.enhance_multiplier *= 1.2
 
 
 ## Chain event handler for cross-activation tracking.
@@ -467,7 +477,7 @@ func _materialize_army(state: GameState) -> Array:
 					"attack_speed": ut["attack_speed"] * c.upgrade_as_mult * c.temp_as_mult,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),
 					"move_speed": ut["move_speed"] + c.upgrade_move_speed,
-					"def": c.upgrade_def,
+					"def": c.upgrade_def + BossReward.get_def_bonus(state),
 					"mechanics": card_mechanics,
 					"radius": 6.0,
 				})

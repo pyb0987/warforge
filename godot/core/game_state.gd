@@ -33,6 +33,12 @@ var pending_free_rerolls: int = 0
 ## 증기 이자기 ★2/★3 전투 버프 산출에 사용.
 var round_rerolls: int = 0
 
+## r4_4 상점 확장 보상: 다음 라운드 시작 시 1회만 추가될 즉시 무료 리롤 보너스.
+var r4_4_initial_rerolls: int = 0
+
+## r8_9 전선 확장 보상: R13 전투 승리 시 R12 보상 풀에서 1개 추가 선택 (1회 한정).
+var r8_9_bonus_pending: bool = false
+
 # --- Player ---
 var hp: int = 30
 var round_num: int = 0
@@ -157,8 +163,12 @@ func sell_card(zone: String, idx: int) -> int:
 
 
 ## Calculate interest from stored economy params (genome-driven, fallback Enums).
+## r8_4 무한 금고 보유 시 cap 우회.
 func calc_interest() -> int:
-	return mini(gold / 5 * interest_per_5g, max_interest)
+	var raw: int = gold / 5 * interest_per_5g
+	if BossReward.is_interest_uncapped(self):
+		return raw
+	return mini(raw, max_interest)
 
 
 ## Try to merge 3 copies of same card → next ★, with cascade.
@@ -248,6 +258,12 @@ func _try_merge_once(template_id: String) -> Dictionary:
 
 	# Evolve to next star level
 	survivor.evolve_star()
+
+	# r8_3 장인의 회수: ★ 합성 시 합성 대상 티어 비용 환급
+	var refund_tier: int = CardDB.get_template(template_id).get("tier", 0)
+	var refund: int = BossReward.get_merge_refund(self, refund_tier)
+	if refund > 0:
+		gold += refund
 
 	# 2026-04-20: 합성 보너스 ×1.30 ATK/HP 제거 (사용자 의도 외 — 업그레이드와 이중 스택으로
 	# ★2 쏠림 유발). ★합성의 매력은 카드 효과 강화(★1→★2→★3 effect)만으로 확보.

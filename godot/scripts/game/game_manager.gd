@@ -192,6 +192,17 @@ func _run_chain() -> void:
 	# 이후 RS 카드(예: 폐품 상회)가 재충전.
 	game_state.pending_free_rerolls = 0
 	game_state.round_rerolls = 0
+	# r4_4 상점 확장 + r12_4 상점 대확장: 영구 매턴 리롤 + r4_4 즉시 5회분 가산.
+	game_state.pending_free_rerolls += BossReward.consume_round_start_free_rerolls(game_state)
+
+	# r12_5 오색 군단: 보드 distinct 테마 개수 × ATK/HP +10% (매 라운드 갱신).
+	# temp_mult_buff: 전투 종료 시 자동 리셋 → 다음 라운드 시작 시 재계산.
+	if BossReward.has_reward(game_state, "r12_5"):
+		var theme_count: int = BossReward.count_board_themes(game_state)
+		if theme_count > 0:
+			var mult: float = 1.0 + 0.10 * theme_count
+			for card in game_state.get_active_board():
+				(card as CardInstance).temp_mult_buff(mult, mult)
 
 	# OBS-032: Snapshot gold before card effects — interest uses this, not post-effect gold.
 	_gold_before_effects = game_state.gold
@@ -240,14 +251,14 @@ func _run_battle() -> void:
 	chain_engine.process_persistent(game_state.get_active_board())
 	_apply_battle_start_effects()
 
-	# 🔄 물량의 법칙 (r12_6): 50기+ 카드 → ATK ×1.5, AS ×1.3
+	# 🔄 물량의 법칙 (r12_6): 50기+ 카드 → ATK ×1.4, AS ×1.2 (전투 한정 buff)
 	if BossReward.has_reward(game_state, "r12_6"):
 		for card in game_state.get_active_board():
 			var c: CardInstance = card
 			if c.get_total_units() >= 50:
-				c.temp_mult_buff(1.5)
-				# AS는 upgrade_as_mult에 곱하면 전투 종료 후 복원 필요 → temp로 처리
-				c.theme_state["quantity_law_as"] = true
+				c.temp_mult_buff(1.4)
+				# AS ×1.2 = 공격속도 20% 증가 → AS 값 ×(1/1.2). temp_as_mult는 clear_temp_buffs로 리셋.
+				c.temp_as_mult *= (1.0 / 1.2)
 
 	# 📚 수집가: 유니크 카드 종류 × ATK +4% (temp buff)
 	var collector_bonus: float = Commander.calc_collector_atk_bonus(game_state)
@@ -277,6 +288,13 @@ func _run_battle() -> void:
 
 	print("[Battle] R%d: %d allies vs %d enemies" % [game_state.round_num, ally_data.size(), enemy_data.size()])
 	battle_phase.start_battle(ally_data, enemy_data)
+
+	# r12_8 전사의 영혼: 보드 부활 풀 (아군 첫 사망 N기 100% HP 부활)
+	var revive_pool: int = BossReward.get_revive_pool_size(game_state)
+	if revive_pool > 0:
+		var rp_engine = battle_phase.get_engine()
+		if rp_engine != null:
+			rp_engine.board_revive_pool = revive_pool
 
 	# 💀 금간 해골: 아군 유닛에 undying 설정
 	if Talisman.has_cracked_skull(game_state):
@@ -398,7 +416,7 @@ func _materialize_army() -> Array:
 					"attack_speed": ut["attack_speed"] * as_mult_total,
 					"range": ut["range"] + c.upgrade_range + c.theme_state.get("range_bonus", 0),
 					"move_speed": ut["move_speed"] + c.upgrade_move_speed + int(c.theme_state.get("ms_bonus", 0)),
-					"def": c.upgrade_def,
+					"def": c.upgrade_def + BossReward.get_def_bonus(game_state),
 					"mechanics": unit_mechs,
 					"radius": 6.0,
 					"revive_limit": revive_limit_val,
@@ -471,6 +489,10 @@ func _on_battle_finished(result: Dictionary) -> void:
 	# 이유: 보스에서 졌으나 살아남은 경우 보상이 없으면 후속 R이 사실상 불가 (user 지적).
 	if _is_boss_reward_round():
 		_show_boss_reward_popup()
+	elif game_state.round_num == 13 and _last_battle_won \
+			and BossReward.consume_r8_9_bonus(game_state):
+		# r8_9 전선 확장: R13 전투 승리 시 R12 보상 풀에서 1개 추가 (1회 한정).
+		_show_boss_reward_popup(12)
 	else:
 		_enter_phase(Phase.SETTLEMENT)
 
@@ -489,8 +511,12 @@ func _apply_post_combat_effects(won: bool) -> Dictionary:
 
 ## Settlement용 이자 — `_gold_before_effects` 스냅샷 사용 (OBS-032).
 ## game_state.calc_interest()는 현재 gold 기반이라 별도 로직.
+## r8_4 무한 금고 보유 시 cap 우회.
 func _calc_interest() -> int:
-	return mini(_gold_before_effects / 5 * game_state.interest_per_5g, game_state.max_interest)
+	var raw: int = _gold_before_effects / 5 * game_state.interest_per_5g
+	if BossReward.is_interest_uncapped(game_state):
+		return raw
+	return mini(raw, game_state.max_interest)
 
 
 func _run_settlement() -> void:
@@ -516,15 +542,6 @@ func _run_settlement() -> void:
 		2 if last_won else 1))
 	game_state.terazin += terazin_gain
 
-	# 🔄 전리품 회수 (r8_4): 승리 +3g, 패배 +2t
-	var boss_gold: int = BossReward.get_settlement_gold_bonus(game_state, last_won)
-	var boss_terazin: int = BossReward.get_settlement_terazin_bonus(game_state, last_won)
-	if boss_gold > 0:
-		game_state.gold += boss_gold
-		print("[BossReward] 전리품 회수: +%dg" % boss_gold)
-	if boss_terazin > 0:
-		game_state.terazin += boss_terazin
-		print("[BossReward] 전리품 회수: +%dt" % boss_terazin)
 
 	# 🔄 승전 의지 (r8_6): 승리 시 전체 ATK +3%
 	if last_won and BossReward.has_reward(game_state, "r8_6"):
@@ -697,12 +714,6 @@ func _on_combat_death(unit_idx: int) -> void:
 	var result := chain_engine.process_combat_event(active, "ally_death", card_idx)
 	_apply_combat_buffs(result["buffs"], engine, active)
 
-	# 🔄 전장의 메아리 (r12_5): 아군 사망 시 나머지 아군 ATK +3%
-	if BossReward.has_reward(game_state, "r12_5"):
-		for ui in _unit_card_map.size():
-			if engine.alive[ui] == 1 and engine.team[ui] == 1:
-				engine.atk[ui] *= 1.03
-
 
 ## Apply combat chain buffs back to combat engine units.
 func _apply_combat_buffs(buffs: Array, engine, active: Array) -> void:
@@ -723,16 +734,16 @@ func _apply_combat_buffs(buffs: Array, engine, active: Array) -> void:
 
 ## 보스 보상 영구 효과를 chain_engine에 반영.
 func _apply_boss_reward_modifiers() -> void:
-	# r4_3: 연쇄 반응로 — 스폰 50% 추가
-	var extra_spawn := 0.5 if BossReward.has_reward(game_state, "r4_3") else 0.0
+	# r4_3: 연쇄 반응로 — 스폰 25% 추가
+	var extra_spawn := 0.25 if BossReward.has_reward(game_state, "r4_3") else 0.0
 	chain_engine.bonus_spawn_chance = Commander.get_bonus_spawn_chance(game_state) + extra_spawn
 	chain_engine.propagate_bonus_spawn()
 
-	# r4_5: 강화 증폭기 — enhance ×1.5 (부적 수은 방울과 곱연산)
+	# r4_5: 강화 증폭기 — enhance ×1.2 (부적 수은 방울과 곱연산)
 	chain_engine.enhance_multiplier = Talisman.get_enhance_multiplier(game_state) \
 		* BossReward.get_enhance_amp(game_state)
 
-	# r8_3/r12_3: 과부하 엔진/연쇄 — 발동 상한 보너스
+	# r12_3: 과부하 연쇄 — 발동 상한 보너스
 	chain_engine.activation_bonus = BossReward.get_activation_bonus(game_state)
 
 	# r8_5: 광역 강화장 — 강화 시 인접 50%
@@ -743,8 +754,8 @@ func _is_boss_reward_round() -> bool:
 	return game_state.round_num in [4, 8, 12]
 
 
-func _show_boss_reward_popup() -> void:
-	var boss_tier: int = game_state.round_num
+func _show_boss_reward_popup(override_tier: int = -1) -> void:
+	var boss_tier: int = override_tier if override_tier > 0 else game_state.round_num
 	var choice_count: int = Talisman.get_boss_reward_choices(game_state)
 	var choices := BossRewardDB.roll_choices(boss_tier, choice_count, _battle_rng)
 	print("[BossReward] R%d 보스 보상 %d개 선택지: %s" % [boss_tier, choices.size(), choices])
@@ -787,7 +798,9 @@ func _on_boss_target_selected(field_idx: int) -> void:
 		return
 
 	var reward_id: String = _pending_boss_reward["reward_id"]
-	BossReward.apply_with_target(reward_id, game_state, card, _battle_rng)
+	# r12_1 단계 강제: step 1 = ★2→★3, step 2 = ★1→★2 (★1→★3 직행 방지)
+	var step: int = _pending_boss_reward["needs_target"] - _pending_boss_reward["targets_remaining"] + 1
+	BossReward.apply_with_target(reward_id, game_state, card, _battle_rng, step)
 	_boss_reward_targets.append({"field_idx": field_idx, "card_id": card.get_base_id()})
 	_pending_boss_reward["targets_remaining"] -= 1
 

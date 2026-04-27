@@ -47,6 +47,7 @@ var phase_shift_left: PackedByteArray   # remaining phase_shift uses
 var immortal_left: PackedByteArray      # remaining immortal_core uses
 var revive_left: PackedByteArray        # 군대 통합사령부 revive 잔여 횟수 (유닛 단위)
 var revive_hp_pct: PackedFloat32Array   # 부활 시 HP 복원 비율 (max_hp × pct)
+var board_revive_pool: int = 0          # 보스 보상 r12_8 전사의 영혼: 보드 단위 부활 풀 (아군만, 100% HP)
 var soul_kills: PackedInt32Array        # soul_harvest kill count
 var soul_atk_bonus: PackedFloat32Array  # soul_harvest accumulated ATK%
 var berserk_active: PackedByteArray     # berserk triggered
@@ -100,6 +101,7 @@ const SPEED_SCALE := 16.0   # 1 move_speed = 16px/tick (at 20fps = 320px/sec)
 func setup(ally_units: Array, enemy_units: Array) -> void:
 	## ally_units/enemy_units: Array of {atk, hp, attack_speed, range, move_speed, def, mechanics}
 	_base_count = ally_units.size() + enemy_units.size()
+	board_revive_pool = 0  # 매 전투마다 리셋 (caller가 setup 직후 r12_8 보유 시 20으로 set)
 
 	# Count fission-capable units for pre-allocation
 	var fission_extra := 0
@@ -578,6 +580,13 @@ func kill_unit(i: int) -> void:
 		target_idx[i] = -1
 		cooldown[i] = 0.0
 		return  # 부활 성공 — 사망 처리 취소
+	# r12_8 전사의 영혼: 보드 풀 부활 (아군만, 100% HP).
+	if team[i] == 1 and board_revive_pool > 0:
+		board_revive_pool -= 1
+		hp[i] = max_hp[i]
+		target_idx[i] = -1
+		cooldown[i] = 0.0
+		return  # 부활 성공
 	alive[i] = 0
 	if team[i] == 1:
 		_ally_alive -= 1

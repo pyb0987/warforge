@@ -20,7 +20,7 @@ var bonus_spawn_chance: float = 0.0  # 양성가: 0.3
 
 # --- Talisman modifiers (set by game_manager) ---
 var enhance_multiplier: float = 1.0   # 수은 방울: 1.25
-var activation_bonus: int = 0          # 보스 보상: r8_3(+1), r12_3(+2)
+var activation_bonus: int = 0          # 보스 보상: r12_3(+2)
 var aoe_enhance: bool = false          # 보스 보상 r8_5: 강화 시 인접 50%
 var flint_callback: Callable = Callable()  # 부싯돌: consume_flint_bonus
 var cracked_egg_callback: Callable = Callable()  # 깨진 알: get_extra_spawn
