@@ -309,11 +309,6 @@ func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 	# ★2 쏠림 유발). ★합성의 매력은 카드 효과 강화(★1→★2→★3 effect)만으로 확보.
 	# r12_4 이중 합성 보스 보상은 별도 효과 없음 (기획 재검토 필요 시 episodes 기록).
 
-	# OBS-060: 태엽 과급기 ★3 합성 시 1회 보너스 — 에픽 업그레이드 + 3 테라진
-	if survivor.get_base_id() == "sp_charger" and survivor.star_level == 3:
-		terazin += 3
-		survivor.theme_state["pending_epic_upgrade"] = true
-
 	# fresh 전파: 이번 step에 fresh donor가 있었으면 survivor도 fresh_set에 추가
 	# → 캐스케이드 다음 step에서 이 survivor가 다시 fresh donor로 처리됨.
 	if step_has_fresh and survivor not in fresh_set:

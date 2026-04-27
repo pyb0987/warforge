@@ -222,11 +222,11 @@ func _on_card_merged(card: CardInstance, old_star: int, new_star: int) -> void:
 	if old_star == 1 and new_star == 2:
 		_pending_merge_card = card
 		_upgrade_choice_popup.show_choices(Enums.UpgradeRarity.RARE, 3)
-	# sp_charger ★3: 합성 시 1회 에픽 업그레이드 + 3 테라진
-	elif old_star == 2 and new_star == 3 and card.get_base_id() == "sp_charger":
-		game_state.terazin += 3
-		_pending_merge_card = card
-		_upgrade_choice_popup.show_choices(Enums.UpgradeRarity.EPIC, 3)
+	elif old_star == 2 and new_star == 3:
+		# 캐스케이드 ★1→★2→★3: step1 ★2 survivor 가 step2 에서 도너로 흡수돼
+		# 사라지므로, free rare 부착 대상을 ★3 최종 survivor 로 이전.
+		if _pending_merge_card != null and _pending_merge_card != card:
+			_pending_merge_card = card
 
 
 func _on_merge_upgrade_chosen(upgrade_id: String) -> void:

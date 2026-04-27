@@ -30,7 +30,6 @@ const RANK_THRESHOLDS := {
 # --- 스팀펑크 카운터 임계값 ---
 const MANUFACTURE_THRESHOLD := 10
 const RARE_COUNTER_THRESHOLD := 20
-const EPIC_COUNTER_THRESHOLD := 15
 const CONSCRIPT_THRESHOLD := {1: 10, 2: 8, 3: 6}  # star → threshold
 
 # --- 드루이드 유닛캡 ---
@@ -324,13 +323,6 @@ func _value_steampunk(card: CardInstance, genome: RefCounted) -> float:
 		var remaining: int = RARE_COUNTER_THRESHOLD - rare_counter
 		if remaining > 0 and remaining <= 4:
 			bonus += near_bonus * 0.7
-
-	# 에픽 카운터 근접 (★3 sp_charger)
-	var epic_counter: int = card.theme_state.get("epic_counter", 0)
-	if epic_counter > 0:
-		var remaining: int = EPIC_COUNTER_THRESHOLD - epic_counter
-		if remaining > 0 and remaining <= 3:
-			bonus += near_bonus * 1.0  # 에픽은 최대 보너스
 
 	return bonus
 

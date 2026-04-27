@@ -95,8 +95,7 @@
           (% 업그레이드, 보스 보상, 커맨더 RAIDER 입력원 통합)
   - max:  tenure, theme_state["rank"], unit_cap_bonus, upgrade_slot_bonus,
           stacks[].unique_atk_mult/hp_mult, unique_as_mult ([고유효과] layer)
-  - OR:   is_omni_theme, theme_state 그룹B (pending_epic_upgrade,
-          high_rank_applied)
+  - OR:   is_omni_theme, theme_state 그룹B (high_rank_applied)
   - 0/false 리셋: activations_used, threshold_fired (evolve_star)
   - 기타 theme_state (그룹C/D, 라운드/전투 한정): survivor 유지
 

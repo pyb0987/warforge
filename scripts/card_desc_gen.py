@@ -920,10 +920,6 @@ def desc_rare_counter(p: dict) -> str:
     return (f"카운터 {p['threshold']}+ → "
             f"{p['threshold']} 소비, 레어 업그레이드 3택1")
 
-def desc_epic_counter(p: dict) -> str:
-    return (f"카운터 {p['threshold']}+ → "
-            f"{p['threshold']} 소비, 에픽 업그레이드")
-
 def desc_total_counter(p: dict) -> str:
     per = p["per_manufacture"]
     tz = p["reward_terazin"]
@@ -1031,7 +1027,6 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "revive_override":  desc_revive_override,
     "counter_produce":  desc_counter_produce,
     "rare_counter":     desc_rare_counter,
-    "epic_counter":     desc_epic_counter,
     "total_counter":    desc_total_counter,
     "upgrade_discount": desc_upgrade_discount,
     "manufacture":      desc_manufacture,
@@ -1177,7 +1172,7 @@ def prefix_tenure(card: dict, star_data: dict) -> str:
     return ""
 
 COUNTER_ACTIONS = frozenset([
-    "counter_produce", "rare_counter", "epic_counter", "total_counter",
+    "counter_produce", "rare_counter", "total_counter",
 ])
 
 

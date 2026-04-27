@@ -330,7 +330,7 @@ func test_merge_cascade_preserves_upgrades_through_star3() -> void:
 #   tenure / rank / unit_cap_bonus / upgrade_slot_bonus: max
 #   activations_used: 0 리셋
 #   threshold_fired: false (evolve_star가 처리, 검증)
-#   theme_state 그룹B (pending_epic_upgrade, high_rank_applied), is_omni_theme: OR
+#   theme_state 그룹B (high_rank_applied), is_omni_theme: OR
 #   theme_state 그룹C/D: survivor 유지 (검증 생략)
 # ================================================================
 
@@ -494,11 +494,11 @@ func test_merge_sums_theme_state_group_a() -> void:
 
 # --- theme_state 그룹B (OR) ---
 
-func test_merge_or_pending_epic_upgrade() -> void:
+func test_merge_or_high_rank_applied() -> void:
 	var cs := _three_assembly()
-	cs[1].theme_state["pending_epic_upgrade"] = true
+	cs[1].theme_state["high_rank_applied"] = true
 	_state.try_merge("sp_assembly")
-	assert_true(_state.board[0].theme_state.get("pending_epic_upgrade", false),
+	assert_true(_state.board[0].theme_state.get("high_rank_applied", false),
 		"donor 1장이 true → survivor true (OR)")
 
 
