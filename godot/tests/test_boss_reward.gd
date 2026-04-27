@@ -561,6 +561,17 @@ func test_r12_8_revive_pool_depleted_unit_dies() -> void:
 	assert_eq(engine.alive[0], 0, "풀 0 → 사망")
 
 
+func test_r4_3_spawn_chance_additive_with_commander() -> void:
+	## r4_3(+0.25) + Breeder Commander(+0.3)는 합산 (live/sim 일치).
+	## 이전 sim의 max 동작은 Breeder + r4_3 시 r4_3 효과를 무효화하는 버그.
+	state.commander_type = Enums.CommanderType.BREEDER
+	state.boss_rewards.append("r4_3")
+	## live 기준 합산 가정: 0.30 + 0.25 = 0.55
+	var commander_bonus := Commander.get_bonus_spawn_chance(state)
+	var r4_3_bonus: float = 0.25 if BossReward.has_reward(state, "r4_3") else 0.0
+	assert_almost_eq(commander_bonus + r4_3_bonus, 0.55, 0.001, "Breeder + r4_3 = 0.55")
+
+
 func test_r12_8_revive_pool_resets_each_setup() -> void:
 	## setup 호출 시 board_revive_pool = 0으로 초기화 (caller 재주입 필요)
 	var CombatEngineScript = load("res://combat/combat_engine.gd")

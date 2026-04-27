@@ -178,11 +178,10 @@ func run() -> Dictionary:
 		var enhance_amp: float = BossReward.get_enhance_amp(state)
 		if enhance_amp > 1.0:
 			chain_engine.enhance_multiplier = Talisman.get_enhance_multiplier(state) * enhance_amp
-		# Bonus spawn chance from r4_3
-		if BossReward.has_reward(state, "r4_3"):
-			chain_engine.bonus_spawn_chance = maxf(
-				Commander.get_bonus_spawn_chance(state), 0.25)
-			chain_engine.propagate_bonus_spawn()
+		# Bonus spawn chance: Commander(Breeder=+0.30) + r4_3(+0.25) 합산. live(game_manager.gd)와 일치.
+		var extra_spawn: float = 0.25 if BossReward.has_reward(state, "r4_3") else 0.0
+		chain_engine.bonus_spawn_chance = Commander.get_bonus_spawn_chance(state) + extra_spawn
+		chain_engine.propagate_bonus_spawn()
 		# Auto-conscript from r4_6: +1 unit per card per round
 		if BossReward.has_reward(state, "r4_6"):
 			for card in state.get_active_board():
@@ -435,10 +434,9 @@ func _apply_boss_reward(boss_round: int, state: GameState,
 	})
 
 	# Propagate structural changes immediately
-	# r4_3 spawn bonus
+	# r4_3 spawn bonus: Commander 보너스에 +0.25 가산 (live 일치, max → 합산)
 	if reward_id == "r4_3":
-		chain_engine.bonus_spawn_chance = maxf(
-			chain_engine.bonus_spawn_chance, 0.25)
+		chain_engine.bonus_spawn_chance = Commander.get_bonus_spawn_chance(state) + 0.25
 		chain_engine.propagate_bonus_spawn()
 	# r4_5 enhance amp
 	if reward_id == "r4_5":
