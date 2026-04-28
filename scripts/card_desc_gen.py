@@ -380,11 +380,13 @@ def desc_tree_gold(p: dict) -> str:
     return text
 
 def desc_tree_distribute(p: dict) -> str:
+    ## 자기 자신의 🌳 카운트가 임계 이상이면 다른 모든 드루이드 카드 각각에 🌳을 분배.
+    ## (이전 표기 "전체 드루이드 +1" 은 합산/개별/단위가 모호 → 명시적 표현으로 교체.)
     tiers = p["tiers"]
     parts = []
     for tier in tiers:
         parts.append(
-            f"🌳{tier['tree_gte']}+ → 전체 드루이드 +{tier['amount']}")
+            f"이 카드 🌳{tier['tree_gte']}+ → 다른 드루이드 카드 각각 🌳+{tier['amount']}")
     return ". ".join(parts)
 
 def desc_prune(p: dict) -> str:
