@@ -210,7 +210,12 @@ def desc_spawn(p: dict) -> str:
     t = resolve_target(p["target"])
     n = p.get("count", 1)
     ol2 = p.get("ol2")
-    verb = {None: "유닛", "MF": "제조"}.get(ol2, "유닛")
+    # Layer 2 (theme keyword) 가 있으면 그것이 verb. 없으면 Layer 1 'UA' = '유닛 추가'.
+    # Drift 방지: 키워드 한글 표기는 _kw 로만 lookup (data/keywords.yaml 단일 진실 소스).
+    if ol2 == "MF":
+        verb = _kw("layer2", "MF")
+    else:
+        verb = _kw("layer1", "UA")
     strongest = " 가장 강한 유닛(CP)" if p.get("strongest") else ""
     return f"{t}에{strongest} {n}기 {verb}"
 
