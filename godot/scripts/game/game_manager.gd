@@ -94,6 +94,9 @@ func _ready() -> void:
 	game_state.upgrade_purchased.connect(_on_upgrade_purchased_logged)
 	game_state.upgrade_refunded.connect(_on_upgrade_refunded_logged)
 	game_state.upgrade_attached_to_card.connect(_on_upgrade_attached_logged)
+	# Reactive evaluators: 보드 구성 변경 시 파생 상태 재계산.
+	# 단일 진입점으로 두어 향후 다른 PERSISTENT 카드도 같은 hook 에 묶을 수 있음 (P5 패턴 B).
+	game_state.board_changed.connect(_on_board_changed)
 
 	upgrade_choice_popup.setup(_battle_rng)
 	build_phase.setup(game_state, _battle_rng, _genome)
@@ -151,6 +154,16 @@ func _enter_phase(phase: Phase) -> void:
 
 func _grant_pending_free_rerolls(n: int) -> void:
 	game_state.pending_free_rerolls += n
+
+
+## board_changed 단일 hook — PERSISTENT 효과들의 reactive 재평가 진입점.
+## 현재: ne_council 5테마 보너스 + 에픽 부여 임계 평가.
+## 향후 PERSISTENT 카드 추가 시 여기에 평가 호출만 추가.
+func _on_board_changed() -> void:
+	if current_phase != Phase.BUILD:
+		return
+	_evaluate_council_field_bonus()
+	_evaluate_council_epic_grant()
 
 
 ## 전당포(ne_pawnbroker): REROLL 결과의 levelup_discount 누적치 적용. 0이면 no-op.

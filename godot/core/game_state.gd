@@ -4,6 +4,10 @@ extends RefCounted
 
 signal state_changed
 signal card_moved(from_zone, from_idx, to_zone, to_idx)
+## Emitted whenever the board composition changes (placement, removal, swap).
+## Used by reactive evaluators (e.g., ne_council 5테마 보너스) to recompute
+## derived state without polling. Bench-only changes do NOT emit.
+signal board_changed
 ## 업그레이드 라이프사이클 신호 (play_logger 가 구독).
 ## emit 사이트: build_phase(상점/머지 보너스), boss_reward(보스 보상), steampunk_system(salvage).
 signal upgrade_purchased(upgrade_id: String, slot_idx: int, cost: int, terazin_after: int)
@@ -32,9 +36,6 @@ var pending_free_rerolls: int = 0
 ## 이번 라운드 리롤 총 횟수 (유/무료 모두 포함). 라운드 시작 시 0으로 리셋.
 ## 증기 이자기 ★2/★3 전투 버프 산출에 사용.
 var round_rerolls: int = 0
-
-## r4_4 상점 확장 보상: 다음 라운드 시작 시 1회만 추가될 즉시 무료 리롤 보너스.
-var r4_4_initial_rerolls: int = 0
 
 ## r8_9 전선 확장 보상: R13 전투 승리 시 R12 보상 풀에서 1개 추가 선택 (1회 한정).
 var r8_9_bonus_pending: bool = false
@@ -117,6 +118,8 @@ func move_card(from_zone: String, from_idx: int, to_zone: String, to_idx: int) -
 	from_arr[from_idx] = target  # null or swapped card
 
 	card_moved.emit(from_zone, from_idx, to_zone, to_idx)
+	if from_zone == "board" or to_zone == "board":
+		board_changed.emit()
 	state_changed.emit()
 	return true
 
@@ -172,6 +175,8 @@ func remove_card(zone: String, idx: int) -> CardInstance:
 	var card = arr[idx]
 	arr[idx] = null
 	if card != null:
+		if zone == "board":
+			board_changed.emit()
 		state_changed.emit()
 	return card
 
@@ -304,6 +309,7 @@ func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 	# Max: tenure, unit_cap_bonus, upgrade_slot_bonus, theme_state["rank"]
 	# OR:  is_omni_theme, theme_state 그룹B
 	# fresh_ref 정책: donor가 fresh_set이면 유닛 흡수만 skip (그 외 stat은 정상 흡수).
+	var board_touched: bool = copies[0]["zone"] == "board"
 	for i in range(1, 3):
 		var donor: CardInstance = copies[i]["card"]
 		var skip_units: bool = donor in fresh_set
@@ -311,6 +317,8 @@ func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 		# Remove donor from board/bench
 		var zone_arr := _get_zone(copies[i]["zone"])
 		zone_arr[copies[i]["idx"]] = null
+		if copies[i]["zone"] == "board":
+			board_touched = true
 
 	# 합성 직후 같은 라운드 내 추가 발동을 허용 (플레이어 이득).
 	survivor.activations_used = 0
@@ -333,6 +341,8 @@ func _try_merge_once(template_id: String, fresh_set: Array = []) -> Dictionary:
 	if step_has_fresh and survivor not in fresh_set:
 		fresh_set.append(survivor)
 
+	if board_touched:
+		board_changed.emit()
 	state_changed.emit()
 	return {"card": survivor, "old_star": old_star, "new_star": survivor.star_level}
 
