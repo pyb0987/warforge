@@ -1127,13 +1127,10 @@ func _register_neutral() -> void:
 				"card_tags": mer_tags,
 				"effects": [
 				{
-					"trigger_timing": PC, "max_activations": 1,
+					"trigger_timing": PCD, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						_gold(4),
-						{"action": "grant_terazin", "target": "self", "terazin_amount": 1}
-					],
+					"actions": [_gold(6)],
 				}
 			],
 			},

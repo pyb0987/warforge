@@ -304,10 +304,9 @@ cards:
           gold: 3
       2:
         effects:
-        - trigger_timing: PC
+        - trigger_timing: PCD
           max_act: 1
-          gold: 4
-          terazin: 1
+          gold: 6
       3:
         effects:
         - trigger_timing: PC
