@@ -367,8 +367,13 @@ func try_levelup() -> bool:
 
 ## Apply levelup discount: -amount g (min 0). Default amount=1 — round-start
 ## 자연 감가에서 매개변수 없이 호출. 카드 효과(전당포 등)는 명시적 amount 전달.
+## state_changed 를 emit — UI label (shop_label) 이 즉시 새 가격으로 갱신되도록
+## (이전엔 reroll 후 다른 액션이 일어나야 표시가 업데이트되는 stale UI 버그가 있었음).
 func apply_levelup_discount(amount: int = 1) -> void:
+	var before := levelup_current_cost
 	levelup_current_cost = maxi(levelup_current_cost - amount, 0)
+	if levelup_current_cost != before:
+		state_changed.emit()
 
 
 func _get_zone(zone: String) -> Array:
