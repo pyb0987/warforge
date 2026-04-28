@@ -424,6 +424,7 @@ func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 	if target == null:
 		return Enums.empty_result()
 	# theme 선택 (DRY: live/sim 모두 compute_masquerade_new_theme 사용)
+	# offer_count / allow_self 는 yaml 그대로 전달 — live UI 가 popup 에서 사용.
 	var omni: bool = eff.get("omni", false)
 	var new_theme: int = compute_masquerade_new_theme(target)
 	return {
@@ -434,6 +435,8 @@ func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 			"target_card": target,
 			"new_theme": new_theme,
 			"omni": omni,
+			"offer_count": int(eff.get("offer_count", 3)),
+			"allow_self": bool(eff.get("allow_self", true)),
 		},
 		# UI 분기: live는 target_overlay로 사용자 선택, sim은 위 자동 target 사용.
 		"needs_target_select": "ne_masquerade",

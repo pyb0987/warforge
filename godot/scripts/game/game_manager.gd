@@ -25,6 +25,7 @@ var _game_over: bool = false
 @onready var game_over_popup: ColorRect = $UILayer/GameOverPopup
 @onready var upgrade_choice_popup: ColorRect = $UILayer/UpgradeChoicePopup
 @onready var boss_reward_popup: ColorRect = $UILayer/BossRewardPopup
+@onready var theme_choice_popup: ColorRect = $UILayer/ThemeChoicePopup
 
 
 func _ready() -> void:
@@ -99,6 +100,7 @@ func _ready() -> void:
 	game_state.board_changed.connect(_on_board_changed)
 
 	upgrade_choice_popup.setup(_battle_rng)
+	theme_choice_popup.setup(_battle_rng)
 	build_phase.setup(game_state, _battle_rng, _genome)
 	build_phase.shop.card_purchased.connect(_on_shop_purchase)
 	build_phase.set_upgrade_choice_popup(upgrade_choice_popup)
@@ -795,19 +797,45 @@ func _on_sell_target_selected(field_idx: int) -> void:
 	var sell_result: Dictionary = _pending_sell_select["sell_result"]
 	match handler_id:
 		"ne_masquerade":
-			# 자동 dict의 target_card를 사용자 선택으로 override.
-			# new_theme도 사용자가 선택한 카드의 현재 theme 기준 재계산.
-			# DRY: NeutralSystem.compute_masquerade_new_theme static helper 사용 (sim/live 동일 로직).
 			var transform: Dictionary = sell_result.get("transform_theme", {}).duplicate()
 			transform["target_card"] = target
-			if not transform.get("omni", false):
-				transform["new_theme"] = NeutralSystem.compute_masquerade_new_theme(target)
-			_apply_theme_transform(transform)
+			if transform.get("omni", false):
+				# ★3 omni: 테마 선택 불필요, 즉시 적용.
+				_apply_theme_transform(transform)
+				_pending_sell_select = {}
+				game_state.state_changed.emit()
+				return
+			# ★1/★2: 사용자가 노출된 N 테마 중 1개 선택. _on_theme_chosen 에서 finalize.
+			_pending_theme_transform = transform
+			var offer_count: int = int(transform.get("offer_count", 3))
+			var allow_self: bool = transform.get("allow_self", true)
+			var current_theme: int = target.template.get("theme", -1)
+			if not theme_choice_popup.theme_chosen.is_connected(_on_theme_chosen):
+				theme_choice_popup.theme_chosen.connect(_on_theme_chosen)
+			theme_choice_popup.show_choices(offer_count, current_theme, allow_self)
+			# state_changed emit 은 _on_theme_chosen 에서 (transform 적용 후).
+			_pending_sell_select = {}
+			return
 		"ne_awakening":
 			var awakening: Dictionary = sell_result.get("awakening_transfer", {}).duplicate()
 			awakening["target_card"] = target
 			_apply_awakening_transfer(awakening)
 	_pending_sell_select = {}
+	game_state.state_changed.emit()
+
+
+## ne_masquerade ★1/★2 테마 선택 finalize. user 가 popup 에서 1개 선택.
+var _pending_theme_transform: Dictionary = {}
+
+func _on_theme_chosen(theme_int: int) -> void:
+	if theme_choice_popup.theme_chosen.is_connected(_on_theme_chosen):
+		theme_choice_popup.theme_chosen.disconnect(_on_theme_chosen)
+	if _pending_theme_transform.is_empty():
+		return
+	var transform: Dictionary = _pending_theme_transform
+	transform["new_theme"] = theme_int
+	_apply_theme_transform(transform)
+	_pending_theme_transform = {}
 	game_state.state_changed.emit()
 
 
