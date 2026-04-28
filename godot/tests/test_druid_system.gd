@@ -68,15 +68,51 @@ func test_deep_mult_threshold_10_applies_130() -> void:
 
 
 # ================================================================
-# dr_world (RS): 🌳+2, multiply_stats ×1.10
+# dr_world (RS): 🌳+2, 누적 가산 ATK/HP/AS 동시 +per_step (2026-04-28 재설계)
 # ================================================================
 
-func test_world_applies_multiply_stats_atk_110() -> void:
+func test_world_no_buff_below_tree_step() -> void:
+	## ★1 tree_step=30 — trees<30 이면 increment=0, buff_pct 변화 없음.
 	var card: CardInstance = CardInstance.create("dr_world")
-	var atk_before: float = card.get_total_atk()
 	_sys.process_rs_card(card, 0, [card], _rng)
-	# ★1: multiply_stats(base_atk=1.10, base_hp=1.05) → ATK ×1.10
-	assert_almost_eq(card.get_total_atk(), atk_before * 1.10, 0.1, "ATK ×1.10")
+	assert_almost_eq(card.unique_buff_pct, 0.0, 0.0001, "trees=2 < 30 → 누적 0")
+
+
+func test_world_buff_accumulates_at_threshold() -> void:
+	## trees ≥ tree_step (30) 이면 1 step 기여 (per_step=0.05).
+	var card: CardInstance = CardInstance.create("dr_world")
+	card.theme_state["trees"] = 28  # +2 self → 30
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.unique_buff_pct, 0.05, 0.0001, "trees=30 → +0.05")
+
+
+func test_world_buff_cumulative_across_rounds() -> void:
+	## 매 라운드 누적 (replace 가 아님). 동일 trees 로 2 회 RS → +0.10.
+	var card: CardInstance = CardInstance.create("dr_world")
+	card.theme_state["trees"] = 28  # +2 = 30
+	_sys.process_rs_card(card, 0, [card], _rng)
+	# 두 번째 RS: trees 는 30 → 32 → forest_depth=32, increment = floor(32/30)*0.05 = 0.05
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.unique_buff_pct, 0.10, 0.0001, "2회 누적 +0.10")
+
+
+func test_world_atk_hp_move_together() -> void:
+	## atk/hp 가 같은 buff 로 derive. 매 RS 마다 일관.
+	var card: CardInstance = CardInstance.create("dr_world")
+	card.theme_state["trees"] = 28
+	_sys.process_rs_card(card, 0, [card], _rng)
+	for s in card.stacks:
+		assert_almost_eq(float(s["unique_atk_mult"]), float(s["unique_hp_mult"]),
+			0.0001, "ATK/HP unique mult 동일")
+
+
+func test_world_as_inverted_for_faster_attacks() -> void:
+	## unique_as_mult = 1/(1 + buff_pct) — buff 가 커질수록 attack_speed 감소(=빨라짐).
+	var card: CardInstance = CardInstance.create("dr_world")
+	card.theme_state["trees"] = 28
+	_sys.process_rs_card(card, 0, [card], _rng)
+	assert_almost_eq(card.unique_as_mult, 1.0 / 1.05, 0.0001,
+		"unique_as_mult = 1/(1+0.05)")
 
 
 func test_world_adds_2_trees_to_self() -> void:
@@ -338,82 +374,54 @@ func test_world_s2_self_trees_3() -> void:
 	assert_eq(card.theme_state.get("trees", 0), trees_before + 3, "★2 self 🌳+3")
 
 
-func test_world_s2_higher_atk_mult() -> void:
-	## ★2: ATK×1.15 (★1은 ×1.10)
+func test_world_s2_smaller_tree_step_easier_to_trigger() -> void:
+	## ★2: tree_step=20 (★1은 30). trees=20 에서 이미 +0.05 누적.
 	var card := _make_star("dr_world", 2)
-	var atk_before: float = card.get_total_atk()
+	card.theme_state["trees"] = 17  # +3 self → 20
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(card.get_total_atk(), atk_before, "★2 ATK×1.15 적용")
+	assert_almost_eq(card.unique_buff_pct, 0.05, 0.0001, "★2 trees=20 → +0.05")
 
 
-func test_world_s3_unit_cap_200() -> void:
-	## ★3: unit_cap=200 (OBS-048). 33기(S5-R14 재현)에서도 성장 실행
+func test_world_s3_smallest_tree_step() -> void:
+	## ★3: tree_step=5 — 가장 빠르게 누적. trees=5 에서 +0.05.
 	var card := _make_star("dr_world", 3)
-	for _i in 30:
-		card.spawn_random(_rng)
-	var atk_before: float = card.get_total_atk()
+	card.theme_state["trees"] = 2  # +3 self → 5
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(card.get_total_atk(), atk_before, "★3 33기 < 200 → 성장 실행")
+	assert_almost_eq(card.unique_buff_pct, 0.05, 0.0001, "★3 trees=5 → +0.05")
 
 
-func test_world_s2_unit_cap_40() -> void:
-	## ★2: unit_cap=40 (OBS-048). 21기에서 성장 실행
-	var card := _make_star("dr_world", 2)
-	for _i in 18:
-		card.spawn_random(_rng)
-	# total ~21
-	var atk_before: float = card.get_total_atk()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_gt(card.get_total_atk(), atk_before, "★2 21기 < 40 → 성장 실행")
-
-
-func test_world_no_unit_cap_always_grows() -> void:
-	## 2026-04-21: unit_cap 제거 — 유닛 수 무관 항상 성장.
+func test_world_unit_count_irrelevant_to_growth() -> void:
+	## 유닛 수 무관 — 30 trees 도달 시 buff 누적 (★1).
 	var card: CardInstance = CardInstance.create("dr_world")
 	for _i in 20:
 		card.spawn_random(_rng)
-	var atk_before: float = card.get_total_atk()
+	card.theme_state["trees"] = 28
 	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.get_total_atk(), atk_before * 1.10, 0.1,
-		"★1: 23기여도 ATK ×1.10 성장 (cap 없음)")
+	assert_almost_eq(card.unique_buff_pct, 0.05, 0.0001,
+		"23기여도 trees=30 도달 시 누적 적용")
 
 
 func test_world_applies_to_all_board_cards() -> void:
-	## 2026-04-21: target: all_allies — dr_world 외 카드 (드루이드 아닌 포함) 도 배수 적용.
+	## target: all_allies — dr_world 외 카드(비드루이드 포함) 도 buff_pct 누적.
 	var world: CardInstance = CardInstance.create("dr_world")
-	var non_druid: CardInstance = CardInstance.create("sp_assembly")  # 스팀펑크
-	var non_druid_atk_before: float = non_druid.get_total_atk()
+	world.theme_state["trees"] = 28
+	var non_druid: CardInstance = CardInstance.create("sp_assembly")
 	_sys.process_rs_card(world, 0, [world, non_druid], _rng)
-	# ★1 base_atk 1.10, 0 나무 → ×1.10 배수 적용 예상.
-	assert_almost_eq(non_druid.get_total_atk(), non_druid_atk_before * 1.10, 0.1,
-		"비-드루이드 카드도 ATK ×1.10 성장")
-
-
-func test_world_as_multiplier_applies_to_unique_as() -> void:
-	## 2026-04-21 bugfix: AS 배수가 실제 전투에 반영되도록 mult 누적.
-	## 2026-04-26: 세계수는 [고유효과] → unique_as_mult 에 누적 (upgrade_as_mult 와 분리).
-	## ★1 as_base 1.05 → RS 1회 후 unique_as_mult ×1.05.
-	var card: CardInstance = CardInstance.create("dr_world")
-	var as_before: float = card.unique_as_mult
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_almost_eq(card.unique_as_mult, as_before * 1.05, 0.001,
-		"★1 AS ×1.05 누적 (unique_as_mult)")
+	# trees(self+) = 30, increment = floor(30/30)*0.05 = 0.05
+	assert_almost_eq(non_druid.unique_buff_pct, 0.05, 0.0001,
+		"비드루이드도 buff_pct +0.05")
 
 
 func test_world_uses_forest_depth_all_druid_trees() -> void:
-	## 2026-04-21 bugfix: tree_source: forest_depth — 모든 드루이드 카드 🌳 합.
-	## dr_world ★1 RS 1회: self +2, cradle +1 → forest 3. atk_tree_step 30 이므로
-	## floor(3/30)=0 → atk_mult 그대로 1.10. 30 단위를 넘기려면 다수 라운드.
-	## 여기선 cradle 에 🌳 28 미리 설정 → RS 후 forest = (2+28) + (1) = 31 이면 30/30=1.
+	## tree_source: forest_depth — 모든 드루이드 카드 🌳 합.
+	## ★1 (tree_step=30): cradle 에 28 프리-설정 → RS 후 forest=31 이면 increment=0.05.
 	var world: CardInstance = CardInstance.create("dr_world")
 	var cradle: CardInstance = CardInstance.create("dr_cradle")
-	cradle.theme_state["trees"] = 28  # cradle 에 나무 28 프리-설정
-	# RS 1회 후: world.trees = 0+2=2, cradle.trees = 28+1=29 → forest = 31
-	# ★1 atk_tree_step 30 → floor(31/30) = 1 → +0.1 → atk_mult 1.20
-	var atk_before: float = world.get_total_atk()
+	cradle.theme_state["trees"] = 28
 	_sys.process_rs_card(world, 0, [world, cradle], _rng)
-	assert_almost_eq(world.get_total_atk(), atk_before * 1.20, 0.1,
-		"forest_depth 31 → ★1 ATK ×1.20")
+	# RS 후: world.trees = 0+2=2, cradle.trees = 28+1=29 → forest = 31
+	assert_almost_eq(world.unique_buff_pct, 0.05, 0.0001,
+		"forest_depth 31 → +0.05 누적")
 
 
 # ================================================================

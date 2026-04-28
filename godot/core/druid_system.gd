@@ -354,6 +354,14 @@ func _forest_depth(board: Array) -> int:
 	return total
 
 
+## 세계수 RS — 매 라운드 누적 가산 ATK/HP/AS 버프.
+## 이번 라운드 증분 Δ = floor(forest_depth / tree_step) * per_step
+## 모든 ally.unique_buff_pct += Δ (가산 누적, 라운드 간 보존).
+## 적용:
+##   stack.unique_atk_mult = 1.0 + unique_buff_pct
+##   stack.unique_hp_mult = 1.0 + unique_buff_pct
+##   card.unique_as_mult  = 1.0 / (1.0 + unique_buff_pct)  # 빨라짐
+## (★ 합성 시 absorb_donor 가 unique_buff_pct max → 다음 RS 에서 일관 재계산.)
 func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects("dr_world", card.star_level)
 	var self_add_eff := _find_eff(effs, "tree_add", "self")
@@ -369,36 +377,23 @@ func _world(card: CardInstance, idx: int, board: Array) -> Dictionary:
 		if c != card:
 			_add_trees(c, all_trees)
 
-	# 2026-04-21 재설계:
-	#  - tree_source: forest_depth (모든 드루이드 🌳 합) 를 실제 사용.
-	#  - unit_cap 제거 (항상 적용).
-	#  - multiply_stats 를 board 전체 카드에 적용 (target: all_allies).
-	#  - AS 배수는 theme_state['as_mult'] (reader 없음, dead) 대신
-	#    card.upgrade_as_mult 에 곱셈 누적 — game_manager 가 읽음.
 	var trees := _forest_depth(board)
-
-	var base_atk: float = mult_eff.get("atk_base", 1.10)
-	var atk_div: float = mult_eff.get("atk_tree_step", 30.0)
-	var atk_per: float = mult_eff.get("atk_per_tree", 0.1)
-	var base_hp: float = mult_eff.get("hp_base", 1.05)
-	var hp_div: float = mult_eff.get("hp_tree_step", 30.0)
-	var hp_per: float = mult_eff.get("hp_per_tree", 0.05)
-	var base_as: float = mult_eff.get("as_base", 1.05)
-	var as_div: float = mult_eff.get("as_tree_step", 30.0)
-	var as_per: float = mult_eff.get("as_per_tree", 0.05)
-
-	var atk_mult := base_atk + floorf(trees / atk_div) * atk_per
-	var hp_mult := base_hp + floorf(trees / hp_div) * hp_per
-	var as_mult := base_as + floorf(trees / as_div) * as_per
+	var per_step: float = mult_eff.get("per_step", 0.05)
+	var tree_step: float = mult_eff.get("tree_step", 30.0)
+	if tree_step <= 0.0:
+		tree_step = 30.0
+	var increment: float = floorf(trees / tree_step) * per_step
 
 	for i in board.size():
 		var target: CardInstance = board[i]
 		if target == null:
 			continue
-		# 2026-04-26: 세계수는 [고유효과]이므로 unique_*_mult 에 누적
-		# (★ 합성 시 max 정책 — 곱셈 누적 폭발 방지). upgrade_*_mult 와 분리.
-		target.multiply_unique_stats(atk_mult - 1.0, hp_mult - 1.0)
-		target.unique_as_mult *= as_mult
+		target.unique_buff_pct += increment
+		var pct: float = target.unique_buff_pct
+		for s in target.stacks:
+			s["unique_atk_mult"] = 1.0 + pct
+			s["unique_hp_mult"] = 1.0 + pct
+		target.unique_as_mult = 1.0 / (1.0 + pct)
 		target.stats_changed.emit()
 
 	return {

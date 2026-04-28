@@ -63,6 +63,10 @@ var temp_as_mult: float = 1.0
 ## [고유효과] AS multiplier — 세계수(dr_world) 등 카드 자체 고유효과 발.
 ## 합성 시 max 정책 (곱셈 누적이 ★3 캐스케이드에서 폭발하는 것을 방지).
 var unique_as_mult: float = 1.0
+## [고유효과] 누적 가산 버프 — 세계수(dr_world) 가 매 라운드 누적시키는 단일 ATK/HP/AS 증분.
+## unique_atk_mult / unique_hp_mult / unique_as_mult 는 매 RS 시점에 이 값으로부터 derive
+## (replace 의미). drift 방지를 위해 반드시 druid_system._world 에서만 갱신.
+var unique_buff_pct: float = 0.0
 
 # --- Signals ---
 signal stats_changed
@@ -326,6 +330,8 @@ func absorb_donor(donor: CardInstance, skip_units: bool = false) -> void:
 	# [고유효과] AS — min (AS 값은 시간 단위라 작을수록 빠름. min이 "가장 빠른
 	# 도너 보존"의 의미. ATK/HP unique mult는 큰 값이 강함이라 max, AS만 min.)
 	unique_as_mult = minf(unique_as_mult, donor.unique_as_mult)
+	# [고유효과] 세계수 누적 버프 — 더 많이 누적된 카드를 따라감 (max).
+	unique_buff_pct = maxf(unique_buff_pct, donor.unique_buff_pct)
 	# Shield 합산
 	shield_hp_pct += donor.shield_hp_pct
 	# 진행도/등급 max

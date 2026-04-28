@@ -485,6 +485,11 @@ cards:
     - druid
     - worldtree
     impl: theme_system
+    # 2026-04-28 재설계: 매 라운드 누적형 단일 증분.
+    #   ★N 마다 floor(trees/tree_step) * per_step 만큼 ATK/HP/AS 가 함께 증가.
+    #   per_step 은 atk/hp/as 공통, tree_step 만 ★별 차이 (30/20/5).
+    #   AS 도 동일 부호로 적용 — druid_system 에서 unique_as_mult 를 1/(1+buff)
+    #   로 환산하여 공격 속도가 빨라지도록 처리 (combat 측에서 attack_speed *=).
     stars:
       1:
         effects:
@@ -498,15 +503,8 @@ cards:
           multiply_stats:
             target: all_allies
             tree_source: forest_depth
-            atk_base: 1.1
-            atk_per_tree: 0.1
-            atk_tree_step: 30
-            hp_base: 1.05
-            hp_per_tree: 0.05
-            hp_tree_step: 30
-            as_base: 1.05
-            as_per_tree: 0.05
-            as_tree_step: 30
+            per_step: 0.05
+            tree_step: 30
       2:
         effects:
         - trigger_timing: RS
@@ -519,15 +517,8 @@ cards:
           multiply_stats:
             target: all_allies
             tree_source: forest_depth
-            atk_base: 1.15
-            atk_per_tree: 0.1
-            atk_tree_step: 20
-            hp_base: 1.05
-            hp_per_tree: 0.05
-            hp_tree_step: 30
-            as_base: 1.05
-            as_per_tree: 0.05
-            as_tree_step: 30
+            per_step: 0.05
+            tree_step: 20
       3:
         effects:
         - trigger_timing: RS
@@ -540,15 +531,8 @@ cards:
           multiply_stats:
             target: all_allies
             tree_source: forest_depth
-            atk_base: 1.3
-            atk_per_tree: 0.1
-            atk_tree_step: 10
-            hp_base: 1.05
-            hp_per_tree: 0.05
-            hp_tree_step: 30
-            as_base: 1.05
-            as_per_tree: 0.05
-            as_tree_step: 30
+            per_step: 0.05
+            tree_step: 5
   dr_resonance:
     name: 공명수
     tier: 4

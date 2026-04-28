@@ -411,29 +411,15 @@ def desc_druid_unit_enhance(p: dict) -> str:
     return text
 
 def desc_multiply_stats(p: dict) -> str:
-    ## 2026-04-21 재설계: dr_world 의 multiply_stats 가
-    ## target: all_allies (필드 전체), unit_cap 제거, tree_source:forest_depth.
-    ## P2 (review R1, 2026-04-17): 3축 각 독립 줄로 배치, '전체 나무 수' 용어 통일.
-    atk_base = p["atk_base"]
-    atk_step = p["atk_tree_step"]
-    atk_per = p["atk_per_tree"]
+    ## 2026-04-28 재설계: dr_world 누적 가산형.
+    ##   per_step 만큼 ATK/HP/AS 가 함께 (additive cumulative) 매 라운드 증가.
+    ##   tree_step 마다 1 step. 누적은 라운드 간 보존.
     tgt_str = resolve_target(p.get("target", "all_allies"))
-
-    lines = [f"[지속] {tgt_str} 스탯 배수 적용:"]
-    lines.append(f"  ATK ×{atk_base} (전체 나무 수 {atk_step}개마다 +{atk_per}×)")
-    if p.get("hp_base"):
-        hp_step = p.get("hp_tree_step", atk_step)
-        hp_per = p.get("hp_per_tree", 0)
-        hp_tail = (f" (전체 나무 수 {hp_step}개마다 +{hp_per}×)"
-                   if hp_per else "")
-        lines.append(f"  HP ×{p['hp_base']}{hp_tail}")
-    if p.get("as_base") and p["as_base"] != 1.0:
-        as_step = p.get("as_tree_step", atk_step)
-        as_per = p.get("as_per_tree", 0)
-        as_tail = (f" (전체 나무 수 {as_step}개마다 +{as_per}×)"
-                   if as_per else "")
-        lines.append(f"  AS ×{p['as_base']}{as_tail}")
-    return "\n".join(lines)
+    per_step = p.get("per_step", 0.05)
+    tree_step = p.get("tree_step", 30)
+    pct_str = fmt_pct(per_step)
+    return (f"[지속] 매 라운드 {tgt_str} ATK/HP/AS 동시 +{pct_str}% 누적 "
+            f"(전체 나무 수 {tree_step}개당 1 step)")
 
 def desc_tree_temp_buff(p: dict) -> str:
     cap = p["unit_cap"]

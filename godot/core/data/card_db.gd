@@ -2436,7 +2436,7 @@ func _register_druid() -> void:
 				"actions": [
 					{"action": "tree_add", "target": "self", "count": 2},
 					{"action": "tree_add", "target": "all_other_druid", "count": 1},
-					{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "atk_base": 1.1, "atk_per_tree": 0.1, "atk_tree_step": 30, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30}
+					{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 30}
 				],
 			}
 		],
@@ -2454,7 +2454,7 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 3},
 						{"action": "tree_add", "target": "all_other_druid", "count": 2},
-						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "atk_base": 1.15, "atk_per_tree": 0.1, "atk_tree_step": 20, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30}
+						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 20}
 					],
 				}
 			],
@@ -2471,7 +2471,7 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 3},
 						{"action": "tree_add", "target": "all_other_druid", "count": 2},
-						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "atk_base": 1.3, "atk_per_tree": 0.1, "atk_tree_step": 10, "hp_base": 1.05, "hp_per_tree": 0.05, "hp_tree_step": 30, "as_base": 1.05, "as_per_tree": 0.05, "as_tree_step": 30}
+						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 5}
 					],
 				}
 			],
