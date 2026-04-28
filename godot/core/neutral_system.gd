@@ -443,9 +443,22 @@ func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:
 # --- ne_awakening (T4) — SELL transfer_units_and_upgrade ---
 
 
+static func _awakening_rarity_to_int(s: String) -> int:
+	match s:
+		"common": return Enums.UpgradeRarity.COMMON
+		"rare": return Enums.UpgradeRarity.RARE
+		"epic": return Enums.UpgradeRarity.EPIC
+	return Enums.UpgradeRarity.COMMON
+
+
 ## SELL: 판매 시 보드 카드 1장 선택 → ★별 등급 무작위 업글 1개 + (★2/★3) 유닛 이전.
 ## ★1: 커먼 업글만, ★2: 레어 업글 + 유닛, ★3: 에픽 업글 + 유닛.
 ## 자동 target은 sim 결정성을 위해 보드 첫 비-self 카드. live는 UI 선택.
+##
+## Precondition guard (P5 패턴 C): 실제로 적용될 효과가 있을 때만 needs_target_select 반환.
+## - transfer_units=true → 유닛만 이전해도 의미 있으므로 무조건 OK
+## - transfer_units=false (★1) → 매칭 등급 업글이 없으면 효과가 0이므로 UI 띄울 필요 없음
+##   (이전엔 빈 UI → 선택 시 _apply_awakening_transfer 에서 잠재적 crash 경로)
 func _awakening_sell(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
 	var eff := _find_eff(effs, "awakening_sell")
@@ -462,6 +475,16 @@ func _awakening_sell(card: CardInstance, board: Array) -> Dictionary:
 		break
 	if target == null:
 		return Enums.empty_result()
+	# Precondition guard: 효과가 0 이면 UI 호출 자체를 막음.
+	if not transfer_units:
+		var rarity_int: int = _awakening_rarity_to_int(rarity_str)
+		var has_match := false
+		for upg in card.upgrades:
+			if int(upg.get("rarity", -1)) == rarity_int:
+				has_match = true
+				break
+		if not has_match:
+			return Enums.empty_result()
 	return {
 		"events": [],
 		"gold": 0,
