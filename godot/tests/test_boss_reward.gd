@@ -104,21 +104,22 @@ func test_r4_3_permanent_chain_reaction() -> void:
 
 
 func test_r4_4_shop_expansion() -> void:
-	## 상점 확장: 영구 보상 등록 + 즉시 5회 무료 리롤 예약
+	## 상점 확장: 영구 보상 등록 + 즉시 5회 무료 리롤을 pending 에 직접 가산
+	## (다음 BUILD 페이즈에서 즉시 사용 가능 — 이전엔 다음 CHAIN 시작에야 충전되어
+	##  보스 보상 직후 BUILD 에서 골드 차감되는 버그가 있었음.)
 	BossReward.apply_no_target("r4_4", state, rng)
 	assert_true(BossReward.has_reward(state, "r4_4"))
-	assert_eq(state.r4_4_initial_rerolls, 5, "즉시 5회 예약")
+	assert_eq(state.pending_free_rerolls, 5, "즉시 5회 pending 가산")
 
 
-func test_r4_4_round_start_consumes_initial_then_one_per_round() -> void:
-	## 첫 라운드 시작: +5 (즉시) + 1 (영구) = 6, 이후 매 라운드 +1
+func test_r4_4_round_start_consume_returns_one_per_round() -> void:
+	## r4_4 영구 효과: 매 라운드 시작 시 +1. 즉시 5회는 apply_no_target 시점에
+	## pending 에 이미 가산됐으므로 consume 은 영구분 +1 만 반환.
 	BossReward.apply_no_target("r4_4", state, rng)
 	var first := BossReward.consume_round_start_free_rerolls(state)
-	assert_eq(first, 6, "첫 라운드: 5 + 1")
+	assert_eq(first, 1, "라운드 시작: +1 (영구)")
 	var second := BossReward.consume_round_start_free_rerolls(state)
-	assert_eq(second, 1, "다음 라운드: 1")
-	var third := BossReward.consume_round_start_free_rerolls(state)
-	assert_eq(third, 1, "또 다음 라운드: 1")
+	assert_eq(second, 1, "다음 라운드: +1 (영구)")
 
 
 func test_r4_5_permanent_enhance_amp() -> void:

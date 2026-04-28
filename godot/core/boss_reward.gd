@@ -76,8 +76,8 @@ func get_enhance_amp(state: GameState) -> float:
 	return 1.0
 
 
-## 라운드 시작 시 추가될 무료 리롤 (영구 + 1회성 즉시분 합).
-## r4_4: 매 라운드 +1, r4_4 적용 직후 1번만 +5.
+## 라운드 시작 시 추가될 무료 리롤 (영구분만).
+## r4_4: 매 라운드 +1 (즉시 5회분은 _apply_r4_4 에서 pending 에 직접 가산).
 ## r12_4: 매 라운드 +2.
 func consume_round_start_free_rerolls(state: GameState) -> int:
 	var bonus := 0
@@ -85,9 +85,6 @@ func consume_round_start_free_rerolls(state: GameState) -> int:
 		bonus += 1
 	if has_reward(state, "r12_4"):
 		bonus += 2
-	if state.r4_4_initial_rerolls > 0:
-		bonus += state.r4_4_initial_rerolls
-		state.r4_4_initial_rerolls = 0
 	return bonus
 
 
@@ -170,10 +167,12 @@ func _apply_r4_2(state: GameState) -> void:
 
 
 ## r4_4 상점 확장: 즉시 무료 리롤 5회 + 영구 매 라운드 시작 시 +1회.
-## 즉시 5회는 다음 라운드 시작 시 적용 (현재는 SETTLEMENT 단계라 상점 사용 불가).
+## 즉시 5회는 pending_free_rerolls 에 바로 가산 — 다음 BUILD 페이즈에서 즉시 사용 가능
+## (SETTLEMENT → BUILD 진입 시점에 _run_chain 의 reset 이 아직 일어나지 않았기 때문에
+##  pending 이 0 으로 초기화되지 않고 그대로 보존됨).
 func _apply_r4_4(state: GameState) -> void:
 	_register_permanent(state, "r4_4")
-	state.r4_4_initial_rerolls = 5
+	state.pending_free_rerolls += 5
 
 
 ## r4_7: ATK +30%, HP +30%
@@ -198,10 +197,7 @@ func _grant_random_card_of_tier(state: GameState, tier: int,
 	if ids.is_empty():
 		return
 	var picked: String = ids[rng.randi_range(0, ids.size() - 1)]
-	var card := CardInstance.create(picked)
-	if card == null:
-		return
-	state.add_to_bench(card)  # -1 반환 시(만석) 무시
+	state.spawn_card(picked)  # 만석 시 silent drop (spawn_card 가 -1 반환)
 
 
 ## r4_9: 벤치 +2칸
