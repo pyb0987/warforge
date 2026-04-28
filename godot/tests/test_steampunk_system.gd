@@ -94,22 +94,23 @@ func test_charger_non_self_target_counts_once() -> void:
 
 
 # ================================================================
-# sp_warmachine: apply_persistent → #firearm 수 / 8 = range_bonus
+# sp_warmachine: apply_persistent → #firearm 수 / 10 = range_bonus (★1, 2026-04-28 너프)
 # ================================================================
 
 func test_warmachine_low_firearm_count_range_0() -> void:
 	## sp_warmachine: turret×1 + cannon×1 + drone×2 = 4유닛, firearm: turret(1)+cannon(1)=2
 	var card: CardInstance = CardInstance.create("sp_warmachine")
 	_sys.apply_persistent(card)
-	assert_eq(card.theme_state.get("range_bonus", -1), 0, "firearm 2 < 8 → range_bonus=0")
+	assert_eq(card.theme_state.get("range_bonus", -1), 0, "firearm 2 < 10 → range_bonus=0")
 
 
 func test_warmachine_range_bonus_calculation() -> void:
+	## 2026-04-28 너프: ★1 사거리 임계 8 → 10.
 	var card: CardInstance = CardInstance.create("sp_warmachine")
-	# turret은 firearm 태그. 기존 turret 1 + 추가 6 = 7 + cannon 1 = firearm 8
-	card.add_specific_unit("sp_turret", 6)
+	# turret은 firearm 태그. turret 1 + cannon 1 + 추가 8 = firearm 10
+	card.add_specific_unit("sp_turret", 8)
 	_sys.apply_persistent(card)
-	assert_eq(card.theme_state.get("range_bonus", -1), 1, "firearm 8 → range_bonus=1")
+	assert_eq(card.theme_state.get("range_bonus", -1), 1, "firearm 10 → range_bonus=1")
 
 
 # ================================================================
@@ -134,12 +135,13 @@ func test_warmachine_rs_s2_manufactures_2_units() -> void:
 	assert_eq(card.get_total_units(), before + 2, "★2: +2기 제조")
 
 
-func test_warmachine_rs_s3_manufactures_4_units() -> void:
+func test_warmachine_rs_s3_manufactures_3_units() -> void:
+	## 2026-04-28 너프: ★3 제조 4 → 3.
 	var card := _make_star("sp_warmachine", 3)
 	var before: int = card.get_total_units()
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 4, "★3: +4기 제조")
-	assert_eq(result["events"].size(), 4, "제조당 MF 이벤트 1개 → 총 4개")
+	assert_eq(card.get_total_units(), before + 3, "★3: +3기 제조")
+	assert_eq(result["events"].size(), 3, "제조당 MF 이벤트 1개 → 총 3개")
 
 
 func test_warmachine_rs_unit_is_from_comp() -> void:
@@ -412,13 +414,13 @@ func test_warmachine_s1_no_firearm_buff() -> void:
 	assert_eq(card.get_total_atk(), atk_before, "★1 → firearm buff 없음")
 
 
-func test_warmachine_s3_threshold_4() -> void:
-	## ★3: 4기당 range+1
+func test_warmachine_s3_threshold_6() -> void:
+	## 2026-04-28 너프: ★3 사거리 임계 4 → 6.
 	var card := _make_star("sp_warmachine", 3)
-	# firearm: turret 1 + cannon 1 + 2 added = 4
-	card.add_specific_unit("sp_turret", 2)
+	# firearm 6기 도달 시 range+1 (turret 1 + cannon 1 + 4 added = 6)
+	card.add_specific_unit("sp_turret", 4)
 	_sys.apply_persistent(card)
-	assert_eq(card.theme_state.get("range_bonus", -1), 1, "★3 firearm 4 → range+1")
+	assert_eq(card.theme_state.get("range_bonus", -1), 1, "★3 firearm 6 → range+1")
 
 
 # ================================================================

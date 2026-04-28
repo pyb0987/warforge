@@ -565,7 +565,7 @@ func _register_steampunk() -> void:
 				"trigger_timing": PERSISTENT, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "range_bonus", "tag": "firearm", "unit_thresh": 8}],
+				"actions": [{"action": "range_bonus", "tag": "firearm", "unit_thresh": 10}],
 			},
 			{
 				"trigger_timing": RS, "max_activations": -1,
@@ -586,7 +586,7 @@ func _register_steampunk() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 6, "atk_buff_pct": 0.3}
+						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 8, "atk_buff_pct": 0.1}
 					],
 				},
 				{
@@ -607,14 +607,14 @@ func _register_steampunk() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 4, "atk_buff_pct": 0.3, "attack_stack_pct": 0.05}
+						{"action": "range_bonus", "tag": "firearm", "unit_thresh": 6, "atk_buff_pct": 0.2, "attack_stack_pct": 0.02}
 					],
 				},
 				{
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "manufacture", "target": "self", "count": 4}],
+					"actions": [{"action": "manufacture", "target": "self", "count": 3}],
 				}
 			],
 			},
@@ -1544,7 +1544,7 @@ func _register_neutral() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "grant_gold", "amount": 2}],
+				"actions": [{"action": "grant_gold", "amount": 1}],
 			}
 		],
 		env_tags,
@@ -1558,7 +1558,7 @@ func _register_neutral() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "grant_gold", "amount": 3}],
+					"actions": [{"action": "grant_gold", "amount": 2}],
 				}
 			],
 			},

@@ -652,13 +652,13 @@ cards:
         - trigger_timing: RS
           max_act: -1
           grant_gold:
-            amount: 2
+            amount: 1
       2:
         effects:
         - trigger_timing: RS
           max_act: -1
           grant_gold:
-            amount: 3
+            amount: 2
       3:
         effects:
         - trigger_timing: RS

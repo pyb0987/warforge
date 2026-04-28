@@ -343,7 +343,7 @@ cards:
           max_act: -1
           range_bonus:
             tag: firearm
-            unit_thresh: 8
+            unit_thresh: 10
         - trigger_timing: RS
           max_act: -1
           manufacture:
@@ -355,8 +355,8 @@ cards:
           max_act: -1
           range_bonus:
             tag: firearm
-            unit_thresh: 6
-            atk_buff_pct: 0.3
+            unit_thresh: 8
+            atk_buff_pct: 0.10
         - trigger_timing: RS
           max_act: -1
           manufacture:
@@ -368,14 +368,14 @@ cards:
           max_act: -1
           range_bonus:
             tag: firearm
-            unit_thresh: 4
-            atk_buff_pct: 0.3
-            attack_stack_pct: 0.05
+            unit_thresh: 6
+            atk_buff_pct: 0.20
+            attack_stack_pct: 0.02
         - trigger_timing: RS
           max_act: -1
           manufacture:
             target: self
-            count: 4
+            count: 3
   sp_charger:
     name: 태엽 과급기
     tier: 4
