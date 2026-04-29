@@ -146,32 +146,32 @@ func test_dim_merchant_diversity_gold_3_themes() -> void:
 # ================================================================
 
 func test_ruins_no_fire_before_tenure_2() -> void:
-	## ne_ruins(RS, tenure=2): tenure < 2 → 미발동
+	## ne_ruins(RS, tenure=2): tenure < 2 → 미발동.
+	## 2026-04-29 재설계: gold/spawn 대신 자기 영구 강화 (enhance).
 	var board := _make_board(["ne_ruins", "sp_assembly"])
-	var result: Dictionary = _engine.run_growth_chain(board)
-	# 첫 라운드: tenure=0 → 미발동 (run_growth_chain이 tenure를 0→1로 증가시킴)
-	# tenure 검사는 증가 전에 수행 → 첫 라운드 tenure=0 < 2 → 미발동
-	assert_eq(result["gold_earned"], 0, "tenure 0 → 미발동 → gold 0")
-
-
-func test_ruins_fires_at_tenure_2() -> void:
-	## ne_ruins: tenure=2일 때 발동 → gold 2 + spawn right_adj
-	var board := _make_board(["ne_ruins", "sp_assembly"])
-	# 2라운드 시뮬
+	var atk_before: float = board[0].get_total_atk()
 	_engine.run_growth_chain(board)  # R1: tenure 0→1, 미발동
-	_engine.run_growth_chain(board)  # R2: tenure 1→2, >=2 발동
-	var right_units: int = board[1].get_total_units()
-	assert_gt(right_units, 2, "tenure 2 → right_adj spawn")
+	assert_almost_eq(board[0].get_total_atk(), atk_before, 0.001,
+		"tenure 0 → 미발동 → atk 그대로")
 
 
-func test_ruins_fires_every_round_after_tenure() -> void:
-	## tenure 달성 후 매 라운드 발동
+func test_ruins_fires_at_tenure_2_enhances_self() -> void:
+	## tenure=2 도달 시 자기 ATK +4% 영구 강화 (★1).
+	var board := _make_board(["ne_ruins", "sp_assembly"])
+	_engine.run_growth_chain(board)  # R1: tenure 0→1
+	var atk_at_r1: float = board[0].get_total_atk()
+	_engine.run_growth_chain(board)  # R2: tenure 1→2, 발동 → +4% atk
+	assert_gt(board[0].get_total_atk(), atk_at_r1, "tenure 2 → self enhance")
+
+
+func test_ruins_accumulates_every_round_after_tenure() -> void:
+	## tenure 달성 후 매 라운드 추가 누적.
 	var board := _make_board(["ne_ruins", "sp_assembly"])
 	_engine.run_growth_chain(board)  # R1
-	_engine.run_growth_chain(board)  # R2: 발동
-	var units_after_r2: int = board[1].get_total_units()
-	_engine.run_growth_chain(board)  # R3: 다시 발동
-	assert_gt(board[1].get_total_units(), units_after_r2, "tenure 후 매 라운드 발동")
+	_engine.run_growth_chain(board)  # R2: 1회 발동
+	var atk_after_r2: float = board[0].get_total_atk()
+	_engine.run_growth_chain(board)  # R3: 2회째 발동 → 추가 누적
+	assert_gt(board[0].get_total_atk(), atk_after_r2, "tenure 후 매 라운드 누적")
 
 
 # ne_awakening 효과 폐기 (RS tenure threshold + RS 매 라운드 누적 둘 다) — SELL transfer 채택.

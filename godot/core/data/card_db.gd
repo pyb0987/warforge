@@ -1398,10 +1398,7 @@ func _register_neutral() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 2, "require_other_card": false, "is_threshold": false,
-				"actions": [
-					_gold(2),
-					_spawn("right_adj")
-				],
+				"actions": [_enhance("self", 0.04)],
 			}
 		],
 		rui_tags,
@@ -1415,10 +1412,7 @@ func _register_neutral() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 2, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						_gold(3),
-						_spawn("right_adj", 2)
-					],
+					"actions": [_enhance("self", 0.06, 0.02)],
 				}
 			],
 			},
@@ -1431,12 +1425,9 @@ func _register_neutral() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 2, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						_gold(3),
-						_spawn("both_adj", 2)
-					],
+					"actions": [_enhance("self", 0.08, 0.03)],
 					"conditional_effects": [
-						{"condition": "tenure_gte", "threshold": 4, "effects": [_spawn("both_adj")]}
+						{"condition": "tenure_gte", "threshold": 4, "effects": [_enhance("both_adj", 0.03, 0.02)]}
 					],
 				}
 			],
@@ -1585,7 +1576,7 @@ func _register_neutral() -> void:
 		"theme_system")
 
 	var hoa_comp := [{"unit_id":"ne_beast","count":1},{"unit_id":"ne_scrap","count":2}]
-	var hoa_tags := PackedStringArray(["neutral", "economy"])
+	var hoa_tags := PackedStringArray(["neutral", "transfer"])
 	_c("ne_hoarder", "은닉자", 3, T,
 		hoa_comp,
 		[
@@ -1593,7 +1584,7 @@ func _register_neutral() -> void:
 				"trigger_timing": SELL, "max_activations": 1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [{"action": "tenure_gold", "gold_per_tenure": 1}],
+				"actions": [{"action": "hoarder_transfer", "atk_per_tenure": 0.02}],
 			}
 		],
 		hoa_tags,
@@ -1607,7 +1598,7 @@ func _register_neutral() -> void:
 					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "tenure_gold", "gold_per_tenure": 2}],
+					"actions": [{"action": "hoarder_transfer", "atk_per_tenure": 0.03, "hp_per_tenure": 0.01}],
 				}
 			],
 			},
@@ -1620,7 +1611,9 @@ func _register_neutral() -> void:
 					"trigger_timing": SELL, "max_activations": 1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [{"action": "tenure_gold", "gold_per_tenure": 4, "upgrade_chance": 0.05}],
+					"actions": [
+						{"action": "hoarder_transfer", "atk_per_tenure": 0.04, "hp_per_tenure": 0.02, "bonus_unit_cap": 1}
+					],
 				}
 			],
 			},

@@ -72,7 +72,7 @@ func apply_persistent(card: CardInstance, board: Array = []) -> void:
 ##   - transform_theme: Dict{target_idx, new_theme, omni} — ne_masquerade SELL
 func process_self_sell(sold_card: CardInstance, board: Array) -> Dictionary:
 	match sold_card.get_base_id():
-		"ne_hoarder": return _hoarder_sell(sold_card)
+		"ne_hoarder": return _hoarder_sell(sold_card, board)
 		"ne_masquerade": return _masquerade_sell(sold_card, board)
 		"ne_awakening": return _awakening_sell(sold_card, board)
 	return {"events": [], "gold": 0, "terazin": 0}
@@ -118,19 +118,43 @@ func _envoy_bs(card: CardInstance) -> Dictionary:
 	return Enums.empty_result()
 
 
-# --- ne_hoarder (T3) ---
+# --- ne_hoarder (T3) — SELL 유닛 stack 합치기 + 체류 비례 영구 강화 ---
 
 
-## SELL 시 tenure × gold_per_tenure 만큼 골드 지급. ★3은 5% 확률 업그레이드.
-## (업그레이드 지급은 game_state 접근 필요 — Phase 3b-2b deferred, 골드만 지급)
-func _hoarder_sell(card: CardInstance) -> Dictionary:
+## 2026-04-29 재설계: SELL 시 보드 카드 1장 선택 → 자기 stack 전체 이전 +
+## 체류 R 비례 atk/hp 영구 강화. ★3 추가로 target 의 unit_cap_bonus +1.
+##
+## awakening 과의 차별: awakening 은 부착 업글 1개 무작위 + (★2/★3) 유닛.
+## hoarder 는 부착 업글 0개 + 유닛 stack 전체 + 체류 비례 영구 강화.
+##
+## game_manager 가 결과 dict 의 "hoarder_transfer" 필드를 처리.
+## sim/headless: 자동 target = 보드 첫 비-self 카드. live: UI 선택.
+func _hoarder_sell(card: CardInstance, board: Array) -> Dictionary:
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var eff := _find_eff(effs, "tenure_gold")
+	var eff := _find_eff(effs, "hoarder_transfer")
 	if eff.is_empty():
 		return Enums.empty_result()
-	var per_tenure: int = eff.get("gold_per_tenure", 0)
-	var gold: int = card.tenure * per_tenure
-	return {"events": [], "gold": gold, "terazin": 0}
+	var target: CardInstance = null
+	for c in board:
+		if c == null or c == card:
+			continue
+		target = c
+		break
+	if target == null:
+		return Enums.empty_result()
+	return {
+		"events": [],
+		"gold": 0,
+		"terazin": 0,
+		"hoarder_transfer": {
+			"source_card": card,
+			"target_card": target,
+			"atk_per_tenure": float(eff.get("atk_per_tenure", 0.0)),
+			"hp_per_tenure": float(eff.get("hp_per_tenure", 0.0)),
+			"bonus_unit_cap": int(eff.get("bonus_unit_cap", 0)),
+		},
+		"needs_target_select": "ne_hoarder",
+	}
 
 
 # --- ne_legion (T3) — PERSISTENT duplicate buff aura ---

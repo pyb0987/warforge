@@ -62,43 +62,47 @@ func test_envoy_star3_bs_grants_1g() -> void:
 
 
 # ================================================================
-# ne_hoarder (T3) — SELL tenure × N gold
+# ne_hoarder (T3, 2026-04-29 재설계) — SELL transfer stacks + tenure-based enhance
 # ================================================================
 
 
-func test_hoarder_star1_tenure3_sells_3g() -> void:
-	## ★1: tenure × 1g
+func test_hoarder_returns_transfer_dict() -> void:
+	## SELL → hoarder_transfer dict + needs_target_select 반환.
 	var card: CardInstance = CardInstance.create("ne_hoarder")
+	var other: CardInstance = CardInstance.create("ne_envoy")
 	card.tenure = 3
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), 3, "★1 tenure 3 → +3g")
+	var result: Dictionary = _sys.process_self_sell(card, [card, other])
+	assert_eq(result.get("needs_target_select", ""), "ne_hoarder",
+		"target select UI flag")
+	var transfer: Dictionary = result.get("hoarder_transfer", {})
+	assert_false(transfer.is_empty(), "transfer dict non-empty")
+	assert_almost_eq(float(transfer.get("atk_per_tenure", 0.0)), 0.02, 0.0001,
+		"★1 atk_per_tenure=0.02")
+	assert_eq(transfer.get("source_card"), card, "source = self")
+	assert_eq(transfer.get("target_card"), other, "auto-target = first non-self")
 
 
-func test_hoarder_star2_tenure5_sells_10g() -> void:
-	## ★2: tenure × 2g
+func test_hoarder_no_other_card_returns_empty() -> void:
+	## 보드에 다른 카드가 없으면 SELL 효과 무발동 (empty_result).
+	var card: CardInstance = CardInstance.create("ne_hoarder")
+	var result: Dictionary = _sys.process_self_sell(card, [card])
+	assert_eq(result.get("needs_target_select", ""), "",
+		"보드 비-self 카드 0 → no target select")
+
+
+func test_hoarder_star3_includes_bonus_unit_cap() -> void:
+	## ★3: bonus_unit_cap=1 — UI 적용 단계 (game_manager) 에서 사용될 정보 보존.
 	var card: CardInstance = CardInstance.create("ne_hoarder")
 	card.evolve_star()
-	card.tenure = 5
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), 10, "★2 tenure 5 → +10g")
-
-
-func test_hoarder_star3_tenure10_sells_40g() -> void:
-	## ★3: tenure × 4g
-	var card: CardInstance = CardInstance.create("ne_hoarder")
 	card.evolve_star()
-	card.evolve_star()
-	card.tenure = 10
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), 40, "★3 tenure 10 → +40g")
-
-
-func test_hoarder_tenure0_no_gold() -> void:
-	## tenure=0 (즉시 판매) → 0g (의도된 design — 최소 1R 보유)
-	var card: CardInstance = CardInstance.create("ne_hoarder")
-	card.tenure = 0
-	var result: Dictionary = _sys.process_self_sell(card, [])
-	assert_eq(result.get("gold", 0), 0, "tenure 0 → 0g")
+	var other: CardInstance = CardInstance.create("ne_envoy")
+	var result: Dictionary = _sys.process_self_sell(card, [card, other])
+	var transfer: Dictionary = result.get("hoarder_transfer", {})
+	assert_eq(transfer.get("bonus_unit_cap", 0), 1, "★3 unit_cap +1")
+	assert_almost_eq(float(transfer.get("atk_per_tenure", 0.0)), 0.04, 0.0001,
+		"★3 atk_per_tenure=0.04")
+	assert_almost_eq(float(transfer.get("hp_per_tenure", 0.0)), 0.02, 0.0001,
+		"★3 hp_per_tenure=0.02")
 
 
 # ================================================================

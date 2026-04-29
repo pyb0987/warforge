@@ -523,38 +523,42 @@ cards:
     tags:
     - neutral
     - time
+    # 2026-04-29 재설계: 골드 라인(envoy 등)과 중복되어 약하던 효과 제거.
+    # 시간 누적 자기 영구 강화 — 늦게 가치 발현하는 slow-burn 카드.
     stars:
       1:
         effects:
         - trigger_timing: RS
           max_act: -1
           require_tenure: 2
-          gold: 2
-          spawn:
-            target: right_adj
+          enhance:
+            target: self
+            atk_pct: 0.04
       2:
         effects:
         - trigger_timing: RS
           max_act: -1
           require_tenure: 2
-          gold: 3
-          spawn:
-            target: right_adj
-            count: 2
+          enhance:
+            target: self
+            atk_pct: 0.06
+            hp_pct: 0.02
       3:
         effects:
         - trigger_timing: RS
           max_act: -1
           require_tenure: 2
+          enhance:
+            target: self
+            atk_pct: 0.08
+            hp_pct: 0.03
           conditional:
           - when:
               tenure_gte: 4
-            spawn:
+            enhance:
               target: both_adj
-          gold: 3
-          spawn:
-            target: both_adj
-            count: 2
+              atk_pct: 0.03
+              hp_pct: 0.02
   ne_awakening:
     name: 고대의 각성
     tier: 4
@@ -680,28 +684,33 @@ cards:
       n: 2
     tags:
     - neutral
-    - economy
+    - transfer
     impl: theme_system
+    # 2026-04-29 재설계: SELL 골드 라인(envoy 등)과 중복 제거.
+    # SELL 시 카드 1장 선택 → 자기 stack 전부를 그 카드로 이전 + 체류 R 비례 영구 강화.
+    # ne_awakening(업글 이전)과 다른 축 — 유닛 stack + 영구 강화 이전.
     stars:
       1:
         effects:
         - trigger_timing: SELL
           max_act: 1
-          tenure_gold:
-            gold_per_tenure: 1
+          hoarder_transfer:
+            atk_per_tenure: 0.02
       2:
         effects:
         - trigger_timing: SELL
           max_act: 1
-          tenure_gold:
-            gold_per_tenure: 2
+          hoarder_transfer:
+            atk_per_tenure: 0.03
+            hp_per_tenure: 0.01
       3:
         effects:
         - trigger_timing: SELL
           max_act: 1
-          tenure_gold:
-            gold_per_tenure: 4
-            upgrade_chance: 0.05
+          hoarder_transfer:
+            atk_per_tenure: 0.04
+            hp_per_tenure: 0.02
+            bonus_unit_cap: 1
   ne_legion:
     name: 복수군단
     tier: 3

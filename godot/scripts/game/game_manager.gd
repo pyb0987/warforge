@@ -820,6 +820,10 @@ func _on_sell_target_selected(field_idx: int) -> void:
 			var awakening: Dictionary = sell_result.get("awakening_transfer", {}).duplicate()
 			awakening["target_card"] = target
 			_apply_awakening_transfer(awakening)
+		"ne_hoarder":
+			var hoard: Dictionary = sell_result.get("hoarder_transfer", {}).duplicate()
+			hoard["target_card"] = target
+			_apply_hoarder_transfer(hoard)
 	_pending_sell_select = {}
 	game_state.state_changed.emit()
 
@@ -875,6 +879,42 @@ func _apply_awakening_transfer(awakening: Dictionary) -> void:
 			target.stacks.append(new_stack)
 			print("[ne_awakening] 유닛 %d기 → '%s'" % [take, target.get_name()])
 	target.stats_changed.emit() if target.has_signal("stats_changed") else null
+
+
+## ne_hoarder SELL: source 의 모든 stack 을 target 에 이전 (cap 적용) +
+## source.tenure 비례 영구 ATK/HP 강화 + (★3) bonus_unit_cap.
+func _apply_hoarder_transfer(transfer: Dictionary) -> void:
+	var source: CardInstance = transfer.get("source_card")
+	var target: CardInstance = transfer.get("target_card")
+	if source == null or target == null:
+		return
+	var atk_per_tenure: float = transfer.get("atk_per_tenure", 0.0)
+	var hp_per_tenure: float = transfer.get("hp_per_tenure", 0.0)
+	var bonus_unit_cap: int = transfer.get("bonus_unit_cap", 0)
+	var tenure: int = source.tenure
+	# 1) bonus_unit_cap 먼저 적용 — 유닛 이전이 늘어난 cap 까지 채울 수 있도록.
+	if bonus_unit_cap > 0:
+		target.unit_cap_bonus += bonus_unit_cap
+	# 2) 유닛 stack 이전 (cap 적용 — awakening 과 동일 정책)
+	for s in source.stacks:
+		if target.get_total_units() >= target.get_unit_cap():
+			break
+		var room: int = target.get_unit_cap() - target.get_total_units()
+		var take: int = mini(int(s.get("count", 0)), room)
+		if take <= 0:
+			continue
+		var new_stack: Dictionary = s.duplicate(true)
+		new_stack["count"] = take
+		target.stacks.append(new_stack)
+	# 3) 체류 R 비례 영구 강화. tenure=0 이면 no-op.
+	if tenure > 0 and (atk_per_tenure > 0.0 or hp_per_tenure > 0.0):
+		target.enhance(null, atk_per_tenure * tenure, hp_per_tenure * tenure)
+	target.stats_changed.emit()
+	print("[ne_hoarder] tenure=%d → '%s' (+%.0f%% atk / +%.0f%% hp%s)" % [
+		tenure, target.get_name(),
+		atk_per_tenure * tenure * 100.0,
+		hp_per_tenure * tenure * 100.0,
+		" / cap+%d" % bonus_unit_cap if bonus_unit_cap > 0 else ""])
 
 
 func _rarity_str_to_int(s: String) -> int:

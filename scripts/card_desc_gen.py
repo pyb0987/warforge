@@ -873,14 +873,32 @@ def desc_levelup_discount(p: dict) -> str:
 
 
 def desc_tenure_gold(p: dict) -> str:
-    """ne_hoarder SELL — 체류 라운드 × per_tenure 골드.
-    ★3은 upgrade_chance 추가."""
+    """ne_hoarder 구버전(2026-04-29 폐기) — 체류 라운드 × per_tenure 골드."""
     per = p.get("gold_per_tenure", 0)
     chance = p.get("upgrade_chance", 0.0)
     base = f"체류 라운드 × {per}골드 획득"
     if chance:
         base += f" + {fmt_pct(chance)}% 확률 업그레이드 1장"
     return base
+
+
+def desc_hoarder_transfer(p: dict) -> str:
+    """ne_hoarder SELL — 카드 1장 선택 → 자기 stack 전부 이전 +
+    체류 R 비례 영구 강화 (★3 unit_cap +1 추가)."""
+    atk_per = p.get("atk_per_tenure", 0.0)
+    hp_per = p.get("hp_per_tenure", 0.0)
+    cap_bonus = p.get("bonus_unit_cap", 0)
+    parts = ["카드 1장 선택 → 이 카드의 모든 유닛 stack 이전"]
+    enhance_terms = []
+    if atk_per:
+        enhance_terms.append(f"ATK +{fmt_pct(atk_per)}%")
+    if hp_per:
+        enhance_terms.append(f"HP +{fmt_pct(hp_per)}%")
+    if enhance_terms:
+        parts.append(f"체류 R마다 {' / '.join(enhance_terms)} 영구 강화")
+    if cap_bonus:
+        parts.append(f"유닛 상한 +{cap_bonus}")
+    return ". ".join(parts)
 
 
 def desc_duplicate_buff_aura(p: dict) -> str:
@@ -1147,6 +1165,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "mirror_l1":                desc_mirror_l1,
     "levelup_discount":         desc_levelup_discount,
     "tenure_gold":              desc_tenure_gold,
+    "hoarder_transfer":         desc_hoarder_transfer,
     "duplicate_buff_aura":      desc_duplicate_buff_aura,
     "transform_theme":          desc_transform_theme,
     "empty_slot_scaling":       desc_empty_slot_scaling,
