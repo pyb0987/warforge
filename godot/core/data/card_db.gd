@@ -2702,7 +2702,7 @@ func _register_predator() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.1, "per_n": 3}
+					{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.04, "per_n": 5}
 				],
 			}
 		],
@@ -2718,7 +2718,7 @@ func _register_predator() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.12, "per_n": 3}
+						{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.06, "per_n": 5}
 					],
 					"conditional_effects": [
 						{"condition": "unit_count_gte", "threshold": 10, "effects": [{"action": "debuff_store", "stat": "as", "target": "all_enemy", "base_pct": 0.15, "cap": 0.3}]}
@@ -2736,7 +2736,7 @@ func _register_predator() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.12, "per_n": 2}
+						{"action": "swarm_buff", "target": "all_predator", "atk_per_unit": 0.1, "per_n": 5}
 					],
 					"conditional_effects": [
 						{"condition": "unit_count_gte", "threshold": 10, "effects": [{"action": "debuff_store", "stat": "as", "target": "all_enemy", "base_pct": 0.2, "cap": 0.4}, {"action": "debuff_store", "stat": "atk", "target": "all_enemy", "base_pct": 0.15, "cap": 0.3}]}
@@ -2810,10 +2810,7 @@ func _register_predator() -> void:
 				"trigger_timing": RS, "max_activations": -1,
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-				"actions": [
-					{"action": "hatch", "target": "self", "count": 2},
-					{"action": "hatch", "target": "right_adj", "count": 1}
-				],
+				"actions": [{"action": "hatch", "target": "all_allies", "count": 1}],
 			}
 		],
 		que_tags,
@@ -2827,10 +2824,7 @@ func _register_predator() -> void:
 					"trigger_timing": RS, "max_activations": -1,
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
-					"actions": [
-						{"action": "hatch", "target": "self", "count": 3},
-						{"action": "hatch", "target": "both_adj", "count": 2}
-					],
+					"actions": [{"action": "hatch", "target": "all_allies", "count": 2}],
 				}
 			],
 			},
@@ -2844,9 +2838,8 @@ func _register_predator() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "hatch", "target": "self", "count": 5},
-						{"action": "hatch", "target": "both_adj", "count": 3},
-						{"action": "enhance", "target": "tag:queen", "hp_pct": 0.05}
+						{"action": "hatch", "target": "all_allies", "count": 3},
+						{"action": "meta_consume", "target": "all_allies", "consume": 2, "count": 1}
 					],
 				}
 			],

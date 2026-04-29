@@ -109,21 +109,43 @@ func test_harvest_hatches_1() -> void:
 
 
 # ================================================================
-# pr_queen (RS): hatch 3 self, 1 right
+# pr_queen (RS, 2026-04-28 재설계): hatch 1/2/3 to all_allies + ★3 meta_consume
 # ================================================================
 
-func test_queen_hatches_2_on_self() -> void:
-	var card: CardInstance = CardInstance.create("pr_queen")
-	var before: int = card.get_total_units()
-	_sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(card.get_total_units(), before + 2, "self +2")
-
-
-func test_queen_hatches_1_to_right_adj() -> void:
-	var board: Array = [CardInstance.create("pr_queen"), CardInstance.create("pr_farm")]
-	var before: int = board[1].get_total_units()
+func test_queen_s1_hatches_1_to_all_board_cards() -> void:
+	var board: Array = [
+		CardInstance.create("pr_queen"),
+		CardInstance.create("pr_farm"),
+		CardInstance.create("pr_nest"),
+	]
+	var before: Array = []
+	for c in board:
+		before.append(c.get_total_units())
 	_sys.process_rs_card(board[0], 0, board, _rng)
-	assert_eq(board[1].get_total_units(), before + 1, "right +1")
+	for i in board.size():
+		assert_eq(board[i].get_total_units(), before[i] + 1,
+			"★1 — board[%d] +1 부화" % i)
+
+
+func test_queen_s2_hatches_2_to_all_board_cards() -> void:
+	var board: Array = [_make_star("pr_queen", 2), CardInstance.create("pr_farm")]
+	var before: Array = [board[0].get_total_units(), board[1].get_total_units()]
+	_sys.process_rs_card(board[0], 0, board, _rng)
+	assert_eq(board[0].get_total_units(), before[0] + 2, "★2 self +2")
+	assert_eq(board[1].get_total_units(), before[1] + 2, "★2 other +2")
+
+
+func test_queen_s3_hatches_3_then_metamorphosis() -> void:
+	## ★3: 모든 카드 부화 3기 + 변태 1회(2기 소모) → 각 카드 net +0 유닛
+	## (부화 +3 → 변태 -2 +1 = 부화 결과 유지하면서 1기는 강화).
+	var board: Array = [_make_star("pr_queen", 3), CardInstance.create("pr_farm")]
+	var before: Array = [board[0].get_total_units(), board[1].get_total_units()]
+	var result: Dictionary = _sys.process_rs_card(board[0], 0, board, _rng)
+	# 각 카드 +3 부화, 그 후 변태 1회 (2 소모, 1 추가) = net +2 per card
+	assert_eq(board[0].get_total_units(), before[0] + 2, "★3 self net +2")
+	assert_eq(board[1].get_total_units(), before[1] + 2, "★3 other net +2")
+	# Events: hatch 2건 + meta 2건
+	assert_eq(result["events"].size(), 4, "이벤트 4개 (hatch×2 + meta×2)")
 
 
 # ================================================================

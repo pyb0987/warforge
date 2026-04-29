@@ -164,31 +164,28 @@ func _farm(card: CardInstance, idx: int) -> Dictionary:
 	return {"events": [_hatch_evt(idx, idx)], "gold": 0, "terazin": 0}
 
 
+## 2026-04-28 재설계: pr_queen ★1/★2/★3 모두 보드 위 모든 카드(자기 포함) 에
+## 부화 N기 (★별 1/2/3). ★3 추가 — 모든 카드 변태 1회(2기 소모).
 func _queen(card: CardInstance, idx: int, board: Array) -> Dictionary:
-	# ★1: hatch 3 self, 1 right  |  ★2: 4 self, 2 both  |  ★3: 5 self, 3 both
 	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
-	var self_eff := _find_eff(effs, "hatch", "self")
-	var adj_eff_right := _find_eff(effs, "hatch", "right_adj")
-	var adj_eff_both := _find_eff(effs, "hatch", "both_adj")
+	var hatch_eff := _find_eff(effs, "hatch", "all_allies")
+	var meta_eff := _find_eff(effs, "meta_consume", "all_allies")
 
-	var self_n: int = self_eff.get("count", 3)
-	var both := not adj_eff_both.is_empty()
-	var adj_n: int = adj_eff_both.get("count", adj_eff_right.get("count", 1)) if both else adj_eff_right.get("count", 1)
+	var hatch_n: int = hatch_eff.get("count", 1)
+	var meta_consume: int = meta_eff.get("consume", 0)
+	var meta_count: int = meta_eff.get("count", 0)
 
 	var events: Array = []
-	_hatch(card, self_n)
-	events.append(_hatch_evt(idx, idx))
-
-	if both:
-		for di in [-1, 1]:
-			var ni: int = idx + di
-			if ni >= 0 and ni < board.size():
-				_hatch(board[ni], adj_n)
-				events.append(_hatch_evt(idx, ni))
-	else:
-		if idx + 1 < board.size():
-			_hatch(board[idx + 1], adj_n)
-			events.append(_hatch_evt(idx, idx + 1))
+	for ti in board.size():
+		var target: CardInstance = board[ti]
+		if target == null:
+			continue
+		_hatch(target, hatch_n)
+		events.append(_hatch_evt(idx, ti))
+		if meta_consume > 0 and meta_count > 0:
+			for _r in meta_count:
+				if target.metamorphosis(meta_consume):
+					events.append(_meta_evt(idx, ti))
 
 	return {"events": events, "gold": 0, "terazin": 0}
 

@@ -168,8 +168,8 @@ cards:
           max_act: -1
           swarm_buff:
             target: all_predator
-            atk_per_unit: 0.1
-            per_n: 3
+            atk_per_unit: 0.04
+            per_n: 5
       2:
         effects:
         - trigger_timing: BS
@@ -184,8 +184,8 @@ cards:
               cap: 0.3
           swarm_buff:
             target: all_predator
-            atk_per_unit: 0.12
-            per_n: 3
+            atk_per_unit: 0.06
+            per_n: 5
       3:
         effects:
         - trigger_timing: BS
@@ -204,8 +204,8 @@ cards:
               cap: 0.3
           swarm_buff:
             target: all_predator
-            atk_per_unit: 0.12
-            per_n: 2
+            atk_per_unit: 0.10
+            per_n: 5
   pr_harvest:
     name: 변태 수확
     tier: 2
@@ -283,32 +283,26 @@ cards:
         - trigger_timing: RS
           max_act: -1
           hatch:
-          - target: self
-            count: 2
-          - target: right_adj
+            target: all_allies
             count: 1
       2:
         effects:
         - trigger_timing: RS
           max_act: -1
           hatch:
-          - target: self
-            count: 3
-          - target: both_adj
+            target: all_allies
             count: 2
       3:
         effects:
         - trigger_timing: RS
           max_act: -1
           hatch:
-          - target: self
-            count: 5
-          - target: both_adj
+            target: all_allies
             count: 3
-          enhance:
-            target: tag:queen
-            hp_pct: 0.05
-            ol1: null
+          meta_consume:
+            target: all_allies
+            consume: 2
+            count: 1
   pr_carapace:
     name: 적응 갑각
     tier: 3
