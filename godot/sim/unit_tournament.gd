@@ -65,6 +65,7 @@ func _run() -> void:
 
 				var engine := CombatEngine.new()
 				engine.headless = true
+				engine.set_seed(seed_val)
 				engine.setup(army1, army2)  # team 1 = u1, team 0 = u2
 				while engine.tick():
 					pass

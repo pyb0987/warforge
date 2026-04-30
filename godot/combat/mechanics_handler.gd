@@ -147,7 +147,7 @@ func _calc_damage(attacker: int, defender: int) -> float:
 	var crit: Dictionary = _e._get_mechanic(attacker, "critical")
 	if not crit.is_empty():
 		var chance: float = crit.get("crit_chance", 0.0)
-		if randf() < chance:
+		if _e._rng.randf() < chance:
 			base_atk *= crit.get("crit_mult", 2.5)
 			# 특수작전대 R4/R10: 치명타 발동 시 인접 적 스플래시 추가 피해
 			var crit_splash_pct: float = crit.get("splash_pct", 0.0)

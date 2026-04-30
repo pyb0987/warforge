@@ -73,6 +73,16 @@ var _flow_enemy = null
 var _mech = null  # MechanicsHandler
 var _tick: int = 0
 var _running: bool = false
+var _rng := RandomNumberGenerator.new()
+
+
+func _init() -> void:
+	# 기본은 비-deterministic (UI 런타임용). sim 경로는 set_seed() 명시 호출 필수.
+	_rng.randomize()
+
+
+func set_seed(s: int) -> void:
+	_rng.seed = s
 
 # --- Mechanic pre-computed cache ---
 var _mech_cache: Array = []  # Array of Dictionary per unit: {type_str: mechanic_dict}
@@ -472,7 +482,7 @@ func _resolve_collisions() -> void:
 						push_accum[i] += push
 						push_accum[j] -= push
 					elif dist_sq <= 0.01:
-						var nudge := Vector2(0.5 - randf(), 0.5 - randf()).normalized()
+						var nudge := Vector2(0.5 - _rng.randf(), 0.5 - _rng.randf()).normalized()
 						push_accum[i] += nudge * min_dist * 0.5
 						push_accum[j] -= nudge * min_dist * 0.5
 	# Apply capped push + clamp to battlefield

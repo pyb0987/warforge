@@ -75,14 +75,20 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 
 **부작용 발견**: 동일 seed=42 에서도 측정값이 ±0.01 변동 → **sim 비결정성**. seed 가 RandomNumberGenerator 에 정상 전달되지만 다른 출처에서 randomness 유입 추정. 별도 조사 필요 → B-7 신규 등재.
 
-### B-7. sim 비결정성 진단 (B-5 부작용)
-**증상**: `batch_runner.gd --seed=42 --runs=10` 동일 호출에서 weighted_score ±0.01 변동.
-**가능 원인**:
-- `Time.get_ticks_msec()` 또는 비-seeded 글로벌 RNG 사용처
-- Dictionary iteration order (Godot 4 는 insertion-ordered 이지만 일부 경로 의심)
-- multi-instance RNG 의 interleaving (state[`rng`] 외 hidden RNG)
-**완료 조건**: variance 원인 파일/라인 식별 + seed 일원화 patch.
-**우선순위**: 중 — autoresearch ADOPT 판정의 noise floor 직접 영향 (현재 stdev 0.0075 = 일반 ADOPT delta 와 동급)
+### B-7. ✅ sim 비결정성 진단 + 수정 (2026-04-30 완료)
+**원인**: `combat_engine.gd:475` (separation jitter) + `mechanics_handler.gd:150` (critical hit roll) 가 **글로벌 `randf()`** 호출. seed 와 무관하게 Godot 글로벌 RNG state 사용 → 같은 seed 에 다른 결과.
+
+**수정**:
+- `combat_engine.gd`: `_rng: RandomNumberGenerator` 추가 + `set_seed()` 메서드 + 글로벌 `randf()` → `_rng.randf()`
+- `mechanics_handler.gd`: `_e._rng.randf()` 사용
+- `headless_runner.gd`: 매 라운드 `engine.set_seed(_seed + round_num * 100003)` 호출
+- `unit_tournament.gd`, `preset_parity_runner.gd`: 동일하게 `engine.set_seed()` 추가
+- UI 경로 (`game_manager.gd`): `_init()` 에서 `_rng.randomize()` — 기존 비-deterministic 동작 유지
+
+**검증**:
+- 5회 측정 (seed=42, runs=10): 모두 **0.445902** 동일. variance 0.
+- GUT 테스트 921건 모두 통과.
+- baseline.json 갱신: 0.4491 → **0.445902** (이제 결정적 측정값)
 
 ### B-6. stale baseline 감지 hook (P5 사다리 검토)
 **Why**: Tier 0 보호로 baseline 이 자동 갱신 안 되어, 카드 변경 후 한참 지나서 누적 영향 발견 위험. 본 세션의 -0.10 회귀가 그 사례.

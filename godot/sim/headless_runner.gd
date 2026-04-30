@@ -243,6 +243,7 @@ func run() -> Dictionary:
 		else:
 			var engine := CombatEngine.new()
 			engine.headless = true
+			engine.set_seed(_seed + round_num * 100003)
 			engine.setup(ally_data, enemy_data)
 			# r12_8 전사의 영혼: 보드 부활 풀
 			engine.board_revive_pool = BossReward.get_revive_pool_size(state)
