@@ -67,12 +67,22 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 3. 결과를 backlog 에 등재
 **우선순위**: B-2 finding (soft_steampunk/druid/economy 0% 붕괴) 의 원인 분리에 도움 — 캡스톤 너프 영향 vs AI 미탐색 분별
 
-### B-5. baseline.json 갱신 (B-2 finding 후속)
-**증상**: 현재 baseline.json 은 5일 stale. 모든 sim 비교가 잘못된 기준 위에서 진행 중.
-**갱신 경로 옵션**:
-1. autoresearch 1회 ADOPT 발생 시 자동 갱신 (정식 Tier 0 경로)
-2. 사용자 명시 승인 후 chmod +w 로 수동 갱신 (긴급)
-**권고**: 옵션 1 — B-4 Layer 2 autoresearch 실행 시 자연스럽게 갱신됨
+### B-5. ✅ baseline.json 갱신 (2026-04-30 완료)
+**조치**: 옵션 2 (사용자 승인 chmod +w) 채택. 8회 측정 결과:
+- 측정값 (8 samples, --runs=10 --seed=42): 0.4368, 0.4386, 0.4401, 0.4407, 0.4459, 0.4491, 0.4525, 0.4565
+- mean = 0.4444, median = 0.4407, stdev = 0.0075, range = 0.0197
+- baseline.json 에 저장된 측정값: **0.4491** (8번째 샘플, mean 근접)
+
+**부작용 발견**: 동일 seed=42 에서도 측정값이 ±0.01 변동 → **sim 비결정성**. seed 가 RandomNumberGenerator 에 정상 전달되지만 다른 출처에서 randomness 유입 추정. 별도 조사 필요 → B-7 신규 등재.
+
+### B-7. sim 비결정성 진단 (B-5 부작용)
+**증상**: `batch_runner.gd --seed=42 --runs=10` 동일 호출에서 weighted_score ±0.01 변동.
+**가능 원인**:
+- `Time.get_ticks_msec()` 또는 비-seeded 글로벌 RNG 사용처
+- Dictionary iteration order (Godot 4 는 insertion-ordered 이지만 일부 경로 의심)
+- multi-instance RNG 의 interleaving (state[`rng`] 외 hidden RNG)
+**완료 조건**: variance 원인 파일/라인 식별 + seed 일원화 patch.
+**우선순위**: 중 — autoresearch ADOPT 판정의 noise floor 직접 영향 (현재 stdev 0.0075 = 일반 ADOPT delta 와 동급)
 
 ### B-6. stale baseline 감지 hook (P5 사다리 검토)
 **Why**: Tier 0 보호로 baseline 이 자동 갱신 안 되어, 카드 변경 후 한참 지나서 누적 영향 발견 위험. 본 세션의 -0.10 회귀가 그 사례.
