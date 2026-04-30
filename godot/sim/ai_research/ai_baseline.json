@@ -1,96 +1,78 @@
 {
-  "activation_utilization": 0.894266049370405,
+  "activation_utilization": 0.980831744448514,
   "ai_quality": {
-    "ai_quality_score": 0.685857412995681,
-    "board_strength_curve": 0.995361781076067,
-    "card_diversity": 0.72,
-    "economy_efficiency": 0.700856986552916,
-    "merge_rate": 0.327210884353741
+    "ai_quality_score": 0.773037633509083,
+    "board_strength_curve": 0.966287284144427,
+    "card_diversity": 1.0,
+    "economy_efficiency": 0.668210188667415,
+    "merge_rate": 0.45765306122449
   },
-  "axis_delta": {
-    "activation_utilization": 0.0144957550208684,
-    "ai_board_strength_curve": -2.22044604925031e-16,
-    "ai_card_diversity": 0.0399999999999999,
-    "ai_economy_efficiency": 0.0096791507350682,
-    "ai_merge_rate": -0.00714285714285756,
-    "ai_quality_score": 0.0106340733980531,
-    "board_utilization": -0.00186453354595906,
-    "card_coverage": 0.00285714285714313,
-    "dominance_moment": -0.00543899996877883,
-    "emotional_arc": 0.0181481915045008,
-    "loss_resilience": -0.0390476190476192,
-    "theme_ratio_variance": -0.010666666666667,
-    "tipping_point_quality": 0.0285714285714287,
-    "weighted_score": 0.0010420745265548,
-    "win_rate_band": 1.10581353187847e-15
-  },
-  "board_utilization": 0.611221598807882,
-  "card_coverage": 0.117142857142857,
-  "dominance_moment": 0.933748056316079,
-  "emotional_arc": 0.444684517497349,
-  "loss_resilience": 0.610952380952381,
+  "board_utilization": 0.668963410601341,
+  "card_coverage": 0.266233766233766,
+  "dominance_moment": 1.00037183206444,
+  "loss_resilience": 0.281785714285714,
   "metadata": {
     "base_seed": 42,
     "evaluator": "game_balance + ai_quality",
-    "genome_path": "res://sim/ai_research/ai_candidate_genome.json",
-    "runs_per_ai": 5,
+    "genome_path": "res://sim/ai_research/ai_best_genome.json",
+    "runs_per_ai": 20,
     "strategies": [
-      "steampunk_focused",
-      "druid_focused",
-      "predator_focused",
-      "military_focused",
-      "hybrid",
+      "soft_steampunk",
+      "soft_druid",
+      "soft_predator",
+      "soft_military",
+      "adaptive",
       "economy",
       "aggressive"
     ],
-    "total_runs": 35
+    "total_runs": 140
   },
+  "per_round_wr_match": 0.353364723716598,
   "strategy_stats": {
-    "aggressive": {
-      "avg_hp": 2.4,
-      "total": 5,
-      "win_rate": 0.2,
-      "wins": 1
+    "adaptive": {
+      "avg_hp": -18.65,
+      "total": 20,
+      "win_rate": 0.15,
+      "wins": 3
     },
-    "druid_focused": {
-      "avg_hp": -17.2,
-      "total": 5,
-      "win_rate": 0.0,
-      "wins": 0
+    "aggressive": {
+      "avg_hp": -5.35,
+      "total": 20,
+      "win_rate": 0.3,
+      "wins": 6
     },
     "economy": {
-      "avg_hp": 13.0,
-      "total": 5,
-      "win_rate": 0.6,
-      "wins": 3
+      "avg_hp": -21.8,
+      "total": 20,
+      "win_rate": 0.1,
+      "wins": 2
     },
-    "hybrid": {
-      "avg_hp": 8.2,
-      "total": 5,
-      "win_rate": 0.6,
-      "wins": 3
+    "soft_druid": {
+      "avg_hp": -23.1,
+      "total": 20,
+      "win_rate": 0.1,
+      "wins": 2
     },
-    "military_focused": {
-      "avg_hp": 15.0,
-      "total": 5,
-      "win_rate": 0.8,
+    "soft_military": {
+      "avg_hp": -12.9,
+      "total": 20,
+      "win_rate": 0.2,
       "wins": 4
     },
-    "predator_focused": {
-      "avg_hp": 13.0,
-      "total": 5,
-      "win_rate": 0.6,
-      "wins": 3
+    "soft_predator": {
+      "avg_hp": -14.95,
+      "total": 20,
+      "win_rate": 0.25,
+      "wins": 5
     },
-    "steampunk_focused": {
-      "avg_hp": 12.2,
-      "total": 5,
-      "win_rate": 0.6,
-      "wins": 3
+    "soft_steampunk": {
+      "avg_hp": -22.7,
+      "total": 20,
+      "win_rate": 0.05,
+      "wins": 1
     }
   },
-  "theme_ratio_variance": 0.290936507936508,
-  "tipping_point_quality": 0.285714285714286,
-  "weighted_score": 0.438374566852074,
-  "win_rate_band": 1.11447597447847e-15
+  "theme_ratio_variance": 0.373260416666667,
+  "tipping_point_quality": 0.0,
+  "weighted_score": 0.445718221163377
 }

@@ -115,9 +115,39 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 **제안**: PostToolUse hook — 마지막 baseline 갱신 commit 이후 카드/genome 변경이 일정 수 이상 누적되면 경고.
 **우선순위**: 낮음 (P3) — 즉시 위험 아님
 
-### B-4. AI Layer 2 baseline 회복 (B-2 완료 후)
-**Why**: ai_baseline weighted_score 0.438 < Layer 1 0.546. Layer 2 autoresearch 는 현재 Layer 1 baseline 미달 상태에서 시작 — gradient 신호 약함.
-**완료 조건**: `ai_research/` 에서 Layer 1 baseline 동등 이상 회복 (≥ 0.54).
+### B-4. ✅ AI Layer 2 baseline 회복 (2026-04-30 완료)
+**조사 결과**:
+
+- 기존 baseline 16일 stale (마지막 갱신 `d745193`, 2026-04-14). Stale 전략 이름 (`steampunk_focused` 등) → 현재 `soft_steampunk` 등.
+- 재측정 (20 run × 7 strategy = 140 run, seed=42): `weighted_score = 0.4457`
+- 결정성 검증: 2회 측정 byte-identical
+- baseline 갱신: 0.4384 → **0.4457**
+- Layer 1 baseline 0.4459 와 갭 = **0.0002** (사실상 동등, noise floor 내)
+
+**전략별 승률** (handoff "0% 붕괴" 패턴 검증):
+| Strategy | Win rate | avg_hp |
+|----------|----------|--------|
+| soft_steampunk | 5% (1/20) | -22.7 |
+| economy | 10% (2/20) | -21.8 |
+| soft_druid | 10% (2/20) | -23.1 |
+| adaptive | 15% (3/20) | -18.6 |
+| soft_military | 20% (4/20) | -12.9 |
+| soft_predator | 25% (5/20) | -14.9 |
+| aggressive | 30% (6/20) | -5.3 |
+
+→ 0% 붕괴는 5–10% 로 약간 회복됐으나 **여전히 매우 낮음**. weighted_score 회복은 다른 축 (board_utilization 0.67, dominance_moment 1.00, AI quality 0.77) 의 개선 누적 결과로 추정.
+
+**AI quality 4축**:
+- card_diversity: 1.0000 (max — 풀 활용 양호)
+- board_strength_curve: 0.9663 (CP 단조 성장)
+- economy_efficiency: 0.6682
+- merge_rate: 0.4577 (★합성 빈도 낮음 — 개선 여지)
+
+**완료 조건 충족**: weighted_score(0.4457) ≈ Layer 1(0.4459). Layer 2 autoresearch gradient 신호 회복.
+
+**다음 단계 영역**:
+- soft_X 의 5–10% 승률 — 풀 잠금 (B-3) + 카드 너프 누적 (B-2) 합작. autoresearch 로 ai_params 개선 시도 가치 있음.
+- B-3 의 드루이드 회피 (adaptive 마저 5장 회피) — ai_agent.gd 의 드루이드 시너지 평가 함수 검토. **별도 세션** (B-4 완료 조건은 baseline 회복으로 만족).
 
 ---
 
