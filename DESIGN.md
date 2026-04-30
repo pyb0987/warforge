@@ -28,8 +28,8 @@
 | 트리거 해결 순서 | **배치 순서 (왼→오)** | 인접 위치 시스템과 일관 |
 | 세션 길이 | 28~35분 | 15 라운드 |
 | 유닛 스탯 스케일 | **SC1 스타일** (ATK 1~20, HP 20~500, AS/Range/MS) | DEF 기본 0, 업그레이드로 부여 |
-| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/포식종/군대 + 중립(15장). 테마별 고유 키워드 |
-| 카드 풀 | **55장, 고갈 메커니즘** | 중립15 / 스팀펑크10 / 드루이드10 / 포식종10 / 군대10. 복사본: T1=22/T2=18/T3=15/T4=13/T5=11. 구매 시 소모, 판매/리롤 시 반환 |
+| 테마/세계관 | **4테마 + 중립** | 스팀펑크/드루이드/포식종/군대 + 중립(24장). 테마별 고유 키워드 |
+| 카드 풀 | **68장, 고갈 메커니즘** | 중립24 / 스팀펑크11 / 드루이드11 / 포식종11 / 군대11. 티어 분포: T1=13/T2=18/T3=17/T4=14/T5=6. 복사본 (카드 1종당): T1=22/T2=18/T3=15/T4=13/T5=11. 구매 시 소모, 판매/리롤 시 반환 |
 | 메타 진행 | 풍부 (로그라이트) | 영구 업그레이드, 컬렉션, 스토리 |
 
 ---
@@ -45,10 +45,11 @@
 | [units-predator.md](docs/design/units-predator.md) | 포식종 유닛 풀 10종 (#생체, 물량) |
 | [units-military.md](docs/design/units-military.md) | 군대 유닛 풀 10종 (#생체+#기계 혼합, 미래전) |
 | [units-neutral.md](docs/design/units-neutral.md) | 중립 유닛 풀 10종 (#기계/#생체 50:50, 방랑자/야생) |
-| [cards-steampunk.md](docs/design/cards-steampunk.md) | 스팀펑크 카드 풀 10장 |
-| [cards-druid.md](docs/design/cards-druid.md) | 드루이드 카드 풀 10장 (나무 시스템) |
-| [cards-military.md](docs/design/cards-military.md) | 군대 카드 풀 10장 설계 전략/타임라인 (★/R 2축 + 정예형/물량형). **효과는 data/cards/military.yaml SSOT** |
-| [cards-neutral.md](docs/design/cards-neutral.md) | 중립 카드 풀 6장 (1차 검증용) |
+| [cards-steampunk.md](docs/design/cards-steampunk.md) | 스팀펑크 카드 풀 11장 |
+| [cards-druid.md](docs/design/cards-druid.md) | 드루이드 카드 풀 11장 (나무 시스템) |
+| [cards-military.md](docs/design/cards-military.md) | 군대 카드 풀 11장 설계 전략/타임라인 (★/R 2축 + 정예형/물량형). **효과는 data/cards/military.yaml SSOT** |
+| [cards-predator.md](docs/design/cards-predator.md) | 포식종 카드 풀 11장 |
+| [cards-neutral.md](docs/design/cards-neutral.md) | 중립 카드 풀 24장 (굿스터프 코어 + 테마 간 접착제) |
 | [design-space.md](docs/design/design-space.md) | 카드 설계 공간: 트리거/효과/대상 풀, 발라트로식 효과, 시스템 간 강도 |
 | [game-loop.md](docs/design/game-loop.md) | 핵심 게임 루프, 런 구조, 보스 보상 유형별 설계 원칙 |
 | [growth-chain.md](docs/design/growth-chain.md) | 성장 체인 시스템, 이벤트 2층 구조, 발동 모델, 이벤트 흐름 규칙 |
@@ -71,7 +72,7 @@
 
 **엔진**: Godot 4 (GDScript). 사유: [에피소드 기록](docs/episodes/2026-03-26-tech-stack-godot.md)
 
-**Godot Autoloads**: `Enums`, `CardDB` (55장), `UnitDB`, `UpgradeDB`
+**Godot Autoloads**: `Enums`, `CardDB` (68장), `UnitDB`, `UpgradeDB`
 
 **CardDB API** (주요 메서드):
 - `get_template(id)` → 기본 ★1 템플릿 dict 반환

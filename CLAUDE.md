@@ -19,7 +19,7 @@ godot --headless --path godot/ --import
 ## Architecture
 
 DESIGN.md = 마스터 문서 (확정 사항 + 상세 문서 목차). 최상위 진실 소스.
-Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS), combat_engine.
+Godot Autoloads: Enums, CardDB(68장), UnitDB, UpgradeDB. Core: chain_engine(BFS), combat_engine.
 
 ## Conventions
 
@@ -96,7 +96,7 @@ Godot Autoloads: Enums, CardDB(54장), UnitDB, UpgradeDB. Core: chain_engine(BFS
 확정된 핵심 제약 (변경 시 사용자 확인 필수):
 - 성장 체인이 주력, 전투 체인은 보조
 - 2층 이벤트 구조 (Layer1 결과범주 + Layer2 테마키워드)
-- 55장 카드 풀 (중립15 / 테마별10). 테마: 스팀펑크/드루이드/포식종/군대
+- 68장 카드 풀 (중립24 / 테마별11). 테마: 스팀펑크/드루이드/포식종/군대
 - SC1 스타일 스탯 (ATK 1~20, HP 20~500, AS/Range/MS)
 - 2화폐 (골드+테라진). 판매: ★1 전액환급, ★2/★3 총 투자액-1골드 (합성 비용 회수 방지)
 - 무료 리롤은 모두 이번 라운드 한정 (pending_free_rerolls)

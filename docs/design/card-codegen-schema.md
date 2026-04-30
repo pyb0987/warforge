@@ -28,11 +28,11 @@ godot/core/data/card_db.gd ← 자동 생성 (수동 편집 금지)
 
 ```
 data/cards/
-├── neutral.yaml        # 중립 15장
-├── steampunk.yaml      # 스팀펑크 10장
-├── druid.yaml          # 드루이드 10장
-├── predator.yaml       # 포식종 10장
-└── military.yaml       # 군대 10장
+├── neutral.yaml        # 중립 24장
+├── steampunk.yaml      # 스팀펑크 11장
+├── druid.yaml          # 드루이드 11장
+├── predator.yaml       # 포식종 11장
+└── military.yaml       # 군대 11장
 
 scripts/
 └── codegen_card_db.py  # YAML → card_db.gd 생성기
