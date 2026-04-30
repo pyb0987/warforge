@@ -58,14 +58,34 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 
 **Critic 4 veto 가치 확인**: stale baseline 으로 가려진 -0.10 회귀를 발견. veto 없었으면 잘못된 점수 위에서 balance 작업 계속됐을 것.
 
-### B-3. 신규 13장 활용도 검증 (Critic 4 권고)
-**질문**: `0fd2d5e` 커밋 확장분 13장이 sim 빌드 경로에 등장하는가? `card_coverage 0.19` (B-2 재측정) 이 죽은 카드 다수 때문인지, AI 미탐색 때문인지.
-**완료 조건**: 카드별 등장 빈도 추출 → 죽은 카드 / 활성 카드 / 신규 아키타입 카드 분류 표.
-**제안 절차**:
-1. `headless_runner.gd` 또는 별도 스크립트로 70 run × 카드별 등장 횟수 카운트
-2. 분류 임계: 등장률 < 5% = 죽은 카드 후보
-3. 결과를 backlog 에 등재
-**우선순위**: B-2 finding (soft_steampunk/druid/economy 0% 붕괴) 의 원인 분리에 도움 — 캡스톤 너프 영향 vs AI 미탐색 분별
+### B-3. ✅ 신규 13장 활용도 검증 (2026-04-30 완료)
+**조사 결과** (`traces/experiments/008-card-coverage-decomposition.md`):
+
+- 측정: 7 strategy × 20 run = 140 run (deterministic, B-7 fix 후)
+- 도구: 기존 `godot/sim/dump_coverage.gd` + 신규 `scripts/analyze_card_coverage.py`
+
+**분류 분포**: dead 0 / weak 19 / active 49 (총 68장)
+
+**Evaluator 메트릭 재현**:
+- `card_coverage = min(per-theme avg usage_rate) = 0.1896` (B-2 의 0.19 재현)
+- 병목 = **드루이드 (0.1896)**, 다른 테마 0.23–0.28
+
+**신규 13장 결과**:
+- 0장 dead, 3장 weak (`dr_resonance` 7.9%, `ne_masquerade` 11.4%, `sp_global_workshop` 11.4%)
+- 10장 active (`ne_pawnbroker` 62.9% 가 최고)
+- ★풀 확장이 dead pool 을 만든 것은 아님. multi-review Critic 4 의 풀 확장 직접 영향 가설 REJECT.
+
+**전략별 미구매 카드** (theme lock 가시화):
+- economy: **2장만** 미구매 (전체 풀 활용)
+- adaptive: 5장 (모두 드루이드)
+- soft_druid/military/predator/steampunk: **21–26장 미구매** (자기 테마 외 회피)
+
+**Key Finding**: B-2 의 0.19 는 dead pool 이 아니라 **AI 의 theme lock**. 드루이드는 `soft_druid` 외 거의 안 사며 `adaptive` 마저 드루이드 회피.
+
+**B-2 0% 붕괴 원인 분리**:
+- soft_druid: 풀 활용 21/68. AI 평가 함수의 테마 외 시너지 무시 가설 강함 → B-4 검증 영역
+- soft_steampunk: 풀 활용 11+일부 ne. 카드 자체 너프 + 좁은 풀 복합
+- economy: 풀 활용 66/68 (정상). **풀 활용 문제 아님** — AI 평가/자원 로직 검토 필요
 
 ### B-5. ✅ baseline.json 갱신 (2026-04-30 완료)
 **조치**: 옵션 2 (사용자 승인 chmod +w) 채택. 8회 측정 결과:
