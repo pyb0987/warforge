@@ -1,6 +1,6 @@
 ---
 description: "하네스 변경의 효과를 검증하는 과거 실패 사례 모음. 변경 후 이 사례들이 재발하지 않는지 확인한다."
-last_updated: "2026-04-27 (SS-011 신설)"
+last_updated: "2026-05-28 (AI Agent Meta-Harness v2 adapter migration, SS-012 신설)"
 ---
 
 # Harness Search Set
@@ -66,6 +66,12 @@ print('FAIL:',fails) if fails else print('PASS: bounds via single source')"`
 - **verify**: `cd /Users/fainders/personal/chain-army && python3 -m unittest scripts.tests.test_keywords_glossary 2>&1 | tail -3`
 - **ref**: traces/failures/011-new-card-desc-codegen-pattern-violation.md
 - **status**: active (2026-04-27 신설, P5 사다리 3단계 — keywords.yaml 단일 진실 + _kw/_kw_reaction/_kw_filter 헬퍼 + codegen 통합 validator)
+
+### SS-012: AI Agent Meta-Harness v2 operating surface drift 방지
+- **증상**: v2 적용 후 `spec.md`/`Plans.md` 또는 active trace root 연결이 누락되어 에이전트가 기존 `.claude` design/trace memory 대신 분리된 상태를 사용.
+- **verify**: `python3 scripts/check_harness_v2_surface.py`
+- **ref**: traces/evolution/025-ai-agent-meta-harness-v2.md
+- **status**: active (2026-05-28 pyb0987 AI Agent Meta-Harness v2 adapter migration 시 surface guard로 등록)
 
 ## Archived
 

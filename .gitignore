@@ -16,3 +16,6 @@ __pycache__/
 *.swp
 .idea/
 .vscode/
+
+# Agent scratch worktrees
+.claude/worktrees/
