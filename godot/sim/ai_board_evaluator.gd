@@ -102,6 +102,7 @@ func card_board_value(card: CardInstance, strategy: String,
 	# log-scaled card-value comparison; migrating to get_total_cp() shifts the
 	# magnitude (~100-2000 vs ~10-200) and would re-tune AI behavior.
 	var heuristic_size: float = card.get_total_atk() + card.get_total_hp()
+	heuristic_size *= _druid_tree_combat_mult(card)
 	var val: float = log(maxf(heuristic_size, 1.0)) * 5.0
 
 	# Star and tier
@@ -226,3 +227,17 @@ static func _theme_for(strategy: String, round_num: int = 99) -> int:
 		"soft_predator": return Enums.CardTheme.PREDATOR
 		"soft_military": return Enums.CardTheme.MILITARY
 	return -1
+
+
+static func _druid_tree_combat_mult(card: CardInstance) -> float:
+	if card.template.get("theme", Enums.CardTheme.NEUTRAL) != Enums.CardTheme.DRUID:
+		return 1.0
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	for eff in effs:
+		if eff.get("action", "") != "tree_combat_bonus":
+			continue
+		var trees: int = card.theme_state.get("trees", 0)
+		var per_tree: float = eff.get("per_tree_pct", 0.0)
+		var cap: float = eff.get("cap_pct", 0.0)
+		return 1.0 + minf(float(trees) * per_tree, cap)
+	return 1.0

@@ -502,7 +502,7 @@ func test_merge_or_high_rank_applied() -> void:
 		"donor 1장이 true → survivor true (OR)")
 
 
-func test_merge_or_high_rank_applied() -> void:
+func test_merge_or_high_rank_applied_from_second_donor() -> void:
 	var cs := _three_assembly()
 	cs[2].theme_state["high_rank_applied"] = true
 	_state.try_merge("sp_assembly")

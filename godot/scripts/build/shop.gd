@@ -14,6 +14,7 @@ var _shop_slots: Array = []  # Array of Panel (card visuals)
 
 var _offered_ids: Array[String] = []
 var _coin_slots: Dictionary = {}  # 🪙 양면 동전: {discount_idx, markup_idx}
+const BASE_SHOP_SIZE := 6
 
 
 func setup(state: GameState, rng: RandomNumberGenerator, genome: Genome = null) -> void:
@@ -39,12 +40,14 @@ func refresh_shop() -> void:
 	var level := _get_shop_level()
 	_offered_ids.clear()
 
-	var shop_size := 6 + BossReward.get_shop_size_bonus(_game_state)
+	var shop_size := _get_shop_size()
 	_ensure_slot_count(shop_size)
 	for i in shop_size:
 		var tier := _roll_tier(level)
 		var card_id := _pick_card_of_tier(tier)
 		_offered_ids.append(card_id)
+
+	_apply_collector_start_shop_guarantee()
 
 	# 🪙 양면 동전: 할인/할증 슬롯 결정
 	_coin_slots = Talisman.roll_coin_slots(_game_state, _offered_ids.size(), _rng)
@@ -54,7 +57,7 @@ func refresh_shop() -> void:
 
 func reroll() -> bool:
 	## Spend gold to reroll. Returns false if can't afford.
-	var cost: int = _genome.get_reroll_cost() if _genome else Enums.REROLL_COST
+	var cost: int = _get_reroll_cost()
 	if _game_state.gold < cost:
 		return false
 	_game_state.gold -= cost
@@ -124,12 +127,35 @@ func _get_shop_level() -> int:
 	return _game_state.shop_level
 
 
+func _get_shop_size() -> int:
+	var base_size := Difficulty.get_shop_size(BASE_SHOP_SIZE, _game_state.difficulty)
+	return base_size + BossReward.get_shop_size_bonus(_game_state)
+
+
+func _get_reroll_cost() -> int:
+	var base_cost: int = _genome.get_reroll_cost() if _genome else Enums.REROLL_COST
+	return Difficulty.get_reroll_cost(base_cost, _game_state.difficulty)
+
+
 func _roll_tier(level: int) -> int:
 	return ShopPicker.roll_tier(level, _rng, _genome)
 
 
 func _pick_card_of_tier(tier: int) -> String:
 	return ShopPicker.pick_card(tier, _rng, _game_state, _game_state.card_pool)
+
+
+func _apply_collector_start_shop_guarantee() -> void:
+	if not Commander.should_apply_collector_start_shop(_game_state):
+		return
+	ShopPicker.apply_min_tier_guarantee(
+		_offered_ids,
+		Commander.COLLECTOR_START_SHOP_MIN_TIER,
+		Commander.COLLECTOR_START_SHOP_COUNT,
+		_rng,
+		_game_state,
+		_game_state.card_pool)
+	Commander.mark_collector_start_shop_used(_game_state)
 
 
 ## 미구매 카드를 풀에 반환 (리롤/리프레시 전 호출).

@@ -86,3 +86,69 @@ static func pick_card(tier: int, rng: RandomNumberGenerator, state: GameState, p
 	if pool != null and not picked.is_empty():
 		pool.draw(picked)
 	return picked
+
+
+## Pick any card whose tier is at least min_tier. Used for commander/boss
+## guarantees that intentionally override the normal shop-level tier roll.
+static func pick_card_min_tier(
+		min_tier: int,
+		rng: RandomNumberGenerator,
+		state: GameState,
+		pool: CardPool = null) -> String:
+	var candidates: Array[String] = []
+	if pool != null:
+		for tier in range(min_tier, 6):
+			candidates.append_array(pool.available_of_tier(tier))
+	else:
+		for id in CardDB.get_all_ids():
+			var tmpl := CardDB.get_template(id)
+			if int(tmpl.get("tier", 0)) >= min_tier:
+				candidates.append(id)
+
+	if candidates.is_empty():
+		return ""
+
+	var picked: String = candidates[rng.randi_range(0, candidates.size() - 1)]
+	if pool != null and not picked.is_empty():
+		pool.draw(picked)
+	return picked
+
+
+## Mutates offered_ids so it contains at least min_count cards at min_tier+.
+## Replaced lower-tier cards are returned to the pool after a replacement is drawn.
+static func apply_min_tier_guarantee(
+		offered_ids: Array,
+		min_tier: int,
+		min_count: int,
+		rng: RandomNumberGenerator,
+		state: GameState,
+		pool: CardPool = null) -> void:
+	var current := 0
+	for id in offered_ids:
+		if _card_tier(String(id)) >= min_tier:
+			current += 1
+
+	while current < min_count:
+		var replace_idx := -1
+		for i in offered_ids.size():
+			if _card_tier(String(offered_ids[i])) < min_tier:
+				replace_idx = i
+				break
+		if replace_idx < 0:
+			return
+
+		var old_id := String(offered_ids[replace_idx])
+		var replacement := pick_card_min_tier(min_tier, rng, state, pool)
+		if replacement == "":
+			return
+		if pool != null and old_id != "":
+			pool.return_cards(old_id, 1)
+		offered_ids[replace_idx] = replacement
+		current += 1
+
+
+static func _card_tier(card_id: String) -> int:
+	if card_id == "":
+		return 0
+	var tmpl := CardDB.get_template(card_id)
+	return int(tmpl.get("tier", 0))

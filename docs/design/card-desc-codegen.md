@@ -701,15 +701,21 @@ def generate_star_desc(card, star_data):
     # 1. timing (★별 override 가능)
     base_timing = star_data.get("timing", card["timing"])
     
-    # 2. 효과를 타이밍별로 그룹핑
-    timing_groups = {}  # timing → [effect_text]
+    # 2. 효과를 section별로 그룹핑
+    # section key = (timing, listen_key)
+    # listen_key = (l1, l2) or None
+    timing_groups = {}
     for eff in star_data.get("effects", []):
         action = next(iter(eff))
         params = eff[action]
-        # timing_override 필드 (tree_shield 등)
+        # timing_override / listen_override 필드
         eff_timing = None
+        listen_key = None
         if isinstance(params, dict):
             eff_timing = params.get("timing_override")
+            listen = params.get("listen_override")
+            if listen:
+                listen_key = (listen.get("l1"), listen.get("l2"))
         # ACTION_TIMING_OVERRIDE (economy, battle_buff 등)
         if not eff_timing:
             eff_timing = ACTION_TIMING_OVERRIDE.get(action)
@@ -717,37 +723,38 @@ def generate_star_desc(card, star_data):
         if not eff_timing:
             eff_timing = base_timing
         
-        timing_groups.setdefault(eff_timing, []).append(desc_effect(eff))
+        timing_groups.setdefault((eff_timing, listen_key), []).append(desc_effect(eff))
     
     # 3. 조건부 효과 → 기본 타이밍 그룹에 추가
     for cond in star_data.get("conditional", []):
-        timing_groups.setdefault(base_timing, []).append(desc_conditional(cond))
+        timing_groups.setdefault((base_timing, None), []).append(desc_conditional(cond))
     
     # 4. post_threshold → 기본 타이밍 그룹에 추가
     if star_data.get("post_threshold"):
-        timing_groups.setdefault(base_timing, []).append(
+        timing_groups.setdefault((base_timing, None), []).append(
             desc_post_threshold(star_data["post_threshold"]))
     
     # 5. tenure 접두사
     tenure_prefix = prefix_tenure(card, star_data)
     
-    # 6. 타이밍별 텍스트 조합
+    # 6. section별 텍스트 조합
     parts = []
-    # 기본 타이밍 먼저, 나머지 순서대로
-    ordered = [base_timing] + [t for t in timing_groups if t != base_timing]
-    for timing in ordered:
-        if timing not in timing_groups:
+    # 기본 section 먼저, 나머지 순서대로
+    base_section = (base_timing, None)
+    ordered = [base_section] + [k for k in timing_groups if k != base_section]
+    for section in ordered:
+        if section not in timing_groups:
             continue
-        prefix = get_prefix(card, timing) if timing == base_timing else TIMING_PREFIX.get(timing, timing)
-        if tenure_prefix and timing == base_timing:
+        timing, listen_key = section
+        listen_override = {"l1": listen_key[0], "l2": listen_key[1]} if listen_key else None
+        prefix = get_prefix(card, timing, listen_override)
+        if tenure_prefix and section == base_section:
             prefix = f"{tenure_prefix} {prefix}"
-        body = ". ".join(timing_groups[timing])
-        parts.append(f"{prefix} {body}")
+        body = ". ".join(timing_groups[section])
+        suffix = desc_max_act_suffix_for_section(star_data, timing, listen_key)
+        parts.append(f"{prefix} {body}{suffix}")
     
-    # 7. max_act 접미사 (전체 텍스트 끝에)
-    suffix = desc_max_act_suffix(star_data["max_act"])
-    
-    return ". ".join(parts) + suffix
+    return ". ".join(parts)
 ```
 
 ---
@@ -879,3 +886,9 @@ dr_earth ★3: `tree_shield: {timing_override: BS, ...}`
 ### 8. OE listen l1 없는 경우 (C5)
 pr_molt: `listen: {l2: HA}`, pr_harvest: `listen: {l2: MT}`
 → **해결**: OE_PREFIX에 `(None, "HA")`, `(None, "MT")` 엔트리 추가.
+
+### 9. 같은 timing, 다른 listen의 multi-block OE 카드
+pr_transcend: OE(HA) + OE(MT).
+→ **해결**: `codegen_card_db._project_to_desc_gen_input`이 non-primary same-timing block action에 `listen_override`를 주입.
+→ `generate_star_desc`는 `(timing, listen_key)`별로 그룹핑해 `부화 시`와 `변태 시`를 별도 `[반응]` 문장으로 출력.
+→ `max_act_by_section[(timing, l1, l2)]`로 각 listen section의 `(최대 N/R)` 접미사를 보존.

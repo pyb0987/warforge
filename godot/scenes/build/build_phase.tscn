@@ -70,10 +70,31 @@ script = ExtResource("2")
 layout_mode = 1
 offset_left = 20.0
 offset_top = 235.0
-offset_right = 400.0
+offset_right = 220.0
 offset_bottom = 255.0
-text = "UPGRADES (T to reroll)"
+text = "UPGRADES"
 visible = false
+
+[node name="UpgradeRerollButton" type="Button" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 240.0
+offset_top = 232.0
+offset_right = 390.0
+offset_bottom = 258.0
+text = "REROLL (T) -1T"
+
+[node name="MergeSummaryLabel" type="Label" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 420.0
+offset_top = 235.0
+offset_right = 740.0
+offset_bottom = 258.0
+text = "MERGE"
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(1, 0.86, 0.45, 1)
+theme_override_font_sizes/font_size = 13
 
 [node name="UpgradeShop" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -84,6 +105,37 @@ offset_bottom = 425.0
 theme_override_constants/separation = 8
 visible = false
 script = ExtResource("3")
+
+[node name="TutorialHintPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 235.0
+offset_right = 1260.0
+offset_bottom = 345.0
+
+[node name="VBox" type="VBoxContainer" parent="TutorialHintPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TutorialTitleLabel" type="Label" parent="TutorialHintPanel/VBox"]
+layout_mode = 2
+text = "TUTORIAL"
+theme_override_font_sizes/font_size = 13
+
+[node name="TutorialHintLabel" type="Label" parent="TutorialHintPanel/VBox"]
+custom_minimum_size = Vector2(460, 42)
+layout_mode = 2
+text = "힌트"
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.88, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="TutorialDismissButton" type="Button" parent="TutorialHintPanel/VBox"]
+custom_minimum_size = Vector2(120, 26)
+layout_mode = 2
+size_flags_horizontal = 8
+text = "DISMISS"
 
 [node name="TargetSelectOverlay" type="Control" parent="."]
 layout_mode = 1
@@ -105,6 +157,25 @@ offset_top = -30.0
 offset_right = 200.0
 horizontal_alignment = 1
 text = "Click a field card to attach upgrade (ESC to cancel)"
+
+[node name="DetailLabel" type="Label" parent="TargetSelectOverlay"]
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -92.0
+offset_right = 260.0
+offset_bottom = -36.0
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.86, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "Upgrade preview"
 
 [node name="FieldLabel" type="Label" parent="."]
 layout_mode = 1
@@ -145,3 +216,21 @@ offset_top = 688.0
 offset_right = 740.0
 offset_bottom = 718.0
 text = "BUILD COMPLETE (Space)"
+
+[node name="StrategistSwapButton" type="Button" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 688.0
+offset_right = 900.0
+offset_bottom = 718.0
+text = "SWAP (H)"
+
+[node name="DetachUpgradeButton" type="Button" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 920.0
+offset_top = 688.0
+offset_right = 1060.0
+offset_bottom = 718.0
+text = "DETACH (D)"

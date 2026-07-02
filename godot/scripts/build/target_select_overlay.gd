@@ -8,18 +8,28 @@ signal target_cancelled
 var _active: bool = false
 var _field_visuals: Array = []
 var _click_connections: Array[Dictionary] = []  # [{visual, callable}]
+var _preview_labels: Array[Label] = []
 
 @onready var instruction_label: Label = $InstructionLabel
+@onready var detail_label: Label = get_node_or_null("DetailLabel") as Label
 
 
 ## eligible_predicate: Callable(card: CardInstance) -> bool. null = 모든 비-null 카드 선택 가능.
 ## upgrade 부착용은 can_attach_upgrade 필터, theme transform / unit transfer 등은 null.
 func start_selection(field_visuals: Array, board: Array,
-		eligible_predicate: Callable = Callable()) -> void:
+		eligible_predicate: Callable = Callable(),
+		context: Dictionary = {}) -> void:
+	if _active:
+		end_selection()
 	_field_visuals = field_visuals
 	_active = true
 	visible = true
-	instruction_label.text = "Click a field card (ESC to cancel)"
+	instruction_label.text = context.get("instruction",
+		"Click a field card (ESC to cancel)")
+	if detail_label:
+		detail_label.text = context.get("detail", "")
+		detail_label.visible = detail_label.text != ""
+	var note_formatter: Callable = context.get("note_formatter", Callable())
 
 	# Highlight eligible cards and connect click handlers
 	for i in field_visuals.size():
@@ -29,14 +39,20 @@ func start_selection(field_visuals: Array, board: Array,
 		var card = board[i]
 		if card == null:
 			continue
+		var eligible := true
 		# 핸들러별 predicate 적용 (default: 모든 비-null 카드 가능)
-		if eligible_predicate.is_valid() and not eligible_predicate.call(card):
-			continue
-		# Add highlight border
-		_set_highlight(vis, true)
-		var callable := _on_field_clicked.bind(i)
-		vis.gui_input.connect(callable)
-		_click_connections.append({"visual": vis, "callable": callable})
+		if eligible_predicate.is_valid():
+			eligible = bool(eligible_predicate.call(card))
+		if note_formatter.is_valid():
+			var note := str(note_formatter.call(card, eligible, i))
+			if note != "":
+				_create_preview_label(vis, note, eligible)
+		if eligible:
+			# Add highlight border
+			_set_highlight(vis, true)
+			var callable := _on_field_clicked.bind(i)
+			vis.gui_input.connect(callable)
+			_click_connections.append({"visual": vis, "callable": callable})
 
 
 func end_selection() -> void:
@@ -49,6 +65,20 @@ func end_selection() -> void:
 		if vis.gui_input.is_connected(conn["callable"]):
 			vis.gui_input.disconnect(conn["callable"])
 	_click_connections.clear()
+	for label in _preview_labels:
+		if is_instance_valid(label):
+			label.queue_free()
+	_preview_labels.clear()
+	if detail_label:
+		detail_label.visible = false
+
+
+func get_preview_texts() -> Array[String]:
+	var result: Array[String] = []
+	for label in _preview_labels:
+		if is_instance_valid(label):
+			result.append(label.text)
+	return result
 
 
 func _on_field_clicked(event: InputEvent, field_idx: int) -> void:
@@ -89,3 +119,20 @@ func _set_highlight(vis: Panel, on: bool) -> void:
 		# Refresh the card visual to restore its original style
 		if vis.has_method("refresh"):
 			vis.call("refresh")
+
+
+func _create_preview_label(vis: Panel, text: String, eligible: bool) -> void:
+	var label := Label.new()
+	label.name = "TargetNote_%d" % _preview_labels.size()
+	label.text = text
+	label.custom_minimum_size = Vector2(maxf(vis.size.x, 120.0), 42.0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color",
+		Color(0.88, 1.0, 0.86) if eligible else Color(1.0, 0.55, 0.48))
+	label.z_index = 50
+	add_child(label)
+	label.global_position = vis.global_position + Vector2(0, -50)
+	_preview_labels.append(label)

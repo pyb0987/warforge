@@ -5,10 +5,10 @@ extends Node
 ## 패턴: CardDB와 동일 — static 데이터 + 순수 함수 쿼리.
 ## GameState.commander_type을 읽어 현재 커맨더에 맞는 값을 반환.
 ##
-## TODO: 커맨더 선택 UI (런 시작 전 화면)
+## 런 시작 전 선택 UI: res://scenes/ui/commander_select_popup.tscn
 ## TODO: 전략가 영웅 능력 UI (빌드 페이즈 교환 모드)
-## TODO: 단조사 시작 보너스 UI (커먼 업그레이드 3택1)
-## TODO: 수집가 시작 상점 T2+ 4장 보장 UI
+## 단조사 시작 보너스 UI: 첫 빌드 확정 전 커먼 업그레이드 3택1
+## 수집가 시작 보너스: 첫 상점 T2+ 4장 보장
 
 const CT = Enums.CommanderType
 
@@ -29,6 +29,9 @@ const STRATEGIST_ADJ_RANGE := 2
 
 const COLLECTOR_ATK_PER_TYPE := 0.04
 const COLLECTOR_TERAZIN_THRESHOLD := 5
+const COLLECTOR_START_SHOP_MIN_TIER := 2
+const COLLECTOR_START_SHOP_COUNT := 4
+const COLLECTOR_START_SHOP_USED_KEY := "collector_start_shop_used"
 
 const RAIDER_START_ATK_BONUS := 0.20
 const RAIDER_WIN_GOLD := 2
@@ -114,6 +117,9 @@ func _init_commander_state(state: GameState) -> void:
 	# 약탈자: 승리 누적 카운터
 	if not cs.has("win_count"):
 		cs["win_count"] = 0
+	# 수집가: 시작 상점 보장 1회 사용 여부
+	if not cs.has(COLLECTOR_START_SHOP_USED_KEY):
+		cs[COLLECTOR_START_SHOP_USED_KEY] = false
 
 
 func _breeder_start(state: GameState, rng: RandomNumberGenerator) -> void:
@@ -238,6 +244,9 @@ func hero_swap(state: GameState, idx_a: int, idx_b: int) -> bool:
 	state.board[idx_a] = state.board[idx_b]  # lint:allow zone-assign — 보드 스왑 (이동)
 	state.board[idx_b] = temp  # lint:allow zone-assign — 보드 스왑 (이동)
 	state.commander_state["hero_used"] = true
+	state.card_moved.emit("board", idx_a, "board", idx_b)
+	state.board_changed.emit()
+	state.state_changed.emit()
 	return true
 
 
@@ -261,6 +270,19 @@ func calc_collector_atk_bonus(state: GameState) -> float:
 	if state.commander_type != CT.COLLECTOR:
 		return 0.0
 	return _count_unique_types(state) * COLLECTOR_ATK_PER_TYPE
+
+
+## 수집가 시작 상점 보장 적용 여부. R1 첫 refresh에만 true.
+func should_apply_collector_start_shop(state: GameState) -> bool:
+	if state.commander_type != CT.COLLECTOR:
+		return false
+	if state.round_num != 1:
+		return false
+	return not bool(state.commander_state.get(COLLECTOR_START_SHOP_USED_KEY, false))
+
+
+func mark_collector_start_shop_used(state: GameState) -> void:
+	state.commander_state[COLLECTOR_START_SHOP_USED_KEY] = true
 
 
 # ================================================================

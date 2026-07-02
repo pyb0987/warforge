@@ -93,6 +93,41 @@ func test_generate_more_units_later_rounds() -> void:
 	assert_gt(r15.size(), r1.size(), "R15 유닛 수 > R1")
 
 
+func test_difficulty_2_increases_enemy_hp() -> void:
+	_rng.seed = 42
+	var d1: Array = EnemyDBScript.generate(6, _rng, null, 1)
+	_rng.seed = 42
+	var d2: Array = EnemyDBScript.generate(6, _rng, null, 2)
+	assert_eq(d1.size(), d2.size(), "D2는 유닛 수를 바꾸지 않음")
+	assert_gt(_avg_stat(d2, "hp"), _avg_stat(d1, "hp"), "D2 평균 HP 증가")
+
+
+func test_difficulty_4_increases_enemy_count() -> void:
+	_rng.seed = 42
+	var d1: Array = EnemyDBScript.generate(10, _rng, null, 1)
+	_rng.seed = 42
+	var d4: Array = EnemyDBScript.generate(10, _rng, null, 4)
+	assert_gt(d4.size(), d1.size(), "D4 적 유닛 수 증가")
+
+
+func test_difficulty_7_increases_enemy_atk() -> void:
+	_rng.seed = 42
+	var d1: Array = EnemyDBScript.generate(6, _rng, null, 1)
+	_rng.seed = 42
+	var d7: Array = EnemyDBScript.generate(6, _rng, null, 7)
+	assert_gt(_avg_stat(d7, "atk"), _avg_stat(d1, "atk"), "D7 평균 ATK 증가")
+
+
+func test_difficulty_5_boss_gets_enemy_upgrades() -> void:
+	_rng.seed = 42
+	var d1: Array = EnemyDBScript.generate(4, _rng, null, 1)
+	_rng.seed = 42
+	var d5: Array = EnemyDBScript.generate(4, _rng, null, 5)
+	assert_false(d1[0].has("enemy_upgrades"), "D1 보스 업그레이드 없음")
+	assert_true(d5[0].has("enemy_upgrades"), "D5 보스 업그레이드 보유")
+	assert_eq((d5[0]["enemy_upgrades"] as Array).size(), 1, "D5 보스 커먼 1개")
+
+
 # ================================================================
 # 보스 라운드
 # ================================================================
@@ -149,3 +184,10 @@ func test_boss_more_units_than_non_boss() -> void:
 	# R4 target_cp=439×1.3=571. R5=720. 근소 차이 — 유닛 수 비슷 (±few)
 	# 위 assertion은 엄밀하지 않음. 대신 보스/비보스 R4+α 구조 유지만 확인.
 	assert_gt(r4.size() + r5.size(), 0, "R4/R5 모두 유닛 생성")
+
+
+func _avg_stat(units: Array, key: String) -> float:
+	var total := 0.0
+	for unit in units:
+		total += float(unit.get(key, 0.0))
+	return total / units.size()

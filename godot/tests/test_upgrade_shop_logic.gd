@@ -111,17 +111,17 @@ func test_reroll_refreshes_slots() -> void:
 
 
 # ================================================================
-# is_available (라운드 게이팅)
+# is_available (커맨더 시대: R1부터 공개)
 # ================================================================
 
-func test_available_false_round_1() -> void:
+func test_available_true_round_1() -> void:
 	_state.round_num = 1
-	assert_false(_shop.is_available(), "R1 → 불가")
+	assert_true(_shop.is_available(), "R1 → 가용")
 
 
-func test_available_false_round_2() -> void:
+func test_available_true_round_2() -> void:
 	_state.round_num = 2
-	assert_false(_shop.is_available(), "R2 → 불가")
+	assert_true(_shop.is_available(), "R2 → 가용")
 
 
 func test_available_true_round_3() -> void:
@@ -142,6 +142,15 @@ func test_get_cost_valid_slot() -> void:
 	_shop.refresh_upgrades()
 	var cost: int = _shop.get_upgrade_cost(0)
 	assert_gt(cost, 0, "유효 슬롯 → 비용 > 0")
+
+
+func test_smith_common_discount_applies_to_cost() -> void:
+	var common_id: String = UpgradeDB.get_ids_by_rarity(Enums.UpgradeRarity.COMMON)[0]
+	var base_cost: int = UpgradeDB.get_upgrade(common_id).get("cost", 0)
+	_state.commander_type = Enums.CommanderType.SMITH
+	_shop._offered_ids.assign([common_id])
+	assert_eq(_shop.get_upgrade_cost(0), maxi(base_cost - 1, 0),
+		"단조사 커먼 업그레이드 비용 -1")
 
 
 func test_get_cost_empty_slot_returns_0() -> void:

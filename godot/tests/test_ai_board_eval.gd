@@ -149,6 +149,15 @@ func test_rs_valued_higher_than_bs_druid() -> void:
 	assert_gt(rs_val, bs_val,
 		"dr_cradle(RS) > dr_lifebeat(BS) at same tier")
 
+func test_druid_tree_combat_bonus_increases_board_value() -> void:
+	var bare: CardInstance = _make_card("dr_cradle")
+	var grown: CardInstance = _make_card("dr_cradle")
+	grown.theme_state["trees"] = 10
+	var bare_val: float = ev.card_board_value(bare, "soft_druid", 8)
+	var grown_val: float = ev.card_board_value(grown, "soft_druid", 8)
+	assert_gt(grown_val, bare_val,
+		"나무 전투 보너스를 보드 배치 가치에 반영")
+
 
 # ================================================================
 # Data-driven: timing modifier table completeness

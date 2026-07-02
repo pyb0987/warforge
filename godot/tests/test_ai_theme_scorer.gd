@@ -57,8 +57,8 @@ func test_druid_trees_increase_value() -> void:
 	var bonus_10: float = scorer.card_value_bonus(card_10, [], genome)
 
 	assert_gt(bonus_10, bonus_0, "나무 10개 카드가 0개보다 높은 가치")
-	# tree_value_per 기본값 2.0 → 10 * 2.0 = +20 차이
-	assert_almost_eq(bonus_10 - bonus_0, 20.0, 1.0, "나무 10개 ≈ +20 가치")
+	# tree_value_per 기본값 2.0 → 10 * 2.0, plus common combat bonus awareness.
+	assert_almost_eq(bonus_10 - bonus_0, 30.0, 1.0, "나무 10개 ≈ +30 가치")
 
 
 func test_druid_trees_scaled_by_param() -> void:
@@ -174,6 +174,30 @@ func test_druid_unit_cap_penalty() -> void:
 	var bonus: float = scorer.score_buy_bonus("dr_prune", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
 
 	assert_lt(bonus, 0.0, "dr_world 유닛캡 근접(≥80%) 시 드루이드 구매 페널티")
+
+
+func test_druid_producer_boosts_payoff_buy() -> void:
+	var scorer := ThemeScorerScript.new()
+	var genome := _make_genome()
+	var board_cards: Array = [_make_card("dr_cradle", Enums.CardTheme.DRUID, 1)]
+	var tmpl := {"id": "dr_deep", "theme": Enums.CardTheme.DRUID, "tier": 3}
+
+	var bonus: float = scorer.score_buy_bonus(
+		"dr_deep", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
+
+	assert_gt(bonus, 0.0, "나무 생산 카드 보유 시 드루이드 payoff 구매 보너스")
+
+
+func test_druid_existing_card_boosts_engine_producer_buy() -> void:
+	var scorer := ThemeScorerScript.new()
+	var genome := _make_genome()
+	var board_cards: Array = [_make_card("dr_lifebeat", Enums.CardTheme.DRUID, 1)]
+	var tmpl := {"id": "dr_origin", "theme": Enums.CardTheme.DRUID, "tier": 2}
+
+	var bonus: float = scorer.score_buy_bonus(
+		"dr_origin", tmpl, Enums.CardTheme.DRUID, board_cards, genome)
+
+	assert_gt(bonus, 0.0, "드루이드 카드 보유 시 엔진 producer 구매 보너스")
 
 
 # ================================================================

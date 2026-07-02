@@ -56,6 +56,15 @@ func set_seed(seed_val: int) -> void:
 
 # ── Block access helpers ─────────────────────────────────────────
 
+func _theme_system_for_card(card: CardInstance, tmpl: Dictionary):
+	var theme: int = tmpl.get("theme", -1)
+	if tmpl.get("impl", "card_db") == "theme_system":
+		var base_tmpl := CardDB.get_template(card.get_base_id())
+		if not base_tmpl.is_empty():
+			theme = base_tmpl.get("theme", theme)
+	return _theme_systems.get(theme, null)
+
+
 ## Return the first block whose trigger_timing matches, or {} if absent.
 ## v2 schema: effects is a list of timing-block dicts.
 func _find_block(tmpl: Dictionary, timing: int) -> Dictionary:
@@ -136,15 +145,15 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 			# spawn 효과량 2배는 _execute_actions의 spawn_count에서 처리
 
 		var actions: Array = block.get("actions", [])
-		var theme: int = tmpl.get("theme", -1)
 		var impl: String = tmpl.get("impl", "card_db")
+		var theme_sys = _theme_system_for_card(card, tmpl)
 		var result: Dictionary
 
 		if _using_post_threshold:
 			var post_actions: Array = block.get("post_threshold_effects", [])
 			result = _execute_actions(card, i, board, -1, 0, flint_mult, post_actions)
-		elif impl == "theme_system" and theme in _theme_systems:
-			result = _theme_systems[theme].process_rs_card(card, i, board, _rng)
+		elif impl == "theme_system" and theme_sys != null:
+			result = theme_sys.process_rs_card(card, i, board, _rng)
 		else:
 			result = _execute_actions(card, i, board, -1, 0, flint_mult, actions)
 
@@ -200,12 +209,12 @@ func run_growth_chain(board: Array, verbose: bool = false) -> Dictionary:
 				card.activations_used += 1
 
 				var actions: Array = block.get("actions", [])
-				var theme: int = tmpl.get("theme", -1)
 				var impl: String = tmpl.get("impl", "card_db")
+				var theme_sys = _theme_system_for_card(card, tmpl)
 				var result: Dictionary
 
-				if impl == "theme_system" and theme in _theme_systems:
-					result = _theme_systems[theme].process_event_card(card, i, board, event, _rng)
+				if impl == "theme_system" and theme_sys != null:
+					result = theme_sys.process_event_card(card, i, board, event, _rng)
 				else:
 					result = _execute_actions(card, i, board, event["target_idx"], 0, 1.0, actions)
 
@@ -348,9 +357,9 @@ func process_persistent(board: Array) -> void:
 		var tmpl := card.template
 		if _find_block(tmpl, Enums.TriggerTiming.PERSISTENT).is_empty():
 			continue
-		var theme: int = tmpl.get("theme", -1)
-		if theme in _theme_systems:
-			_theme_systems[theme].apply_persistent(card, board)
+		var theme_sys = _theme_system_for_card(card, tmpl)
+		if theme_sys != null:
+			theme_sys.apply_persistent(card, board)
 
 
 ## Process BATTLE_START effects. Handles both inline effects and theme system delegation.
@@ -368,12 +377,12 @@ func process_battle_start(board: Array) -> Dictionary:
 			continue
 
 		var actions: Array = block.get("actions", [])
-		var theme: int = tmpl.get("theme", -1)
 		var impl: String = tmpl.get("impl", "card_db")
+		var theme_sys = _theme_system_for_card(card, tmpl)
 
 		var result: Dictionary
-		if impl == "theme_system" and theme in _theme_systems:
-			result = _theme_systems[theme].apply_battle_start(card, i, board)
+		if impl == "theme_system" and theme_sys != null:
+			result = theme_sys.apply_battle_start(card, i, board)
 		else:
 			result = _execute_actions(card, i, board, -1, 0, 1.0, actions)
 
@@ -438,13 +447,12 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 		card.activations_used += 1
 
 		var actions: Array = block.get("actions", [])
-		var theme: int = tmpl.get("theme", -1)
 		var impl: String = tmpl.get("impl", "card_db")
+		var theme_sys = _theme_system_for_card(card, tmpl)
 		var result: Dictionary
 
-		if impl == "theme_system" and theme in _theme_systems:
-			result = _theme_systems[theme].apply_post_combat(
-				card, i, board, won)
+		if impl == "theme_system" and theme_sys != null:
+			result = theme_sys.apply_post_combat(card, i, board, won)
 		else:
 			result = _execute_actions(card, i, board, -1, 0, 1.0, actions)
 

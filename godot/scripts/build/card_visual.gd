@@ -54,10 +54,13 @@ var _drag_offset := Vector2.ZERO
 
 
 func setup(card: CardInstance, z: String, idx: int) -> void:
+	if card_instance != null and card_instance != card \
+			and card_instance.stats_changed.is_connected(_on_stats_changed):
+		card_instance.stats_changed.disconnect(_on_stats_changed)
 	card_instance = card
 	zone = z
 	slot_idx = idx
-	if card != null:
+	if card != null and not card.stats_changed.is_connected(_on_stats_changed):
 		card.stats_changed.connect(_on_stats_changed)
 	refresh()
 
@@ -160,7 +163,9 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT and card_instance != null:
+		if event.button_index == MOUSE_BUTTON_LEFT and card_instance != null:
+			card_clicked.emit(self)
+		elif event.button_index == MOUSE_BUTTON_RIGHT and card_instance != null:
 			# Right-click = sell card
 			var parent := get_parent()
 			while parent != null:
@@ -168,5 +173,3 @@ func _gui_input(event: InputEvent) -> void:
 					parent._on_card_sell(zone, slot_idx)
 					return
 				parent = parent.get_parent()
-
-

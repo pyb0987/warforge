@@ -22,6 +22,12 @@ cards:
             count: 1
           - target: right_adj
             count: 1
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -31,6 +37,12 @@ cards:
             count: 2
           - target: both_adj
             count: 1
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -40,6 +52,12 @@ cards:
             count: 3
           - target: both_adj
             count: 2
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_lifebeat:
     name: 생명의 맥동
     tier: 1
@@ -68,6 +86,10 @@ cards:
             low_unit:
               thresh: 2
               mult: 1.5
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: BS
@@ -82,6 +104,10 @@ cards:
             low_unit:
               thresh: 4
               mult: 1.5
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: BS
@@ -96,6 +122,10 @@ cards:
             low_unit:
               thresh: 8
               mult: 1.5
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_origin:
     name: 오래된 근원
     tier: 2
@@ -126,6 +156,12 @@ cards:
             low_unit:
               thresh: 2
               pct: 0.006
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -142,6 +178,12 @@ cards:
             low_unit:
               thresh: 4
               pct: 0.009
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -161,6 +203,12 @@ cards:
             tree_bonus:
               thresh: 8
               bonus_growth_pct: 0.08
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_grace:
     name: 숲의 은혜
     tier: 2
@@ -185,6 +233,12 @@ cards:
             win_half: true
             terazin_thresh: 10
             terazin: 1
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: PC
@@ -195,6 +249,12 @@ cards:
             win_half: false
             terazin_thresh: 8
             terazin: 1
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: PC
@@ -206,6 +266,12 @@ cards:
             terazin_thresh: 8
             terazin: 1
           free_reroll: 1
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_prune:
     name: 가지치기
     tier: 2
@@ -230,6 +296,12 @@ cards:
           prune:
             count: 2
             min_units: 3
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -241,6 +313,12 @@ cards:
             count: 2
             min_units: 3
             enhance_pct: 0.03
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -252,6 +330,12 @@ cards:
             count: 3
             min_units: 3
             enhance_pct: 0.05
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_deep:
     name: 뿌리깊은 자
     tier: 3
@@ -282,6 +366,12 @@ cards:
             tree_bonus:
               thresh: 10
               mult: 1.3
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -298,6 +388,12 @@ cards:
             tree_bonus:
               thresh: 8
               mult: 1.3
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -314,6 +410,12 @@ cards:
             tree_bonus:
               thresh: 8
               mult: 1.5
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_spore_cloud:
     name: 포자 구름
     tier: 3
@@ -337,6 +439,10 @@ cards:
             base_pct: 0.15
             tree_scale_pct: 0.015
             cap: 0.5
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: BS
@@ -350,6 +456,10 @@ cards:
             base_pct: 0.2
             tree_scale_pct: 0.02
             cap: 0.5
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: BS
@@ -367,6 +477,10 @@ cards:
             target: self
             base_pct: 0.1
             tree_scale_pct: 0.02
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_wrath:
     name: 태고의 분노
     tier: 4
@@ -392,6 +506,12 @@ cards:
             unit_cap: 3
             atk_base_pct: 0.8
             atk_tree_pct: 0.05
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: PERSISTENT
@@ -402,6 +522,12 @@ cards:
             atk_base_pct: 1.2
             atk_tree_pct: 0.08
             hp_pct: 0.6
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: PERSISTENT
@@ -412,6 +538,12 @@ cards:
             atk_mult: 1.5
             hp_mult: 1.3
             kill_hp_recover: true
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_wt_root:
     name: 세계수의 뿌리
     tier: 4
@@ -442,6 +574,12 @@ cards:
               amount: 1
             - tree_gte: 8
               amount: 2
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -456,6 +594,12 @@ cards:
               amount: 1
             - tree_gte: 6
               amount: 2
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -472,6 +616,12 @@ cards:
               amount: 2
           epic_shop_unlock:
             tree_thresh: 8
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_world:
     name: 세계수
     tier: 5
@@ -505,6 +655,12 @@ cards:
             tree_source: forest_depth
             per_step: 0.05
             tree_step: 30
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: RS
@@ -519,6 +675,12 @@ cards:
             tree_source: forest_depth
             per_step: 0.05
             tree_step: 20
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: RS
@@ -533,6 +695,12 @@ cards:
             tree_source: forest_depth
             per_step: 0.05
             tree_step: 5
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
   dr_resonance:
     name: 공명수
     tier: 4
@@ -559,6 +727,12 @@ cards:
             filter: non_druid_target
             tree_add: 1
             self_atk_pct: 0.02
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       2:
         effects:
         - trigger_timing: OE
@@ -570,6 +744,12 @@ cards:
             tree_add: 1
             self_atk_pct: 0.03
             self_hp_pct: 0.02
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6
       3:
         effects:
         - trigger_timing: OE
@@ -581,3 +761,9 @@ cards:
             tree_add: 2
             self_atk_pct: 0.04
             self_hp_pct: 0.03
+        - trigger_timing: BS
+          max_act: -1
+          tree_combat_bonus:
+            target: self
+            per_tree_pct: 0.05
+            cap_pct: 0.6

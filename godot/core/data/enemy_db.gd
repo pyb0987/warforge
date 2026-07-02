@@ -29,8 +29,10 @@ static func _round_mult(r: int) -> float:
 ## Generate enemy army for a given round.
 ## genome=null falls back to Genome.create_default().
 ## Returns: Array of unit dicts {atk, hp, attack_speed, range, move_speed, radius}.
-static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome = null) -> Array:
+static func generate(round_num: int, rng: RandomNumberGenerator,
+		genome: Genome = null, difficulty: int = 1) -> Array:
 	var g: Genome = genome if genome != null else Genome.create_default()
+	var difficulty_value: int = Difficulty.clamp_difficulty(difficulty)
 
 	var is_boss := round_num in [4, 8, 12, 15]
 	var preset_idx: int = rng.randi_range(0, PRESET_NAMES.size() - 1)
@@ -75,6 +77,8 @@ static func generate(round_num: int, rng: RandomNumberGenerator, genome: Genome 
 				"range": range_val,
 				"move_speed": ms_val,
 				"radius": 6.0,
+				"mechanics": [],
 			})
 
-	return units
+	Difficulty.apply_enemy_count_modifier(units, difficulty_value, rng)
+	return Difficulty.apply_enemy_modifiers(units, round_num, rng, difficulty_value)

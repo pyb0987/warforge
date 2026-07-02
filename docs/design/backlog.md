@@ -4,18 +4,18 @@
 
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| 보스 보상 개별 내용 | 유형별 원칙 확정, 개별 내용 미정 | ⚡즉시행동/🔄영구규칙/💥직접강화/📐구조 설계 원칙 완료. 개별 27개 보상은 카드 풀 후 |
-| 테라진 가격/수입 조정 | 프로토타입 후 | 1슬롯 전환에 따른 수치 재조정 |
+| 보스 보상 개별 내용 | 완료 (27종) | `docs/design/boss-rewards.md` 기준 R4/R8/R12 각 9종 확정. `BossRewardDB`/`BossReward` 구현 및 `test_boss_reward.gd`로 데이터+적용 경로 검증 |
+| 테라진 가격/수입 조정 | 1차 구현, 미세조정 후보 | 승리/패배 2t/1t, 커먼 4t, 레어 8t, 업그레이드 리롤 1t로 live/sim 연결. 고난도·사람 플레이 표본 기반 미세조정은 후속 |
 
 ## 시스템
 
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| 업그레이드 시스템 | 구조 확정 | 1슬롯 통일, 5축 효과, 범용+태그한정, 23~28종 (커먼10~12/레어8~10/에픽5~6). 개별 항목은 카드 풀 확정 후 |
-| 리플레이 시스템 | 초안 완료 | 커맨더 7종, 부적 12종, 난이도 8단계. 해금 루프 포함 |
+| 업그레이드 시스템 | 대상 비교 UX 1차 완료 | 1슬롯 통일, 커먼/레어 테라진 상점, 에픽 보스/특수 보상, 구매 즉시 필드 카드 부착. 대상 선택 overlay에서 슬롯 상태와 효과 미리보기 표시 |
+| 리플레이 시스템 | 1차 구현 완료 | 커맨더 7종, 부적 12종, 난이도 8단계 선택과 메타 해금/저장/UI 연결 완료. 고난도 표본 기반 튜닝은 후속 |
 | 유물 시스템 | 불필요 | 부적 + 보스 보상 3회로 역할 충분 |
 | 보조 태그 시너지 | 별도 시스템 불필요 | 카드 효과의 한 유형 (패시브 태그 참조). 카드 풀 설계 시 반영 |
-| 적 파워 곡선 | 프레임워크 확정, 수치 미정 | 프리셋형(라운드당 3~4개 풀) + 랜덤 업그레이드 + 특성 보스. 구체 수치는 카드 풀 확정 후 |
+| 적 파워 곡선 | 1차 구현 완료, 튜닝 지속 | `EnemyDB.generate`와 `Difficulty` 보정 레이어로 라운드별 적 생성, 보스 CP 보정, D5/D7 보스 업그레이드가 live/sim 공통 적용됨. D7-D8은 추가 표본으로 미세조정 |
 | 전투 시스템 구체화 | 확정 | SC1 스타일. AS/Range/MS 유닛별. DEF 기본0, 업글로 부여. 가장가까운적 타겟팅 |
 | 예시 카드 풀 세트 | 완료 (2026-04-30) | 68장 전 카드 YAML 등록 + codegen. 분배 24/11/11/11/11. multi-review veto-conditional pass — sim 회귀 진단 사후 액션은 .claude/backlog.md B-2/B-3 |
 
@@ -25,9 +25,9 @@
 |------|------|------|
 | 테마/세계관 | 확정 | 4테마(스팀펑크/드루이드/포식종/군대) + 중립. 24/11/11/11/11 = 68장. 테마별 키워드 확정 |
 | 아트 스타일 | 방향 확정 | SC 스타일. 프로토타입은 Kenney CC0 사용 |
-| 성장 체인 시각 연출 | 미설계 | 체인 카운터, ★별 이펙트, 유닛 성장 애니메이션 |
-| 메타 진행 상세 | 초안 완료 | 세부 밸런스 미설계 |
-| 난이도 곡선 상세 | 재설계 필요 | 새 경제에 맞춰 sim/simulate.py 재조정 |
+| 성장 체인 시각 연출 | 1차 완료 | 체인 카운터 + 페이즈 + 최근 source→target 이벤트 로그 구현. ★별 이펙트, 사운드, 유닛 성장 애니메이션은 후속 polish |
+| 메타 진행 상세 | 상세 화면 1차 완료 | 초기 해금, 난이도 해금, 업적 기반 커맨더/부적 해금, 첫 런 가이드 저장 흐름 구현. 시작 화면의 `PROGRESS` 패널에서 전체 커맨더/부적 해금 상태, 완료 업적, 잠긴 목표 확인 가능 |
+| 난이도 곡선 상세 | 1차 구현 완료, 고난도 미세 튜닝 필요 | `Difficulty` 보정 레이어로 전투/경제/헤드리스 sim 연결. D4/D7 cliff 완화 완료. D7-D8은 70-run에서 희박한 clear 확인, 사람 플레이/대형 sweep 표본 필요 |
 | PvP 모드 | 후순위 | PvE 확정 후 설계 |
 | 플랫폼 | 후순위 | 기획 확정 후 결정 |
 
@@ -37,7 +37,8 @@
 
 | 항목 | 종류 | 설명 |
 |------|------|------|
-| sim ON_REROLL trigger 미처리 | sim ↔ 게임 본체 비대칭 | `sim/headless_runner.gd` 가 `chain_engine.process_reroll_triggers` 미호출. `game_manager.gd` 는 호출. 영향: sp_interest 의 spawn+enhance, ne_pawnbroker (전당포) 의 levelup_discount + RS free_reroll 모두 sim 에서 미발동 → ON_REROLL 카드 효과가 sim 밸런싱에서 과소평가. 해결: `sim/shop_logic.gd::reroll()` 에 chain_engine hook (callback signal) 추가. 회귀 위험: sp_interest sim 결과 변동 — 별도 검증 필요 (2026-04-26 분열체→전당포 재설계 시 발견) |
+| sim ON_REROLL trigger | ~~sim ↔ 게임 본체 비대칭~~ **해결** | `ShopLogic.reroll()`에 선택적 trigger callback을 추가하고 `HeadlessRunner`가 `chain_engine.process_reroll_triggers` 결과를 골드/테라진/레벨업 할인에 반영한다. 검증: `test_sim_shop_logic.gd`, `test_headless_runner.gd`, `test_steampunk_system.gd`, `test_pawnbroker_reroll.gd` |
+| sim pending free-reroll 생성/소비 | ~~latent~~ **해결** | `ShopLogic.reroll()`이 pending 무료 리롤을 골드보다 먼저 소비하고 성공 시 ON_REROLL trigger를 발동한다. `HeadlessRunner`는 chain 시작 시 pending/round reroll을 live처럼 리셋한 뒤 보스 보상 매턴 무료 리롤을 충전하고, chain callback으로 `ne_pawnbroker`/`ne_scrapyard` 무료 리롤 적립을 state에 반영한다. AI reroll 조건은 무료 리롤 보유 시 gold reserve를 우회한다. |
 | `_c()` flat hoist | 암묵적 계약 | `template["trigger_timing"]` 등 top-level accessor가 "첫 block의 hoist". multi-block 카드에서 대표 timing 개념이 암묵화. 주석 보강으로 완화, 장기적으론 전면 제거 |
 | sim의 이중 쓰기 (max_activations) | ~~단일 진실 소스 위반~~ **해결** | `CardInstance.max_activation_override` 필드 + `get_max_activations()` + `can_activate_with` Option A 도입 (Task 4, 2026-04-21). `headless_runner` / `diagnostic_game` 의 template mutation 제거, 보스 `activation_bonus` 는 `chain_engine.activation_bonus` 일원화. `grep 'template\["max_activations"\]\s*='` 결과 0건 (test fixture 제외). |
 | `retrigger` action 하드코드 | ~~latent~~ **해결** | ~~`chain_engine.gd:585-588`에서 `ROUND_START` 블록만 찾음. theme_system 타겟이면 actions 빈 리스트.~~ `validate_no_retrigger` codegen hard-fail 추가 (Task 2, 2026-04-20). YAML에 retrigger 등장 시 즉시 차단. |
@@ -51,4 +52,4 @@
 | multi-block projection: 비-primary block conditional silent drop | ~~latent~~ **해결** | `validate_multiblock_nonprimary_conditional` codegen hard-fail 추가 (2026-04-21). multi-block 카드의 non-primary block에 conditional/r_conditional/post_threshold 쓰면 차단. |
 | multi-block primary timing validator 부재 | ~~사람 실수 방어~~ **해결** | `validate_multiblock_primary_timing_consistency` codegen hard-fail 추가 (2026-04-21). multi-block 카드가 ★별로 첫 block trigger_timing 달라지면 차단 (single-block 카드의 star-level timing override는 허용). |
 | conditional/r_conditional/post_threshold depth 비일관성 | ~~follow-up~~ **해결** | v2 block 수준은 dict-of-actions, conditional 내부는 v1-style `effects:` list 였음. depth 1 감소 마이그레이션(59a36f1, 2026-04-21): `{when, ...actions}` mini-block + post_threshold `{...actions}` 단일 dict 로 통일. `validate_conditional_effects_key_removed` 로 역전 차단. |
-| **desc_gen: multi-block 같은 timing 의 listen 별 분리 부재** | **높음 — description 직결** | `generate_star_desc` 의 `timing_groups` key 가 trigger_timing string 단일. 같은 OE timing 이지만 listen 이 다른 두 block (pr_transcend 의 HA/MT) 이 한 prefix ("[반응]...") 아래 병합 표시되어 "부화 시 → 변태 (1기 소모)" 처럼 오해 유발. 해결: `timing_groups` key 를 `(timing, listen_l1, listen_l2)` tuple 로 확장 + projection 이 non-primary block action 에 listen 메타 주입 + `get_prefix` 가 OE_PREFIX[(l1, l2)] 로 세분화. 영향: 현재 multi-OE 카드는 pr_transcend 하나지만 UI 노출. 추가 비용 증가 전 선 해결 권고. |
+| desc_gen: multi-block 같은 timing 의 listen 별 분리 | ~~description 직결~~ **해결** | `codegen_card_db._project_to_desc_gen_input`가 same-timing/non-primary block action에 `listen_override`를 주입하고, `generate_star_desc`가 `(timing, listen_key)` section별로 그룹핑한다. `pr_transcend`는 `부화 시`/`변태 시`를 별도 `[반응]` 문장과 section별 max_act suffix로 출력한다. 검증: `scripts.tests.test_card_desc_codegen`, `codegen_card_db.py --check` |

@@ -1963,6 +1963,14 @@ func _register_druid() -> void:
 					{"action": "tree_add", "target": "self", "count": 1},
 					{"action": "tree_add", "target": "right_adj", "count": 1}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		cra_tags,
@@ -1980,6 +1988,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "tree_add", "target": "both_adj", "count": 1}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -1995,6 +2011,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 3},
 						{"action": "tree_add", "target": "both_adj", "count": 2}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2013,7 +2037,8 @@ func _register_druid() -> void:
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
 					{"action": "tree_add", "target": "self", "count": 1},
-					{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.05, "tree_scale_pct": 0.03, "low_unit": {"thresh": 2, "mult": 1.5}}
+					{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.05, "tree_scale_pct": 0.03, "low_unit": {"thresh": 2, "mult": 1.5}},
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 				],
 			}
 		],
@@ -2030,7 +2055,8 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 1},
-						{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.08, "tree_scale_pct": 0.04, "low_unit": {"thresh": 4, "mult": 1.5}}
+						{"action": "tree_shield", "target": "self_and_both_adj", "base_pct": 0.08, "tree_scale_pct": 0.04, "low_unit": {"thresh": 4, "mult": 1.5}},
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2046,7 +2072,8 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
-						{"action": "tree_shield", "target": "all_druid", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 8, "mult": 1.5}}
+						{"action": "tree_shield", "target": "all_druid", "base_pct": 0.08, "tree_scale_pct": 0.05, "low_unit": {"thresh": 8, "mult": 1.5}},
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2068,6 +2095,14 @@ func _register_druid() -> void:
 					{"action": "tree_absorb", "target": "adj_druids", "count": 1},
 					{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.004, "low_unit": {"thresh": 2, "pct": 0.006}}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		ori_tags,
@@ -2086,6 +2121,14 @@ func _register_druid() -> void:
 						{"action": "tree_absorb", "target": "adj_druids", "count": 2},
 						{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 4, "pct": 0.009}}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2102,6 +2145,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "tree_absorb", "target": "adj_druids", "count": 2},
 						{"action": "tree_enhance", "target": "all_druid", "base_pct": 0.006, "low_unit": {"thresh": 8, "pct": 0.009}, "tree_bonus": {"thresh": 8, "bonus_growth_pct": 0.08}}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2121,6 +2172,14 @@ func _register_druid() -> void:
 				"actions": [
 					{"action": "tree_gold", "base_gold": 1, "tree_divisor": 3, "win_half": true, "terazin_thresh": 10, "terazin": 1}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		gra_tags,
@@ -2137,6 +2196,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_gold", "base_gold": 2, "tree_divisor": 3, "win_half": false, "terazin_thresh": 8, "terazin": 1}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2152,6 +2219,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_gold", "base_gold": 2, "tree_divisor": 3, "win_half": false, "terazin_thresh": 8, "terazin": 1},
 						{"action": "free_reroll", "value": 1}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2172,6 +2247,14 @@ func _register_druid() -> void:
 					{"action": "tree_add", "target": "self", "count": 1},
 					{"action": "prune", "count": 2, "min_units": 3}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		pru_tags,
@@ -2189,6 +2272,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 1},
 						{"action": "prune", "count": 2, "min_units": 3, "enhance_pct": 0.03}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2204,6 +2295,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "prune", "count": 3, "min_units": 3, "enhance_pct": 0.05}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2224,6 +2323,14 @@ func _register_druid() -> void:
 					{"action": "tree_add", "target": "self", "count": 1},
 					{"action": "tree_enhance", "target": "self", "base_pct": 0.008, "low_unit": {"thresh": 2, "pct": 0.012}, "tree_bonus": {"thresh": 10, "mult": 1.3}}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		dee_tags,
@@ -2241,6 +2348,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 1},
 						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 4, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.3}}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2256,6 +2371,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "tree_enhance", "target": "self", "base_pct": 0.012, "low_unit": {"thresh": 8, "pct": 0.018}, "tree_bonus": {"thresh": 8, "mult": 1.5}}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2273,7 +2396,8 @@ func _register_druid() -> void:
 				"trigger_layer1": -1, "trigger_layer2": -1,
 				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 				"actions": [
-					{"action": "debuff_store", "stat": "as", "base_pct": 0.15, "tree_scale_pct": 0.015, "cap": 0.5}
+					{"action": "debuff_store", "stat": "as", "base_pct": 0.15, "tree_scale_pct": 0.015, "cap": 0.5},
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 				],
 			}
 		],
@@ -2290,7 +2414,8 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "debuff_store", "stat": "as", "base_pct": 0.2, "tree_scale_pct": 0.02, "cap": 0.5},
-						{"action": "debuff_store", "stat": "atk", "base_pct": 0.2, "tree_scale_pct": 0.02, "cap": 0.5}
+						{"action": "debuff_store", "stat": "atk", "base_pct": 0.2, "tree_scale_pct": 0.02, "cap": 0.5},
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2307,7 +2432,8 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "debuff_store", "stat": "as", "base_pct": 0.3, "tree_scale_pct": 0.025, "cap": 0.5},
 						{"action": "debuff_store", "stat": "atk", "base_pct": 0.3, "tree_scale_pct": 0.02, "cap": 0.5},
-						{"action": "tree_shield", "target": "self", "base_pct": 0.1, "tree_scale_pct": 0.02}
+						{"action": "tree_shield", "target": "self", "base_pct": 0.1, "tree_scale_pct": 0.02},
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2327,6 +2453,14 @@ func _register_druid() -> void:
 				"actions": [
 					{"action": "tree_temp_buff", "target": "self", "unit_cap": 3, "atk_base_pct": 0.8, "atk_tree_pct": 0.05}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		wra_tags,
@@ -2343,6 +2477,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "tree_temp_buff", "target": "self", "unit_cap": 8, "atk_base_pct": 1.2, "atk_tree_pct": 0.08, "hp_pct": 0.6}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2357,6 +2499,14 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "tree_temp_buff", "target": "self", "unit_cap": 16, "atk_mult": 1.5, "hp_mult": 1.3, "kill_hp_recover": true}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2377,6 +2527,14 @@ func _register_druid() -> void:
 					{"action": "tree_add", "target": "self", "count": 1},
 					{"action": "tree_distribute", "target": "all_other_druid", "tiers": [{"tree_gte": 4, "amount": 1}, {"tree_gte": 8, "amount": 2}]}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		wr_tags,
@@ -2394,6 +2552,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 1},
 						{"action": "tree_distribute", "target": "all_other_druid", "tiers": [{"tree_gte": 3, "amount": 1}, {"tree_gte": 6, "amount": 2}]}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2410,6 +2576,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 2},
 						{"action": "tree_distribute", "target": "all_other_druid", "tiers": [{"tree_gte": 3, "amount": 1}, {"tree_gte": 6, "amount": 2}]},
 						{"action": "epic_shop_unlock", "tree_thresh": 8}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2431,6 +2605,14 @@ func _register_druid() -> void:
 					{"action": "tree_add", "target": "all_other_druid", "count": 1},
 					{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 30}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		wor_tags,
@@ -2449,6 +2631,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "all_other_druid", "count": 2},
 						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 20}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2465,6 +2655,14 @@ func _register_druid() -> void:
 						{"action": "tree_add", "target": "self", "count": 3},
 						{"action": "tree_add", "target": "all_other_druid", "count": 2},
 						{"action": "multiply_stats", "target": "all_allies", "tree_source": "forest_depth", "per_step": 0.05, "tree_step": 5}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],
@@ -2484,6 +2682,14 @@ func _register_druid() -> void:
 				"actions": [
 					{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 1, "self_atk_pct": 0.02}
 				],
+			},
+			{
+				"trigger_timing": BS, "max_activations": -1,
+				"trigger_layer1": -1, "trigger_layer2": -1,
+				"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+				"actions": [
+					{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+				],
 			}
 		],
 		res_tags,
@@ -2500,6 +2706,14 @@ func _register_druid() -> void:
 					"actions": [
 						{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 1, "self_atk_pct": 0.03, "self_hp_pct": 0.02}
 					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
+					],
 				}
 			],
 			},
@@ -2514,6 +2728,14 @@ func _register_druid() -> void:
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
 						{"action": "mirror_spawn_to_tree", "filter": "non_druid_target", "tree_add": 2, "self_atk_pct": 0.04, "self_hp_pct": 0.03}
+					],
+				},
+				{
+					"trigger_timing": BS, "max_activations": -1,
+					"trigger_layer1": -1, "trigger_layer2": -1,
+					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
+					"actions": [
+						{"action": "tree_combat_bonus", "target": "self", "per_tree_pct": 0.05, "cap_pct": 0.6}
 					],
 				}
 			],

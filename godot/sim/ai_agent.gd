@@ -373,7 +373,7 @@ func _play_aggressive(state: GameState, shop: RefCounted) -> void:
 		actions += 1
 		var bought := _try_buy_best(state, shop, -1)
 		if not bought:
-			if rerolls < reroll_budget and state.gold >= _get_reroll_cost() + 2 and shop.reroll():
+			if rerolls < reroll_budget and shop.can_reroll_with_reserve(2) and shop.reroll():
 				rerolls += 1
 				if _tracer != null and _tracer.enabled:
 					_tracer.emit({"t": "reroll", "round": state.round_num,
@@ -459,7 +459,7 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 		if bought:
 			continue
 
-		if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + gold_reserve:
+		if rerolls < max_rerolls and shop.can_reroll_with_reserve(gold_reserve):
 			if shop.reroll():
 				rerolls += 1
 				if _tracer != null and _tracer.enabled:
@@ -510,7 +510,7 @@ func _play_adaptive(state: GameState, shop: RefCounted) -> void:
 		actions += 1
 		var bought := _try_buy_best(state, shop, preferred_theme)
 		if not bought:
-			if rerolls < max_rerolls and state.gold >= _get_reroll_cost() + reroll_floor and shop.reroll():
+			if rerolls < max_rerolls and shop.can_reroll_with_reserve(reroll_floor) and shop.reroll():
 				rerolls += 1
 				if _tracer != null and _tracer.enabled:
 					_tracer.emit({"t": "reroll", "round": state.round_num,
@@ -563,7 +563,7 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 
 	if not _H.has_bench_space(state):
 		if best_score >= 15.0:
-			var sold := _sell_weakest_for_upgrade(state)
+			var sold := _sell_weakest_for_upgrade(state, best_score)
 			if not sold:
 				if trace_on:
 					_tracer.emit({"t": "buy_skip", "round": state.round_num,
@@ -867,43 +867,30 @@ func _card_value(card: CardInstance, state: GameState) -> float:
 
 # --- Sell logic ---
 
-func _sell_weakest_for_upgrade(state: GameState) -> bool:
-	var worst_zone := ""
+func _sell_weakest_for_upgrade(state: GameState, incoming_score: float = 0.0) -> bool:
 	var worst_idx := -1
 	var worst_val := 999.0
 
 	for i in state.bench.size():
 		if state.bench[i] == null:
 			continue
-		var val := _card_value(state.bench[i], state)
+		var card: CardInstance = state.bench[i]
+		var val := _card_value(card, state)
 		if val < worst_val:
 			worst_val = val
-			worst_zone = "bench"
 			worst_idx = i
 
-	if worst_val > 20.0:
-		for i in state.board.size():
-			if state.board[i] == null:
-				continue
-			var c: CardInstance = state.board[i]
-			if c.star_level >= 2:
-				continue
-			var val := _card_value(c, state)
-			if val < worst_val:
-				worst_val = val
-				worst_zone = "board"
-				worst_idx = i
+	if worst_idx < 0:
+		return false
 
-	if worst_idx >= 0:
-		if _tracer != null and _tracer.enabled:
-			var target_list: Array = state.bench if worst_zone == "bench" else state.board
-			var sold_card: CardInstance = target_list[worst_idx]
-			_tracer.emit({"t": "sell", "round": state.round_num, "reason": "weakest_for_upgrade",
-				"zone": worst_zone, "card_id": sold_card.get_base_id(),
-				"star": sold_card.star_level, "value": round(worst_val * 100) / 100.0})
-		state.sell_card(worst_zone, worst_idx)
-		return true
-	return false
+	if _tracer != null and _tracer.enabled:
+		var sold_card: CardInstance = state.bench[worst_idx]
+		_tracer.emit({"t": "sell", "round": state.round_num, "reason": "weakest_for_upgrade",
+			"zone": "bench", "card_id": sold_card.get_base_id(),
+			"star": sold_card.star_level, "value": round(worst_val * 100) / 100.0,
+			"incoming_score": round(incoming_score * 100) / 100.0})
+	state.sell_card("bench", worst_idx)
+	return true
 
 
 func _transition_board(state: GameState) -> void:

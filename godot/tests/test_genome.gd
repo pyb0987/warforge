@@ -27,19 +27,19 @@ func test_default_target_cp_geometric() -> void:
 
 func test_default_economy() -> void:
 	var g = GenomeScript.load_file("res://sim/default_genome.json")
-	assert_eq(g.economy.reroll_cost, 1, "리롤 비용 1g")
-	assert_eq(g.economy.interest_per_5g, 1, "이자 5g당 1")
-	assert_eq(g.economy.max_interest, 2, "최대 이자 2")
-	assert_eq(g.economy.terazin_win, 2, "승리 테라진 +2")
-	assert_eq(g.economy.terazin_lose, 1, "패배 테라진 +1")
+	assert_almost_eq(float(g.economy.reroll_cost), 1.0, 0.001, "리롤 비용 1g")
+	assert_almost_eq(float(g.economy.interest_per_5g), 1.0, 0.001, "이자 5g당 1")
+	assert_almost_eq(float(g.economy.max_interest), 2.0, 0.001, "최대 이자 2")
+	assert_almost_eq(float(g.economy.terazin_win), 2.0, 0.001, "승리 테라진 +2")
+	assert_almost_eq(float(g.economy.terazin_lose), 1.0, 0.001, "패배 테라진 +1")
 
 
 func test_default_base_income() -> void:
 	var g = GenomeScript.load_file("res://sim/default_genome.json")
 	assert_eq(g.economy.base_income.size(), 15, "소득 15라운드")
-	assert_eq(g.economy.base_income[0], 5, "R1 소득 5g")
-	assert_eq(g.economy.base_income[5], 6, "R6 소득 6g")
-	assert_eq(g.economy.base_income[10], 7, "R11 소득 7g")
+	assert_almost_eq(float(g.economy.base_income[0]), 5.0, 0.001, "R1 소득 5g")
+	assert_almost_eq(float(g.economy.base_income[5]), 6.0, 0.001, "R6 소득 6g")
+	assert_almost_eq(float(g.economy.base_income[10]), 7.0, 0.001, "R11 소득 7g")
 
 
 func test_default_activation_caps_empty() -> void:

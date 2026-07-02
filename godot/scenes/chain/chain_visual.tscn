@@ -15,9 +15,34 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -150.0
+offset_left = -220.0
 offset_top = 10.0
 offset_right = -10.0
 offset_bottom = 40.0
 text = "Chain: 0"
 horizontal_alignment = 2
+
+[node name="EventPanel" type="PanelContainer" parent="."]
+visible = false
+custom_minimum_size = Vector2(340, 120)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -360.0
+offset_top = 42.0
+offset_right = -10.0
+offset_bottom = 180.0
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="EventPanel"]
+layout_mode = 2
+
+[node name="PhaseLabel" type="Label" parent="EventPanel/VBox"]
+layout_mode = 2
+text = "Phase: Idle"
+
+[node name="EventLogLabel" type="Label" parent="EventPanel/VBox"]
+layout_mode = 2
+text = "No chain events yet"
+autowrap_mode = 2

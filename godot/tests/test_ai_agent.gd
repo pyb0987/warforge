@@ -86,6 +86,37 @@ func test_agent_does_not_exceed_gold() -> void:
 	assert_gte(_state.gold, 0, "골드가 음수가 되지 않음")
 
 
+func test_sell_for_upgrade_does_not_sell_board_when_bench_full() -> void:
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
+	_state.round_num = 11
+	_state.field_slots = 6
+	_state.board[0] = CardInstance.create("sp_global_workshop")
+	for i in _state.bench.size():
+		_state.bench[i] = CardInstance.create("pr_nest")
+
+	var board_before := _state.board_count()
+	var ok: bool = agent._sell_weakest_for_upgrade(_state, 999.0)
+
+	assert_true(ok, "벤치 카드는 하나 팔 수 있어야 함")
+	assert_eq(_state.board_count(), board_before, "구매 공간 확보는 보드를 팔지 않음")
+
+
+func test_sell_for_upgrade_uses_bench_even_when_bench_cards_are_high_value() -> void:
+	var agent = AIAgentScript.new("soft_steampunk", _rng)
+	_state.round_num = 11
+	_state.shop_level = 5
+	_state.board[0] = CardInstance.create("sp_workshop")
+	_state.board[1] = CardInstance.create("sp_circulator")
+	for i in _state.bench.size():
+		_state.bench[i] = CardInstance.create("sp_arsenal")
+
+	var board_before := _state.board_count()
+	var ok: bool = agent._sell_weakest_for_upgrade(_state, 999.0)
+
+	assert_true(ok, "높은 점수 구매라면 고가치 벤치 카드도 공간 확보에 사용할 수 있음")
+	assert_eq(_state.board_count(), board_before, "고가치 카드가 있어도 보드는 팔지 않음")
+
+
 # ================================================================
 # 테마 선호
 # ================================================================

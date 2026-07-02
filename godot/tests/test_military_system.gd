@@ -441,6 +441,28 @@ func test_command_s3_trains_2() -> void:
 	assert_eq(ally.theme_state.get("rank", 0), rank_before + 2, "★3 train +2")
 
 
+func test_command_r4_process_rs_with_revive_scope_override() -> void:
+	## R4 revive_scope_override는 실제 부활 범위 해석용 선언이다.
+	## RS dispatcher에서는 no-op이어야 하며 train만 정상 처리한다.
+	var card: CardInstance = CardInstance.create("ml_command")
+	card.theme_state["rank"] = 4
+	var ally: CardInstance = CardInstance.create("ml_barracks")
+	_sys.process_rs_card(card, 0, [card, ally], _rng)
+	assert_eq(card.theme_state.get("rank", 0), 5, "R4 command도 self train +1")
+	assert_eq(ally.theme_state.get("rank", 0), 1, "R4 command도 ally train +1")
+
+
+func test_command_r10_process_rs_with_revive_scope_override() -> void:
+	## R10 scope override(self_and_adj_all)도 RS dispatcher에서는 no-op.
+	## 실제 revive scope는 resolve_command_revive/resolve_revive_scope가 담당한다.
+	var card: CardInstance = CardInstance.create("ml_command")
+	card.theme_state["rank"] = 10
+	var ally: CardInstance = CardInstance.create("ml_barracks")
+	_sys.process_rs_card(card, 0, [card, ally], _rng)
+	assert_eq(card.theme_state.get("rank", 0), 11, "R10 command도 self train +1")
+	assert_eq(ally.theme_state.get("rank", 0), 1, "R10 command도 ally train +1")
+
+
 func _revive_effect_for(card: CardInstance) -> Dictionary:
 	## Helper: YAML의 revive effect를 직접 평가 (_materialize_army와 동일 로직).
 	var effs: Array = CardDB.get_theme_effects(card.get_base_id(), card.star_level)
@@ -931,10 +953,11 @@ func test_resolve_revive_scope_self_and_adj_all_right_edge() -> void:
 
 
 func test_resolve_revive_scope_unknown_falls_back() -> void:
-	## 알 수 없는 target은 self_enhanced로 fallback (warning은 별도 확인 불가).
+	## 알 수 없는 target은 warning을 내고 self_enhanced로 fallback.
 	var scope: Dictionary = _sys.resolve_revive_scope("nonexistent_scope", 1, 3)
 	assert_eq(scope["card_indices"], [1], "unknown: self fallback")
 	assert_true(scope["only_enhanced"], "unknown: enhanced fallback")
+	assert_push_warning("nonexistent_scope", "unknown scope warning은 의도된 fallback 신호")
 
 
 # --- 추가 ★ 검증 ---

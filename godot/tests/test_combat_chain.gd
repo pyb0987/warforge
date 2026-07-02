@@ -112,7 +112,7 @@ func test_combat_event_respects_activation_limit() -> void:
 func test_combat_engine_emits_unit_attacked() -> void:
 	## combat_engine.resolve_attack 후 unit_attacked 시그널 발생
 	var CombatEngineScript = preload("res://combat/combat_engine.gd")
-	var engine := CombatEngineScript.new()
+	var engine: CombatEngine = CombatEngineScript.new()
 	engine.setup(
 		[{"atk": 10, "hp": 9999, "attack_speed": 0.5, "range": 1,
 		  "move_speed": 5, "def": 0, "mechanics": [], "radius": 6.0}],

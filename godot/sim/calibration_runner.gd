@@ -17,7 +17,7 @@ extends SceneTree
 ##
 ## Usage:
 ##   godot --headless --path godot/ -s sim/calibration_runner.gd -- \
-##     --genome=res://sim/best_genome.json --runs=20 --seed=42
+##     --genome=res://sim/best_genome.json --runs=20 --seed=42 --difficulty=1
 
 
 func _init() -> void:
@@ -33,6 +33,7 @@ func _run() -> void:
 	var genome_path: String = args.get("genome", "res://sim/default_genome.json")
 	var runs_per_ai: int = args.get("runs", 20)
 	var base_seed: int = args.get("seed", 42)
+	var difficulty: int = _clamp_difficulty(args.get("difficulty", 1))
 
 	var genome = _GenomeClass.load_file(genome_path)
 	if genome == null:
@@ -56,12 +57,13 @@ func _run() -> void:
 
 	printerr("=== Calibration Runner ===")
 	printerr("Genome: %s" % genome_path)
+	printerr("Difficulty: %d" % difficulty)
 	printerr("Runs: %d × %d = %d" % [runs_per_ai, strategies.size(), runs_per_ai * strategies.size()])
 
 	for strat in strategies:
 		for i in runs_per_ai:
 			var seed_val: int = base_seed + hash(strat) + i
-			var runner = _RunnerClass.new(genome, strat, seed_val)
+			var runner = _RunnerClass.new(genome, strat, seed_val, difficulty)
 			var result: Dictionary = runner.run()
 			total_games += 1
 			total_rounds_played += int(result.get("rounds_played", 0))
@@ -85,6 +87,7 @@ func _run() -> void:
 		"per_round_totals": per_round_totals,
 		"per_round_wins": per_round_wins,
 		"total_runs": total_games,
+		"difficulty": difficulty,
 		"overall_clear_rate": float(total_wins) / total_games if total_games > 0 else 0.0,
 		"avg_rounds_played": float(total_rounds_played) / total_games if total_games > 0 else 0.0,
 	}
@@ -103,4 +106,10 @@ func _parse_args() -> Dictionary:
 			result["runs"] = arg.substr(7).to_int()
 		elif arg.begins_with("--seed="):
 			result["seed"] = arg.substr(7).to_int()
+		elif arg.begins_with("--difficulty="):
+			result["difficulty"] = arg.substr(13).to_int()
 	return result
+
+
+func _clamp_difficulty(value: int) -> int:
+	return clampi(value, 1, 8)

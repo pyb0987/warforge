@@ -174,6 +174,49 @@ func test_lifebeat_shield_increases_with_trees() -> void:
 	assert_almost_eq(card.shield_hp_pct, 0.255, 0.001, "trees=4 → shield=0.255")
 
 
+func test_common_tree_combat_bonus_scales_with_own_trees() -> void:
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.theme_state["trees"] = 5
+	var atk_before: float = card.get_total_atk()
+	var hp_before: float = card.get_total_hp()
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.25, 0.01,
+		"5🌳 → ATK +25% 이번 전투")
+	assert_almost_eq(card.get_total_hp(), hp_before * 1.25, 0.01,
+		"5🌳 → HP +25% 이번 전투")
+
+
+func test_common_tree_combat_bonus_caps_at_60_percent() -> void:
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.theme_state["trees"] = 15
+	var atk_before: float = card.get_total_atk()
+	var hp_before: float = card.get_total_hp()
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.60, 0.01,
+		"15🌳 → ATK cap +60%")
+	assert_almost_eq(card.get_total_hp(), hp_before * 1.60, 0.01,
+		"15🌳 → HP cap +60%")
+
+
+func test_common_tree_combat_bonus_clears_after_combat() -> void:
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.theme_state["trees"] = 10
+	var atk_before: float = card.get_total_atk()
+	_sys.apply_battle_start(card, 0, [card])
+	assert_gt(card.get_total_atk(), atk_before, "전투 중 임시 보너스 적용")
+	card.clear_temp_buffs()
+	assert_almost_eq(card.get_total_atk(), atk_before, 0.01,
+		"clear_temp_buffs 후 영구 성장으로 남지 않음")
+
+
+func test_lifebeat_common_bonus_counts_battle_tree() -> void:
+	var card: CardInstance = CardInstance.create("dr_lifebeat")
+	var atk_before: float = card.get_total_atk()
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.05, 0.01,
+		"lifebeat BS 🌳+1 이후 공통 보너스 +5%")
+
+
 # ================================================================
 # apply_post_combat: dr_grace
 # ================================================================

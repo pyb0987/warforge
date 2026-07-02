@@ -46,6 +46,7 @@ var council_counter: int = 0
 # --- Player ---
 var hp: int = 30
 var round_num: int = 0
+var difficulty: int = 1
 
 # --- Commander ---
 var commander_type: int = Enums.CommanderType.NONE

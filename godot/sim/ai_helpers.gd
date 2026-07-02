@@ -260,9 +260,18 @@ static func detect_dominant_theme(state: GameState) -> int:
 			counts[theme] = counts.get(theme, 0) + 1
 
 	var best_theme := -1
-	var best_count := 1
+	var best_count := 0
+	var second_count := 0
 	for t in counts:
-		if counts[t] > best_count:
-			best_count = counts[t]
+		var count: int = counts[t]
+		if count > best_count:
+			second_count = best_count
+			best_count = count
 			best_theme = t
+		elif count > second_count:
+			second_count = count
+	# Adaptive should only commit when the lead is clear. A 2-card early lead
+	# often comes from shop luck and prematurely locks out other engines.
+	if best_count < 3 or best_count - second_count < 2:
+		return -1
 	return best_theme

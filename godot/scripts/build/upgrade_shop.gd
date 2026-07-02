@@ -1,6 +1,6 @@
 extends HBoxContainer
 ## Upgrade shop: offers 2 upgrades per round, purchasable with terazin.
-## Visible from shop Lv2+ (round 3+). Separate from card shop.
+## Visible from R1. Separate from card shop.
 
 signal upgrade_purchase_requested(upgrade_id: String, slot_idx: int)
 
@@ -37,6 +37,10 @@ func refresh_upgrades() -> void:
 	_update_visuals()
 
 
+func refresh_offer_visuals() -> void:
+	_update_visuals()
+
+
 func reroll_upgrades() -> bool:
 	## Spend 1 terazin to re-roll upgrade slots only. Returns false if can't afford.
 	if _game_state.terazin < Enums.UPGRADE_REROLL_COST:
@@ -54,8 +58,8 @@ func mark_sold(slot_idx: int) -> void:
 
 
 func is_available() -> bool:
-	## Upgrade shop visible from shop Lv2+ (round 3+).
-	return _game_state.round_num >= 3
+	## Commander-era runs expose upgrade decisions from the first round.
+	return true
 
 
 func get_upgrade_cost(slot_idx: int) -> int:
@@ -102,7 +106,10 @@ func _update_visuals() -> void:
 	for i in _upgrade_slots.size():
 		var slot: Panel = _upgrade_slots[i]
 		if i < _offered_ids.size() and _offered_ids[i] != "":
-			slot.call("setup_upgrade", _offered_ids[i], true)
+			var cost := get_upgrade_cost(i)
+			slot.call("setup_upgrade", _offered_ids[i], true, cost)
+			if slot.has_method("set_affordable"):
+				slot.call("set_affordable", _game_state.terazin >= cost)
 		else:
 			slot.call("clear")
 

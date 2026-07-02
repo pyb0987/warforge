@@ -19,6 +19,29 @@ func before_each() -> void:
 	_shop.setup(_state, _rng)
 
 
+func _count_min_tier(ids: Array, min_tier: int) -> int:
+	var count := 0
+	for id in ids:
+		if String(id) == "":
+			continue
+		var tmpl: Dictionary = CardDB.get_template(String(id))
+		if int(tmpl.get("tier", 0)) >= min_tier:
+			count += 1
+	return count
+
+
+func _connect_reroll_triggers(engine: ChainEngine) -> void:
+	_shop.set_reroll_trigger_callback(func():
+		var result: Dictionary = engine.process_reroll_triggers(_state.get_active_board())
+		_state.terazin += int(result.get("terazin", 0))
+		_state.gold += int(result.get("gold", 0))
+		var levelup_discount: int = int(result.get("levelup_discount", 0))
+		if levelup_discount > 0:
+			_state.apply_levelup_discount(levelup_discount)
+		return result
+	)
+
+
 func test_refresh_generates_cards() -> void:
 	_shop.refresh_shop()
 	assert_eq(_shop.offered_ids.size(), 6, "기본 상점 6장")
@@ -31,6 +54,27 @@ func test_refresh_tier1_only_at_level1() -> void:
 	for id in _shop.offered_ids:
 		var tmpl := CardDB.get_template(id)
 		assert_eq(tmpl.get("tier", 0), 1, "레벨1 → T1만")
+
+
+func test_collector_first_shop_guarantees_four_t2_plus() -> void:
+	_state.commander_type = Enums.CommanderType.COLLECTOR
+	_state.round_num = 1
+	_shop.refresh_shop()
+
+	assert_gte(_count_min_tier(_shop.offered_ids, 2), 4,
+		"수집가 첫 상점 → T2+ 4장 이상")
+	assert_true(_state.commander_state.get("collector_start_shop_used", false),
+		"첫 상점 보장 사용 플래그 기록")
+
+
+func test_collector_start_shop_guarantee_only_once() -> void:
+	_state.commander_type = Enums.CommanderType.COLLECTOR
+	_state.round_num = 1
+	_shop.refresh_shop()
+	_shop.refresh_shop()
+
+	assert_eq(_count_min_tier(_shop.offered_ids, 2), 0,
+		"두 번째 R1 refresh는 Lv1 기본 T1 상점")
 
 
 func test_refresh_higher_tiers_at_level4() -> void:
@@ -96,6 +140,21 @@ func test_reroll_costs_gold() -> void:
 	assert_eq(_state.gold, gold_before - Enums.REROLL_COST, "리롤 비용 차감")
 
 
+func test_difficulty_6_refreshes_4_cards() -> void:
+	_state.difficulty = 6
+	_shop.refresh_shop()
+	assert_eq(_shop.offered_ids.size(), 4, "D6 상점 4장")
+
+
+func test_difficulty_6_reroll_costs_2_gold() -> void:
+	_state.difficulty = 6
+	_shop.refresh_shop()
+	var gold_before: int = _state.gold
+	var result: bool = _shop.reroll()
+	assert_true(result, "리롤 성공")
+	assert_eq(_state.gold, gold_before - 2, "D6 리롤 2골드")
+
+
 func test_reroll_changes_cards() -> void:
 	_shop.refresh_shop()
 	var old_ids: Array = _shop.offered_ids.duplicate()
@@ -113,6 +172,91 @@ func test_reroll_not_enough_gold() -> void:
 	_shop.refresh_shop()
 	var result: bool = _shop.reroll()
 	assert_false(result, "골드 부족 → 리롤 실패")
+
+
+func test_pending_free_reroll_consumes_before_gold() -> void:
+	_state.pending_free_rerolls = 1
+	_shop.refresh_shop()
+	var gold_before: int = _state.gold
+
+	var result: bool = _shop.reroll()
+
+	assert_true(result, "무료 리롤 성공")
+	assert_eq(_state.pending_free_rerolls, 0, "pending 무료 리롤 1회 소비")
+	assert_eq(_state.gold, gold_before, "무료 리롤은 골드 미차감")
+	assert_eq(_state.round_rerolls, 1, "무료 리롤도 라운드 리롤 수 증가")
+	assert_true(_shop.last_reroll_was_free, "마지막 리롤 free flag 기록")
+	assert_eq(_shop.last_reroll_cost, 0, "무료 리롤 비용 0")
+
+
+func test_pending_free_reroll_fires_on_reroll_triggers() -> void:
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	_state.board[0] = CardInstance.create("sp_interest")
+	_state.gold = 0
+	_state.pending_free_rerolls = 1
+	_connect_reroll_triggers(engine)
+	_shop.refresh_shop()
+	var units_before: int = (_state.board[0] as CardInstance).get_total_units()
+
+	var result: bool = _shop.reroll()
+
+	assert_true(result, "무료 리롤 성공")
+	assert_eq((_state.board[0] as CardInstance).get_total_units(), units_before + 1,
+		"무료 리롤도 ON_REROLL 유닛 추가 발동")
+	assert_true(_shop.last_reroll_trigger_result.has("events"),
+		"무료 리롤 trigger 결과 저장")
+
+
+func test_reroll_triggers_on_reroll_card_effects() -> void:
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	_state.board[0] = CardInstance.create("sp_interest")
+	_connect_reroll_triggers(engine)
+	_shop.refresh_shop()
+	var units_before: int = (_state.board[0] as CardInstance).get_total_units()
+
+	var result: bool = _shop.reroll()
+
+	assert_true(result, "리롤 성공")
+	assert_eq((_state.board[0] as CardInstance).get_total_units(), units_before + 1,
+		"sim 리롤 → ON_REROLL 유닛 추가")
+	assert_true(_shop.last_reroll_trigger_result.has("events"),
+		"리롤 trigger 결과 저장")
+
+
+func test_reroll_applies_levelup_discount_from_on_reroll() -> void:
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var pawn := CardInstance.create("ne_pawnbroker")
+	pawn.evolve_star()
+	pawn.evolve_star()
+	_state.board[0] = pawn
+	_state.levelup_current_cost = 5
+	_connect_reroll_triggers(engine)
+	_shop.refresh_shop()
+
+	var result: bool = _shop.reroll()
+
+	assert_true(result, "리롤 성공")
+	assert_eq(_state.levelup_current_cost, 3, "전당포 ★3 리롤 → 레벨업 비용 -2")
+	assert_eq(_shop.last_reroll_trigger_result.get("levelup_discount", 0), 2)
+
+
+func test_failed_reroll_does_not_fire_trigger_callback() -> void:
+	var called := [0]
+	_shop.set_reroll_trigger_callback(func():
+		called[0] += 1
+		return {"gold": 99}
+	)
+	_state.gold = 0
+	_shop.refresh_shop()
+
+	var result: bool = _shop.reroll()
+
+	assert_false(result, "골드 부족 → 리롤 실패")
+	assert_eq(called[0], 0, "실패 리롤은 ON_REROLL 미발동")
+	assert_eq(_shop.last_reroll_trigger_result, {})
 
 
 func test_auto_merge_on_purchase() -> void:

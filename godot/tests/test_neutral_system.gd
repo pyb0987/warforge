@@ -24,17 +24,17 @@ func before_each() -> void:
 # ================================================================
 
 
-func test_envoy_star1_rs_grants_2g() -> void:
+func test_envoy_star1_rs_grants_1g() -> void:
 	var card: CardInstance = CardInstance.create("ne_envoy")
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(result.get("gold", 0), 2, "★1 RS → +2g")
+	assert_eq(result.get("gold", 0), 1, "★1 RS → +1g")
 
 
-func test_envoy_star2_rs_grants_3g() -> void:
+func test_envoy_star2_rs_grants_2g() -> void:
 	var card: CardInstance = CardInstance.create("ne_envoy")
 	card.evolve_star()
 	var result: Dictionary = _sys.process_rs_card(card, 0, [card], _rng)
-	assert_eq(result.get("gold", 0), 3, "★2 RS → +3g")
+	assert_eq(result.get("gold", 0), 2, "★2 RS → +2g")
 
 
 func test_envoy_star3_rs_grants_4g() -> void:
@@ -476,7 +476,7 @@ func test_council_star2_yaml_has_council_epic_grant() -> void:
 	var blocks := CardDB.get_effect_blocks("ne_council", 2)
 	var found := false
 	for block in blocks:
-		if block.get("trigger_timing") != Enums.TriggerTiming.RS:
+		if block.get("trigger_timing") != Enums.TriggerTiming.ROUND_START:
 			continue
 		for a in block.get("actions", []):
 			if a.get("action") == "council_epic_grant":
@@ -490,7 +490,7 @@ func test_council_star3_yaml_has_council_epic_grant() -> void:
 	var blocks := CardDB.get_effect_blocks("ne_council", 3)
 	var found := false
 	for block in blocks:
-		if block.get("trigger_timing") != Enums.TriggerTiming.RS:
+		if block.get("trigger_timing") != Enums.TriggerTiming.ROUND_START:
 			continue
 		for a in block.get("actions", []):
 			if a.get("action") == "council_epic_grant":
@@ -513,6 +513,7 @@ func test_game_state_council_counter_initial_zero() -> void:
 func test_awakening_sell_returns_awakening_transfer() -> void:
 	## ne_awakening ★1 SELL → awakening_transfer dict 반환 (rarity=common, transfer_units=false)
 	var card: CardInstance = CardInstance.create("ne_awakening")
+	card.attach_upgrade("C1")
 	var other: CardInstance = CardInstance.create("sp_assembly")
 	var board: Array = [card, other]
 	var result := _sys.process_self_sell(card, board)
@@ -625,6 +626,7 @@ func test_apply_awakening_transfer_units_cap_60() -> void:
 	source.stacks[0]["count"] = 30
 	# target sp_assembly에 50기 부여
 	var target: CardInstance = CardInstance.create("sp_assembly")
+	target.stacks = [target.stacks[0]]
 	target.stacks[0]["count"] = 50
 	assert_eq(target.get_total_units(), 50, "target 50기")
 	var awakening: Dictionary = {

@@ -134,6 +134,17 @@ func test_battle_start_card_not_counted_in_chain() -> void:
 	assert_eq(result["chain_count"], 0, "BS 카드 → chain 0")
 
 
+func test_theme_system_routes_by_base_theme_after_transform() -> void:
+	## ne_masquerade 등으로 theme이 바뀌어도 impl 소유권은 원본 카드 시스템에 남아야 함.
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.template["theme"] = Enums.CardTheme.STEAMPUNK
+	card.theme_state["trees"] = 5
+	var atk_before: float = card.get_total_atk()
+	_engine.process_battle_start([card])
+	assert_almost_eq(card.get_total_atk(), atk_before * 1.25, 0.01,
+		"변환된 dr_cradle도 DruidSystem BS 공통 보너스 적용")
+
+
 # ================================================================
 # 안전 장치
 # ================================================================

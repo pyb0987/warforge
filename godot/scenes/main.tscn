@@ -10,6 +10,9 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/upgrade_choice_popup.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/boss_reward_popup.tscn" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/ui/theme_choice_popup.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/ui/commander_select_popup.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/ui/talisman_select_popup.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://scenes/ui/run_start_screen.tscn" id="13"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1")
@@ -22,6 +25,12 @@ script = ExtResource("1")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 layer = 10
+
+[node name="RunStartScreen" parent="UILayer" instance=ExtResource("13")]
+
+[node name="CommanderSelectPopup" parent="UILayer" instance=ExtResource("11")]
+
+[node name="TalismanSelectPopup" parent="UILayer" instance=ExtResource("12")]
 
 [node name="BattleResultPopup" parent="UILayer" instance=ExtResource("6")]
 

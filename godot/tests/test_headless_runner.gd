@@ -31,6 +31,15 @@ func test_run_returns_metrics() -> void:
 	assert_has(result, "round_data", "라운드별 데이터")
 	assert_has(result, "strategy", "전략 이름")
 	assert_has(result, "final_deck", "최종 덱 구성")
+	assert_has(result, "difficulty", "난이도 포함")
+
+
+func test_runner_accepts_difficulty() -> void:
+	var genome = GenomeScript.load_file("res://sim/default_genome.json")
+	var runner = RunnerScript.new(genome, "adaptive", 42, 8)
+	var result: Dictionary = runner.run()
+	assert_eq(result.difficulty, 8, "명시한 난이도 기록")
+	assert_lte(result.final_hp, 20, "D8 시작 HP 상한 적용")
 
 
 func test_round_data_structure() -> void:
@@ -116,6 +125,70 @@ func test_purchase_log_recorded() -> void:
 	var result: Dictionary = runner.run()
 	assert_has(result, "purchase_log", "구매 로그")
 	assert_gt(result.purchase_log.size(), 0, "구매 기록 존재")
+
+
+func test_sim_reroll_helper_applies_on_reroll_growth() -> void:
+	var runner = _make_runner()
+	var state := GameState.new()
+	state.board[0] = CardInstance.create("sp_interest")
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	var units_before: int = (state.board[0] as CardInstance).get_total_units()
+
+	var result: Dictionary = runner._apply_sim_reroll_triggers(state, engine)
+
+	assert_eq((state.board[0] as CardInstance).get_total_units(), units_before + 1,
+		"headless reroll helper → sp_interest 유닛 추가")
+	assert_true(result.has("events"), "ChainEngine reroll result 반환")
+
+
+func test_sim_reroll_helper_applies_pawnbroker_levelup_discount() -> void:
+	var runner = _make_runner()
+	var state := GameState.new()
+	var pawn := CardInstance.create("ne_pawnbroker")
+	pawn.evolve_star()
+	pawn.evolve_star()
+	state.board[0] = pawn
+	state.levelup_current_cost = 5
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+
+	var result: Dictionary = runner._apply_sim_reroll_triggers(state, engine)
+
+	assert_eq(state.levelup_current_cost, 3, "headless reroll helper → 레벨업 비용 -2")
+	assert_eq(result.get("levelup_discount", 0), 2)
+
+
+func test_sim_growth_chain_callback_accumulates_pending_free_rerolls() -> void:
+	var runner = _make_runner()
+	var state := GameState.new()
+	var pawn := CardInstance.create("ne_pawnbroker")
+	pawn.evolve_star()
+	pawn.evolve_star()
+	state.board[0] = pawn
+	var engine := ChainEngine.new()
+	engine.set_seed(42)
+	runner._connect_sim_pending_free_rerolls(state, engine)
+
+	engine.run_growth_chain(state.get_active_board(), false)
+
+	assert_eq(state.pending_free_rerolls, 1,
+		"headless growth chain → 전당포 ★3 무료 리롤 pending 가산")
+
+
+func test_prepare_sim_round_rerolls_resets_and_applies_boss_rewards() -> void:
+	var runner = _make_runner()
+	var state := GameState.new()
+	state.pending_free_rerolls = 4
+	state.round_rerolls = 2
+	state.boss_rewards.append("r4_4")
+	state.boss_rewards.append("r12_4")
+
+	runner._prepare_sim_round_rerolls(state)
+
+	assert_eq(state.pending_free_rerolls, 3,
+		"chain 시작 준비 → 이전 pending 리셋 후 보스 보상 +3")
+	assert_eq(state.round_rerolls, 0, "chain 시작 준비 → round_rerolls 리셋")
 
 
 func test_merge_events_recorded() -> void:

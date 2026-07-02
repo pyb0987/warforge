@@ -49,6 +49,7 @@ const TREE_THRESHOLDS := {
 const DRUID_PAYOFF := ["dr_deep", "dr_wt_root", "dr_grace", "dr_spore_cloud", "dr_wrath", "dr_world"]
 # producer: 주로 나무 생산(+부가 효과), tree_add 반복 소스.
 const DRUID_PRODUCER := ["dr_cradle", "dr_origin", "dr_lifebeat", "dr_earth"]
+const DRUID_ENGINE_PRODUCER := ["dr_origin", "dr_prune"]
 
 # --- 군대 트레이닝 카드 (trace 012 재설계 후 train: action 보유 카드) ---
 # ml_barracks(기본 훈련), ml_academy(훈련+강화 변환), ml_command(부활+글로벌 훈련)
@@ -137,6 +138,7 @@ func _value_druid(card: CardInstance, genome: RefCounted) -> float:
 
 	# 나무 축적 가치
 	bonus += trees * tree_val
+	bonus += _tree_combat_bonus_pct(card) * 20.0
 
 	# 나무 임계 근접 보너스 (dr_deep tree_bonus, dr_grace terazin_thresh, dr_wt_root tier)
 	var cid: String = card.template_id
@@ -154,6 +156,18 @@ func _value_druid(card: CardInstance, genome: RefCounted) -> float:
 	return bonus
 
 
+func _tree_combat_bonus_pct(card: CardInstance) -> float:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	for eff in effs:
+		if eff.get("action", "") != "tree_combat_bonus":
+			continue
+		var trees: int = card.theme_state.get("trees", 0)
+		var per_tree: float = eff.get("per_tree_pct", 0.0)
+		var cap: float = eff.get("cap_pct", 0.0)
+		return minf(float(trees) * per_tree, cap)
+	return 0.0
+
+
 func _score_buy_druid(card_id: String, board_cards: Array, genome: RefCounted) -> float:
 	var bonus := 0.0
 	var cap_penalty: float = _p(genome, "unit_cap_penalty", 15.0)
@@ -169,16 +183,29 @@ func _score_buy_druid(card_id: String, board_cards: Array, genome: RefCounted) -
 				if ratio > 0.8:
 					bonus -= cap_penalty * (ratio - 0.8) / 0.2
 			break
+	if bonus < 0.0:
+		return bonus
 
-	# payoff 카드 보유 시 producer 구매 보너스 (forest_depth 공급 목적)
+	var has_producer := false
 	var has_payoff := false
+	var druid_count := 0
 	for c in board_cards:
-		if c is CardInstance and c.template_id in DRUID_PAYOFF:
-			has_payoff = true
-			break
+		if c is CardInstance:
+			var ci: CardInstance = c
+			if ci.template.get("theme", Enums.CardTheme.NEUTRAL) != Enums.CardTheme.DRUID:
+				continue
+			druid_count += 1
+			if ci.template_id in DRUID_PRODUCER:
+				has_producer = true
+			if ci.template_id in DRUID_PAYOFF:
+				has_payoff = true
 
 	if has_payoff and card_id in DRUID_PRODUCER:
 		bonus += 4.0
+	if has_producer and card_id in DRUID_PAYOFF:
+		bonus += 10.0
+	if druid_count > 0 and card_id in DRUID_ENGINE_PRODUCER:
+		bonus += 8.0
 
 	return bonus
 

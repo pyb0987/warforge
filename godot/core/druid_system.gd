@@ -31,12 +31,47 @@ func process_event_card(card: CardInstance, idx: int, board: Array,
 # --- External hooks (combat engine) ---
 
 
-## Battle start: dr_lifebeat, dr_spore_cloud.
+## Battle start: Druid common tree combat bonus + per-card BS effects.
 func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionary:
+	var result := Enums.empty_result()
 	match card.get_base_id():
-		"dr_lifebeat": return _lifebeat_battle(card, idx, board)
-		"dr_spore_cloud": return _spore_cloud_battle(card)
-	return Enums.empty_result()
+		"dr_lifebeat":
+			result = _merge_result(result, _lifebeat_battle(card, idx, board))
+		"dr_spore_cloud":
+			result = _merge_result(result, _spore_cloud_battle(card))
+	result = _merge_result(result, _tree_combat_bonus(card, idx))
+	return result
+
+
+func _merge_result(base: Dictionary, extra: Dictionary) -> Dictionary:
+	base["events"].append_array(extra.get("events", []))
+	base["gold"] += extra.get("gold", 0)
+	base["terazin"] += extra.get("terazin", 0)
+	return base
+
+
+func _tree_combat_bonus(card: CardInstance, idx: int) -> Dictionary:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "tree_combat_bonus", "self")
+	if eff.is_empty():
+		return Enums.empty_result()
+
+	var trees := _trees(card)
+	var per_tree: float = eff.get("per_tree_pct", 0.02)
+	var cap: float = eff.get("cap_pct", 0.2)
+	var bonus := minf(float(trees) * per_tree, cap)
+	if bonus <= 0.0:
+		return Enums.empty_result()
+
+	card.temp_mult_buff(1.0 + bonus, 1.0 + bonus)
+	return {
+		"events": [{
+			"layer1": Enums.Layer1.ENHANCED,
+			"layer2": Enums.Layer2.TREE_GROW,
+			"source_idx": idx, "target_idx": idx,
+		}],
+		"gold": 0, "terazin": 0,
+	}
 
 
 ## Post combat: dr_grace economy.

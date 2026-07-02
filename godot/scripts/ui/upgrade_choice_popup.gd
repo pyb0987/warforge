@@ -12,6 +12,7 @@ var _rng: RandomNumberGenerator
 @onready var choice_container: HBoxContainer = $VBox/ChoiceContainer
 
 var _rarity_titles := {
+	Enums.UpgradeRarity.COMMON: "커먼 업그레이드 선택",
 	Enums.UpgradeRarity.RARE: "레어 업그레이드 선택 (★2 보너스)",
 	Enums.UpgradeRarity.EPIC: "에픽 업그레이드 선택 (★3 보너스)",
 }

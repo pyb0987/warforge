@@ -532,14 +532,14 @@ func _dispatch_r_effect(eff: Dictionary, card: CardInstance, idx: int,
 		board: Array, event: Dictionary, rng: RandomNumberGenerator) -> Array:
 	var events: Array = []
 	var action: String = eff.get("action", "")
-	var target_name: String = eff.get("target", "")
-	var targets := _resolve_targets(target_name, idx, board, event) if target_name != "" else ([] as Array[int])
 	match action:
 		"train":
+			var targets := _resolve_targets(eff.get("target", ""), idx, board, event)
 			var amount: int = eff.get("amount", 1)
 			for ti in targets:
 				events.append_array(_train_card(board[ti] as CardInstance, ti, amount))
 		"conscript":
+			var targets := _resolve_targets(eff.get("target", ""), idx, board, event)
 			var count: int = eff.get("count", 1)
 			var enh_count: int = int(eff.get("enhanced_count", 0))
 			for ti in targets:

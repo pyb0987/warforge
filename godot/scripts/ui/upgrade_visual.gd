@@ -25,7 +25,7 @@ func get_upgrade_id() -> String:
 	return _upgrade_id
 
 
-func setup_upgrade(upgrade_id: String, show_cost: bool = true) -> void:
+func setup_upgrade(upgrade_id: String, show_cost: bool = true, cost_override: int = -1) -> void:
 	_upgrade_id = upgrade_id
 	var tmpl := UpgradeDB.get_upgrade(upgrade_id)
 	if tmpl.is_empty():
@@ -39,8 +39,9 @@ func setup_upgrade(upgrade_id: String, show_cost: bool = true) -> void:
 	name_label.text = tmpl["name"]
 	desc_label.text = _format_desc(tmpl)
 
-	if show_cost and tmpl["cost"] > 0:
-		cost_label.text = "%dT" % tmpl["cost"]
+	var display_cost: int = cost_override if cost_override >= 0 else int(tmpl["cost"])
+	if show_cost and display_cost > 0:
+		cost_label.text = "%dT" % display_cost
 		cost_label.visible = true
 	else:
 		cost_label.visible = false
@@ -64,6 +65,14 @@ func setup_upgrade(upgrade_id: String, show_cost: bool = true) -> void:
 func clear() -> void:
 	_upgrade_id = ""
 	visible = false
+	modulate = Color.WHITE
+
+
+func set_affordable(can_afford: bool) -> void:
+	modulate = Color.WHITE if can_afford else Color(0.55, 0.55, 0.55, 0.85)
+	if cost_label:
+		var color := Color(0.95, 0.9, 0.7) if can_afford else Color(1.0, 0.35, 0.3)
+		cost_label.add_theme_color_override("font_color", color)
 
 
 func _format_desc(tmpl: Dictionary) -> String:

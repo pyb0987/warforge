@@ -124,6 +124,7 @@ NON_GLOSSARY_OE_PREFIX = {
 ACTION_TIMING_OVERRIDE = {
     "economy":          "PC",
     "battle_buff":      "BS",
+    "tree_combat_bonus": "BS",
     "tree_temp_buff":   "BS",
     "on_combat_result": "PC",
 }
@@ -347,6 +348,12 @@ def desc_tree_shield(p: dict) -> str:
         text += (f". 이 카드 ≤{low['thresh']}기이면 "
                  f"방어막 수치 ×{low['mult']}")
     return text
+
+def desc_tree_combat_bonus(p: dict) -> str:
+    t = resolve_target(p.get("target", "self"))
+    per_tree = fmt_pct(p.get("per_tree_pct", 0.02))
+    cap = fmt_pct(p.get("cap_pct", 0.2))
+    return f"{t} ATK/HP +(자기 🌳×{per_tree}%) (상한 +{cap}%, 이번 전투)"
 
 def desc_tree_enhance(p: dict) -> str:
     ## 런타임 의미 (druid_system._tree_enhance):
@@ -1107,6 +1114,7 @@ EFFECT_HANDLERS: dict[str, Any] = {
     "tree_absorb":      desc_tree_absorb,
     "tree_breed":       desc_tree_breed,
     "tree_shield":      desc_tree_shield,
+    "tree_combat_bonus": desc_tree_combat_bonus,
     "tree_enhance":     desc_tree_enhance,
     "tree_gold":        desc_tree_gold,
     "tree_distribute":  desc_tree_distribute,
@@ -1530,4 +1538,3 @@ def generate_all_descs(
                 descs[star_n] = generate_star_desc(card, star_data)
             result[card_id] = descs
     return result
-

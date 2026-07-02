@@ -39,6 +39,9 @@ func test_star1_to_star2_merge_shows_rare_popup() -> void:
 	assert_eq(_popup.calls.size(), 1, "rare 팝업 1회 호출")
 	assert_eq(_popup.calls[0]["rarity"], Enums.UpgradeRarity.RARE, "rarity = RARE")
 	assert_eq(_bp._pending_merge_card, card, "pending_merge_card 설정")
+	assert_string_contains(_bp.get_merge_summary_text(), "MERGE:")
+	assert_string_contains(_bp.get_merge_summary_text(), "★1 -> ★2")
+	assert_string_contains(_bp.get_merge_summary_text(), "무료 Rare")
 
 
 func test_star2_to_star3_merge_does_not_show_epic_popup() -> void:
@@ -47,6 +50,8 @@ func test_star2_to_star3_merge_does_not_show_epic_popup() -> void:
 	_bp._on_card_merged(card, 2, 3)
 	assert_eq(_popup.calls.size(), 0, "epic 팝업 호출되지 않아야 함")
 	assert_null(_bp._pending_merge_card, "pending_merge_card 설정되지 않음")
+	assert_string_contains(_bp.get_merge_summary_text(), "★2 -> ★3")
+	assert_string_contains(_bp.get_merge_summary_text(), "최종 합성")
 
 
 func test_cascade_star1_to_star3_retargets_pending_to_final_survivor() -> void:
@@ -60,6 +65,8 @@ func test_cascade_star1_to_star3_retargets_pending_to_final_survivor() -> void:
 	assert_eq(_bp._pending_merge_card, final_survivor,
 		"step2 후 pending = ★3 final survivor (retarget)")
 	assert_eq(_popup.calls.size(), 1, "RARE popup 만 1회 (sp_assembly 는 epic popup 없음)")
+	assert_string_contains(_bp.get_merge_summary_text(), "★2 -> ★3")
+	assert_string_contains(_bp.get_merge_summary_text(), "보상 대상 이전")
 
 
 func test_plain_star2_to_star3_no_pending_no_retarget() -> void:
@@ -67,3 +74,12 @@ func test_plain_star2_to_star3_no_pending_no_retarget() -> void:
 	var card: CardInstance = CardInstance.create("sp_assembly")
 	_bp._on_card_merged(card, 2, 3)
 	assert_null(_bp._pending_merge_card, "단순 ★2→★3 은 pending 미설정 유지")
+
+
+func test_merge_summary_records_even_without_bonus_popup() -> void:
+	## popup 연결 전에도 최근 합성 피드백은 남아야 한다.
+	var card: CardInstance = CardInstance.create("sp_assembly")
+	_bp._upgrade_choice_popup = null
+	_bp._on_card_merged(card, 1, 2)
+	assert_string_contains(_bp.get_merge_summary_text(), "MERGE:")
+	assert_string_contains(_bp.get_merge_summary_text(), "★1 -> ★2")

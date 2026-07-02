@@ -7,6 +7,7 @@ extends RefCounted
 var _genome: Genome
 var _strategy: String
 var _seed: int
+var _difficulty: int = 1
 var _tracer: RefCounted = null  # AITracer (optional)
 
 
@@ -29,10 +30,11 @@ var _enemy_db = preload("res://core/data/enemy_db.gd")
 const _AIRewardScript = preload("res://sim/ai_reward_logic.gd")
 
 
-func _init(genome: Genome, strategy: String, seed_val: int) -> void:
+func _init(genome: Genome, strategy: String, seed_val: int, difficulty: int = 1) -> void:
 	_genome = genome
 	_strategy = strategy
 	_seed = seed_val
+	_difficulty = Difficulty.clamp_difficulty(difficulty)
 
 
 ## Run a full 15-round game. Returns result dictionary with all metrics.
@@ -41,8 +43,10 @@ func run() -> Dictionary:
 	rng.seed = _seed
 
 	var state := GameState.new()
-	state.gold = _genome.get_starting_gold()
+	state.difficulty = _difficulty
+	state.gold = Difficulty.get_starting_gold(_genome.get_starting_gold(), _difficulty)
 	state.terazin = _genome.get_starting_terazin()
+	state.hp = Difficulty.get_player_hp(state.hp, _difficulty)
 	state.round_num = 1
 	state.commander_type = Enums.CommanderType.NONE
 	state.talisman_type = Enums.TalismanType.NONE
@@ -62,6 +66,7 @@ func run() -> Dictionary:
 	chain_engine.propagate_bonus_spawn()
 	chain_engine.propagate_card_effects(_genome.card_effects)
 	chain_engine.enhance_multiplier = Talisman.get_enhance_multiplier(state)
+	_connect_sim_pending_free_rerolls(state, chain_engine)
 
 	# Connect chain events for cross-activation tracking
 	chain_engine.chain_event_fired.connect(_on_chain_event)
@@ -96,6 +101,9 @@ func run() -> Dictionary:
 
 	var shop := ShopLogic.new()
 	shop.setup(state, rng, _genome)
+	shop.set_reroll_trigger_callback(func():
+		return _apply_sim_reroll_triggers(state, chain_engine)
+	)
 
 	var ai := AIAgent.new(_strategy, rng, _genome)
 	if _tracer != null:
@@ -180,7 +188,7 @@ func run() -> Dictionary:
 		_chain_event_count = 0
 		_cross_activations = 0
 		_total_activations = 0
-		state.round_rerolls = 0
+		_prepare_sim_round_rerolls(state)
 		# ne_council 보너스 평가 (game_manager._evaluate_council_field_bonus 와 동일 로직)
 		_sim_evaluate_council_field_bonus(state)
 		_sim_evaluate_council_epic_grant(state, ai_reward, rng)
@@ -361,6 +369,7 @@ func run() -> Dictionary:
 		"won": state.hp > 0,
 		"final_hp": state.hp,
 		"strategy": _strategy,
+		"difficulty": _difficulty,
 		"round_data": _round_data,
 		"final_deck": final_deck,
 		"purchase_log": _purchase_log,
@@ -476,7 +485,7 @@ func _count_alive(engine: CombatEngine, team_id: int) -> int:
 ## Generate enemies using genome parameters (composition, stats, boss scaling, CP curve).
 func _generate_enemies(round_num: int, rng: RandomNumberGenerator) -> Array:
 	# Delegated to EnemyDB.generate (single source of truth for play+sim).
-	return _enemy_db.generate(round_num, rng, _genome)
+	return _enemy_db.generate(round_num, rng, _genome, _difficulty)
 
 
 ## Calculate interest — state에 주입된 genome 값 사용 (SSOT: game_state.calc_interest()).
@@ -549,6 +558,27 @@ func _sim_apply_awakening_transfer(awakening: Dictionary,
 			var new_stack: Dictionary = s.duplicate(true)
 			new_stack["count"] = take
 			target.stacks.append(new_stack)
+
+
+func _apply_sim_reroll_triggers(state: GameState, chain_engine: ChainEngine) -> Dictionary:
+	var reroll_result := chain_engine.process_reroll_triggers(state.get_active_board())
+	state.terazin += int(reroll_result.get("terazin", 0))
+	state.gold += int(reroll_result.get("gold", 0))
+	var levelup_discount: int = int(reroll_result.get("levelup_discount", 0))
+	if levelup_discount > 0:
+		state.apply_levelup_discount(levelup_discount)
+	return reroll_result
+
+
+func _connect_sim_pending_free_rerolls(state: GameState, chain_engine: ChainEngine) -> void:
+	chain_engine.pending_free_reroll_callback = func(n: int):
+		state.pending_free_rerolls += n
+
+
+func _prepare_sim_round_rerolls(state: GameState) -> void:
+	state.pending_free_rerolls = 0
+	state.round_rerolls = 0
+	state.pending_free_rerolls += BossReward.consume_round_start_free_rerolls(state)
 
 
 ## ne_council ★2/★3 에픽 부여 sim 처리. 임계 도달 시 임계만큼 차감 + 에픽 자동 부여 (반복 가능).

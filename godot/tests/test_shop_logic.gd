@@ -27,6 +27,17 @@ func after_each() -> void:
 		_shop.free()
 
 
+func _count_min_tier(ids: Array, min_tier: int) -> int:
+	var count := 0
+	for id in ids:
+		if String(id) == "":
+			continue
+		var tmpl: Dictionary = CardDB.get_template(String(id))
+		if int(tmpl.get("tier", 0)) >= min_tier:
+			count += 1
+	return count
+
+
 # ================================================================
 # TIER_WEIGHTS 상수 검증
 # ================================================================
@@ -244,6 +255,49 @@ func test_reroll_refreshes_6_cards() -> void:
 	assert_eq(_shop._offered_ids.size(), 6, "리롤 후 6장")
 	for id in _shop._offered_ids:
 		assert_ne(id, "", "모든 슬롯 채워짐")
+
+
+func test_difficulty_6_reroll_costs_2_gold() -> void:
+	_state.difficulty = 6
+	_state.gold = 5
+	_shop._offered_ids.assign(["sp_assembly", "", "", "", "", ""])
+	var result: bool = _shop.reroll()
+	assert_true(result, "리롤 성공")
+	assert_eq(_state.gold, 3, "D6 리롤 2골드 차감")
+
+
+func test_difficulty_6_refreshes_4_cards() -> void:
+	_state.difficulty = 6
+	_state.round_num = 1
+	_shop.refresh_shop()
+	assert_eq(_shop._offered_ids.size(), 4, "D6 상점 4장")
+	for id in _shop._offered_ids:
+		assert_ne(id, "", "모든 슬롯 채워짐")
+
+
+# ================================================================
+# 수집가 시작 상점 보장
+# ================================================================
+
+func test_collector_first_shop_guarantees_four_t2_plus() -> void:
+	_state.commander_type = Enums.CommanderType.COLLECTOR
+	_state.round_num = 1
+	_shop.refresh_shop()
+
+	assert_gte(_count_min_tier(_shop._offered_ids, 2), 4,
+		"수집가 첫 상점 → T2+ 4장 이상")
+	assert_true(_state.commander_state.get("collector_start_shop_used", false),
+		"첫 상점 보장 사용 플래그 기록")
+
+
+func test_collector_start_shop_guarantee_only_once() -> void:
+	_state.commander_type = Enums.CommanderType.COLLECTOR
+	_state.round_num = 1
+	_shop.refresh_shop()
+	_shop.refresh_shop()
+
+	assert_eq(_count_min_tier(_shop._offered_ids, 2), 0,
+		"두 번째 R1 refresh는 Lv1 기본 T1 상점")
 
 
 # ================================================================

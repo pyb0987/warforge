@@ -1,6 +1,8 @@
 extends GutTest
 ## GUT tests for talisman.gd — 12종 부적 로직 검증.
 
+const CombatEngineScript = preload("res://combat/combat_engine.gd")
+
 var state: GameState
 var rng: RandomNumberGenerator
 
@@ -9,6 +11,19 @@ func before_each() -> void:
 	state = GameState.new()
 	rng = RandomNumberGenerator.new()
 	rng.seed = 42
+
+
+func _make_combat_unit(u_atk: float, u_hp: float) -> Dictionary:
+	return {
+		"atk": u_atk,
+		"hp": u_hp,
+		"attack_speed": 1.0,
+		"range": 1,
+		"move_speed": 3,
+		"def": 0.0,
+		"mechanics": [],
+		"radius": 6.0,
+	}
 
 
 # ================================================================
@@ -67,6 +82,23 @@ func test_war_drum_no_reduction_when_equal() -> void:
 func test_war_drum_no_reduction_without_talisman() -> void:
 	state.talisman_type = Enums.TalismanType.NONE
 	assert_almost_eq(Talisman.calc_war_drum_reduction(state, 10, 5), 0.0, 0.001)
+
+
+func test_war_drum_reduction_reaches_combat_damage() -> void:
+	state.talisman_type = Enums.TalismanType.WAR_DRUM
+	var allies: Array = [_make_combat_unit(1.0, 100.0), _make_combat_unit(1.0, 100.0)]
+	var enemies: Array = [_make_combat_unit(100.0, 100.0)]
+	var reduction: float = Talisman.calc_war_drum_reduction(
+		state, allies.size(), enemies.size())
+	for e in enemies:
+		e["atk"] *= (1.0 - reduction)
+	var engine: CombatEngine = CombatEngineScript.new()
+	engine.setup(allies, enemies)
+
+	engine._do_attack(2, 0)
+
+	assert_almost_eq(engine.hp[0], 10.0, 0.01,
+		"전쟁 북 수적 우위 → 적 100 ATK가 90 피해로 적용")
 
 
 # ================================================================
@@ -182,6 +214,43 @@ func test_cracked_skull_query() -> void:
 	assert_false(Talisman.has_cracked_skull(state))
 	state.talisman_type = Enums.TalismanType.CRACKED_SKULL
 	assert_true(Talisman.has_cracked_skull(state))
+
+
+func test_cracked_skull_undying_survives_lethal_once_in_combat() -> void:
+	state.talisman_type = Enums.TalismanType.CRACKED_SKULL
+	var engine: CombatEngine = CombatEngineScript.new()
+	engine.setup([_make_combat_unit(1.0, 50.0)], [_make_combat_unit(100.0, 50.0)])
+	if Talisman.has_cracked_skull(state):
+		for i in engine.count:
+			if engine.team[i] == 1 and engine.alive[i] == 1:
+				engine.undying[i] = 1
+
+	engine._do_attack(1, 0)
+
+	assert_eq(int(engine.alive[0]), 1, "금간 해골 첫 치사 피해 → 생존")
+	assert_almost_eq(engine.hp[0], 1.0, 0.01, "HP 1로 생존")
+	assert_eq(int(engine.undying[0]), 0, "undying charge 소모")
+
+	engine._do_attack(1, 0)
+
+	assert_eq(int(engine.alive[0]), 0, "두 번째 치사 피해는 정상 사망")
+
+
+func test_cracked_skull_setup_marks_allies_only() -> void:
+	state.talisman_type = Enums.TalismanType.CRACKED_SKULL
+	var engine: CombatEngine = CombatEngineScript.new()
+	engine.setup([
+		_make_combat_unit(1.0, 50.0),
+		_make_combat_unit(1.0, 50.0),
+	], [_make_combat_unit(1.0, 50.0)])
+	if Talisman.has_cracked_skull(state):
+		for i in engine.count:
+			if engine.team[i] == 1 and engine.alive[i] == 1:
+				engine.undying[i] = 1
+
+	assert_eq(int(engine.undying[0]), 1, "아군 0 undying 부여")
+	assert_eq(int(engine.undying[1]), 1, "아군 1 undying 부여")
+	assert_eq(int(engine.undying[2]), 0, "적군은 undying 미부여")
 
 
 # ================================================================

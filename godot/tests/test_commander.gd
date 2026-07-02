@@ -222,6 +222,35 @@ func test_strategist_swap_once_per_build() -> void:
 	assert_false(_cmd.hero_swap(_state, 0, 1), "2회 실패")
 
 
+func test_strategist_swap_emits_state_signals() -> void:
+	## UI/로그가 영웅 교환을 보드 변경으로 인식해야 함.
+	_state.commander_type = Enums.CommanderType.STRATEGIST
+	_state.commander_state["hero_used"] = false
+	_state.board[0] = CardInstance.create("sp_assembly")
+	_state.board[1] = CardInstance.create("sp_workshop")
+	var moved: Array = []
+	var board_changed := [0]
+	var state_changed := [0]
+	_state.card_moved.connect(func(from_zone, from_idx, to_zone, to_idx):
+		moved.append({
+			"from_zone": from_zone,
+			"from_idx": from_idx,
+			"to_zone": to_zone,
+			"to_idx": to_idx,
+		}))
+	_state.board_changed.connect(func(): board_changed[0] += 1)
+	_state.state_changed.connect(func(): state_changed[0] += 1)
+
+	assert_true(_cmd.hero_swap(_state, 0, 1), "교환 성공")
+	assert_eq(moved.size(), 1, "card_moved 1회")
+	assert_eq(moved[0]["from_zone"], "board")
+	assert_eq(moved[0]["from_idx"], 0)
+	assert_eq(moved[0]["to_zone"], "board")
+	assert_eq(moved[0]["to_idx"], 1)
+	assert_eq(board_changed[0], 1, "board_changed 1회")
+	assert_eq(state_changed[0], 1, "state_changed 1회")
+
+
 # ================================================================
 # 📚 수집가
 # ================================================================
