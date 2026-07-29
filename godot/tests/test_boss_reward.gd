@@ -11,6 +11,11 @@ func before_each() -> void:
 	rng.seed = 42
 
 
+func after_each() -> void:
+	state = null
+	rng = null
+
+
 # ================================================================
 # 인프라: 데이터 27종 존재 + 풀 조회
 # ================================================================
@@ -50,6 +55,13 @@ func test_each_reward_has_required_fields() -> void:
 		assert_true(data.has("needs_target"), "%s has needs_target" % id)
 
 
+func test_rewards_do_not_expose_dead_upgrade_choice_field() -> void:
+	for id in BossRewardDB.get_all_ids():
+		var data: Dictionary = BossRewardDB.get_data(id)
+		assert_false(data.has("needs_upgrade_choice"),
+			"%s should not expose dead upgrade choice path" % id)
+
+
 func test_roll_choices_returns_correct_count() -> void:
 	var choices := BossRewardDB.roll_choices(4, 4, rng)
 	assert_eq(choices.size(), 4, "4개 선택지")
@@ -73,6 +85,65 @@ func test_has_reward_query() -> void:
 	assert_false(BossReward.has_reward(state, "r4_3"))
 	state.boss_rewards.append("r4_3")
 	assert_true(BossReward.has_reward(state, "r4_3"))
+
+
+func test_target_eligibility_for_upgrade_rewards_respects_star_and_slots() -> void:
+	var card := CardInstance.create("sp_assembly")
+	assert_true(BossReward.can_target_reward("r8_1", card),
+		"r8_1 requires star-upgradable card with an upgrade slot")
+	card.evolve_star()
+	card.evolve_star()
+	assert_false(BossReward.can_target_reward("r8_1", card),
+		"r8_1 cannot target ★3 because star evolve would be partial")
+
+	var one_slot_card := CardInstance.create("sp_workshop")
+	for _i in 4:
+		assert_true(one_slot_card.attach_upgrade("C1"))
+	assert_true(BossReward.can_target_reward("r8_7", one_slot_card),
+		"r8_7 needs one free slot")
+	assert_false(BossReward.can_target_reward("r12_7", one_slot_card),
+		"r12_7 needs two free slots for epic+rare")
+
+
+func test_r12_1_target_eligibility_uses_step_star_requirements() -> void:
+	var star1 := CardInstance.create("sp_assembly")
+	var star2 := CardInstance.create("sp_assembly")
+	star2.evolve_star()
+
+	assert_true(BossReward.can_target_reward("r12_1", star2, 1),
+		"r12_1 step1 requires ★2")
+	assert_false(BossReward.can_target_reward("r12_1", star1, 1),
+		"r12_1 step1 rejects ★1")
+	assert_true(BossReward.can_target_reward("r12_1", star1, 2),
+		"r12_1 step2 requires ★1")
+	assert_false(BossReward.can_target_reward("r12_1", star2, 2),
+		"r12_1 step2 rejects ★2")
+
+
+func test_apply_with_target_noops_when_target_ineligible() -> void:
+	var star3 := CardInstance.create("sp_assembly")
+	star3.evolve_star()
+	star3.evolve_star()
+	BossReward.apply_with_target("r8_1", state, star3, rng)
+	assert_eq(star3.star_level, 3, "부적격 r8_1 대상은 star 변화 없음")
+	assert_eq(star3.upgrades.size(), 0, "부적격 r8_1 대상은 rare partial attach 없음")
+
+	var one_slot_card := CardInstance.create("sp_workshop")
+	for _i in 4:
+		assert_true(one_slot_card.attach_upgrade("C1"))
+	BossReward.apply_with_target("r12_7", state, one_slot_card, rng)
+	assert_eq(one_slot_card.upgrades.size(), 4,
+		"r12_7 대상 슬롯이 2개 미만이면 partial attach 없음")
+
+
+func test_can_select_reward_requires_required_targets() -> void:
+	state.board[0] = CardInstance.create("sp_assembly")
+	assert_false(BossReward.can_select_reward("r12_1", state),
+		"r12_1 requires both ★2 and ★1 targets")
+	state.board[1] = CardInstance.create("sp_workshop")
+	state.board[1].evolve_star()
+	assert_true(BossReward.can_select_reward("r12_1", state),
+		"r12_1 selectable when ★2 and ★1 targets exist")
 
 
 # ================================================================
@@ -545,6 +616,7 @@ func test_r12_8_revive_pool_persists_alive_after_kill() -> void:
 	assert_eq(engine.board_revive_pool, 0, "풀 1 소비 → 0")
 	assert_eq(engine.alive[0], 1, "alive 유지")
 	assert_almost_eq(engine.hp[0], engine.max_hp[0], 0.001, "100% HP 복원")
+	engine.dispose()
 
 
 func test_r12_8_revive_pool_depleted_unit_dies() -> void:
@@ -560,6 +632,7 @@ func test_r12_8_revive_pool_depleted_unit_dies() -> void:
 	engine.board_revive_pool = 0
 	engine.kill_unit(0)
 	assert_eq(engine.alive[0], 0, "풀 0 → 사망")
+	engine.dispose()
 
 
 func test_r4_3_spawn_chance_additive_with_commander() -> void:
@@ -585,3 +658,4 @@ func test_r12_8_revive_pool_resets_each_setup() -> void:
 		"range": 32.0, "move_speed": 2.0, "def": 0.0, "mechanics": []}]
 	engine.setup(ally_units, enemy_units)
 	assert_eq(engine.board_revive_pool, 0, "setup 시 0으로 reset")
+	engine.dispose()

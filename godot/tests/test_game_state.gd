@@ -163,6 +163,17 @@ func test_try_merge_3_copies_star1_to_star2() -> void:
 	assert_eq(steps[0].get("new_star", -1), 2, "합성 후 ★2")
 
 
+func test_try_merge_plain_star1_does_not_change_gold() -> void:
+	_gs.gold = 7
+	for i in 3:
+		_gs.board[i] = CardInstance.create("sp_assembly")
+
+	var steps: Array = _gs.try_merge("sp_assembly")
+
+	assert_eq(steps.size(), 1, "단일 머지")
+	assert_eq(_gs.gold, 7, "일반 합성 자체는 골드를 지급하지 않음")
+
+
 func test_try_merge_removes_2_copies_from_board() -> void:
 	for i in 3:
 		_gs.board[i] = CardInstance.create("sp_assembly")

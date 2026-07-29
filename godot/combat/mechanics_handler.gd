@@ -10,6 +10,10 @@ func _init(engine) -> void:
 	_e = engine
 
 
+func dispose() -> void:
+	_e = null
+
+
 # =============================================================
 # Hook: Combat Start (called once after setup)
 # =============================================================
@@ -277,6 +281,16 @@ func _apply_splash(attacker: int, center_unit: int, splash_pct: float, aoe_range
 
 func _on_kill(attacker: int, defender: int) -> void:
 	_e.kill_unit(defender)
+	var defender_killed: bool = int(_e.alive[defender]) == 0
+
+	var kill_recover: Dictionary = _e._get_mechanic(attacker, "kill_hp_recover")
+	if defender_killed and _e.alive[attacker] == 1 and not kill_recover.is_empty():
+		var heal_pct: float = clampf(
+			float(kill_recover.get("heal_hp_pct", 0.15)), 0.0, 1.0)
+		if heal_pct > 0.0:
+			_e.hp[attacker] = minf(
+				_e.hp[attacker] + _e.max_hp[attacker] * heal_pct,
+				_e.max_hp[attacker])
 
 	# Chain discharge: AOE on kill — grid-based query
 	var cd: Dictionary = _e._get_mechanic(attacker, "chain_discharge")

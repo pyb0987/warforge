@@ -57,13 +57,11 @@ func roll_choices(boss_tier: int, count: int,
 # ================================================================
 
 func _reg(id: String, rname: String, icon: String, desc: String,
-		boss_tier: int, type: String, needs_target: int,
-		needs_upgrade_choice: String = "") -> void:
+		boss_tier: int, type: String, needs_target: int) -> void:
 	_data[id] = {
 		"id": id, "name": rname, "icon": icon, "desc": desc,
 		"boss_tier": boss_tier, "type": type,
 		"needs_target": needs_target,
-		"needs_upgrade_choice": needs_upgrade_choice,
 	}
 	if not _pools.has(boss_tier):
 		_pools[boss_tier] = [] as Array[String]
@@ -101,7 +99,7 @@ func _register_r4() -> void:
 
 func _register_r8() -> void:
 	_reg("r8_1", "대규모 징집", "⚡", "카드 1장: ★승급 + 레어 업글 1개 부착",
-		8, "instant", 1, "rare")
+		8, "instant", 1)
 	_reg("r8_2", "전쟁 기금", "⚡", "18 골드 + 4 테라진",
 		8, "instant", 0)
 	_reg("r8_3", "장인의 회수", "🔄", "영구: ★ 합성 시 합성 대상 티어 비용 환급",

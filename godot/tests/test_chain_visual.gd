@@ -30,6 +30,10 @@ func _make_field_visual(card_id: String, slot_idx: int):
 	return field_visual
 
 
+func _counter_label() -> Label:
+	return _visual.get_node("EventPanel/VBox/CounterLabel") as Label
+
+
 func test_event_log_describes_source_target_and_reward() -> void:
 	_visual._on_chain_phase_started("ROUND_START")
 	_visual._on_chain_event(
@@ -42,13 +46,32 @@ func test_event_log_describes_source_target_and_reward() -> void:
 
 	var log: String = _visual.get_event_log_text()
 	assert_string_contains(log, "#1 Round Start")
+	assert_string_contains(log, "L->R")
 	assert_string_contains(log, "증기 조립소 -> 태엽 공방")
 	assert_string_contains(log, "+Unit")
-	assert_string_contains(log, "unit / manufacture")
-	assert_string_contains(_visual.get_node("CounterLabel").text, "Triggers: 1")
+	assert_string_contains(log, "Unit Added / Manufacture")
+	assert_string_contains(_counter_label().text, "Triggers: 1")
 	var link_texts: PackedStringArray = _visual.get_active_link_texts()
 	assert_eq(link_texts.size(), 1)
-	assert_string_contains(link_texts[0], "#1 +Unit")
+	assert_string_contains(link_texts[0], "#1 L->R +Unit")
+
+
+func test_event_log_tags_right_to_left_chain_events() -> void:
+	_visual._on_chain_phase_started("ROUND_START")
+	_visual._on_chain_event(
+		1,
+		0,
+		Enums.Layer1.ENHANCED,
+		Enums.Layer2.UPGRADE,
+		"enhance"
+	)
+
+	var log: String = _visual.get_event_log_text()
+	assert_string_contains(log, "R->L")
+	assert_string_contains(log, "태엽 공방 -> 증기 조립소")
+	var link_texts: PackedStringArray = _visual.get_active_link_texts()
+	assert_eq(link_texts.size(), 1)
+	assert_string_contains(link_texts[0], "#1 R->L +Stats")
 
 
 func test_event_log_keeps_unmapped_events_readable() -> void:
@@ -64,8 +87,8 @@ func test_event_log_keeps_unmapped_events_readable() -> void:
 	var log: String = _visual.get_event_log_text()
 	assert_string_contains(log, "#1 Cascade")
 	assert_string_contains(log, "slot 4 -> slot 5")
-	assert_string_contains(log, "+ATK%")
-	assert_string_contains(log, "enhance / upgrade")
+	assert_string_contains(log, "+Stats")
+	assert_string_contains(log, "Enhanced / Upgrade")
 
 
 func test_completion_summarizes_trigger_count_and_gold() -> void:
@@ -81,8 +104,9 @@ func test_completion_summarizes_trigger_count_and_gold() -> void:
 
 	var log: String = _visual.get_event_log_text()
 	assert_string_contains(log, "Complete: 3 triggers, +2g")
-	assert_string_contains(_visual.get_node("CounterLabel").text, "Triggers: 3")
-	assert_string_contains(_visual.get_node("CounterLabel").text, "+2g")
+	assert_string_contains(_visual.get_chain_history_text(), "Complete: 3 triggers, +2g")
+	assert_string_contains(_counter_label().text, "Triggers: 3")
+	assert_string_contains(_counter_label().text, "+2g")
 
 
 func test_connected_engine_populates_readability_panel() -> void:
@@ -117,6 +141,44 @@ func test_clear_links_resets_readability_panel() -> void:
 	_visual.clear_links()
 
 	assert_eq(_visual.get_event_log_text(), "No chain events yet")
-	assert_eq(_visual.get_node("CounterLabel").text, "Triggers: 0")
+	assert_string_contains(_visual.get_chain_history_text(), "Complete: 1 triggers, +1g")
+	assert_eq(_counter_label().text, "Triggers: 0")
 	assert_eq(_visual.get_node("EventPanel/VBox/PhaseLabel").text, "Phase: Idle")
 	assert_false(_visual.get_node("EventPanel").visible)
+
+
+func test_clear_links_can_explicitly_clear_history() -> void:
+	_visual._on_chain_phase_started("ROUND_START")
+	_visual._on_chain_event(
+		0,
+		1,
+		Enums.Layer1.UNIT_ADDED,
+		Enums.Layer2.MANUFACTURE,
+		"spawn"
+	)
+	_visual._on_chain_completed(1, 1)
+
+	_visual.clear_links(true)
+
+	assert_eq(_visual.get_chain_history_text(), "")
+
+
+func test_chain_history_keeps_more_than_visible_log_lines() -> void:
+	_visual._on_chain_phase_started("ROUND_START")
+	for _i in 8:
+		_visual._on_chain_event(
+			0,
+			1,
+			Enums.Layer1.UNIT_ADDED,
+			Enums.Layer2.MANUFACTURE,
+			"spawn"
+		)
+	_visual._on_chain_completed(8, 0)
+
+	var visible_log: String = _visual.get_event_log_text()
+	var history: String = _visual.get_chain_history_text()
+	assert_false(visible_log.contains("#1 Round Start"),
+		"compact live log keeps only the most recent entries")
+	assert_string_contains(history, "#1 Round Start")
+	assert_string_contains(history, "#8 Round Start")
+	assert_string_contains(history, "Complete: 8 triggers")

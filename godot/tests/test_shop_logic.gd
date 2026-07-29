@@ -313,6 +313,31 @@ func test_purchase_deducts_cost() -> void:
 	assert_eq(_state.gold, 8, "2골드 차감")
 
 
+func test_two_faced_coin_slot_costs_reflect_discount_and_markup() -> void:
+	_state.talisman_type = Enums.TalismanType.TWO_FACED_COIN
+	_shop._offered_ids.assign(["sp_assembly", "sp_assembly", "sp_assembly"])
+	_shop._coin_slots = {"discount_idx": 0, "markup_idx": 1}
+
+	assert_eq(_shop.get_slot_cost(0), 1, "할인 슬롯은 2g → 1g")
+	assert_eq(_shop.get_slot_cost(1), 3, "할증 슬롯은 2g → 3g")
+	assert_eq(_shop.get_slot_cost(2), 2, "그 외 슬롯은 기본가")
+	assert_eq(_shop.get_slot_price_note(0), "-50%")
+	assert_eq(_shop.get_slot_price_note(1), "+50%")
+	assert_eq(_shop.get_slot_price_note(2), "")
+
+
+func test_purchase_uses_two_faced_coin_slot_cost() -> void:
+	_state.gold = 10
+	_state.talisman_type = Enums.TalismanType.TWO_FACED_COIN
+	_shop._offered_ids.assign(["sp_assembly", "", "", "", "", ""])
+	_shop._coin_slots = {"discount_idx": 2, "markup_idx": 0}
+
+	var result: bool = _shop.try_purchase(0)
+
+	assert_true(result, "할증 슬롯 구매 성공")
+	assert_eq(_state.gold, 7, "양면 동전 할증가 3골드 차감")
+
+
 func test_purchase_fails_if_not_enough_gold() -> void:
 	_state.gold = 1
 	_shop._offered_ids.assign(["sp_assembly", "", "", "", "", ""])

@@ -1,5 +1,300 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-29 Codex H77 update
+
+- H77 completed as a behavior-neutral Druid path-lag decision audit; no
+  protected `godot/sim/**`, Druid card YAML, generated card DB, combat/runtime,
+  or AI behavior files were changed.
+- Multi-review synthesis: design critic favored a protected AI policy probe,
+  while measurement/safety critics required a joined decision-regret report
+  first. Implemented the safe analyzer gate and used it to decide the next
+  approval point.
+- Added `--druid-path-lag-audit` to `scripts/analyze_ai_trace.py`. It joins
+  `path_lag_hold` skips to visible offers, affordable focus cards, held best
+  card/score, HP/gold/shop level, same-round rerolls, battle outcome, and H76
+  conversion bucket.
+- Real-trace command:
+  `python3 scripts/analyze_ai_trace.py /private/tmp/warforge_h75_coupled60_traces --strategy=soft_druid --druid-path-lag-audit --druid-compare-baseline=/private/tmp/warforge_h71_ledger60_druid_traces`.
+- H75 audit: R8-R12 `path_lag_hold` fired `265` times from `51/60` runs.
+  Focus cards were offered only `5` times and affordable only `1` time during
+  those holds; `260/265` holds (`98.1%`) happened with no focus card visible.
+- H75 categories: `no_focus_offer_druid_body_held 104`,
+  `no_focus_offer_neutral_held 77`,
+  `no_focus_offer_high_value_neutral_held 76`,
+  `focus_offered_unaffordable 4`, `no_focus_offer_low_value_held 3`,
+  `affordable_focus_available 1`.
+- H75 by round: R9 `132`, R10 `76`, R11 `37`, R12 `20`. Average holds/loss
+  `4.1`; max same-round holds `8`; loss enemy survivors after held rounds
+  `13.9`.
+- Path split: Garden `113` holds with `18` actionable no-focus loss runs;
+  World Tree `151` holds with `17` actionable no-focus loss runs. Both gate to
+  `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`.
+- H75 vs H71 path-lag comparison shows stable baseline behavior, not an H75-only
+  regression: holds `255 -> 265`, no-focus rate `98.4% -> 98.1%`, actionable
+  no-focus loss runs `37 -> 36`.
+- Decision: analyzer-only H77 adopted. The evidence now justifies requesting a
+  narrow protected AI policy probe, but gameplay is not fixed yet.
+- Verification:
+  - PASS `python3 -m py_compile scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py`.
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace -q` (19 tests).
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace scripts.tests.test_summarize_self_play_report -q` (22 tests).
+  - PASS `python3 scripts/analyze_ai_trace.py --help`.
+  - PASS real-trace H75-vs-H71 path-lag audit command.
+  - PASS `git diff --check -- scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py docs/tools/self-play-observer.md`.
+- Latest trace: `.claude/traces/experiments/073-druid-path-lag-decision-audit.md`.
+- Resume recommendation: H78 should ask explicit approval to edit protected
+  `godot/sim/**`, then test a temporary soft-Druid path-lag stabilizer-buy
+  fallback: when no focus card is visible, allow high-value Druid bodies or
+  high-value neutral stabilizers instead of always hard-holding.
+
+## 2026-07-29 Codex H76 update
+
+- H76 completed as a behavior-neutral Druid run-phase survival diagnostic; no
+  gameplay/card values, generated card DB, AI scoring, combat/runtime, or
+  protected `godot/sim/**` files were changed.
+- Multi-review consensus: stop local Spore/Wrath base-number tuning and bind
+  payoff ownership/activation to HP-at-activation plus immediate
+  post-activation combat outcome.
+- Added `--druid-run-phase` to `scripts/analyze_ai_trace.py`.
+  It reports first payoff offer/affordable/buy/active/focus timing, HP at
+  payoff buy and focus activation, R8-R12 survival curves, owned-but-inactive
+  payoff rates, path-lag skip counts, false-green examples, and conversion
+  buckets.
+- New exclusive buckets: `no_payoff_seen`, `offered_not_bought`,
+  `bought_not_active`, `active_too_late`, `active_no_combat_swing`,
+  `active_no_survival_swing`, and `converted`.
+- The diagnostic also prints a run-phase comparison when combined with
+  `--druid-compare-baseline`, but its signal is subordinate to the H74 strict
+  probe screen.
+- Real-trace command:
+  `python3 scripts/analyze_ai_trace.py /private/tmp/warforge_h75_coupled60_traces --strategy=soft_druid --druid-run-phase --druid-compare-baseline=/private/tmp/warforge_h71_ledger60_druid_traces`.
+- H75 run-phase read: `10/60` wins, buckets `active_too_late 15`,
+  `no_payoff_seen 10`, `converted 10`, `active_no_survival_swing 8`,
+  `offered_not_bought 8`, `active_no_combat_swing 6`, `bought_not_active 3`.
+- Losses: offer/buy/active `80.0%/64.0%/62.0%`, both-active `10.0%`,
+  focus `R9.5`, HP at focus `20.1`, post-active WR `25.8%`, dead within one
+  round after activation `17/31`.
+- Path split: Garden is mostly timing/acquisition (`active_too_late 10`,
+  `no_payoff_seen 7`, `active_no_combat_swing 5`), while World Tree has more
+  non-stabilizing active wins (`active_no_survival_swing 7`).
+- R9-R12 `path_lag_hold` counts remain high: `132`, `76`, `37`, `20`.
+- H75 vs H71 run-phase comparison found only nomination-level movement
+  (`converted +1`, loss post-active WR `18.8% -> 25.8%`), while H74 still says
+  `WEAK_LOCAL_SIGNAL_DO_NOT_ADOPT`.
+- Verification:
+  - PASS `python3 -m py_compile scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py`.
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace -q` (17 tests).
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace scripts.tests.test_summarize_self_play_report -q` (20 tests).
+  - PASS real-trace H75-vs-H71 analyzer command.
+  - PASS `git diff --check -- scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py docs/tools/self-play-observer.md`.
+- Latest trace: `.claude/traces/experiments/072-druid-run-phase-survival-diagnostic.md`.
+- Resume recommendation: H77 should target Druid Garden timing/economy/path-lag
+  pressure first, not raw Spore/Wrath values. Use `--druid-run-phase` beside
+  H74 comparison for all future Druid probes.
+
+## 2026-07-29 Codex H75 update
+
+- H75 completed as a measured coupled Druid card-data probe, then rejected and
+  rolled back.
+- Probe tested the exact H72+H73 combination:
+  - `dr_spore_cloud` star 1 AS base `0.15 -> 0.20`.
+  - `dr_spore_cloud` star 2 AS/ATK bases `0.20 -> 0.25`.
+  - `dr_wrath` star 1 `atk_base_pct` `0.80 -> 1.20`.
+  - `dr_wrath` star 2 `atk_base_pct` `1.20 -> 1.60`.
+  - Spore scaling/caps/star 3, Wrath scaling/HP/caps/star 3, World Tree,
+    runtime, AI, difficulty, UI, and protected `godot/sim/**` unchanged.
+- Multi-review endorsed this only as an interaction falsification screen, not
+  an adoption candidate. Returned reviewers agreed on strict gates and a
+  YAML-only/codegen-only safe surface.
+- Same-seed 60-run D1 `soft_druid` candidate with seed `2026072901`: 10/60
+  clears, avg HP -3.45, avg rounds 11.20.
+- H75 comparison vs H71: R9-R11 focus WR `34.6% -> 41.0%` (+6.4pp), but H74
+  screen verdict stayed `WEAK_LOCAL_SIGNAL_DO_NOT_ADOPT`.
+- Active-loss survivor margin did not move: ally `0.0 -> 0.0`, enemy
+  `13.8 -> 13.8`. The intended `dr_spore_cloud+dr_wrath` focus combo had
+  `+0.0pp` WR delta and only `-0.1` enemy survivor movement.
+- Decision: REJECT. The candidate only relabeled the failures from
+  `debuff_too_small` to `damage_shortfall`/mixed margins and did not produce
+  terminal or survivor-margin movement.
+- Retained non-gameplay hardening: `test_spore_cloud_s2_sets_enemy_as_and_atk_debuff`
+  now asserts adopted Spore star 2 AS/ATK debuff math exactly.
+- Post-rollback verification:
+  - PASS `python3 scripts/codegen_card_db.py --check`.
+  - PASS `python3 -m unittest scripts.tests.test_card_desc_codegen scripts.tests.test_lint_card_spawn -q` (13 tests).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `test_druid_system.gd` 54/54.
+  - PASS `test_chain_engine.gd` 21/21.
+  - PASS `git diff --check -- data/cards/druid.yaml godot/core/data/card_db.gd godot/core/data/card_descs.gd godot/tests/test_druid_system.gd`.
+- Latest trace: `.claude/traces/experiments/071-druid-spore-wrath-coupled-probe.md`.
+- Resume recommendation: H76 should pivot away from Spore/Wrath base-number
+  probes. Inspect Druid path-lag/payoff acquisition and board-state conversion,
+  especially why Spore+Wrath frames are present but not winning, or broaden to a
+  survival-curve diagnostic before touching more card numbers.
+
+## 2026-07-29 Codex H74 update
+
+- H74 completed as behavior-neutral Druid probe observability; no gameplay,
+  card values, AI scoring, generated card DB, or protected `godot/sim/**` files
+  were changed.
+- Multi-review result was split: design/measurement critics preferred a ledger
+  before a coupled Spore+Wrath probe, while the implementation critic warned
+  that true pre-combat contribution tracing would cross into protected sim
+  instrumentation. Adopted compromise: a Python-only baseline-comparison ledger
+  using existing trace events.
+- Added `--druid-compare-baseline=<trace_dir>` to `scripts/analyze_ai_trace.py`.
+  It reports candidate-vs-baseline clears, average final HP, R9-R11
+  focus-active WR, active-loss survivor margins, bottleneck deltas,
+  focus-combo deltas, and a conservative screen verdict.
+- H72 vs H71 comparison now reports `WEAK_LOCAL_SIGNAL_DO_NOT_ADOPT`: 9/60 to
+  10/60 clears, avg HP `-4.23 -> -3.65`, R9-R11 focus WR `34.6% -> 39.8%`,
+  but active-loss ally survivors remained `0.0 -> 0.0` and enemy survivors
+  barely moved `13.8 -> 13.6`.
+- H73 vs H71 comparison now reports `REJECT_FLAT_OR_NOISY`: 9/60 to 9/60
+  clears, avg HP `-4.23 -> -3.80`, R9-R11 focus WR `34.6% -> 37.0%`,
+  active-loss ally survivors `0.0 -> 0.0`, enemy survivors `13.8 -> 14.1`.
+- Verification:
+  - PASS `python3 -m py_compile scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py`.
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace -q` (15 tests).
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace scripts.tests.test_summarize_self_play_report -q` (18 tests).
+  - PASS H72/H73 comparison commands against the H71 baseline.
+  - PASS `git diff --check -- scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py`.
+- Latest trace: `.claude/traces/experiments/070-druid-probe-comparison-ledger.md`.
+- Resume recommendation: H75 can run one explicitly coupled Spore+Wrath
+  YAML-only probe if continuing Druid. Use H71 as baseline and the new
+  comparison report as the screen gate; do not adopt unless clears, avg HP,
+  focus-active WR, and active-loss survivor margins move together, then confirm
+  on a disjoint seed.
+
+## 2026-07-29 Codex H73 update
+
+- H73 completed as a measured Druid offensive card-data probe, then rejected and rolled back.
+- Probe tested: `dr_wrath` star 1 `atk_base_pct` `0.8 -> 1.2`, star 2
+  `atk_base_pct` `1.2 -> 1.6`; tree scaling, HP, unit caps, star 3, World
+  Tree, Spore Cloud, runtime, and AI unchanged.
+- Multi-review converged on a Wrath base-only probe because H72 exposed
+  `damage_shortfall`, while most failed Wrath frames were star 1 / zero-tree.
+- Same-seed 60-run D1 `soft_druid` candidate with seed `2026072901`: 9/60
+  clears, avg HP -3.80, avg rounds 11.08. This did not improve clears over the
+  H71 accepted baseline.
+- H73 ledger result: 81 R9-R11 focus-active frames, 30 wins / 51 losses, 37.0%
+  WR. Active losses still ended with 0.0 allied survivors and about 14.2 enemy
+  survivors.
+- Decision: REJECT. Isolated Wrath base damage did not pass clear-rate,
+  focus-active WR, or survivor-margin gates.
+- Retained non-gameplay hardening: `test_druid_system.gd` now asserts exact
+  adopted Wrath star 1/2 ATK/HP math instead of vague `assert_gt`.
+- Post-rollback verification:
+  - PASS `python3 scripts/codegen_card_db.py --check`.
+  - PASS `python3 -m unittest scripts.tests.test_card_desc_codegen -q` (3 tests).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `test_druid_system.gd` 53/53.
+  - PASS `git diff --check -- data/cards/druid.yaml godot/core/data/card_db.gd godot/core/data/card_descs.gd godot/tests/test_druid_system.gd`.
+- Latest trace: `.claude/traces/experiments/069-druid-wrath-base-offense-probe.md`.
+- Resume recommendation: H74 should not continue isolated Spore or Wrath base
+  buffs. Either add a focused battle contribution ledger for Druid focus cards,
+  or explicitly test a combined Spore+Wrath coupled hypothesis with attribution
+  called out up front.
+
+## 2026-07-29 Codex H72 update
+
+- H72 completed as a measured Druid card-data probe, then rejected and rolled back.
+- Probe tested: `dr_spore_cloud` star 1 AS base `0.15 -> 0.20`, star 2 AS/ATK
+  bases `0.20 -> 0.25`; tree scaling, caps, star 3, runtime, and AI unchanged.
+- Multi-review converged on a YAML-only base-value probe because H71's
+  Spore-present losses were all star 1 and mostly zero-tree.
+- Same-seed 60-run D1 `soft_druid` candidate with seed `2026072901`: 10/60
+  clears, avg HP -3.65, avg rounds 11.18. This was only +1 clear and +0.58 HP
+  over the H71 baseline.
+- H72 ledger result: 83 R9-R11 focus-active frames, 33 wins / 50 losses, 39.8%
+  WR. Spore-active all-round conversion improved to 42 wins / 33 losses
+  (56.0%), but active losses still ended with 0.0 allied survivors and about
+  14.2 enemy survivors.
+- Decision: REJECT. The probe removed `debuff_too_small` as the dominant label
+  but did not pass clear-rate, focus-active WR, or survivor-margin gates.
+- Post-rollback verification:
+  - PASS `python3 scripts/codegen_card_db.py --check`.
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `test_druid_system.gd` 53/53.
+  - PASS `test_chain_engine.gd` 21/21.
+  - PASS `git diff --check -- data/cards/druid.yaml godot/core/data/card_db.gd godot/core/data/card_descs.gd godot/tests/test_chain_engine.gd godot/tests/test_druid_system.gd`.
+- Latest trace: `.claude/traces/experiments/068-druid-spore-base-mitigation-probe.md`.
+- Resume recommendation: H73 should target Druid offensive battle conversion,
+  especially Wrath/World Tree R9-R11 damage shortfall. Do not keep pushing
+  Spore base mitigation without new evidence.
+
+## 2026-07-29 Codex H71 update
+
+- H71 completed: behavior-neutral Druid active battle ledger added to `scripts/analyze_ai_trace.py`
+  via `--druid-active-ledger`; no gameplay/card/AI values changed.
+- Multi-review converged on observability before another gameplay probe because H67 AI variants and
+  H70 Lifebeat reach both produced weak or false-green movement.
+- New ledger scopes R9-R11 Druid focus-active battles and classifies each loss by one primary
+  bottleneck, grouped by focus combo, focus card, and path.
+- 60-run `soft_druid` D1 baseline with seed `2026072901`: 9/60 clears, avg HP -4.23, avg rounds
+  11.07. Boss reward application remained clean for eligible R4/R8/R12 runs.
+- H71 ledger result: 81 R9-R11 focus-active frames, 28 wins / 53 losses, 100% detail/star/tree
+  coverage. Primary bottlenecks: `debuff_too_small` 30, `debuff_missing` 15,
+  `enemy_pressure_spike` 6, `damage_shortfall` 1, `board_mass_shortfall` 1.
+- Interpretation: the next Druid gameplay probe should target Spore Cloud early mitigation or
+  Spore/Wrath pairing value. Do not retry Lifebeat all-Druid reach or broad AI activation/promotion
+  variants without new evidence.
+- Verification:
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace` (14 tests).
+  - PASS `python3 -m unittest scripts.tests.test_analyze_ai_trace scripts.tests.test_summarize_self_play_report -q` (17 tests).
+  - PASS `git diff --check -- scripts/analyze_ai_trace.py scripts/tests/test_analyze_ai_trace.py`.
+- Latest trace: `.claude/traces/experiments/067-druid-active-battle-ledger.md`.
+- Resume recommendation: H72 should run one narrow Spore Cloud star 1/2 mitigation card-data probe,
+  measured by same-seed Druid clears, focus-active WR, active-loss survivor margins, and the new
+  active ledger. Confirm on disjoint seed before adoption.
+
+## 2026-07-29 Codex H70 pause update
+
+- H70 completed as a measured Druid balance probe, then paused per user request.
+- Probe tested: `dr_lifebeat` star 1/2 `tree_shield.target` from adjacent cards to all Druid cards.
+- Decision: REJECTED and rolled back. It moved clears from 4/30 to 5/30 and avg HP from -4.17 to
+  -2.83 on the same seed, but active losses still had 0.0 allied survivors and about 14.7 enemy
+  survivors. The result was too weak to adopt or spend another run on disjoint-seed confirmation.
+- Post-rollback verification:
+  - PASS `python3 scripts/codegen_card_db.py --check`.
+  - PASS `python3 -m unittest scripts.tests.test_card_desc_codegen -q`.
+  - PASS `test_druid_system.gd` 53/53.
+  - PASS `python3 scripts/lint_card_spawn.py`.
+- Latest trace: `.claude/traces/experiments/066-druid-lifebeat-shield-reach-probe.md`.
+- Resume recommendation: continue Druid R9-R11 combat conversion, but do not retry Lifebeat
+  all-Druid reach as-is. The next probe should target payoff battle math or failed active-battle
+  survivor margins more directly.
+
+## 2026-07-29 Codex H69 update
+
+- H69 completed: Druid combat data/runtime parity fixes before any further balance tuning.
+- Adopted changes:
+  - `dr_spore_cloud` ★3 now applies its YAML-defined self `tree_shield` at battle start.
+  - `dr_wrath` ★3 now uses explicit `kill_hp_recover: 0.15`, stores active recovery state only
+    while its unit-cap condition holds, and materializes that state into live/headless combat.
+  - Combat `kill_hp_recover` heals the attacker by max HP percentage on kill, capped at max HP.
+  - `dr_grace` ★3 post-combat `free_reroll` now reaches `ChainEngine` and the pending free-reroll
+    callback.
+  - `test_druid_theme_system_handles_all_current_yaml_actions` now guards current Druid YAML action
+    names against silent runtime no-ops.
+- H69 evidence:
+  - Same-seed `soft_druid`: 4/30 clears, avg HP -4.17, avg rounds 11.07.
+  - Focus-active Druid battles remain 27/62 wins; active losses still end with 0.0 allied survivors
+    and about 15.9 enemy survivors.
+  - Loss buckets remain centered on `path_lag_hold_pressure` and `combat_conversion_failure`.
+  - 35-run all-strategy smoke stayed broad-system clean: 17/35 clears overall, `soft_druid` 0/5.
+- Verification completed:
+  - PASS `python3 scripts/codegen_card_db.py --check`.
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS focused Python guards 47/47.
+  - PASS focused GUT: Druid 53/53, Chain 21/21, Combat Basics 17/17, Combat Advanced 15/15,
+    GameManager Logic 37/37, Headless Runner 15/15.
+  - PASS full GUT 1272/1272 across 57 scripts.
+  - PASS `git diff --check`.
+- Latest trace: `.claude/traces/experiments/065-druid-combat-data-parity.md`.
+- Resume recommendation: continue Druid combat conversion as a measured balance probe, not another
+  correctness pass. Prefer Spore Cloud/Wrath/World Tree active R9-R11 battle math and survivability;
+  avoid repeating H67 acquisition/commitment variants unless the evaluator changes.
+
 ## 2026-07-02 Codex autonomous update
 
 - G-4 D5-D8 난이도 후속 캘리브레이션 완료: D4 적 유닛 수 보정은 ×1.15에서 ×1.10으로 완화. D7 적 ATK는 ×1.30에서 ×1.10으로 완화. D7 보스 업그레이드는 R12 레어, R15 에픽으로 지연하고 R15의 레어+에픽 중첩을 제거.
@@ -103,7 +398,70 @@
   - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_genome.gd -glog=1 -gexit` — 10/10, warning 없음.
   - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_military_system.gd -glog=1 -gexit` — 81/81, expected push_warning 명시.
   - PASS full GUT `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit` — 1141/1141 across 50 scripts, GUT warning total 없음. Godot still reports ObjectDB/resource warnings on exit.
-- 다음 착수 권장: H-9 next playability slice selection. 이제 경고 노이즈가 줄었으므로 밸런스보다 “작동하는 완성 게임”에 필요한 UX/flow gap을 우선 골라 진행한다.
+- H-9 next playability slice selection 완료: 다음 completion-oriented track은 live run reward/flow hardening으로 확정. 밸런스와 visual polish는 queue에 남기되, 먼저 플레이어가 약속된 보상과 런 전환을 실제로 경험하는지 확인한다.
+- H-10 착수 배경: `docs/design/replay.md`와 `docs/design/commanders.md`는 약탈자가 3연승마다 커먼 업그레이드를 얻는다고 설명하지만, 이전 `godot/scripts/game/game_manager.gd`는 해당 지점에서 TODO print만 남겼다. `godot/core/commander.gd`, `godot/scripts/game/game_manager.gd`, `godot/scripts/build/build_phase.gd`, `godot/tests/test_commander.gd`와 신규/확장 GameManager reward-flow 테스트를 중심으로 선택 가능한 커먼 업그레이드 → 대상 카드 부착 흐름을 연결하는 작업이었다.
+- H-10 Raider 3-win reward flow 완료: `game_manager.gd`가 약탈자 승리 누적을 기록하고 3번째 승리 후 HP>0이면 보스 보상/정착 전에 커먼 업그레이드 3택1을 띄운다. 선택한 업그레이드는 `BuildPhase.start_free_upgrade_selection(..., "raider_win_streak")`로 필드 카드에 무료 부착되며, target overlay는 "Raider 3-win reward" 안내를 표시한다.
+- H-10 검증:
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_commander.gd -glog=1 -gexit` — 36/36
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_build_phase_upgrade_shop.gd -glog=1 -gexit` — 8/8
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_logic.gd -glog=1 -gexit` — 34/34
+  - PASS full GUT `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit` — 1144/1144 across 50 scripts. Godot still reports ObjectDB/resource warnings on exit.
+  - PASS `git diff --check`
+- 다음 착수 권장: H-11 boss reward target/upgrade UX audit. `godot/scripts/game/game_manager.gd`, `godot/core/boss_reward.gd`, `godot/core/data/boss_reward_db.gd`, `godot/tests/test_boss_reward.gd`, `godot/tests/test_headless_rewards.gd`, `godot/tests/test_build_phase_upgrade_shop.gd`를 중심으로 dead `needs_upgrade_choice` path와 attach 보상 full-slot/target 안내를 확인한다.
+- H-11 boss reward target/upgrade UX audit 완료: sequential multi-review fallback 결과, 보스 보상은 설계 문서처럼 "대상 카드 선택 + 랜덤 레어/에픽 부착"으로 유지하고 dead `needs_upgrade_choice` 선택형 업그레이드 경로는 제거했다. 선택형 업그레이드를 살리는 것은 live popup, `BossReward.apply_with_target()`, sim AI, 로그/테스트를 동시에 바꾸는 큰 범위라 H11 목적 밖으로 판정했다.
+- H-11 구현:
+  - `BossReward.can_target_reward()`/`can_select_reward()`/`get_free_upgrade_slots()` 추가. r8_1은 ★승급 가능+슬롯 1개, r8_7은 슬롯 1개, r12_7은 슬롯 2개, r12_1은 step1 ★2/step2 ★1 대상만 허용.
+  - `BossReward.apply_with_target()`도 같은 eligibility를 통과하지 못하면 no-op 처리해 partial attach를 막는다.
+  - `BossRewardDB`에서 `needs_upgrade_choice` 필드/등록 인자를 제거했다.
+  - `GameManager`는 현재 보드에서 선택 가능한 보스 보상만 팝업에 노출하고, target overlay에 reward별 instruction/detail/preview note를 표시한다. 보스 target 선택 중 ESC는 스킵 대신 같은 선택을 다시 연다.
+  - `AIRewardLogic`과 `HeadlessRunner`도 같은 target eligibility를 사용하도록 맞췄다.
+- H-11 검증:
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_boss_reward.gd -glog=1 -gexit` — 70/70
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_headless_rewards.gd -glog=1 -gexit` — 17/17
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_logic.gd -glog=1 -gexit` — 36/36
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_build_phase_upgrade_shop.gd -glog=1 -gexit` — 8/8
+  - PASS full GUT `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit` — 1152/1152 across 50 scripts. Godot still reports ObjectDB/resource warnings on exit.
+  - PASS `git diff --check`
+- H-12 완료: end-to-end live run smoke를 추가했다.
+  - Multi-review fallback 결정: 실제 combat engine을 smoke에서 돌리기보다 `main.tscn`과 `GameManager` live scene을 띄운 뒤 deterministic `_on_battle_finished()` 결과를 주입한다. 이렇게 run-start/UI/meta-save hook은 live로 검증하고, 전투 난수/시간 의존성은 smoke 밖에 둔다.
+  - `GameManager`에 테스트 격리 hook 3개 추가: `meta_progress_save_path`, `battle_result_delay_sec`, `play_logger_enabled`. 기본값은 기존 동작을 유지하고, smoke에서는 별도 `user://meta_progress_live_smoke_test.cfg`, 즉시 battle-result timeout, PlayLogger 비활성으로 실행한다.
+  - 신규 `test_game_manager_live_smoke.gd`는 run-start → commander/talisman selection → BUILD 진입, 비치명 전투 결과 → settlement → R2 BUILD, 치명 패배 → game-over/meta defeat save, R15 승리 → victory overlay/meta victory save/난이도 2 해금을 고정한다.
+- H-12 검증:
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_live_smoke.gd -glog=1 -gexit` — 3/3
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_run_start_screen.gd -glog=1 -gexit` — 6/6
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_logic.gd -glog=1 -gexit` — 36/36
+  - PASS full GUT `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit` — 1155/1155 across 51 scripts. Godot still reports ObjectDB/resource warnings on exit.
+- H-13 완료: ObjectDB/resource warning triage를 닫았다.
+  - Multi-review fallback 결정: verbose detail이 필요한 검증-health 작업이므로 원인 attribution을 우선하고, 엔진/GUT 이슈가 아니라 repo RefCounted 순환이면 좁게 수정한다.
+  - `--verbose` 단독은 Godot rotated logger가 `user://logs/godot*.log`를 열지 못해 crash했으나, `--verbose --log-file /private/tmp/...`로 상세 attribution을 확보했다.
+  - `test_boss_reward.gd` 단독 `4 resources still in use` 원인: `CombatEngine`이 `_mech`를 보유하고 `MechanicsHandler`가 `_e`로 engine을 다시 보유하는 RefCounted 순환. `CombatEngine.dispose()`와 `MechanicsHandler.dispose()`를 추가하고, `BattlePhase`, headless sim, combat/talisman/military/boss reward tests에서 호출하도록 정리했다.
+  - `test_headless_runner.gd`/`test_headless_rewards.gd` 단독 `13 resources still in use` 원인: `HeadlessRunner.run()` 내부 `state.card_sold` 익명 signal callback이 `state`, `chain_engine`, `rng`, `self`를 캡처해 `state -> signal -> callback -> state` 순환을 만들었다. handler를 변수로 보관하고 return 전 disconnect한다.
+- H-13 검증:
+  - PASS `test_boss_reward.gd` 70/70, 종료 ObjectDB/resource 경고 없음.
+  - PASS `test_combat_basics.gd` 15/15, `test_combat_advanced.gd` 15/15, `test_combat_integration.gd` 10/10, 종료 경고 없음.
+  - PASS `test_combat_chain.gd` 9/9, `test_military_system.gd` 81/81, `test_talisman.gd` 38/38, 종료 경고 없음.
+  - PASS `test_headless_runner.gd` 14/14 and `test_headless_rewards.gd` 17/17, 종료 경고 없음.
+  - PASS full GUT `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit` — 1155/1155 across 51 scripts, no ObjectDB/resource exit block.
+- H-14 완료: focused strategy payoff follow-up을 `soft_steampunk`로 진행했다.
+  - Multi-review fallback 결정: 최신 fixed-evaluator 기준 최저 focused 전략이고, `docs/design/cards-steampunk.md`가 확산/집중 T1 분기와 hybrid penalty를 명시하므로 `soft_druid`보다 독립적인 다음 실험 축으로 적합하다고 판단했다.
+  - 고정 evaluator: `godot --headless --log-file /private/tmp/godot_h14_140.log --path godot/ -s sim/ai_research/ai_batch_runner.gd -- --genome=res://sim/best_genome.json --runs=20 --seed=42 --baseline=res://sim/baseline.json --trace-dir=/private/tmp/warforge_h14_trace_140`.
+  - baseline 140-run: weighted 0.5064, AI quality 0.7378, `soft_steampunk` 3/20 avg_hp -5.6, `soft_druid` 4/20 avg_hp -7.95. Trace에서 `soft_steampunk`가 양쪽 T1 branch starter를 17/20 run에서 모두 구매했다.
+  - 구현: `AIBuildPath`에 path-local `anti_penalty`를 추가하고 스팀펑크 spread/focus path만 36.0으로 설정했다. 드루이드/포식종 soft branch와 군대 strict branch는 기존 의미를 유지한다. 난이도, 카드 YAML, genome, evaluator는 수정하지 않았다.
+  - 결과: 35-run weighted 0.4449→0.4599, `soft_steampunk` 0/5 avg_hp -16.6→1/5 avg_hp -6.6. 140-run weighted 0.5064→0.5095, AI quality 0.7378→0.7488, `soft_steampunk` avg_hp -5.6→-3.3, branch mixing 17/20→12/20. 승수는 3/20 유지라 완전 해결은 아님.
+  - 상세 trace: `.claude/traces/experiments/011-steampunk-payoff-followup.md`.
+  - 검증: PASS `test_ai_build_path.gd` 28/28, `test_ai_agent.gd` 14/14, `test_ai_board_eval.gd` 14/14, `test_headless_runner.gd` 14/14, PASS full GUT 1157/1157 across 51 scripts with no ObjectDB/resource exit block.
+- H-15 완료: visual polish follow-up으로 chain/merge 피드백을 작게 보강했다.
+  - `ChainVisual` 로그와 floating label에 `L->R`/`R->L`/`SELF` 흐름 힌트를 추가했다. 기존 카드명 `source -> target` 문구는 유지해 읽기와 회귀 호환을 보존했다.
+  - 체인 라인은 살짝 굵게 시작해 줄어들고, floating label은 짧게 pulse 후 위로 drift/fade한다. 게임 로직/체인 엔진/카드 수치 변경은 없다.
+  - `BuildPhase` merge summary label은 새 합성 기록 시 한 번 pulse한다. 트리에 없는 단위 테스트 인스턴스에서는 no-op이라 기존 merge bonus 테스트 구조를 유지한다.
+  - 검증: PASS `test_chain_visual.gd` 6/6, PASS `test_build_phase_merge_bonus.gd` 6/6, PASS full GUT 1159/1159 across 51 scripts, PASS `git diff --check`.
+- H-16 완료: 다음 hardening slice 선정 겸 `soft_steampunk` payoff timing probe를 수행했고, no-code-adopt로 닫았다.
+  - Multi-review fallback 결정: H10-H15로 live reward/flow/visual polish는 한 바퀴 닫혔고, H14가 남긴 `soft_steampunk` T4/T5 timing은 fixed evaluator가 있으므로 작은 sim probe를 먼저 시도했다.
+  - baseline 35-run: weighted 0.4599, `soft_steampunk` 1/5 avg_hp -6.6. Trace상 여러 run이 R8-R9까지 shop Lv2에 머물며 high-tier payoff 구매가 늦거나 없었다.
+  - Variant A(R7+ reserve 8)는 levelup을 앞당겼지만 midgame survivability를 해쳐 weighted 0.4554, `soft_steampunk` 0/5 avg_hp -9.0으로 회귀해 REJECT.
+  - Variant B(R9+ reserve 12)는 baseline과 같은 weighted 0.4599 / `soft_steampunk` 1/5로 no-op이라 REJECT.
+  - 코드 변경은 남기지 않았다. 상세 trace: `.claude/traces/experiments/012-next-hardening-slice-probe.md`.
+- 다음 착수 권장: 수동 플레이 관찰 기반 UX smoke 후보를 하나 찾거나, sim을 계속할 경우 levelup decision trace instrumentation / payoff-card valuation / transition-board replacement 중 하나를 fixed evaluator로 새로 선택한다.
 
 ## 2026-07-01 Codex autonomous update
 

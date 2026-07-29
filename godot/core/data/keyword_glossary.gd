@@ -24,8 +24,12 @@ var _keywords := {
 		"definition": "카드의 ATK(+HP)를 영구 증가 (% 기반)",
 	},
 	"성장": {
-		"theme": "드루이드",
+		"theme": "공통",
 		"definition": "기본 스탯 대비 ATK/HP 영구 % 증가",
+	},
+	"나무 성장": {
+		"theme": "드루이드",
+		"definition": "드루이드 나무(🌳)를 이용한 성장 이벤트",
 	},
 	"번식": {
 		"theme": "드루이드",

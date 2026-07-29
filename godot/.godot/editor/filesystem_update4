@@ -1,0 +1,14 @@
+res://core/meta_progress.gd
+res://core/data/card_db.gd
+res://core/data/card_descs.gd
+res://core/data/conscript_pool_data.gd
+res://scenes/build/build_phase.tscn
+res://scripts/build/build_phase.gd
+res://scripts/build/card_visual.gd
+res://scripts/build/shop.gd
+res://scripts/game/game_manager.gd
+res://tests/test_build_phase_merge_bonus.gd
+res://tests/test_build_phase_upgrade_shop.gd
+res://tests/test_meta_progress.gd
+res://tests/test_run_start_screen.gd
+res://tests/test_shop_logic.gd

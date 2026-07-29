@@ -146,6 +146,7 @@ func card_board_value(card: CardInstance, strategy: String,
 func find_promotions(board: Array, bench: Array, field_slots: int,
 		strategy: String, round_num: int) -> Array:
 	var actions: Array = []
+	var reserved_board_indices: Array = []
 
 	# Phase 1: fill empty slots
 	for bi in bench.size():
@@ -154,8 +155,11 @@ func find_promotions(board: Array, bench: Array, field_slots: int,
 		for fi in field_slots:
 			if fi >= board.size():
 				break
+			if fi in reserved_board_indices:
+				continue
 			if board[fi] == null:
 				actions.append({"action": "place", "bench_idx": bi, "board_idx": fi})
+				reserved_board_indices.append(fi)
 				break
 
 	# Phase 2: swap weak board cards for stronger bench cards
@@ -193,6 +197,8 @@ func find_promotions(board: Array, bench: Array, field_slots: int,
 		for fi in field_slots:
 			if fi >= board.size():
 				break
+			if fi in reserved_board_indices:
+				continue
 			if board[fi] == null:
 				continue
 			var board_card: CardInstance = board[fi]
@@ -209,6 +215,7 @@ func find_promotions(board: Array, bench: Array, field_slots: int,
 			actions.append({
 				"action": "swap", "bench_idx": bi, "board_idx": worst_fi,
 			})
+			reserved_board_indices.append(worst_fi)
 
 	return actions
 

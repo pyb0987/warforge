@@ -8,6 +8,7 @@ signal free_upgrade_finished(applied: bool)
 signal upgrade_rerolled(cost: int, terazin_after: int)
 signal tutorial_dismissed
 
+var merge_history_max := 4
 var game_state: GameState = null
 var _field_visuals: Array = []
 var _bench_visuals: Array = []
@@ -21,6 +22,13 @@ var _genome: Genome = null
 var _tutorial_enabled: bool = false
 var _tutorial_dismissed: bool = false
 var _last_merge_summary: String = ""
+var _merge_history: PackedStringArray = []
+var _last_chain_summary: String = ""
+var _last_chain_history: String = ""
+var _last_settlement_recap: Dictionary = {}
+var _build_readiness_text: String = ""
+var _enemy_pressure_preview_text: String = ""
+var _enemy_pressure_preview_data: Dictionary = {}
 
 @onready var shop: HBoxContainer = $Shop
 @onready var upgrade_shop: HBoxContainer = $UpgradeShop
@@ -35,15 +43,39 @@ var _last_merge_summary: String = ""
 @onready var terazin_label: Label = $HUD/TerazinLabel
 @onready var round_label: Label = $HUD/RoundLabel
 @onready var hp_label: Label = $HUD/HPLabel
+@onready var identity_label: Label = get_node_or_null("HUD/IdentityLabel") as Label
 @onready var shop_label: Label = $ShopLabel
 @onready var upgrade_shop_label: Label = $UpgradeShopLabel
-@onready var merge_summary_label: Label = get_node_or_null("MergeSummaryLabel") as Label
+@onready var merge_history_panel: PanelContainer = \
+	get_node_or_null("MergeHistoryPanel") as PanelContainer
+@onready var merge_history_log_label: Label = \
+	get_node_or_null("MergeHistoryPanel/VBox/MergeHistoryLogLabel") as Label
 @onready var tutorial_hint_panel: PanelContainer = \
 	get_node_or_null("TutorialHintPanel") as PanelContainer
 @onready var tutorial_hint_label: Label = \
 	get_node_or_null("TutorialHintPanel/VBox/TutorialHintLabel") as Label
 @onready var tutorial_dismiss_button: Button = \
 	get_node_or_null("TutorialHintPanel/VBox/TutorialDismissButton") as Button
+@onready var last_chain_panel: PanelContainer = \
+	get_node_or_null("LastChainPanel") as PanelContainer
+@onready var last_chain_summary_label: Label = \
+	get_node_or_null("LastChainPanel/VBox/LastChainSummaryLabel") as Label
+@onready var last_chain_log_label: Label = \
+	get_node_or_null("LastChainPanel/VBox/LastChainLogLabel") as Label
+@onready var build_readiness_panel: PanelContainer = \
+	get_node_or_null("BuildReadinessPanel") as PanelContainer
+@onready var build_readiness_body_label: Label = \
+	get_node_or_null("BuildReadinessPanel/VBox/BuildReadinessBodyLabel") as Label
+@onready var settlement_recap_panel: PanelContainer = \
+	get_node_or_null("SettlementRecapPanel") as PanelContainer
+@onready var settlement_recap_title_label: Label = \
+	get_node_or_null("SettlementRecapPanel/VBox/SettlementTitleLabel") as Label
+@onready var settlement_recap_gold_label: Label = \
+	get_node_or_null("SettlementRecapPanel/VBox/SettlementGoldLabel") as Label
+@onready var settlement_recap_terazin_label: Label = \
+	get_node_or_null("SettlementRecapPanel/VBox/SettlementTerazinLabel") as Label
+@onready var settlement_recap_next_label: Label = \
+	get_node_or_null("SettlementRecapPanel/VBox/SettlementNextLabel") as Label
 
 
 func setup(state: GameState, rng: RandomNumberGenerator, genome: Genome = null) -> void:
@@ -66,6 +98,11 @@ func setup(state: GameState, rng: RandomNumberGenerator, genome: Genome = null) 
 	upgrade_shop.upgrade_purchase_requested.connect(_on_upgrade_purchase_requested)
 	target_overlay.target_selected.connect(_on_target_selected)
 	target_overlay.target_cancelled.connect(_on_target_cancelled)
+	target_overlay.visibility_changed.connect(_refresh_tutorial_hint)
+	target_overlay.visibility_changed.connect(_refresh_last_chain_history_panel)
+	target_overlay.visibility_changed.connect(_refresh_settlement_recap_panel)
+	target_overlay.visibility_changed.connect(_refresh_merge_history_panel)
+	target_overlay.visibility_changed.connect(_refresh_build_readiness_panel)
 	target_overlay.visible = false
 	_refresh_all()
 
@@ -84,20 +121,168 @@ func get_tutorial_hint_text() -> String:
 	return tutorial_hint_label.text
 
 
+func get_build_readiness_text() -> String:
+	if build_readiness_panel == null or not build_readiness_panel.is_visible_in_tree():
+		return ""
+	return _build_readiness_text
+
+
+func get_enemy_pressure_preview_text() -> String:
+	if build_readiness_panel == null or not build_readiness_panel.is_visible_in_tree():
+		return ""
+	return _enemy_pressure_preview_text
+
+
+func get_enemy_pressure_preview_data() -> Dictionary:
+	if get_enemy_pressure_preview_text() == "":
+		return {}
+	return _enemy_pressure_preview_data.duplicate(true)
+
+
+func is_build_readiness_visible() -> bool:
+	return build_readiness_panel != null and build_readiness_panel.is_visible_in_tree()
+
+
 func get_merge_summary_text() -> String:
 	return _last_merge_summary
+
+
+func get_merge_history_entries() -> Array:
+	var entries: Array = []
+	for entry in _merge_history:
+		entries.append(entry)
+	return entries
+
+
+func get_merge_history_text() -> String:
+	return "\n".join(_merge_history)
+
+
+func is_merge_history_visible() -> bool:
+	return merge_history_panel != null and merge_history_panel.is_visible_in_tree()
+
+
+func clear_merge_history() -> void:
+	_last_merge_summary = ""
+	_merge_history.clear()
+	_refresh_merge_history_panel()
+	_refresh_settlement_recap_panel()
+	_refresh_tutorial_hint()
+
+
+func set_last_chain_history(summary: String, history: String) -> void:
+	_last_chain_summary = summary
+	_last_chain_history = history
+	_refresh_last_chain_history_panel()
+	_refresh_build_readiness_panel()
+
+
+func clear_last_chain_history() -> void:
+	_last_chain_summary = ""
+	_last_chain_history = ""
+	_refresh_last_chain_history_panel()
+	_refresh_build_readiness_panel()
+
+
+func set_last_settlement_recap(recap: Dictionary) -> void:
+	_last_settlement_recap = recap.duplicate(true)
+	_refresh_settlement_recap_panel()
+	_refresh_tutorial_hint()
+
+
+func clear_last_settlement_recap() -> void:
+	_last_settlement_recap = {}
+	_refresh_settlement_recap_panel()
+	_refresh_tutorial_hint()
+
+
+func get_last_settlement_recap_data() -> Dictionary:
+	return _last_settlement_recap.duplicate(true)
+
+
+func get_last_settlement_recap_text() -> String:
+	if settlement_recap_panel == null or not settlement_recap_panel.is_visible_in_tree():
+		return ""
+	var lines := PackedStringArray()
+	if settlement_recap_title_label != null:
+		lines.append(settlement_recap_title_label.text)
+	if settlement_recap_gold_label != null:
+		lines.append(settlement_recap_gold_label.text)
+	if settlement_recap_terazin_label != null:
+		lines.append(settlement_recap_terazin_label.text)
+	if settlement_recap_next_label != null:
+		lines.append(settlement_recap_next_label.text)
+	return "\n".join(lines)
+
+
+func is_last_settlement_recap_visible() -> bool:
+	return settlement_recap_panel != null and settlement_recap_panel.is_visible_in_tree()
+
+
+func get_last_chain_history_text() -> String:
+	if last_chain_panel == null or not last_chain_panel.is_visible_in_tree():
+		return ""
+	if _last_chain_history == "":
+		return _last_chain_summary
+	return "%s\n%s" % [_last_chain_summary, _last_chain_history]
+
+
+func get_last_chain_history_display_text() -> String:
+	if last_chain_panel == null or not last_chain_panel.is_visible_in_tree():
+		return ""
+	if last_chain_log_label == null or last_chain_log_label.text == "":
+		return _last_chain_summary
+	return "%s\n%s" % [_last_chain_summary, last_chain_log_label.text]
+
+
+func is_last_chain_history_visible() -> bool:
+	return last_chain_panel != null and last_chain_panel.is_visible_in_tree()
 
 
 func set_upgrade_choice_popup(popup) -> void:
 	_upgrade_choice_popup = popup
 	if _upgrade_choice_popup:
 		_upgrade_choice_popup.upgrade_chosen.connect(_on_merge_upgrade_chosen)
+		if not _upgrade_choice_popup.visibility_changed.is_connected(_refresh_tutorial_hint):
+			_upgrade_choice_popup.visibility_changed.connect(_refresh_tutorial_hint)
+		if not _upgrade_choice_popup.visibility_changed.is_connected(_refresh_last_chain_history_panel):
+			_upgrade_choice_popup.visibility_changed.connect(_refresh_last_chain_history_panel)
+		if not _upgrade_choice_popup.visibility_changed.is_connected(_refresh_settlement_recap_panel):
+			_upgrade_choice_popup.visibility_changed.connect(_refresh_settlement_recap_panel)
+		if not _upgrade_choice_popup.visibility_changed.is_connected(_refresh_merge_history_panel):
+			_upgrade_choice_popup.visibility_changed.connect(_refresh_merge_history_panel)
+		if not _upgrade_choice_popup.visibility_changed.is_connected(_refresh_build_readiness_panel):
+			_upgrade_choice_popup.visibility_changed.connect(_refresh_build_readiness_panel)
 
 
-func refresh_shop() -> void:
+func refresh_shop(refresh_upgrades: bool = false) -> void:
+	# Player card rerolls must not disturb upgrade offers. Round/phase refreshes
+	# pass refresh_upgrades=true when both shops should be newly dealt.
 	shop.refresh_shop()
-	if upgrade_shop.is_available():
+	if refresh_upgrades and upgrade_shop.is_available():
 		upgrade_shop.refresh_upgrades()
+
+
+func refresh_display() -> void:
+	_refresh_all()
+
+
+func get_identity_text() -> String:
+	if identity_label == null:
+		return _format_identity_label()
+	return identity_label.text
+
+
+func get_run_milestone_text() -> String:
+	if game_state == null:
+		return ""
+	return _format_run_milestone_text(game_state.round_num)
+
+
+func get_round_label_text() -> String:
+	if round_label == null:
+		return _format_round_label()
+	return round_label.text
 
 
 func get_shop_offered() -> Array:
@@ -166,23 +351,26 @@ func _refresh_all() -> void:
 	if terazin_label:
 		terazin_label.text = "Terazin: %d" % game_state.terazin
 	if round_label:
-		round_label.text = "Round %d/%d" % [game_state.round_num, Enums.MAX_ROUNDS]
+		round_label.text = _format_round_label()
 	if hp_label:
 		hp_label.text = "HP: %d" % game_state.hp
+	if identity_label:
+		identity_label.text = _format_identity_label()
 	if shop_label:
 		var level: int = shop._get_shop_level()
 		var reroll_cost: int = _get_reroll_cost()
 		if level < Enums.LEVELUP_MAX:
-			shop_label.text = "SHOP Lv%d (R:reroll -%dg | F:levelup -%dg)" % [
+			shop_label.text = "CARD SHOP Lv%d (R:cards -%dg | F:levelup -%dg)" % [
 				level, reroll_cost, game_state.levelup_current_cost]
 		else:
-			shop_label.text = "SHOP Lv%d MAX (R:reroll -%dg)" % [level, reroll_cost]
+			shop_label.text = "CARD SHOP Lv%d MAX (R:cards -%dg)" % [
+				level, reroll_cost]
 		# 이번 라운드 한정 무료 리롤 저축분이 있으면 배지 표시.
 		# 사용자가 R 키를 누를 때 commander 확률 후 우선 소진된다.
 		if game_state.pending_free_rerolls > 0:
 			shop_label.text += "  [무료 리롤 ×%d]" % game_state.pending_free_rerolls
 
-	_update_merge_summary_label()
+	_refresh_merge_history_panel()
 
 	# Upgrade shop is visible from R1 now that every run starts with a commander.
 	var upg_visible: bool = upgrade_shop.is_available()
@@ -190,21 +378,364 @@ func _refresh_all() -> void:
 	if upgrade_shop_label:
 		upgrade_shop_label.visible = upg_visible
 		if upg_visible:
-			upgrade_shop_label.text = "UPGRADES"
+			upgrade_shop_label.text = "UPGRADES (T:upgrades only)"
 	if upgrade_shop.visible:
 		upgrade_shop.refresh_offer_visuals()
 
 	_update_strategist_swap_button()
 	_update_detach_upgrade_button()
 	_update_upgrade_reroll_button()
+	_refresh_settlement_recap_panel()
 	_refresh_tutorial_hint()
+	_refresh_last_chain_history_panel()
+	_refresh_build_readiness_panel()
 
 
-func _update_merge_summary_label() -> void:
-	if merge_summary_label == null:
+func _format_identity_label() -> String:
+	if game_state == null:
+		return ""
+	var commander_data: Dictionary = Commander.get_data(game_state.commander_type)
+	var talisman_data: Dictionary = Talisman.get_data(game_state.talisman_type)
+	var commander_name: String = commander_data.get("name", "없음")
+	var talisman_name: String = talisman_data.get("name", "없음")
+	var commander_icon: String = commander_data.get("icon", "")
+	var talisman_icon: String = talisman_data.get("icon", "")
+	var commander_line := "커맨더: %s%s" % [
+		("%s " % commander_icon) if commander_icon != "" else "",
+		commander_name,
+	]
+	var commander_status := _format_commander_status()
+	if commander_status != "":
+		commander_line += " - %s" % commander_status
+	var talisman_line := "부적: %s%s" % [
+		("%s " % talisman_icon) if talisman_icon != "" else "",
+		talisman_name,
+	]
+	var talisman_status := _format_talisman_status()
+	if talisman_status != "":
+		talisman_line += " - %s" % talisman_status
+	return "%s\n%s" % [commander_line, talisman_line]
+
+
+func _format_round_label() -> String:
+	if game_state == null:
+		return ""
+	return "Round %d/%d · %s" % [
+		game_state.round_num,
+		Enums.MAX_ROUNDS,
+		_format_run_milestone_short(game_state.round_num),
+	]
+
+
+func _format_run_milestone_short(round_num: int) -> String:
+	var text := _format_run_milestone_text(round_num)
+	if text.begins_with("Goal: "):
+		return text.trim_prefix("Goal: ")
+	return text
+
+
+func _format_run_milestone_text(round_num: int) -> String:
+	if round_num > Enums.MAX_ROUNDS:
+		return "Goal: Run complete"
+	for boss_round in Enums.BOSS_ROUNDS:
+		if round_num > int(boss_round):
+			continue
+		var label := "final boss" if int(boss_round) == Enums.MAX_ROUNDS \
+			else "boss reward"
+		var fights_to_goal := int(boss_round) - round_num + 1
+		if fights_to_goal <= 1:
+			return "Goal: R%d %s this fight" % [int(boss_round), label]
+		return "Goal: R%d %s in %d fights" % [
+			int(boss_round),
+			label,
+			fights_to_goal,
+		]
+	return "Goal: Run complete"
+
+
+func _format_commander_status() -> String:
+	match game_state.commander_type:
+		Enums.CommanderType.GAMBLER:
+			return "리롤 50% 무료, ★3 합성 환급"
+		Enums.CommanderType.BREEDER:
+			return "유닛상한 +20, 추가생성 30%"
+		Enums.CommanderType.SMITH:
+			return "업글 슬롯 +1, Common -1t"
+		Enums.CommanderType.STRATEGIST:
+			var swap_state := "사용됨" if bool(game_state.commander_state.get("hero_used", false)) else "가능"
+			return "필드 +1, 인접 2칸, SWAP %s" % swap_state
+		Enums.CommanderType.COLLECTOR:
+			var unique_count := _count_board_card_types()
+			var atk_pct := int(round(unique_count * Commander.COLLECTOR_ATK_PER_TYPE * 100.0))
+			var terazin_note := ", +1t 준비" if unique_count >= Commander.COLLECTOR_TERAZIN_THRESHOLD else ""
+			return "종류 %d개: ATK +%d%%%s" % [unique_count, atk_pct, terazin_note]
+		Enums.CommanderType.RAIDER:
+			var wins := int(game_state.commander_state.get("win_count", 0))
+			return "승리 +2g, 업글 %d/%d승" % [wins, Commander.RAIDER_UPGRADE_INTERVAL]
+		Enums.CommanderType.ALCHEMIST:
+			return "매 라운드 +1t, Epic 상점"
+	return ""
+
+
+func _format_talisman_status() -> String:
+	match game_state.talisman_type:
+		Enums.TalismanType.FLINT:
+			var flint_state := "사용됨" if bool(game_state.talisman_state.get("first_growth_used", false)) else "준비"
+			return "첫 성장 효과 ×2 %s" % flint_state
+		Enums.TalismanType.TWO_FACED_COIN:
+			var coin_status: String = ""
+			if shop:
+				coin_status = shop.get_coin_slot_status()
+			if coin_status != "":
+				return "상점 -50%%/+50%% (%s)" % coin_status
+			return "상점 1장 -50%, 1장 +50%"
+		Enums.TalismanType.CRACKED_SKULL:
+			return "각 유닛 첫 치사 생존"
+		Enums.TalismanType.MERCURY_DROP:
+			return "강화 효과 +25%"
+		Enums.TalismanType.CRACKED_EGG:
+			return "★2+ 유닛추가 +1"
+		Enums.TalismanType.WAR_DRUM:
+			return "수적 우위면 적 ATK -10%"
+		Enums.TalismanType.GLASS_EYE:
+			return "보유 카드 리롤확률 ×1.15"
+		Enums.TalismanType.GOLDEN_DIE:
+			return "보스 보상 선택지 6"
+		Enums.TalismanType.RUSTY_WRENCH:
+			return "업그레이드 분리, 50% 환급"
+		Enums.TalismanType.SOUL_JAR:
+			var jar_state := "사용됨" if bool(game_state.talisman_state.get("first_sell_used", false)) else "준비"
+			return "첫 판매 유닛배분 %s" % jar_state
+		Enums.TalismanType.BURST_SACK:
+			return "업그레이드 상점 +1"
+		Enums.TalismanType.COPPER_WIRE:
+			return "풀업글 인접 전파 30%"
+	return ""
+
+
+func _count_board_card_types() -> int:
+	var seen := {}
+	for card in game_state.board:
+		if card == null:
+			continue
+		seen[(card as CardInstance).get_base_id()] = true
+	return seen.size()
+
+
+func _refresh_build_readiness_panel() -> void:
+	if build_readiness_panel == null or build_readiness_body_label == null:
 		return
-	merge_summary_label.text = _last_merge_summary
-	merge_summary_label.visible = _last_merge_summary != ""
+	if game_state == null or _is_tutorial_suppressed_by_modal():
+		build_readiness_panel.visible = false
+		_enemy_pressure_preview_text = ""
+		_enemy_pressure_preview_data = {}
+		return
+	if _last_chain_summary != "" or _last_chain_history != "":
+		build_readiness_panel.visible = false
+		_enemy_pressure_preview_text = ""
+		_enemy_pressure_preview_data = {}
+		return
+	_build_readiness_text = _format_build_readiness_text()
+	build_readiness_body_label.text = _build_readiness_text
+	build_readiness_panel.visible = _build_readiness_text != ""
+
+
+func _format_build_readiness_text() -> String:
+	var field_count := _count_board_cards()
+	var bench_count := _count_bench_cards()
+	var next_action := _format_build_readiness_next_action(field_count, bench_count)
+	var lines := PackedStringArray()
+	lines.append("FIELD: %d장 체인/전투 참가" % field_count)
+	lines.append("BENCH: %s" % _format_bench_readiness(bench_count))
+	var enemy_line := _format_enemy_pressure_preview_line()
+	if enemy_line != "":
+		lines.append(enemy_line)
+	lines.append("Next: %s" % next_action)
+	return "\n".join(lines)
+
+
+func _format_enemy_pressure_preview_line() -> String:
+	_enemy_pressure_preview_text = ""
+	_enemy_pressure_preview_data = {}
+	if game_state == null:
+		return ""
+	var profile := EnemyDB.pressure_profile(
+		game_state.round_num, _genome, game_state.difficulty)
+	if profile.is_empty():
+		return ""
+	var count_text := _format_preview_range(profile, "enemy_count")
+	var atk_text := _format_preview_range(profile, "total_atk")
+	var hp_text := _format_preview_range(profile, "total_hp")
+	var boss_text := "BOSS " if bool(profile.get("boss", false)) else ""
+	var line := "ENEMY: R%d %s%s기 · ATK %s HP %s" % [
+		int(profile.get("round", game_state.round_num)),
+		boss_text,
+		count_text,
+		atk_text,
+		hp_text,
+	]
+	if int(profile.get("boss_upgrade_count", 0)) > 0:
+		line += " · 업글"
+	profile["text"] = line
+	_enemy_pressure_preview_text = line
+	_enemy_pressure_preview_data = profile.duplicate(true)
+	return line
+
+
+func _format_preview_range(profile: Dictionary, key: String) -> String:
+	var min_value := roundi(float(profile.get("%s_min" % key, 0.0)))
+	var max_value := roundi(float(profile.get("%s_max" % key, 0.0)))
+	if min_value == max_value:
+		return str(min_value)
+	return "%d-%d" % [min_value, max_value]
+
+
+func _format_build_readiness_next_action(field_count: int, bench_count: int) -> String:
+	if field_count <= 0:
+		if bench_count > 0:
+			return "BENCH 카드를 FIELD로 드래그"
+		return "SHOP에서 카드를 구매"
+	if _has_affordable_upgrade_offer() and _has_upgrade_target():
+		return "업그레이드하거나 BUILD COMPLETE"
+	return "BUILD COMPLETE로 체인/전투 시작"
+
+
+func _format_bench_readiness(bench_count: int) -> String:
+	if bench_count <= 0:
+		return "비어 있음"
+	return "%d장 대기(전투 불참)" % bench_count
+
+
+func _count_bench_cards() -> int:
+	var count := 0
+	if game_state == null:
+		return count
+	for card in game_state.bench:
+		if card != null:
+			count += 1
+	return count
+
+
+func _refresh_merge_history_panel() -> void:
+	if merge_history_panel == null or merge_history_log_label == null:
+		return
+	if _merge_history.is_empty() or _is_tutorial_suppressed_by_modal():
+		merge_history_panel.visible = false
+		return
+	merge_history_log_label.text = "\n".join(_merge_history)
+	merge_history_panel.visible = true
+
+
+func _refresh_last_chain_history_panel() -> void:
+	if last_chain_panel == null or last_chain_summary_label == null or last_chain_log_label == null:
+		return
+	if _last_chain_summary == "" and _last_chain_history == "":
+		last_chain_panel.visible = false
+		return
+	if _is_tutorial_suppressed_by_modal():
+		last_chain_panel.visible = false
+		return
+	last_chain_summary_label.text = _last_chain_summary
+	last_chain_log_label.text = _format_last_chain_panel_log(_last_chain_history)
+	last_chain_panel.visible = true
+
+
+func _refresh_settlement_recap_panel() -> void:
+	if settlement_recap_panel == null \
+			or settlement_recap_title_label == null \
+			or settlement_recap_gold_label == null \
+			or settlement_recap_terazin_label == null \
+			or settlement_recap_next_label == null:
+		return
+	if _last_settlement_recap.is_empty():
+		settlement_recap_panel.visible = false
+		return
+	if not _merge_history.is_empty():
+		settlement_recap_panel.visible = false
+		return
+	if _is_tutorial_suppressed_by_modal():
+		settlement_recap_panel.visible = false
+		return
+	settlement_recap_title_label.text = "LAST SETTLEMENT R%d" % int(
+		_last_settlement_recap.get("round", 0))
+	settlement_recap_gold_label.text = _format_settlement_gold_line(
+		_last_settlement_recap)
+	settlement_recap_terazin_label.text = _format_settlement_terazin_line(
+		_last_settlement_recap)
+	settlement_recap_next_label.text = "Next: R%d BUILD" % int(
+		_last_settlement_recap.get("next_round", game_state.round_num))
+	var milestone := _format_run_milestone_short(int(
+		_last_settlement_recap.get("next_round", game_state.round_num)))
+	if milestone != "":
+		settlement_recap_next_label.text += " · %s" % milestone
+	settlement_recap_panel.visible = true
+
+
+func _format_settlement_gold_line(recap: Dictionary) -> String:
+	var gold_before := int(recap.get("gold_before", 0))
+	var gold_after := int(recap.get("gold_after", 0))
+	var delta := int(recap.get("gold_delta", gold_after - gold_before))
+	var parts := PackedStringArray()
+	parts.append("%s income" % _format_signed_int(int(recap.get("base_income", 0))))
+	parts.append("%s interest" % _format_signed_int(int(recap.get("interest", 0))))
+	return "Gold: %d -> %d (%s; %s)" % [
+		gold_before,
+		gold_after,
+		_format_signed_int(delta),
+		", ".join(parts),
+	]
+
+
+func _format_settlement_terazin_line(recap: Dictionary) -> String:
+	var terazin_before := int(recap.get("terazin_before", 0))
+	var terazin_after := int(recap.get("terazin_after", 0))
+	var delta := int(recap.get("terazin_delta", terazin_after - terazin_before))
+	var parts := PackedStringArray()
+	parts.append("%s round" % _format_signed_int(int(
+		recap.get("terazin_gain", 0))))
+	var commander_bonus := int(recap.get("commander_terazin", 0))
+	if commander_bonus != 0:
+		parts.append("%s commander" % _format_signed_int(commander_bonus))
+	return "Terazin: %d -> %d (%s; %s)" % [
+		terazin_before,
+		terazin_after,
+		_format_signed_int(delta),
+		", ".join(parts),
+	]
+
+
+func _format_signed_int(value: int) -> String:
+	if value >= 0:
+		return "+%d" % value
+	return "%d" % value
+
+
+func _format_last_chain_panel_log(text: String) -> String:
+	if text == "":
+		return ""
+	var lines := text.split("\n")
+	var events := PackedStringArray()
+	for line in lines:
+		var compact := _compact_last_chain_line(str(line))
+		if compact != "":
+			events.append(compact)
+	var start := maxi(events.size() - 2, 0)
+	var tail := PackedStringArray()
+	for i in range(start, events.size()):
+		tail.append(events[i])
+	return "\n".join(tail)
+
+
+func _compact_last_chain_line(line: String) -> String:
+	var compact := line.strip_edges()
+	if compact == "" or compact.begins_with("Complete:"):
+		return ""
+	var detail_idx := compact.find(" (")
+	if detail_idx >= 0:
+		compact = compact.substr(0, detail_idx)
+	compact = compact.replace("Round Start: ", "")
+	compact = compact.replace("Cascade: ", "")
+	return compact
 
 
 func _get_reroll_cost() -> int:
@@ -224,9 +755,26 @@ func _refresh_tutorial_hint() -> void:
 	if not _tutorial_enabled or _tutorial_dismissed or game_state == null:
 		tutorial_hint_panel.visible = false
 		return
+	if _is_tutorial_suppressed_by_modal():
+		tutorial_hint_panel.visible = false
+		return
+	if not _merge_history.is_empty():
+		tutorial_hint_panel.visible = false
+		return
+	if not _last_settlement_recap.is_empty():
+		tutorial_hint_panel.visible = false
+		return
 	var text := _get_current_tutorial_hint()
 	tutorial_hint_label.text = text
 	tutorial_hint_panel.visible = text != ""
+
+
+func _is_tutorial_suppressed_by_modal() -> bool:
+	if target_overlay != null and target_overlay.visible:
+		return true
+	if _upgrade_choice_popup != null and _upgrade_choice_popup.visible:
+		return true
+	return false
 
 
 func _get_current_tutorial_hint() -> String:
@@ -620,12 +1168,22 @@ func _start_upgrade_target_selection(upgrade_id: String) -> void:
 	var detail := "%s" % upg_name
 	if effect != "":
 		detail += " — %s" % effect
+	var source: String = _pending_upgrade.get("source", "shop")
 	target_overlay.start_selection(_field_visuals, game_state.board,
 		Callable(self, "_can_attach_upgrade_predicate"), {
-			"instruction": "Attach %s (ESC to cancel/refund)" % upg_name,
+			"instruction": _format_upgrade_target_instruction(upg_name, source),
 			"detail": detail,
 			"note_formatter": Callable(self, "_format_upgrade_target_note").bind(upgrade_id),
 		})
+
+
+func _format_upgrade_target_instruction(upg_name: String, source: String) -> String:
+	match source:
+		"smith_start":
+			return "Smith bonus: attach %s (ESC to cancel)" % upg_name
+		"raider_win_streak":
+			return "Raider 3-win reward: attach %s (ESC to skip)" % upg_name
+	return "Attach %s (ESC to cancel/refund)" % upg_name
 
 
 func _format_upgrade_target_note(card, eligible: bool, _field_idx: int,
@@ -711,7 +1269,7 @@ func _update_upgrade_reroll_button() -> void:
 	upgrade_reroll_button.visible = upg_visible
 	if not upg_visible:
 		return
-	upgrade_reroll_button.text = "REROLL (T) -%dT" % Enums.UPGRADE_REROLL_COST
+	upgrade_reroll_button.text = "UPG REROLL (T) -%dT" % Enums.UPGRADE_REROLL_COST
 	upgrade_reroll_button.disabled = not can_reroll_upgrades()
 
 
@@ -744,7 +1302,12 @@ func _record_merge_summary(card: CardInstance, old_star: int, new_star: int,
 	_last_merge_summary = "MERGE: %s ★%d -> ★%d" % [card_name, old_star, new_star]
 	if not tags.is_empty():
 		_last_merge_summary += " · " + " · ".join(tags)
-	_update_merge_summary_label()
+	_merge_history.insert(0, _last_merge_summary)
+	while _merge_history.size() > merge_history_max:
+		_merge_history.remove_at(_merge_history.size() - 1)
+	_refresh_merge_history_panel()
+	_refresh_settlement_recap_panel()
+	_refresh_tutorial_hint()
 
 
 func _on_merge_upgrade_chosen(upgrade_id: String) -> void:

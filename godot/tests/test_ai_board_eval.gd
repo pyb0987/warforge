@@ -86,6 +86,24 @@ func test_promote_to_empty_slot() -> void:
 	assert_false(actions.is_empty(), "벤치 카드 → 빈 슬롯 배치")
 	assert_eq(actions[0]["action"], "place")
 
+func test_promote_to_distinct_empty_slots() -> void:
+	var board: Array = [
+		_make_card("sp_assembly"), _make_card("sp_workshop"),
+		null, null,
+		null, null, null, null]
+	var bench: Array = [
+		_make_card("sp_circulator"), _make_card("sp_charger"),
+		null, null, null, null, null, null]
+	var actions: Array = ev.find_promotions(board, bench, 4, "soft_steampunk", 4)
+
+	var place_targets: Array = []
+	for a in actions:
+		if a["action"] == "place":
+			assert_false(a["board_idx"] in place_targets,
+				"같은 빈 보드 슬롯을 중복 예약하지 않음")
+			place_targets.append(a["board_idx"])
+	assert_eq(place_targets.size(), 2, "두 벤치 카드를 서로 다른 빈 슬롯에 배치")
+
 func test_swap_weak_for_strong() -> void:
 	# Full board with a weak T1 neutral PD card, bench has T4 steampunk OE
 	var board: Array = [
@@ -100,6 +118,25 @@ func test_swap_weak_for_strong() -> void:
 		if a["action"] == "swap":
 			has_swap = true
 	assert_true(has_swap, "T4 테마 카드가 약한 중립 카드를 교체")
+
+func test_multiple_swaps_use_distinct_targets() -> void:
+	var board: Array = [
+		_make_card("ne_merchant"), _make_card("ne_pawnbroker"),
+		_make_card("ne_envoy"), _make_card("pr_farm"),
+		_make_card("sp_furnace"), _make_card("ml_barracks"),
+		null, null]
+	var bench: Array = [
+		_make_card("dr_origin"), _make_card("dr_spore_cloud"),
+		null, null, null, null, null, null]
+	var actions: Array = ev.find_promotions(board, bench, 6, "soft_druid", 8)
+
+	var swap_targets: Array = []
+	for a in actions:
+		if a["action"] == "swap":
+			assert_false(a["board_idx"] in swap_targets,
+				"같은 보드 슬롯을 여러 swap이 덮어쓰지 않음")
+			swap_targets.append(a["board_idx"])
+	assert_gte(swap_targets.size(), 2, "두 강한 드루이드 카드 모두 교체 후보가 됨")
 
 func test_no_swap_merge_candidate() -> void:
 	# Board has 2 copies of ne_earth_echo → merge potential → protected

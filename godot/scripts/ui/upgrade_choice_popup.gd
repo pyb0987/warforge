@@ -48,18 +48,27 @@ func show_choices(rarity: int, count: int = 3) -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
-func _on_choice_input(event: InputEvent, idx: int) -> void:
-	if not (event is InputEventMouseButton and event.pressed):
-		return
-	if event.button_index != MOUSE_BUTTON_LEFT:
-		return
+func get_choice_ids() -> Array[String]:
+	return _choice_ids.duplicate()
+
+
+func select_choice_index(idx: int) -> bool:
 	if idx < 0 or idx >= _choice_ids.size():
-		return
+		return false
 
 	var chosen_id: String = _choice_ids[idx]
 	upgrade_chosen.emit(chosen_id)
 	_cleanup()
 	visible = false
+	return true
+
+
+func _on_choice_input(event: InputEvent, idx: int) -> void:
+	if not (event is InputEventMouseButton and event.pressed):
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	select_choice_index(idx)
 
 
 func _cleanup() -> void:

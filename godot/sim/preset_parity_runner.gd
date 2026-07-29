@@ -86,11 +86,13 @@ func _run() -> void:
 
 					var alive_a := _count_alive(engine, 1)
 					var alive_b := _count_alive(engine, 0)
+					var ticks := engine.get_tick()
+					engine.dispose()
 					if alive_a > 0 and alive_b == 0:
 						wins_a += 1
 					elif alive_a == 0 and alive_b == 0:
 						ties += 1
-					ticks_sum += engine.get_tick()
+					ticks_sum += ticks
 
 				var wr: float = float(wins_a) / runs
 				matrix[preset_a][preset_b] = {

@@ -42,6 +42,17 @@ func test_runner_accepts_difficulty() -> void:
 	assert_lte(result.final_hp, 20, "D8 시작 HP 상한 적용")
 
 
+func test_runner_accepts_run_identity() -> void:
+	var genome = GenomeScript.load_file("res://sim/default_genome.json")
+	var runner = RunnerScript.new(genome, "adaptive", 42, 1)
+	runner.set_run_identity(Enums.CommanderType.GAMBLER, Enums.TalismanType.TWO_FACED_COIN)
+
+	var result: Dictionary = runner.run()
+
+	assert_eq(result.commander_type, Enums.CommanderType.GAMBLER)
+	assert_eq(result.talisman_type, Enums.TalismanType.TWO_FACED_COIN)
+
+
 func test_round_data_structure() -> void:
 	var runner = _make_runner()
 	var result: Dictionary = runner.run()

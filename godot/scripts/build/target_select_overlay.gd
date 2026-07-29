@@ -7,7 +7,7 @@ signal target_cancelled
 
 var _active: bool = false
 var _field_visuals: Array = []
-var _click_connections: Array[Dictionary] = []  # [{visual, callable}]
+var _click_connections: Array[Dictionary] = []  # [{visual, callable, field_idx}]
 var _preview_labels: Array[Label] = []
 
 @onready var instruction_label: Label = $InstructionLabel
@@ -52,7 +52,8 @@ func start_selection(field_visuals: Array, board: Array,
 			_set_highlight(vis, true)
 			var callable := _on_field_clicked.bind(i)
 			vis.gui_input.connect(callable)
-			_click_connections.append({"visual": vis, "callable": callable})
+			_click_connections.append({"visual": vis, "callable": callable,
+				"field_idx": i})
 
 
 func end_selection() -> void:
@@ -71,6 +72,35 @@ func end_selection() -> void:
 	_preview_labels.clear()
 	if detail_label:
 		detail_label.visible = false
+
+
+func is_active() -> bool:
+	return _active
+
+
+func get_selectable_field_indices() -> Array[int]:
+	var result: Array[int] = []
+	for conn in _click_connections:
+		result.append(int(conn.get("field_idx", -1)))
+	return result
+
+
+func select_field_index(field_idx: int) -> bool:
+	if not _active:
+		return false
+	if not (field_idx in get_selectable_field_indices()):
+		return false
+	target_selected.emit(field_idx)
+	end_selection()
+	return true
+
+
+func get_instruction_text() -> String:
+	return instruction_label.text if instruction_label != null else ""
+
+
+func get_detail_text() -> String:
+	return detail_label.text if detail_label != null and detail_label.visible else ""
 
 
 func get_preview_texts() -> Array[String]:

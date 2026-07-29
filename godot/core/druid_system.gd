@@ -43,6 +43,23 @@ func apply_battle_start(card: CardInstance, idx: int, board: Array) -> Dictionar
 	return result
 
 
+## Aggregate enemy-facing combat debuffs prepared by battle-start Druid effects.
+## Duplicate debuff cards use strongest-effect-wins to avoid mandatory stacking.
+func collect_enemy_battle_debuffs(board: Array) -> Dictionary:
+	var atk_pct := 0.0
+	var as_pct := 0.0
+	for card in board:
+		var c := card as CardInstance
+		if c == null:
+			continue
+		atk_pct = maxf(atk_pct, float(c.theme_state.get("enemy_atk_debuff", 0.0)))
+		as_pct = maxf(as_pct, float(c.theme_state.get("enemy_as_debuff", 0.0)))
+	return {
+		"atk_pct": minf(atk_pct, 0.5),
+		"as_pct": minf(as_pct, 0.5),
+	}
+
+
 func _merge_result(base: Dictionary, extra: Dictionary) -> Dictionary:
 	base["events"].append_array(extra.get("events", []))
 	base["gold"] += extra.get("gold", 0)
@@ -86,6 +103,7 @@ func apply_post_combat(card: CardInstance, _idx: int, _board: Array,
 func apply_persistent(card: CardInstance, _board: Array = []) -> void:
 	if card.get_base_id() != "dr_wrath":
 		return
+	card.theme_state["kill_hp_recover_pct"] = 0.0
 	var effs := CardDB.get_theme_effects("dr_wrath", card.star_level)
 	var eff := _find_eff(effs, "tree_temp_buff")
 	var unit_cap: int = eff.get("unit_cap", 5)
@@ -93,14 +111,26 @@ func apply_persistent(card: CardInstance, _board: Array = []) -> void:
 		return
 	var trees := _trees(card)
 	if eff.has("atk_mult"):
-		# ★3: multiplicative buff
-		card.temp_mult_buff(eff.get("atk_mult", 1.5))
-		# HP ×1.3, kill HP recover → combat engine
+		card.temp_mult_buff(
+			eff.get("atk_mult", 1.5),
+			eff.get("hp_mult", 1.0))
+		var recover_pct := _kill_recover_pct(eff.get("kill_hp_recover", 0.0))
+		if recover_pct > 0.0:
+			card.theme_state["kill_hp_recover_pct"] = recover_pct
 	else:
-		# ★1/★2: additive percentage buff
 		var atk_pct: float = eff.get("atk_base_pct", 0.8) + trees * eff.get("atk_tree_pct", 0.05)
+		var hp_pct: float = eff.get("hp_pct", 0.0)
 		card.temp_buff(null, atk_pct)
-		# ★2 HP +60% handled by combat engine
+		if hp_pct > 0.0:
+			card.temp_mult_buff(1.0, 1.0 + hp_pct)
+
+
+func _kill_recover_pct(value) -> float:
+	if typeof(value) == TYPE_BOOL:
+		return 0.15 if value else 0.0
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return clampf(float(value), 0.0, 1.0)
+	return 0.0
 
 
 ## Druid card sale: distribute 🌳 evenly to other druid cards.
@@ -496,6 +526,12 @@ func _spore_cloud_battle(card: CardInstance) -> Dictionary:
 		elif stat == "atk":
 			card.theme_state["enemy_atk_debuff"] = debuff
 
+	var shield_eff := _find_eff(effs, "tree_shield")
+	if not shield_eff.is_empty():
+		var shield := float(shield_eff.get("base_pct", 0.0))
+		shield += trees * float(shield_eff.get("tree_scale_pct", 0.0))
+		card.shield_hp_pct += shield
+
 	return Enums.empty_result()
 
 
@@ -514,7 +550,14 @@ func _grace_post(card: CardInstance, won: bool) -> Dictionary:
 	if not won and win_half:
 		gold /= 2
 	var terazin := terazin_amt if trees >= terazin_thresh else 0
-	return {"events": [], "gold": gold, "terazin": terazin}
+	var reroll_eff := _find_eff(effs, "free_reroll")
+	var free_rerolls: int = int(reroll_eff.get("value", 0)) if not reroll_eff.is_empty() else 0
+	return {
+		"events": [],
+		"gold": gold,
+		"terazin": terazin,
+		"free_rerolls": free_rerolls,
+	}
 
 
 ## dr_resonance (T4): 비-druid 카드의 UA 이벤트 감지 → tree_add + self enhance.

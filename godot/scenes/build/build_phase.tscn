@@ -18,12 +18,20 @@ script = ExtResource("1")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 30.0
+offset_bottom = 46.0
 grow_horizontal = 2
 
 [node name="RoundLabel" type="Label" parent="HUD"]
 layout_mode = 2
-text = "Round 1/15"
+text = "Round 1/15 · R4 boss reward in 4 fights"
+
+[node name="IdentityLabel" type="Label" parent="HUD"]
+custom_minimum_size = Vector2(440, 40)
+layout_mode = 2
+text = "커맨더: 없음
+부적: 없음"
+text_overrun_behavior = 3
+theme_override_font_sizes/font_size = 12
 
 [node name="Spacer1" type="Control" parent="HUD"]
 layout_mode = 2
@@ -52,56 +60,44 @@ text = "Terazin: 0"
 [node name="ShopLabel" type="Label" parent="."]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 40.0
+offset_top = 48.0
 offset_right = 400.0
-offset_bottom = 60.0
-text = "SHOP (click to buy, R to reroll)"
+offset_bottom = 68.0
+text = "CARD SHOP (R rerolls cards only)"
 
 [node name="Shop" type="HBoxContainer" parent="."]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 65.0
+offset_top = 72.0
 offset_right = 1260.0
-offset_bottom = 230.0
+offset_bottom = 237.0
 theme_override_constants/separation = 8
 script = ExtResource("2")
 
 [node name="UpgradeShopLabel" type="Label" parent="."]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 235.0
+offset_top = 240.0
 offset_right = 220.0
-offset_bottom = 255.0
-text = "UPGRADES"
+offset_bottom = 260.0
+text = "UPGRADES (T:upgrades only)"
 visible = false
 
 [node name="UpgradeRerollButton" type="Button" parent="."]
 visible = false
 layout_mode = 1
 offset_left = 240.0
-offset_top = 232.0
+offset_top = 237.0
 offset_right = 390.0
-offset_bottom = 258.0
-text = "REROLL (T) -1T"
-
-[node name="MergeSummaryLabel" type="Label" parent="."]
-visible = false
-layout_mode = 1
-offset_left = 420.0
-offset_top = 235.0
-offset_right = 740.0
-offset_bottom = 258.0
-text = "MERGE"
-text_overrun_behavior = 3
-theme_override_colors/font_color = Color(1, 0.86, 0.45, 1)
-theme_override_font_sizes/font_size = 13
+offset_bottom = 263.0
+text = "UPG REROLL (T) -1T"
 
 [node name="UpgradeShop" type="HBoxContainer" parent="."]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 260.0
+offset_top = 265.0
 offset_right = 600.0
-offset_bottom = 425.0
+offset_bottom = 430.0
 theme_override_constants/separation = 8
 visible = false
 script = ExtResource("3")
@@ -110,9 +106,9 @@ script = ExtResource("3")
 visible = false
 layout_mode = 1
 offset_left = 760.0
-offset_top = 235.0
+offset_top = 240.0
 offset_right = 1260.0
-offset_bottom = 345.0
+offset_bottom = 350.0
 
 [node name="VBox" type="VBoxContainer" parent="TutorialHintPanel"]
 layout_mode = 2
@@ -137,6 +133,135 @@ layout_mode = 2
 size_flags_horizontal = 8
 text = "DISMISS"
 
+[node name="SettlementRecapPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 240.0
+offset_right = 1260.0
+offset_bottom = 350.0
+
+[node name="VBox" type="VBoxContainer" parent="SettlementRecapPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SettlementTitleLabel" type="Label" parent="SettlementRecapPanel/VBox"]
+layout_mode = 2
+text = "LAST SETTLEMENT R1"
+theme_override_font_sizes/font_size = 12
+
+[node name="SettlementGoldLabel" type="Label" parent="SettlementRecapPanel/VBox"]
+custom_minimum_size = Vector2(460, 22)
+layout_mode = 2
+text = "Gold: 0 -> 5 (+5; +5 income, +0 interest)"
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(1, 0.88, 0.48, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="SettlementTerazinLabel" type="Label" parent="SettlementRecapPanel/VBox"]
+custom_minimum_size = Vector2(460, 22)
+layout_mode = 2
+text = "Terazin: 0 -> 2 (+2; +2 round)"
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(0.84, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="SettlementNextLabel" type="Label" parent="SettlementRecapPanel/VBox"]
+custom_minimum_size = Vector2(460, 18)
+layout_mode = 2
+text = "Next: R2 BUILD · R4 boss reward in 3 fights"
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(0.86, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="MergeHistoryPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 240.0
+offset_right = 1260.0
+offset_bottom = 350.0
+
+[node name="VBox" type="VBoxContainer" parent="MergeHistoryPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="MergeHistoryTitleLabel" type="Label" parent="MergeHistoryPanel/VBox"]
+layout_mode = 2
+text = "RECENT MERGES"
+theme_override_font_sizes/font_size = 12
+
+[node name="MergeHistoryLogLabel" type="Label" parent="MergeHistoryPanel/VBox"]
+custom_minimum_size = Vector2(460, 62)
+layout_mode = 2
+text = "No merges"
+autowrap_mode = 3
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(1, 0.88, 0.48, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="LastChainPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 354.0
+offset_right = 1260.0
+offset_bottom = 450.0
+
+[node name="VBox" type="VBoxContainer" parent="LastChainPanel"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="LastChainTitleLabel" type="Label" parent="LastChainPanel/VBox"]
+layout_mode = 2
+text = "LAST CHAIN"
+theme_override_font_sizes/font_size = 12
+
+[node name="LastChainSummaryLabel" type="Label" parent="LastChainPanel/VBox"]
+layout_mode = 2
+text = "0 triggers"
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(1, 0.88, 0.48, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="LastChainLogLabel" type="Label" parent="LastChainPanel/VBox"]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+text = "No chain"
+autowrap_mode = 3
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(0.86, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="BuildReadinessPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 760.0
+offset_top = 354.0
+offset_right = 1260.0
+offset_bottom = 450.0
+
+[node name="VBox" type="VBoxContainer" parent="BuildReadinessPanel"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="BuildReadinessTitleLabel" type="Label" parent="BuildReadinessPanel/VBox"]
+layout_mode = 2
+text = "BUILD READINESS"
+theme_override_font_sizes/font_size = 12
+
+[node name="BuildReadinessBodyLabel" type="Label" parent="BuildReadinessPanel/VBox"]
+custom_minimum_size = Vector2(460, 62)
+layout_mode = 2
+text = "FIELD: 0장 체인/전투 참가
+BENCH: 비어 있음
+ENEMY: R1 1-3기 · ATK 12-24 HP 80-160
+Next: SHOP에서 카드를 구매"
+autowrap_mode = 3
+text_overrun_behavior = 3
+theme_override_colors/font_color = Color(0.84, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+
 [node name="TargetSelectOverlay" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -147,29 +272,22 @@ script = ExtResource("4")
 
 [node name="InstructionLabel" type="Label" parent="TargetSelectOverlay"]
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -200.0
-offset_top = -30.0
-offset_right = 200.0
+offset_left = 420.0
+offset_top = 390.0
+offset_right = 740.0
+offset_bottom = 414.0
 horizontal_alignment = 1
 text = "Click a field card to attach upgrade (ESC to cancel)"
+theme_override_colors/font_color = Color(0.94, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 13
 
 [node name="DetailLabel" type="Label" parent="TargetSelectOverlay"]
 visible = false
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -260.0
-offset_top = -92.0
-offset_right = 260.0
-offset_bottom = -36.0
+offset_left = 420.0
+offset_top = 334.0
+offset_right = 740.0
+offset_bottom = 388.0
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3

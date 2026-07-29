@@ -76,8 +76,7 @@ func try_purchase(slot_idx: int) -> bool:
 		return false  # already purchased
 
 	var tmpl := CardDB.get_template(card_id)
-	var base_cost: int = tmpl.get("cost", 99)
-	var cost: int = Talisman.apply_coin_price(base_cost, slot_idx, _coin_slots)
+	var cost: int = get_slot_cost(slot_idx)
 	if _game_state.gold < cost:
 		print("[Shop] Not enough gold (%d < %d)" % [_game_state.gold, cost])
 		return false
@@ -109,6 +108,36 @@ func try_purchase(slot_idx: int) -> bool:
 	_update_visuals()
 	_game_state.state_changed.emit()
 	return true
+
+
+func get_slot_cost(slot_idx: int) -> int:
+	if slot_idx < 0 or slot_idx >= _offered_ids.size():
+		return 0
+	var card_id: String = _offered_ids[slot_idx]
+	if card_id == "":
+		return 0
+	var tmpl := CardDB.get_template(card_id)
+	var base_cost: int = tmpl.get("cost", 0)
+	return Talisman.apply_coin_price(base_cost, slot_idx, _coin_slots)
+
+
+func get_slot_price_note(slot_idx: int) -> String:
+	if _coin_slots.is_empty():
+		return ""
+	if slot_idx == int(_coin_slots.get("discount_idx", -1)):
+		return "-50%"
+	if slot_idx == int(_coin_slots.get("markup_idx", -1)):
+		return "+50%"
+	return ""
+
+
+func get_coin_slot_status() -> String:
+	if _coin_slots.is_empty():
+		return ""
+	return "할인 %d / 할증 %d" % [
+		int(_coin_slots.get("discount_idx", -1)) + 1,
+		int(_coin_slots.get("markup_idx", -1)) + 1,
+	]
 
 
 func _ensure_slot_count(count: int) -> void:
@@ -173,7 +202,7 @@ func _update_visuals() -> void:
 		if i < _offered_ids.size() and _offered_ids[i] != "":
 			# 상점 슬롯 시각 미리보기 — 벤치/보드 미진입.
 			var card := CardInstance.create(_offered_ids[i])  # lint:allow card-create
-			slot.call("setup", card, "shop", i)
+			slot.call("setup", card, "shop", i, get_slot_cost(i), get_slot_price_note(i))
 		else:
 			slot.call("clear")
 

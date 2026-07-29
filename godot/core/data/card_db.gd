@@ -2498,7 +2498,7 @@ func _register_druid() -> void:
 					"trigger_layer1": -1, "trigger_layer2": -1,
 					"require_tenure": 0, "require_other_card": false, "is_threshold": false,
 					"actions": [
-						{"action": "tree_temp_buff", "target": "self", "unit_cap": 16, "atk_mult": 1.5, "hp_mult": 1.3, "kill_hp_recover": true}
+						{"action": "tree_temp_buff", "target": "self", "unit_cap": 16, "atk_mult": 1.5, "hp_mult": 1.3, "kill_hp_recover": 0.15}
 					],
 				},
 				{

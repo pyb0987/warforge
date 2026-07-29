@@ -99,6 +99,16 @@ func test_purchase_success() -> void:
 	assert_eq(_shop.offered_ids[0], "", "슬롯 비움")
 
 
+func test_two_faced_coin_slot_costs_reflect_discount_and_markup() -> void:
+	_state.talisman_type = Enums.TalismanType.TWO_FACED_COIN
+	_shop.offered_ids.assign(["sp_assembly", "sp_assembly", "sp_assembly"])
+	_shop._coin_slots = {"discount_idx": 0, "markup_idx": 1}
+
+	assert_eq(_shop.get_slot_cost(0), 1, "할인 슬롯은 2g → 1g")
+	assert_eq(_shop.get_slot_cost(1), 3, "할증 슬롯은 2g → 3g")
+	assert_eq(_shop.get_slot_cost(2), 2, "그 외 슬롯은 기본가")
+
+
 func test_purchase_adds_to_bench() -> void:
 	_shop.refresh_shop()
 	_shop.try_purchase(0)

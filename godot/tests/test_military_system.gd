@@ -1053,6 +1053,7 @@ func test_combat_revive_integration_smoke() -> void:
 	engine.hp[0] = 0.0
 	engine.kill_unit(0)
 	assert_eq(engine.alive[0], 0, "revive 소진 후 실제 사망")
+	engine.dispose()
 
 
 func test_combat_revive_not_triggered_without_limit() -> void:
@@ -1068,6 +1069,7 @@ func test_combat_revive_not_triggered_without_limit() -> void:
 	engine.setup(ally_units, enemy_units)
 	engine.kill_unit(0)
 	assert_eq(engine.alive[0], 0, "revive_limit=0 → 정상 사망")
+	engine.dispose()
 
 
 # ================================================================

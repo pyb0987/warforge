@@ -36,6 +36,8 @@ const _AIPositionScript = preload("res://sim/ai_position_solver.gd")
 var _position_solver = _AIPositionScript.new()
 
 const MAX_ACTIONS := 30
+const _DRUID_IDENTITY_SETUP_CARDS := ["dr_cradle", "dr_lifebeat"]
+const _DRUID_STRONG_GENERIC_SWAP_DELTA := 24.0
 
 # Synergy data extracted to ai_synergy_data.gd for file size management.
 const _Syn = preload("res://sim/ai_synergy_data.gd")
@@ -72,11 +74,20 @@ func _get_reroll_cost() -> int:
 
 
 func _try_levelup(state: GameState) -> bool:
+	var from_level := state.shop_level
+	var cost_before := state.levelup_current_cost
+	var gold_before := state.gold
 	if not state.try_levelup():
 		return false
 	if _genome:
 		var next_lv := state.shop_level + 1
 		state.levelup_current_cost = _genome.get_levelup_cost(next_lv)
+	if _tracer != null and _tracer.enabled:
+		_tracer.emit({"t": "levelup", "round": state.round_num,
+			"from_level": from_level, "to_level": state.shop_level,
+			"cost": cost_before, "gold_before": gold_before,
+			"gold_after": state.gold,
+			"next_cost": state.levelup_current_cost})
 	return true
 
 
@@ -144,7 +155,9 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 
 	if _tracer != null and _tracer.enabled:
 		var board_ids_end: Dictionary = _H.get_board_ids(state)
+		var active_board_ids_end: Dictionary = _active_board_ids(state)
 		var path := _build_path.detect_build_path(strategy, board_ids_end)
+		var preferred_theme_end := _get_preferred_theme(state)
 		# Per-card theme_state summary: card_id → {rank, trees, star} for diagnostic use.
 		var states: Dictionary = {}
 		for c in state.board:
@@ -162,8 +175,13 @@ func play_build_phase(state: GameState, shop: RefCounted) -> void:
 			"gold": state.gold,
 			"terazin": state.terazin,
 			"board": board_ids_end.keys(),
+			"active_board": active_board_ids_end.keys(),
 			"bench": _bench_ids(state),
+			"theme_metrics": _trace_theme_metrics(state, preferred_theme_end),
 			"detected_path": path.get("id", "") if not path.is_empty() else "",
+			"path_progress": _build_path.get_path_progress(strategy, board_ids_end, state.round_num),
+			"active_path_progress": _build_path.get_path_progress(
+				strategy, active_board_ids_end, state.round_num),
 			"states": states,
 		})
 
@@ -174,6 +192,67 @@ func _bench_ids(state: GameState) -> Array:
 		if c != null:
 			ids.append((c as CardInstance).get_base_id())
 	return ids
+
+
+func _trace_theme_metrics(state: GameState, preferred_theme: int) -> Dictionary:
+	var board_counts := _count_zone_themes(state.board, preferred_theme)
+	var bench_counts := _count_zone_themes(state.bench, preferred_theme)
+	return {
+		"preferred_theme": preferred_theme,
+		"preferred_theme_name": _theme_name(preferred_theme),
+		"board_total": board_counts["total"],
+		"board_theme": board_counts["theme"],
+		"board_neutral": board_counts["neutral"],
+		"board_off_theme": board_counts["off_theme"],
+		"board_theme_ratio": _safe_ratio(board_counts["theme"], board_counts["total"]),
+		"bench_total": bench_counts["total"],
+		"bench_theme": bench_counts["theme"],
+		"bench_neutral": bench_counts["neutral"],
+		"bench_off_theme": bench_counts["off_theme"],
+		"bench_theme_ratio": _safe_ratio(bench_counts["theme"], bench_counts["total"]),
+	}
+
+
+func _count_zone_themes(zone: Array, preferred_theme: int) -> Dictionary:
+	var counts := {
+		"total": 0,
+		"theme": 0,
+		"neutral": 0,
+		"off_theme": 0,
+	}
+	for card in zone:
+		if card == null:
+			continue
+		var theme: int = (card as CardInstance).template.get("theme", Enums.CardTheme.NEUTRAL)
+		counts["total"] += 1
+		if theme == Enums.CardTheme.NEUTRAL:
+			counts["neutral"] += 1
+		elif preferred_theme >= 0 and theme == preferred_theme:
+			counts["theme"] += 1
+		elif preferred_theme >= 0:
+			counts["off_theme"] += 1
+	return counts
+
+
+func _safe_ratio(numerator: int, denominator: int) -> float:
+	if denominator <= 0:
+		return 0.0
+	return float(numerator) / float(denominator)
+
+
+func _theme_name(theme: int) -> String:
+	match theme:
+		Enums.CardTheme.NEUTRAL:
+			return "neutral"
+		Enums.CardTheme.STEAMPUNK:
+			return "steampunk"
+		Enums.CardTheme.DRUID:
+			return "druid"
+		Enums.CardTheme.PREDATOR:
+			return "predator"
+		Enums.CardTheme.MILITARY:
+			return "military"
+	return "none"
 
 
 # --- Genome signal: enemy pressure → adaptive spending ---
@@ -408,8 +487,23 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 	else:
 		gold_reserve = maxi(gold_reserve - int(pressure_excess * 2.0), 0)
 
+	var board_ids := _H.get_board_ids(state)
+	var pre_level_path_lag := 0.0
+	if preferred_theme >= 0:
+		pre_level_path_lag = _build_path.get_current_phase_lag(
+			strategy, board_ids, state.round_num)
+
 	# M2: Slow-roll — skip scheduled levelup if board strong + achievable merge
 	var do_levelup := not _should_delay_levelup(state)
+	if _should_force_path_tier_access(state, target_level, pre_level_path_lag):
+		do_levelup = true
+		gold_reserve = mini(gold_reserve, 3)
+		if _tracer != null and _tracer.enabled:
+			_tracer.emit({"t": "levelup_urgency", "round": state.round_num,
+				"reason": "path_tier_access", "target_level": target_level,
+				"shop_level": state.shop_level,
+				"phase_lag": round(pre_level_path_lag * 100) / 100.0,
+				"gold_reserve": gold_reserve})
 
 	if do_levelup:
 		while state.shop_level < target_level and state.gold >= state.levelup_current_cost + gold_reserve:
@@ -428,7 +522,6 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 	max_rerolls += int(pressure_excess * 2.0)
 
 	# Theme-dependent urgency modifiers (only after commitment at R4+)
-	var board_ids := _H.get_board_ids(state)
 	if preferred_theme >= 0:
 		# Capstone urgency
 		var capstone_cards: Array = config.get("capstone_cards", [])
@@ -451,6 +544,11 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 			if not has_foundation:
 				max_rerolls += int(_p("foundation_urgency_rerolls", 5))
 
+		var path_urgency := _apply_path_phase_urgency(
+			state, board_ids, max_rerolls, gold_reserve)
+		max_rerolls = path_urgency["max_rerolls"]
+		gold_reserve = path_urgency["gold_reserve"]
+
 	var actions := 0
 	var rerolls := 0
 	while actions < MAX_ACTIONS:
@@ -471,6 +569,75 @@ func _play_soft_theme(state: GameState, shop: RefCounted) -> void:
 	# Levelup with leftover gold if affordable
 	if state.gold >= state.levelup_current_cost + gold_reserve:
 		_try_levelup(state)
+
+
+func _apply_path_phase_urgency(state: GameState, board_ids: Dictionary,
+		current_max_rerolls: int, current_gold_reserve: int) -> Dictionary:
+	var result := {
+		"max_rerolls": current_max_rerolls,
+		"gold_reserve": current_gold_reserve,
+		"phase_lag": 0.0,
+	}
+	if not strategy.begins_with("soft_"):
+		return result
+	if _get_preferred_theme(state) < 0:
+		return result
+	if state.round_num < 7:
+		return result
+
+	var phase_lag: float = _build_path.get_current_phase_lag(
+		strategy, board_ids, state.round_num)
+	result["phase_lag"] = phase_lag
+	if phase_lag < 0.5:
+		return result
+
+	var reroll_bonus: int = 2 + int(ceil(phase_lag * 3.0))
+	if state.round_num >= 9:
+		reroll_bonus += 1
+	if strategy == "soft_steampunk" and (state.shop_level < 4 or state.round_num < 9):
+		result["max_rerolls"] = current_max_rerolls + mini(reroll_bonus, 2)
+		return result
+	result["max_rerolls"] = current_max_rerolls + reroll_bonus
+	if state.round_num < int(_p("aggro_transition_round", 10)):
+		result["gold_reserve"] = mini(current_gold_reserve, 3)
+	return result
+
+
+func _should_force_path_tier_access(state: GameState,
+		target_level: int, phase_lag: float) -> bool:
+	if strategy != "soft_druid":
+		return false
+	if state.round_num < 7:
+		return false
+	if state.shop_level >= target_level:
+		return false
+	if state.levelup_current_cost <= 0:
+		return false
+	return phase_lag >= 0.5
+
+
+func _should_dampen_path_lag_duplicate(state: GameState, card_id: String,
+		tier: int, board_ids: Dictionary) -> bool:
+	if strategy != "soft_druid":
+		return false
+	if state.round_num < 7:
+		return false
+	if tier >= 3:
+		return false
+	if _H.count_star1_copies(state, card_id) <= 0:
+		return false
+
+	var phase_lag: float = _build_path.get_current_phase_lag(
+		strategy, board_ids, state.round_num)
+	if phase_lag < 0.5:
+		return false
+
+	var focus: Dictionary = _build_path.get_phase_card_focus(
+		strategy, board_ids, state.round_num)
+	if focus.is_empty():
+		return false
+	var focus_cards: Array = focus.get("focus", [])
+	return not (card_id in focus_cards)
 
 
 ## Adaptive: buy openly, detect dominant theme by mid-game.
@@ -535,7 +702,7 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 			continue
 
 		var tmpl: Dictionary = CardDB.get_template(card_id)
-		var cost: int = tmpl.get("cost", 99)
+		var cost: int = shop.get_slot_cost(i) if shop.has_method("get_slot_cost") else tmpl.get("cost", 99)
 		var affordable: bool = cost <= state.gold
 		if affordable:
 			var score := _score_card(card_id, tmpl, preferred_theme, state)
@@ -576,6 +743,19 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 			return false
 
 	var chosen_id: String = shop.offered_ids[best_slot]
+	var chosen_tmpl: Dictionary = CardDB.get_template(chosen_id)
+	if _should_hold_for_path_lag_purchase(state, chosen_id, chosen_tmpl, _H.get_board_ids(state)):
+		if trace_on:
+			var focus: Dictionary = _build_path.get_phase_card_focus(
+				strategy, _H.get_board_ids(state), state.round_num)
+			_tracer.emit({"t": "buy_skip", "round": state.round_num,
+				"reason": "path_lag_hold", "best_score": round(best_score * 100) / 100.0,
+				"best_card_id": chosen_id,
+				"current_phase": focus.get("current_phase", "") if not focus.is_empty() else "",
+				"focus": focus.get("focus", []) if not focus.is_empty() else [],
+				"offers": evals})
+		return false
+
 	var result: bool = shop.try_purchase(best_slot)
 	if trace_on:
 		_tracer.emit({"t": "buy", "round": state.round_num, "card_id": chosen_id,
@@ -631,9 +811,7 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	score += tier_delta
 	if trace_on: bk["tier"] = tier_delta
 
-	# --- Build path detection ---
 	var board_ids := _H.get_board_ids(state)
-	var bp_path: Dictionary = _build_path.detect_build_path(strategy, board_ids)
 
 	# --- Merge potential (Tier 1) ---
 	var star1_copies := _H.count_star1_copies(state, card_id)
@@ -651,6 +829,12 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 			merge_delta = merge_prog
 		elif pool_left == 1:
 			merge_delta = merge_prog * 0.5
+	if merge_delta > 0.0 and _should_dampen_path_lag_duplicate(
+			state, card_id, tier, board_ids):
+		var before_damp := merge_delta
+		merge_delta *= 0.35
+		if trace_on:
+			bk["path_dup_damp"] = round((merge_delta - before_damp) * 100) / 100.0
 	score += merge_delta
 	if trace_on and merge_delta != 0.0: bk["merge"] = merge_delta
 
@@ -725,10 +909,9 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 			if trace_on and d != 0.0: bk["cap"] = d
 
 	# --- Build path modifier ---
-	if not bp_path.is_empty():
-		var d := _build_path.score_card_modifier(card_id, bp_path, board_ids, round_num)
-		score += d
-		if trace_on and d != 0.0: bk["build_path"] = round(d * 100) / 100.0
+	var d := _build_path.score_strategy_card_modifier(card_id, strategy, board_ids, round_num)
+	score += d
+	if trace_on and d != 0.0: bk["build_path"] = round(d * 100) / 100.0
 
 	# --- Theme state context bonus ---
 	var ts_delta := _theme_scorer.score_buy_bonus(
@@ -739,6 +922,48 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	if trace_on:
 		_last_breakdown = bk
 	return score
+
+
+func _should_hold_for_path_lag_purchase(state: GameState, card_id: String,
+		tmpl: Dictionary, board_ids: Dictionary) -> bool:
+	if strategy != "soft_druid":
+		return false
+	if state.round_num < 9:
+		return false
+
+	var focus: Dictionary = _build_path.get_phase_card_focus(strategy, board_ids, state.round_num)
+	if focus.is_empty():
+		return false
+	var phase: String = focus.get("current_phase", "")
+	if phase != "payoff" and phase != "capstone":
+		return false
+
+	var phase_lag: float = _build_path.get_current_phase_lag(
+		strategy, board_ids, state.round_num)
+	if phase_lag < 0.5:
+		return false
+	if _is_path_lag_purchase_priority(card_id, state, board_ids, focus):
+		return false
+	return true
+
+
+func _is_path_lag_purchase_priority(card_id: String, state: GameState,
+		board_ids: Dictionary, focus: Dictionary) -> bool:
+	if card_id in focus.get("current", []):
+		return true
+	if card_id in focus.get("next", []) and not board_ids.has(card_id):
+		return true
+
+	var preferred_theme: int = _get_preferred_theme(state)
+	if preferred_theme >= 0 and _THEME_CRITICAL.has(preferred_theme):
+		if card_id in _THEME_CRITICAL[preferred_theme] and not board_ids.has(card_id):
+			return true
+
+	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, {})
+	var capstone_cards: Array = config.get("capstone_cards", [])
+	if card_id in capstone_cards and not board_ids.has(card_id):
+		return true
+	return false
 
 
 # --- Bench cleanup ---
@@ -798,8 +1023,338 @@ func _promote_bench(state: GameState) -> void:
 				state.move_card("bench", bi, "board", fi)
 		elif a["action"] == "swap":
 			if state.bench[bi] != null and fi < state.board.size() and state.board[fi] != null:
+				var skip_reason: String = _promotion_swap_skip_reason(
+					state, state.board[fi], state.bench[bi])
+				if skip_reason != "":
+					if _tracer != null and _tracer.enabled:
+						_tracer.emit({"t": "promote_skip", "round": state.round_num,
+							"reason": skip_reason,
+							"board_card_id": (state.board[fi] as CardInstance).get_base_id(),
+							"bench_card_id": (state.bench[bi] as CardInstance).get_base_id(),
+							"board_idx": fi,
+							"value_delta": round(_promotion_swap_delta(
+								state, state.board[fi], state.bench[bi]) * 100) / 100.0})
+					continue
+				if _tracer != null and _tracer.enabled:
+					_tracer.emit({"t": "promote", "round": state.round_num,
+						"reason": "board_eval",
+						"bench_card_id": (state.bench[bi] as CardInstance).get_base_id(),
+						"board_card_id": (state.board[fi] as CardInstance).get_base_id(),
+						"board_idx": fi})
 				state.sell_card("board", fi)
 				state.move_card("bench", bi, "board", fi)
+	_promote_path_focus_bench(state)
+	_promote_committed_theme_bench(state)
+
+
+func _promote_path_focus_bench(state: GameState) -> void:
+	if strategy != "soft_druid":
+		return
+	if state.round_num < 7:
+		return
+
+	var owned_ids := _H.get_board_ids(state)
+	var focus: Dictionary = _build_path.get_phase_card_focus(strategy, owned_ids, state.round_num)
+	if focus.is_empty():
+		return
+
+	var current_cards: Array = focus.get("current", [])
+	if current_cards.is_empty():
+		return
+
+	var active_ids := _active_board_ids(state)
+	var missing_current: Array = []
+	for cid in current_cards:
+		if not active_ids.has(cid):
+			missing_current.append(cid)
+	if missing_current.is_empty():
+		return
+
+	var best_bench_idx := -1
+	var best_bench_value := -999.0
+	for bi in state.bench.size():
+		if state.bench[bi] == null:
+			continue
+		var bench_card: CardInstance = state.bench[bi]
+		if not (bench_card.get_base_id() in missing_current):
+			continue
+		var value := _card_value(bench_card, state)
+		if value > best_bench_value:
+			best_bench_value = value
+			best_bench_idx = bi
+
+	if best_bench_idx < 0:
+		return
+
+	var replace_idx: int = _find_path_focus_replacement(state, current_cards)
+	if replace_idx < 0:
+		return
+
+	var replacement_value := _path_focus_replacement_value(
+		state, state.board[replace_idx] as CardInstance, current_cards)
+	var allowed_gap: float = _path_focus_activation_gap(focus)
+	if best_bench_value + allowed_gap < replacement_value:
+		if _tracer != null and _tracer.enabled:
+			var incoming_gap: CardInstance = state.bench[best_bench_idx]
+			var outgoing_gap: CardInstance = state.board[replace_idx]
+			_tracer.emit({"t": "promote_skip", "round": state.round_num,
+				"reason": "path_focus_value_gap",
+				"path_id": focus.get("path_id", ""),
+				"current_phase": focus.get("current_phase", ""),
+				"bench_card_id": incoming_gap.get_base_id(),
+				"board_card_id": outgoing_gap.get_base_id(),
+				"board_idx": replace_idx,
+				"bench_value": round(best_bench_value * 100) / 100.0,
+				"board_value": round(replacement_value * 100) / 100.0,
+				"allowed_gap": allowed_gap})
+		return
+
+	if _tracer != null and _tracer.enabled:
+		var incoming: CardInstance = state.bench[best_bench_idx]
+		var outgoing: CardInstance = state.board[replace_idx]
+		_tracer.emit({"t": "promote", "round": state.round_num,
+			"reason": "path_focus_activation",
+			"path_id": focus.get("path_id", ""),
+			"current_phase": focus.get("current_phase", ""),
+			"bench_card_id": incoming.get_base_id(),
+			"board_card_id": outgoing.get_base_id(),
+			"board_idx": replace_idx,
+			"bench_value": round(best_bench_value * 100) / 100.0,
+			"board_value": round(replacement_value * 100) / 100.0})
+	state.sell_card("board", replace_idx)
+	state.move_card("bench", best_bench_idx, "board", replace_idx)
+
+
+func _find_path_focus_replacement(state: GameState, current_cards: Array) -> int:
+	var worst_idx := -1
+	var worst_value := 999.0
+	for fi in state.field_slots:
+		if fi >= state.board.size():
+			break
+		if state.board[fi] == null:
+			continue
+		var card: CardInstance = state.board[fi]
+		if card.get_base_id() in current_cards:
+			continue
+		if _H.count_star1_copies(state, card.get_base_id()) >= 2:
+			continue
+		var value := _path_focus_replacement_value(state, card, current_cards)
+		if value < worst_value:
+			worst_value = value
+			worst_idx = fi
+	return worst_idx
+
+
+func _path_focus_replacement_value(state: GameState,
+		card: CardInstance, current_cards: Array) -> float:
+	var value := _card_value(card, state)
+	var preferred_theme: int = _get_preferred_theme(state)
+	var theme: int = card.template.get("theme", Enums.CardTheme.NEUTRAL)
+	if theme == Enums.CardTheme.NEUTRAL:
+		value -= 6.0
+	elif preferred_theme >= 0 and theme != preferred_theme:
+		value -= 12.0
+	elif preferred_theme >= 0 and _THEME_CRITICAL.has(preferred_theme):
+		if card.get_base_id() in _THEME_CRITICAL[preferred_theme]:
+			value += 12.0
+	return value
+
+
+func _path_focus_activation_gap(focus: Dictionary) -> float:
+	var phase: String = focus.get("current_phase", "")
+	if phase == "payoff" or phase == "capstone":
+		return 42.0
+	return 18.0
+
+
+func _promotion_swap_skip_reason(state: GameState,
+		outgoing: CardInstance, incoming: CardInstance) -> String:
+	if _should_skip_path_focus_swap(state, outgoing, incoming):
+		return "protect_path_focus"
+	if _should_skip_druid_identity_swap(state, outgoing, incoming):
+		return "druid_identity_guard"
+	return ""
+
+
+func _should_skip_druid_identity_swap(state: GameState,
+		outgoing: CardInstance, incoming: CardInstance) -> bool:
+	if strategy != "soft_druid":
+		return false
+	if state.round_num < 2 or state.round_num > 8:
+		return false
+
+	var druid_theme := Enums.CardTheme.DRUID
+	if incoming.template.get("theme", Enums.CardTheme.NEUTRAL) == druid_theme:
+		return false
+	if outgoing.template.get("theme", Enums.CardTheme.NEUTRAL) != druid_theme:
+		return false
+
+	var outgoing_id: String = outgoing.get_base_id()
+	var focus: Dictionary = _build_path.get_phase_card_focus(
+		strategy, _H.get_board_ids(state), state.round_num)
+	var current_focus: Array = focus.get("current", []) if not focus.is_empty() else []
+	var protects_current: bool = outgoing_id in current_focus
+	var protects_identity: bool = (
+		state.round_num <= 6 and outgoing_id in _DRUID_IDENTITY_SETUP_CARDS)
+	if not protects_current and not protects_identity:
+		return false
+	if _active_card_count(state, outgoing_id) > 1:
+		return false
+
+	if protects_identity:
+		var identity_floor := 2
+		if _count_active_theme(state, druid_theme) - 1 >= identity_floor:
+			return false
+
+	return _promotion_swap_delta(state, outgoing, incoming) < _DRUID_STRONG_GENERIC_SWAP_DELTA
+
+
+func _promotion_swap_delta(state: GameState,
+		outgoing: CardInstance, incoming: CardInstance) -> float:
+	return (
+		_board_eval.card_board_value(incoming, strategy, state.round_num)
+		- _board_eval.card_board_value(outgoing, strategy, state.round_num)
+	)
+
+
+func _active_card_count(state: GameState, card_id: String) -> int:
+	var count := 0
+	for i in state.field_slots:
+		if i >= state.board.size():
+			break
+		if state.board[i] != null and (state.board[i] as CardInstance).get_base_id() == card_id:
+			count += 1
+	return count
+
+
+func _count_active_theme(state: GameState, theme: int) -> int:
+	var count := 0
+	for i in state.field_slots:
+		if i >= state.board.size():
+			break
+		if state.board[i] == null:
+			continue
+		var card: CardInstance = state.board[i]
+		if card.template.get("theme", Enums.CardTheme.NEUTRAL) == theme:
+			count += 1
+	return count
+
+
+func _should_skip_path_focus_swap(state: GameState,
+		outgoing: CardInstance, incoming: CardInstance) -> bool:
+	if strategy != "soft_druid":
+		return false
+	if state.round_num < 7:
+		return false
+	var focus: Dictionary = _build_path.get_phase_card_focus(
+		strategy, _H.get_board_ids(state), state.round_num)
+	if focus.is_empty():
+		return false
+	var focus_cards: Array = focus.get("current", [])
+	var outgoing_id: String = outgoing.get_base_id()
+	if not (outgoing_id in focus_cards):
+		return false
+	if _active_card_count(state, outgoing_id) > 1:
+		return false
+	var incoming_id: String = incoming.get_base_id()
+	return not (incoming_id in focus_cards)
+
+
+func _promote_committed_theme_bench(state: GameState) -> void:
+	var preferred_theme: int = _get_preferred_theme(state)
+	if preferred_theme < 0 or not strategy.begins_with("soft_"):
+		return
+
+	var board_counts := _count_zone_themes(state.board, preferred_theme)
+	var board_total: int = board_counts["total"]
+	if board_total <= 0:
+		return
+	if _safe_ratio(board_counts["theme"], board_total) >= 0.67:
+		return
+
+	var active_board_ids := _active_board_ids(state)
+	var best_bench_idx := -1
+	var best_bench_value := -999.0
+	for bi in state.bench.size():
+		if state.bench[bi] == null:
+			continue
+		var bench_card: CardInstance = state.bench[bi]
+		if bench_card.template.get("theme", Enums.CardTheme.NEUTRAL) != preferred_theme:
+			continue
+		var value := _card_value(bench_card, state)
+		value += _theme_conversion_bonus(bench_card, state, active_board_ids)
+		if value > best_bench_value:
+			best_bench_value = value
+			best_bench_idx = bi
+
+	if best_bench_idx < 0:
+		return
+
+	var worst_board_idx := -1
+	var worst_board_value := 999.0
+	for fi in state.field_slots:
+		if fi >= state.board.size():
+			break
+		if state.board[fi] == null:
+			continue
+		var board_card: CardInstance = state.board[fi]
+		var board_theme: int = board_card.template.get("theme", Enums.CardTheme.NEUTRAL)
+		if board_theme == preferred_theme:
+			continue
+		if board_theme == Enums.CardTheme.NEUTRAL and state.round_num < 9:
+			continue
+
+		var cid: String = board_card.get_base_id()
+		if _H.count_star1_copies(state, cid) >= 2:
+			continue
+		if _H.count_synergies(cid, active_board_ids) >= 2:
+			continue
+
+		var value := _card_value(board_card, state)
+		if board_theme != Enums.CardTheme.NEUTRAL:
+			value -= 8.0
+		if value < worst_board_value:
+			worst_board_value = value
+			worst_board_idx = fi
+
+	if worst_board_idx < 0:
+		return
+	if best_bench_value < worst_board_value + 2.0:
+		return
+
+	if _tracer != null and _tracer.enabled:
+		var outgoing: CardInstance = state.board[worst_board_idx]
+		var incoming: CardInstance = state.bench[best_bench_idx]
+		_tracer.emit({"t": "promote", "round": state.round_num,
+			"reason": "theme_conversion",
+			"bench_card_id": incoming.get_base_id(),
+			"board_card_id": outgoing.get_base_id(),
+			"board_idx": worst_board_idx,
+			"bench_value": round(best_bench_value * 100) / 100.0,
+			"board_value": round(worst_board_value * 100) / 100.0})
+	state.sell_card("board", worst_board_idx)
+	state.move_card("bench", best_bench_idx, "board", worst_board_idx)
+
+
+func _active_board_ids(state: GameState) -> Dictionary:
+	var ids := {}
+	for card in state.board:
+		if card != null:
+			ids[(card as CardInstance).get_base_id()] = true
+	return ids
+
+
+func _theme_conversion_bonus(card: CardInstance, state: GameState,
+		active_board_ids: Dictionary) -> float:
+	var cid: String = card.get_base_id()
+	var preferred_theme: int = _get_preferred_theme(state)
+	var bonus := 8.0
+	if _THEME_CRITICAL.has(preferred_theme) and cid in _THEME_CRITICAL[preferred_theme]:
+		bonus += 8.0
+	var path_pressure: float = _build_path.score_strategy_card_modifier(
+		cid, strategy, active_board_ids, state.round_num)
+	bonus += path_pressure * 0.35
+	return bonus
 
 
 ## Evaluate a card's overall value on the board.
@@ -895,25 +1450,33 @@ func _sell_weakest_for_upgrade(state: GameState, incoming_score: float = 0.0) ->
 
 func _transition_board(state: GameState) -> void:
 	var board_ids := _H.get_board_ids(state)
+	var preferred_theme: int = _get_preferred_theme(state)
+	var config: Dictionary = _STRATEGY_CONFIG.get(strategy, {})
+	var protected_cards: Array = config.get("core_cards", []).duplicate()
+	if _THEME_CRITICAL.has(preferred_theme):
+		protected_cards.append_array(_THEME_CRITICAL[preferred_theme])
 
 	for i in state.board.size():
 		if state.board[i] == null:
 			continue
 		var c: CardInstance = state.board[i]
+		var cid: String = c.get_base_id()
+		if preferred_theme >= 0 and cid in protected_cards:
+			continue
 		var tier: int = c.template.get("tier", 1)
 
 		if tier > 1 or c.star_level > 1:
 			continue
-		if _H.count_star1_copies(state, c.get_base_id()) >= 2:
+		if _H.count_star1_copies(state, cid) >= 2:
 			continue
-		if _H.count_synergies(c.get_base_id(), board_ids) >= 2:
+		if _H.count_synergies(cid, board_ids) >= 2:
 			continue
 		if c.get_total_atk() + c.get_total_hp() > 300.0:
 			continue
 
 		if _tracer != null and _tracer.enabled:
 			_tracer.emit({"t": "sell", "round": state.round_num, "reason": "transition_board",
-				"zone": "board", "card_id": c.get_base_id(), "star": c.star_level})
+				"zone": "board", "card_id": cid, "star": c.star_level})
 		state.sell_card("board", i)
 		break
 

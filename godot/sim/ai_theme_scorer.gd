@@ -33,7 +33,7 @@ const CONSCRIPT_THRESHOLD := {1: 10, 2: 8, 3: 6}  # star → threshold
 
 # --- 드루이드 유닛캡 ---
 const DRUID_WORLD_UNIT_CAP := {1: 20, 2: 40, 3: 200}
-const DRUID_WRATH_UNIT_CAP := {1: 5, 2: 6, 3: 7}
+const DRUID_WRATH_UNIT_CAP := {1: 3, 2: 8, 3: 16}
 
 # --- 드루이드 나무 임계값 (r_conditional 유형 임박 보너스용) ---
 # tree_bonus.thresh (dr_deep), terazin_thresh (dr_grace), tree_distribute tiers (dr_wt_root).

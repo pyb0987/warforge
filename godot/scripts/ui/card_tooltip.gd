@@ -231,6 +231,16 @@ func hide_tooltip() -> void:
 	visible = false
 
 
+func get_keyword_panel_text() -> String:
+	if _keyword_label == null:
+		return ""
+	return _keyword_label.text
+
+
+func is_keyword_panel_visible() -> bool:
+	return _keyword_popup != null and _keyword_popup.visible
+
+
 func _set_effect_text(raw_text: String) -> void:
 	# Escape square brackets so they aren't parsed as BBCode tags (e.g. [반응])
 	# Must use placeholder to avoid chained-replace corruption
@@ -240,8 +250,7 @@ func _set_effect_text(raw_text: String) -> void:
 	# 2-phase 치환: 같은 키워드가 다른 키워드의 치환 결과 안에서 재매칭 되지 않도록
 	# 센티널 토큰으로 먼저 교체 → 마지막에 일괄 BBCode url로 확장.
 	# (2026-04-19: '비(강화)' → url 안의 '(강화)' 재매칭으로 BBCode 파편화되는 버그 수정)
-	var keywords := KeywordGlossary.get_all_keywords()
-	keywords.sort_custom(func(a, b): return a.length() > b.length())
+	var keywords := _keywords_in_text(raw_text)
 	# Phase 1: keyword → sentinel token (START=char(2), SEP=char(3))
 	var sen_start := char(2)
 	var sen_end := char(3)
@@ -261,16 +270,35 @@ func _set_effect_text(raw_text: String) -> void:
 
 func _update_keyword_panel(raw_text: String) -> void:
 	var found: PackedStringArray = []
-	for kw in KeywordGlossary.get_all_keywords():
-		if raw_text.contains(kw):
-			var theme_name: String = KeywordGlossary.get_theme(kw)
-			var definition: String = KeywordGlossary.get_definition(kw)
-			found.append("[%s] %s: %s" % [theme_name, kw, definition])
+	for kw in _keywords_in_text(raw_text):
+		var theme_name: String = KeywordGlossary.get_theme(kw)
+		var definition: String = KeywordGlossary.get_definition(kw)
+		found.append("[%s] %s: %s" % [theme_name, kw, definition])
 	if found.is_empty():
 		_keyword_popup.visible = false
 	else:
 		_keyword_label.text = "\n".join(found)
 		_keyword_popup.visible = true
+
+
+func _keywords_in_text(raw_text: String) -> Array[String]:
+	var candidates := KeywordGlossary.get_all_keywords()
+	candidates.sort_custom(func(a, b): return a.length() > b.length())
+	var scan_text := raw_text
+	var found: Array[String] = []
+	for kw in candidates:
+		var idx := scan_text.find(kw)
+		if idx < 0:
+			continue
+		found.append(kw)
+		while idx >= 0:
+			var mask := ""
+			for _i in kw.length():
+				mask += " "
+			scan_text = scan_text.substr(0, idx) + mask \
+				+ scan_text.substr(idx + kw.length())
+			idx = scan_text.find(kw, idx + kw.length())
+	return found
 
 
 func _render_upgrades(card: CardInstance) -> void:

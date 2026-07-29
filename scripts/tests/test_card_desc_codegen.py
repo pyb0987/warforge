@@ -36,6 +36,15 @@ class TestCardDescCodegen(unittest.TestCase):
         star2 = descs["pr_transcend"][2]
         self.assertEqual(star2.count("(최대 5/R)"), 2)
 
+    def test_sp_arsenal_uses_steampunk_upgrade_wording(self) -> None:
+        descs = self._generate_descs()
+
+        for star in (1, 2, 3):
+            desc = descs["sp_arsenal"][star]
+            self.assertIn("누적 개량", desc)
+            self.assertNotIn("성장률", desc)
+            self.assertNotIn("🌳", desc)
+
 
 if __name__ == "__main__":
     unittest.main()

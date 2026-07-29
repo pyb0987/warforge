@@ -402,11 +402,36 @@ func process_battle_start(board: Array) -> Dictionary:
 	return {"gold": gold, "terazin": terazin, "events": events}
 
 
+## Apply enemy-facing debuffs prepared during BATTLE_START.
+## CombatEngine stores attack_speed as an attack interval, so AS reduction
+## increases enemy attack intervals while ATK reduction directly scales damage.
+func apply_enemy_battle_debuffs(board: Array, enemy_units: Array) -> Dictionary:
+	var dr_sys = _theme_systems.get(Enums.CardTheme.DRUID)
+	if dr_sys == null:
+		return {"atk_pct": 0.0, "as_pct": 0.0}
+
+	var debuffs: Dictionary = dr_sys.collect_enemy_battle_debuffs(board)
+	var atk_pct: float = clampf(float(debuffs.get("atk_pct", 0.0)), 0.0, 0.5)
+	var as_pct: float = clampf(float(debuffs.get("as_pct", 0.0)), 0.0, 0.5)
+	if atk_pct <= 0.0 and as_pct <= 0.0:
+		return {"atk_pct": atk_pct, "as_pct": as_pct}
+
+	var atk_mult := 1.0 - atk_pct
+	var as_interval_mult := 1.0 / maxf(1.0 - as_pct, 0.01)
+	for enemy in enemy_units:
+		if atk_pct > 0.0:
+			enemy["atk"] = float(enemy.get("atk", 0.0)) * atk_mult
+		if as_pct > 0.0:
+			enemy["attack_speed"] = float(enemy.get("attack_speed", 1.0)) * as_interval_mult
+	return {"atk_pct": atk_pct, "as_pct": as_pct}
+
+
 ## Process POST_COMBAT / POST_COMBAT_DEFEAT / POST_COMBAT_VICTORY effects.
 ## Returns {"gold": int, "terazin": int, "events": Array}.
 func process_post_combat(board: Array, won: bool) -> Dictionary:
 	var gold := 0
 	var terazin := 0
+	var free_rerolls := 0
 	var events: Array = []
 
 	# Try each PC-family timing per card (one block matches at most).
@@ -468,8 +493,13 @@ func process_post_combat(board: Array, won: bool) -> Dictionary:
 		gold += result["gold"]
 		terazin += result["terazin"]
 		events.append_array(result["events"])
+		var result_free_rerolls: int = int(result.get("free_rerolls", 0))
+		if result_free_rerolls > 0:
+			free_rerolls += result_free_rerolls
+			if pending_free_reroll_callback.is_valid():
+				pending_free_reroll_callback.call(result_free_rerolls)
 
-	return {"gold": gold, "terazin": terazin, "events": events}
+	return {"gold": gold, "terazin": terazin, "events": events, "free_rerolls": free_rerolls}
 
 
 ## Process a combat event (attack/ally_death). Returns combat buffs to apply.

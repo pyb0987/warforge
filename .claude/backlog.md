@@ -2,7 +2,7 @@
 
 > 마지막 갱신: 2026-07-02
 > Branch: `claude/charming-jones-3aaeef` (main 동기화)
-> Tests: 1141/1141 (handoff 기준, full GUT)
+> Tests: 1159/1159 (H15 기준, full GUT)
 
 설계 결정 / 기술부채는 [docs/design/backlog.md](../docs/design/backlog.md) 별도 관리. 본 문서는 **구현 로드맵**.
 
@@ -222,7 +222,15 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 - G-10 완료: `ShopLogic.reroll()`에 선택적 trigger callback을 추가하고 `HeadlessRunner`가 ON_REROLL 결과를 골드/테라진/레벨업 할인에 반영한다. `sp_interest` 리롤 성장과 `ne_pawnbroker` 리롤 할인 모두 sim 경로에서 발동한다.
 - G-11 완료: 이미 구현된 보스 보상/시스템 미결 항목을 현재 코드 상태와 맞췄다. 보스 보상 27종, 테라진 1차 경제, 리플레이/메타/난이도 1차 구현, 적 파워 곡선, 업그레이드/Rusty Wrench/Alchemist epic shop, 금간 해골 상한 문구를 정리했다.
 - 완료 계획: `Plans.md`의 "Playable Prototype Completion After Difficulty" 참조. 다음 Active Plan은 "Prototype Hardening After Player-Facing Loop".
-- H-1~H-6 완료: desc_gen multi-block listen separation, sim pending free-reroll parity, combat talisman regression coverage, 합성 결과 HUD + 체인 라인 순번 표시, sim 다양성 triage, AI bench-space 판매 버그 수정을 닫았다. 다음 Active slice는 military target warning cleanup 또는 focused 전략 payoff 후속.
+- H-1~H-8 완료: desc_gen multi-block listen separation, sim pending free-reroll parity, combat talisman regression coverage, 합성 결과 HUD + 체인 라인 순번 표시, sim 다양성 triage, AI bench-space 판매 버그 수정, military target warning cleanup, GUT warning-noise cleanup을 닫았다.
+- H-9 완료: 다음 completion-oriented track은 live run reward/flow hardening으로 확정. 밸런스/visual polish보다 약탈자 3승 보상, 보스 보상 UX, end-to-end live smoke, ObjectDB/resource warning triage를 먼저 진행한다.
+- H-10 완료: 약탈자 3승 보상이 TODO print에서 실제 커먼 업그레이드 3택1 → 필드 대상 선택 → 무료 부착 흐름으로 연결됐다. `upgrade_attached_to_card` source는 `raider_win_streak`로 기록된다.
+- H-11 완료: 보스 보상 `needs_upgrade_choice` dead path를 제거하고, live/sim 공통 target eligibility를 `BossReward.can_target_reward()`/`can_select_reward()`로 통합했다. 보상 선택지는 현재 보드에서 실제 적용 가능한 target 보상만 노출하고, target overlay는 reward별 안내/미리보기를 표시한다.
+- H-12 완료: `main.tscn` live smoke가 런 시작 → 커맨더/부적 선택 → BUILD 진입 → 전투 결과 주입 → 일반 정착/패배 종료/승리 종료/meta save hook을 고정한다. 테스트용 meta 저장 경로, battle-result delay, PlayLogger 비활성 hook을 `GameManager`에 추가했다.
+- H-13 완료: full GUT 종료 시 남던 ObjectDB/resource 경고를 제거했다. 원인은 `CombatEngine` ↔ `MechanicsHandler` RefCounted 순환과 `HeadlessRunner`의 `state.card_sold` 익명 signal callback 순환이었다. `CombatEngine.dispose()`, `BattlePhase`/sim/test cleanup, headless signal disconnect로 정리했다.
+- H-14 완료: 고정 evaluator로 `soft_steampunk` payoff/전환 안정성을 재측정했다. multi-review fallback으로 `soft_steampunk`를 우선 선택했고, 설계상 확산/집중 T1 분기가 섞이면 슬롯 손실이 생기는 점에 맞춰 AI build path에 스팀펑크 전용 `anti_penalty: 36.0` branch-lock을 추가했다. 140-run weighted는 0.5064→0.5095, `soft_steampunk` 평균 HP는 -5.6→-3.3, branch mixing은 17/20→12/20으로 개선됐지만 승수는 3/20 유지라 다음 sim 병목은 T4/T5 payoff timing이다. 상세: `.claude/traces/experiments/011-steampunk-payoff-followup.md`.
+- H-15 완료: chain feedback에 `L->R`/`R->L` 방향 힌트와 pulse/drift fade를 추가하고, merge summary label 새 기록 pulse를 추가했다. full GUT 1159/1159.
+- H-16 완료: 다음 hardening slice 선정 겸 `soft_steampunk` payoff timing probe를 수행했다. levelup reserve 완화 variant A는 35-run weighted 0.4599→0.4554로 회귀, variant B는 no-op이라 둘 다 미채택. 코드 변경 없이 trace만 남겼다: `.claude/traces/experiments/012-next-hardening-slice-probe.md`.
 
 ---
 
@@ -242,6 +250,10 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 - 2026-07-02 H5/H6 재측정: 140-run 기준 weighted 0.4903, card_coverage 0.2195. focused 최저는 여전히 soft_steampunk 2/20, soft_druid 3/20이라 전략 다양성 후속은 payoff/전환 안정성 쪽이 우선.
 - 2026-07-02 H7 완료: Military `revive_scope_override` 전용 target이 generic `r_conditional` dispatcher에서 선해석되며 발생하던 batch warning을 제거. full GUT 1141/1141.
 - 2026-07-02 H8 완료: full GUT warning total을 8개에서 0개로 정리. 남은 ObjectDB/resource 메시지는 Godot 종료 시점 기존 잔여 이슈.
+- 2026-07-02 H13 완료: `CombatEngine`/`HeadlessRunner` cleanup 후 full GUT 1155/1155가 ObjectDB/resource 종료 경고 없이 통과.
+- 2026-07-02 H14 완료: `soft_steampunk` branch-lock 후 full GUT 1157/1157이 ObjectDB/resource 종료 경고 없이 통과. 140-run weighted 0.5095, `soft_steampunk` avg_hp -3.3.
+- 2026-07-02 H15 완료: visual polish 후 full GUT 1159/1159 통과.
+- 2026-07-02 H16 완료: `soft_steampunk` levelup-reserve probe는 no-code-adopt. 다음 sim pass는 더 깊은 trace instrumentation 또는 다른 axis 필요.
 
 ### S-3. 평균 승률 압축
 - 현재 52.9%. 감정 곡선 목표: R1-R3 80%+ → R8-R12 30-60% → R13-R15 20-50%
@@ -285,7 +297,9 @@ DESIGN.md / themes.md / upgrade.md / card-codegen-schema.md / units-neutral.md /
 
 ## 다음 1주 권장 스프린트
 
-1. **합성/체인 polish** 또는 **P2 sim 다양성 회복** 중 표본 필요도에 따라 선택
+1. **manual-run UX smoke 후보화** — live smoke는 자동화됐으므로, 실제 플레이 중 가장 먼저 보이는 화면/피드백 결손을 한 조각 더 찾는다.
+2. **다음 sim follow-up 설계** — H16 결과상 단순 levelup reserve가 아니라 levelup decision trace, payoff-card valuation, transition-board replacement 중 하나를 고정 evaluator로 선택.
+3. **soft_druid 후속 판단** — `soft_steampunk` 얕은 probe가 막혔으므로 `soft_druid` 또는 broad AI quality axis로 넘어갈지 multi-review fallback으로 결정.
 
 > 자문: "이 스프린트 끝에 사용자가 '런 1회 풀로 돌려본다'가 가능한가?"
 > — 현재 Yes. 다음 스프린트는 오해를 줄이고 반복 플레이/검증 품질을 높이는 단계.

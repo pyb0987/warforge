@@ -145,6 +145,63 @@ func test_theme_system_routes_by_base_theme_after_transform() -> void:
 		"변환된 dr_cradle도 DruidSystem BS 공통 보너스 적용")
 
 
+func test_druid_spore_debuff_applies_to_enemy_attack_interval() -> void:
+	var card: CardInstance = CardInstance.create("dr_spore_cloud")
+	card.theme_state["trees"] = 5
+	var board: Array = [card]
+	_engine.process_battle_start(board)
+	var enemies: Array = [{
+		"atk": 10.0, "hp": 100.0, "attack_speed": 1.0,
+		"range": 1, "move_speed": 1, "def": 0, "mechanics": [],
+	}]
+
+	var debuffs: Dictionary = _engine.apply_enemy_battle_debuffs(board, enemies)
+
+	assert_almost_eq(debuffs["as_pct"], 0.225, 0.001,
+		"★1 포자 구름 AS 디버프 수집")
+	assert_almost_eq(float(enemies[0]["attack_speed"]), 1.0 / (1.0 - 0.225), 0.001,
+		"AS 감소 → 적 공격 간격 증가")
+	assert_almost_eq(float(enemies[0]["atk"]), 10.0, 0.001,
+		"★1 포자 구름은 ATK 디버프 없음")
+
+
+func test_druid_spore_star2_debuff_applies_to_enemy_atk_and_as() -> void:
+	var card: CardInstance = CardInstance.create("dr_spore_cloud")
+	card.evolve_star()
+	card.theme_state["trees"] = 5
+	var board: Array = [card]
+	_engine.process_battle_start(board)
+	var enemies: Array = [{
+		"atk": 20.0, "hp": 100.0, "attack_speed": 2.0,
+		"range": 1, "move_speed": 1, "def": 0, "mechanics": [],
+	}]
+
+	var debuffs: Dictionary = _engine.apply_enemy_battle_debuffs(board, enemies)
+
+	assert_almost_eq(debuffs["atk_pct"], 0.3, 0.001,
+		"★2 포자 구름 ATK 디버프 수집")
+	assert_almost_eq(debuffs["as_pct"], 0.3, 0.001,
+		"★2 포자 구름 AS 디버프 수집")
+	assert_almost_eq(float(enemies[0]["atk"]), 14.0, 0.001,
+		"ATK 감소 → 적 피해 감소")
+	assert_almost_eq(float(enemies[0]["attack_speed"]), 2.0 / (1.0 - 0.3), 0.001,
+		"AS 감소 → 적 공격 간격 증가")
+
+
+func test_druid_grace_star3_post_combat_grants_pending_free_reroll() -> void:
+	var grace: CardInstance = CardInstance.create("dr_grace")
+	grace.evolve_star()
+	grace.evolve_star()
+	var granted := [0]
+	_engine.pending_free_reroll_callback = func(n: int):
+		granted[0] += n
+
+	var result: Dictionary = _engine.process_post_combat([grace], true)
+
+	assert_eq(result.get("free_rerolls", 0), 1, "★3 숲의 은혜 PC → free reroll 1")
+	assert_eq(granted[0], 1, "post-combat free reroll callback fired")
+
+
 # ================================================================
 # 안전 장치
 # ================================================================

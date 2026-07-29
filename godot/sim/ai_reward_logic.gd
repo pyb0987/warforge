@@ -74,10 +74,10 @@ func choose_boss_reward(choices: Array[String], state: GameState,
 	var target_cards: Array = []
 
 	if needs_target >= 1:
-		target_card = _pick_best_target(state, strategy)
+		target_card = _pick_best_target(state, strategy, [], best_id, 1)
 		target_cards.append(target_card)
 	if needs_target >= 2:
-		var second := _pick_best_target(state, strategy, [target_card])
+		var second := _pick_best_target(state, strategy, [target_card], best_id, 2)
 		if second:
 			target_cards.append(second)
 
@@ -91,7 +91,7 @@ func choose_boss_reward(choices: Array[String], state: GameState,
 func _score_reward(id: String, state: GameState, strategy: String) -> float:
 	# P0: ★승급 = highest priority
 	if id in _STAR_REWARDS:
-		var has_target := _pick_best_target(state, strategy)
+		var has_target := _pick_best_target(state, strategy, [], id, 1)
 		if has_target:
 			return 200.0
 		return 10.0  # No valid target → low score
@@ -103,7 +103,7 @@ func _score_reward(id: String, state: GameState, strategy: String) -> float:
 
 	# P1.5: Direct buffs
 	if id in _DIRECT_REWARDS:
-		var has_target := _pick_best_target(state, strategy)
+		var has_target := _pick_best_target(state, strategy, [], id, 1)
 		return 75.0 if has_target else 5.0
 
 	# P2: Economy/structure
@@ -115,7 +115,7 @@ func _score_reward(id: String, state: GameState, strategy: String) -> float:
 
 ## Pick the best target card for a reward. Prefers theme cards with highest CP.
 func _pick_best_target(state: GameState, strategy: String,
-		exclude: Array = []) -> CardInstance:
+		exclude: Array = [], reward_id: String = "", step: int = 1) -> CardInstance:
 	var theme: int = _THEME_MAP.get(strategy, -1)
 	var best: CardInstance = null
 	var best_score := -999.0
@@ -124,6 +124,8 @@ func _pick_best_target(state: GameState, strategy: String,
 		if card == null or card in exclude:
 			continue
 		var c: CardInstance = card as CardInstance
+		if reward_id != "" and not BossReward.can_target_reward(reward_id, c, step):
+			continue
 		var score := 0.0
 
 		# Prefer theme cards

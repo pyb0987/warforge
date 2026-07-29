@@ -14,6 +14,12 @@ func before_each() -> void:
 	_engine = CombatEngineScript.new()
 
 
+func after_each() -> void:
+	if _engine != null:
+		_engine.dispose()
+	_engine = null
+
+
 func _make_unit(u_atk: float, u_hp: float, mechs: Array = [], def: float = 0.0) -> Dictionary:
 	return {"atk": u_atk, "hp": u_hp, "attack_speed": 1.0, "range": 1,
 			"move_speed": 3, "def": def, "mechanics": mechs, "radius": 6.0}

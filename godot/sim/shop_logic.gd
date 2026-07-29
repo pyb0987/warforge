@@ -89,9 +89,7 @@ func try_purchase(slot_idx: int) -> bool:
 	if card_id == "":
 		return false
 
-	var tmpl := CardDB.get_template(card_id)
-	var base_cost: int = tmpl.get("cost", 99)
-	var cost: int = Talisman.apply_coin_price(base_cost, slot_idx, _coin_slots)
+	var cost: int = get_slot_cost(slot_idx)
 	if _game_state.gold < cost:
 		return false
 
@@ -113,6 +111,17 @@ func try_purchase(slot_idx: int) -> bool:
 
 	card_purchased.emit(card_id)
 	return true
+
+
+func get_slot_cost(slot_idx: int) -> int:
+	if slot_idx < 0 or slot_idx >= offered_ids.size():
+		return 99
+	var card_id: String = offered_ids[slot_idx]
+	if card_id == "":
+		return 99
+	var tmpl := CardDB.get_template(card_id)
+	var base_cost: int = tmpl.get("cost", 99)
+	return Talisman.apply_coin_price(base_cost, slot_idx, _coin_slots)
 
 
 func _roll_tier(level: int) -> int:

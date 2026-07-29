@@ -34,11 +34,11 @@ func test_full_progress_text_lists_locked_and_completed_goals() -> void:
 	assert_string_contains(initial_text, "터진 자루: 잠김")
 	assert_string_contains(initial_text, "완료 업적\n- 없음")
 	assert_string_contains(initial_text, "잠긴 목표")
-	assert_string_contains(initial_text, "업그레이드 10개 장착")
+	assert_string_contains(initial_text, "업그레이드 16개 장착")
 
 	progress.record_run_finished(false, 9, {
-		"max_attached_upgrades": 10,
-		"cards_sold": 5,
+		"max_attached_upgrades": 16,
+		"cards_sold": 12,
 	})
 	var unlocked_text: String = progress.get_full_progress_text()
 	assert_string_contains(unlocked_text, "단조사: 해금")
@@ -46,7 +46,7 @@ func test_full_progress_text_lists_locked_and_completed_goals() -> void:
 	assert_string_contains(unlocked_text, "터진 자루: 해금")
 	assert_string_contains(unlocked_text, "영혼 항아리: 해금")
 	assert_string_contains(unlocked_text, "완료 업적")
-	assert_string_contains(unlocked_text, "한 런 카드 5장 판매")
+	assert_string_contains(unlocked_text, "한 런 카드 12장 판매")
 
 
 func test_save_load_round_trip() -> void:
@@ -103,14 +103,14 @@ func test_record_run_started_and_finished() -> void:
 func test_achievement_stats_unlock_commanders_and_talismans() -> void:
 	var progress = MetaProgressScript.new()
 	var unlocks: Array[String] = progress.record_run_finished(false, 9, {
-		"max_field_units": 50,
-		"max_attached_upgrades": 10,
+		"max_field_units": 120,
+		"max_attached_upgrades": 16,
 		"max_unique_field_cards": 7,
-		"best_win_streak": 5,
-		"cards_sold": 10,
-		"growth_events": 50,
-		"max_star2_cards": 3,
-		"unit_advantage_win": true,
+		"best_win_streak": 8,
+		"cards_sold": 20,
+		"growth_events": 120,
+		"max_star2_cards": 5,
+		"unit_advantage_wins": 5,
 	})
 
 	assert_true(progress.is_commander_unlocked(Enums.CommanderType.STRATEGIST))
@@ -128,10 +128,31 @@ func test_achievement_stats_unlock_commanders_and_talismans() -> void:
 	assert_false(unlocks.has("난이도 2"), "패배 업적은 난이도를 열지 않음")
 
 	var repeat_unlocks: Array[String] = progress.record_run_finished(false, 10, {
-		"max_attached_upgrades": 10,
-		"cards_sold": 10,
+		"max_attached_upgrades": 16,
+		"cards_sold": 20,
 	})
 	assert_eq(repeat_unlocks, [], "이미 열린 업적 보상은 중복 표시하지 않음")
+
+
+func test_first_run_mid_stats_do_not_unlock_most_meta_rewards() -> void:
+	var progress = MetaProgressScript.new()
+
+	var unlocks: Array[String] = progress.record_run_finished(false, 9, {
+		"max_field_units": 50,
+		"max_attached_upgrades": 10,
+		"max_unique_field_cards": 6,
+		"best_win_streak": 5,
+		"cards_sold": 10,
+		"growth_events": 50,
+		"max_star2_cards": 3,
+		"unit_advantage_wins": 1,
+	})
+
+	assert_eq(unlocks, [], "기존 첫 런급 중간 기록은 대량 해금하지 않음")
+	assert_false(progress.is_commander_unlocked(Enums.CommanderType.SMITH))
+	assert_false(progress.is_commander_unlocked(Enums.CommanderType.RAIDER))
+	assert_false(progress.is_talisman_unlocked(Enums.TalismanType.SOUL_JAR))
+	assert_false(progress.is_talisman_unlocked(Enums.TalismanType.WAR_DRUM))
 
 
 func test_victory_unlocks_next_difficulty_and_clear_talisman() -> void:

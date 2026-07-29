@@ -49,6 +49,10 @@ func _materialize_army() -> Array:
 	for card in active:
 		var c: CardInstance = card
 		var card_mechanics := c.get_all_mechanics()
+		var kill_recover_pct: float = c.theme_state.get("kill_hp_recover_pct", 0.0)
+		if kill_recover_pct > 0.0:
+			card_mechanics = card_mechanics.duplicate()
+			card_mechanics.append({"type": "kill_hp_recover", "heal_hp_pct": kill_recover_pct})
 		for s in c.stacks:
 			var ut: Dictionary = s["unit_type"]
 			var eff_atk := c.eff_atk_for(s)
@@ -199,6 +203,20 @@ func test_materialize_multiple_cards() -> void:
 	var total: int = _state.board[0].get_total_units() + _state.board[1].get_total_units()
 	var units: Array = _materialize_army()
 	assert_eq(units.size(), total, "2카드 유닛 합산")
+
+
+func test_materialize_includes_druid_kill_recover_mechanic() -> void:
+	var card: CardInstance = CardInstance.create("dr_wrath")
+	card.theme_state["kill_hp_recover_pct"] = 0.15
+	_state.board[0] = card
+	var units: Array = _materialize_army()
+	var found := false
+	for mech in units[0]["mechanics"]:
+		if mech.get("type", "") == "kill_hp_recover":
+			found = true
+			assert_almost_eq(mech.get("heal_hp_pct", 0.0), 0.15, 0.001,
+				"kill recover pct materialized")
+	assert_true(found, "kill_hp_recover mechanic present")
 
 
 # ================================================================
@@ -452,3 +470,55 @@ func test_phase_enum_exists() -> void:
 	## Phase enum 기본 값 검증
 	var gm_script = load("res://scripts/game/game_manager.gd")
 	assert_not_null(gm_script, "game_manager 스크립트 로드")
+
+
+func test_game_manager_records_raider_third_win_reward_ready() -> void:
+	var gm = load("res://scripts/game/game_manager.gd").new()
+	gm.game_state = _state
+	_state.commander_type = Enums.CommanderType.RAIDER
+	_state.commander_state["win_count"] = 2
+
+	var ready: bool = gm._record_raider_win_and_check_upgrade()
+
+	assert_true(ready, "약탈자 3번째 승리 → 보상 flow 준비")
+	assert_eq(_state.commander_state["win_count"], 0, "보상 준비 시 카운터 리셋")
+	gm.free()
+
+
+func test_game_manager_raider_win_counter_accumulates_below_threshold() -> void:
+	var gm = load("res://scripts/game/game_manager.gd").new()
+	gm.game_state = _state
+	_state.commander_type = Enums.CommanderType.RAIDER
+	_state.commander_state["win_count"] = 1
+
+	var ready: bool = gm._record_raider_win_and_check_upgrade()
+
+	assert_false(ready, "3승 전에는 보상 flow 없음")
+	assert_eq(_state.commander_state["win_count"], 2, "승수 누적 유지")
+	gm.free()
+
+
+func test_game_manager_boss_reward_choices_skip_unselectable_target_rewards() -> void:
+	var gm = load("res://scripts/game/game_manager.gd").new()
+	gm.game_state = _state
+	gm._battle_rng = RandomNumberGenerator.new()
+	gm._battle_rng.seed = 42
+
+	var choices: Array[String] = gm._roll_selectable_boss_reward_choices(12, 9)
+
+	assert_false(choices.has("r12_1"), "★2/★1 대상 없으면 궁극 진화 미노출")
+	assert_false(choices.has("r12_7"), "2개 슬롯 대상 없으면 신의 일격 미노출")
+	assert_true(choices.has("r12_2"), "no-target 보상은 유지")
+	gm.free()
+
+
+func test_game_manager_boss_reward_target_note_marks_two_slot_requirement() -> void:
+	var gm = load("res://scripts/game/game_manager.gd").new()
+	var card := CardInstance.create("sp_workshop")
+	for _i in 4:
+		assert_true(card.attach_upgrade("C1"))
+
+	var note: String = gm._format_boss_reward_target_note(card, false, 0, "r12_7", 1)
+
+	assert_string_contains(note, "needs 2 free slots")
+	gm.free()

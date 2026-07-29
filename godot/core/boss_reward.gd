@@ -14,6 +14,45 @@ func has_reward(state: GameState, id: String) -> bool:
 	return id in state.boss_rewards
 
 
+func can_select_reward(id: String, state: GameState) -> bool:
+	var data: Dictionary = BossRewardDB.get_data(id)
+	var needs_target: int = int(data.get("needs_target", 0))
+	if needs_target <= 0:
+		return true
+	if id == "r12_1":
+		return _has_target_for_step(id, state, 1) and _has_target_for_step(id, state, 2)
+	return _has_target_for_step(id, state, 1)
+
+
+func can_target_reward(id: String, card: CardInstance, step: int = 1) -> bool:
+	if card == null:
+		return false
+	match id:
+		"r4_1":
+			return card.star_level < 3
+		"r4_7":
+			return true
+		"r8_1":
+			return card.star_level < 3 and get_free_upgrade_slots(card) >= 1
+		"r8_7":
+			return get_free_upgrade_slots(card) >= 1
+		"r12_1":
+			if step == 1:
+				return card.star_level == 2
+			if step == 2:
+				return card.star_level == 1
+			return false
+		"r12_7":
+			return get_free_upgrade_slots(card) >= 2
+	return false
+
+
+func get_free_upgrade_slots(card: CardInstance) -> int:
+	if card == null:
+		return 0
+	return maxi(0, card.get_max_upgrade_slots() - card.upgrades.size())
+
+
 # ================================================================
 # 적용 — 대상 없음
 # ================================================================
@@ -48,6 +87,8 @@ func apply_no_target(id: String, state: GameState,
 func apply_with_target(id: String, state: GameState,
 		card: CardInstance, rng: RandomNumberGenerator,
 		step: int = 1) -> void:
+	if not can_target_reward(id, card, step):
+		return
 	match id:
 		"r4_1": _apply_r4_1(state, card)
 		"r4_7": _apply_r4_7(card)
@@ -289,6 +330,15 @@ func _register_permanent(state: GameState, id: String) -> void:
 		state.boss_rewards.append(id)
 
 
+func _has_target_for_step(id: String, state: GameState, step: int) -> bool:
+	if state == null:
+		return false
+	for card in state.get_active_board():
+		if can_target_reward(id, card, step):
+			return true
+	return false
+
+
 func _find_board_idx(state: GameState, card: CardInstance) -> int:
 	for i in state.board.size():
 		if state.board[i] == card:
@@ -298,9 +348,10 @@ func _find_board_idx(state: GameState, card: CardInstance) -> int:
 
 func _attach_random_upgrade(card: CardInstance, rarity: int,
 		rng: RandomNumberGenerator) -> String:
+	if not card.can_attach_upgrade():
+		return ""
 	var ids := UpgradeDB.get_ids_by_rarity(rarity)
 	if ids.is_empty():
 		return ""
 	var chosen: String = ids[rng.randi_range(0, ids.size() - 1)]
-	card.attach_upgrade(chosen)
-	return chosen
+	return chosen if card.attach_upgrade(chosen) else ""

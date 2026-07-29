@@ -68,6 +68,25 @@ func test_ai_choose_target_card_for_star_upgrade() -> void:
 	assert_eq(target_theme, Enums.CardTheme.PREDATOR, "테마 카드 우선 타겟")
 
 
+func test_ai_choose_r12_1_targets_star2_then_star1() -> void:
+	var ai_reward := AIRewardScript.new()
+	var state := _make_state()
+	var star1 := CardInstance.create("pr_nest")
+	var star2 := CardInstance.create("pr_farm")
+	star2.evolve_star()
+	state.board[0] = star1
+	state.board[1] = star2
+	var choices: Array[String] = ["r12_1", "r12_2", "r12_3", "r12_4"]
+
+	var decision := ai_reward.choose_boss_reward(
+		choices, state, "soft_predator")
+
+	assert_eq(decision.reward_id, "r12_1")
+	assert_eq(decision.target_cards.size(), 2)
+	assert_eq(decision.target_cards[0].star_level, 2, "step1 target is ★2")
+	assert_eq(decision.target_cards[1].star_level, 1, "step2 target is ★1")
+
+
 # ================================================================
 # AI 업그레이드 선택
 # ================================================================

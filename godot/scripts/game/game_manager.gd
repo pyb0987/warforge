@@ -26,6 +26,19 @@ var _run_stats: Dictionary = {}
 var _current_win_streak: int = 0
 var _last_ally_count: int = 0
 var _last_enemy_count: int = 0
+var meta_progress_save_path: String = MetaProgressScript.SAVE_PATH
+var battle_result_delay_sec: float = 2.0
+var chain_feedback_delay_sec: float = 1.6
+var chain_feedback_delay_per_event_sec: float = 0.25
+var chain_feedback_max_delay_sec: float = 3.2
+var play_logger_enabled: bool = true
+var _chain_feedback_token: int = 0
+var _chain_feedback_pending: bool = false
+var _chain_feedback_summary: String = ""
+var _chain_feedback_history: String = ""
+
+const FREE_UPGRADE_SOURCE_SMITH_START := "smith_start"
+const FREE_UPGRADE_SOURCE_RAIDER_STREAK := "raider_win_streak"
 
 @onready var build_phase: Control = $BuildPhase
 @onready var chain_visual: Control = $ChainVisual
@@ -55,7 +68,7 @@ func _ready() -> void:
 		print("[GameManager] Loaded best_genome.json")
 
 	_meta_progress = MetaProgressScript.new()
-	_meta_progress.load_or_create()
+	_meta_progress.load_or_create(meta_progress_save_path)
 
 	game_state = GameState.new()
 	game_state.difficulty = _meta_progress.selected_difficulty
@@ -91,7 +104,7 @@ func _ready() -> void:
 	_apply_starting_difficulty_state()
 	_meta_progress.mark_tutorial_seen()
 	_meta_progress.record_run_started()
-	_meta_progress.save()
+	_meta_progress.save(meta_progress_save_path)
 	print("[Difficulty] Selected D%d" % game_state.difficulty)
 
 	commander_select_popup.show_choices(_meta_progress.get_unlocked_commanders())
@@ -100,7 +113,8 @@ func _ready() -> void:
 	var commander_data: Dictionary = Commander.get_data(selected_commander)
 	print("[Commander] Selected: %s" % commander_data.get("name", selected_commander))
 	_smith_start_upgrade_pending = selected_commander == Enums.CommanderType.SMITH
-	talisman_select_popup.show_choices(_meta_progress.get_unlocked_talismans())
+	talisman_select_popup.show_choices(
+		_meta_progress.get_unlocked_talismans(), selected_commander)
 	var selected_talisman: int = await talisman_select_popup.talisman_selected
 	game_state.talisman_type = selected_talisman
 	var talisman_data: Dictionary = Talisman.get_data(selected_talisman)
@@ -129,8 +143,9 @@ func _ready() -> void:
 	chain_engine.pending_free_reroll_callback = Callable(self, "_grant_pending_free_rerolls")
 
 	# Play session logger (auto-records state, user adds notes manually).
-	_logger = PlayLogger.new()
-	_logger.start_session(_session_seed)
+	if play_logger_enabled:
+		_logger = PlayLogger.new()
+		_logger.start_session(_session_seed)
 	game_state.card_moved.connect(_on_state_card_moved)
 	game_state.upgrade_purchased.connect(_on_upgrade_purchased_logged)
 	game_state.upgrade_refunded.connect(_on_upgrade_refunded_logged)
@@ -151,6 +166,10 @@ func _ready() -> void:
 	build_phase.merge_performed.connect(_on_merge_performed)
 	build_phase.upgrade_rerolled.connect(_on_upgrade_rerolled)
 	chain_visual.setup(build_phase._field_visuals)
+	chain_visual.clear_links(true)
+	build_phase.clear_merge_history()
+	build_phase.clear_last_chain_history()
+	build_phase.clear_last_settlement_recap()
 	chain_visual.connect_engine(chain_engine)
 	battle_phase.battle_finished.connect(_on_battle_finished)
 	game_over_popup.restart_requested.connect(_on_restart)
@@ -176,6 +195,7 @@ func _reset_run_stats() -> void:
 		"growth_events": 0,
 		"max_star2_cards": 0,
 		"unit_advantage_win": false,
+		"unit_advantage_wins": 0,
 	}
 
 
@@ -244,7 +264,8 @@ func _enter_phase(phase: Phase) -> void:
 			build_phase.visible = true
 			battle_phase.stop()
 			chain_visual.clear_links()
-			build_phase.refresh_shop()
+			chain_visual.visible = false
+			build_phase.refresh_shop(true)
 			# 전략가 영웅 능력 리셋 (빌드당 1회)
 			game_state.commander_state["hero_used"] = false
 			# 부적 라운드 상태 리셋
@@ -259,10 +280,12 @@ func _enter_phase(phase: Phase) -> void:
 			# ne_council ★2/★3: 5테마 활성 시 council_counter +1, 임계 도달 시 1회 에픽 부여
 			_evaluate_council_epic_grant()
 			_update_run_stats_snapshot()
+			build_phase.refresh_display()
 			print("[Phase] BUILD — R%d | Gold:%d" % [game_state.round_num, game_state.gold])
 			if _logger:
 				_logger.log_round_start(game_state, build_phase.get_shop_offered())
 		Phase.CHAIN:
+			chain_visual.visible = true
 			_run_chain()
 		Phase.BATTLE:
 			_run_battle()
@@ -278,7 +301,7 @@ func _on_build_tutorial_dismissed() -> void:
 	if _meta_progress == null:
 		return
 	_meta_progress.mark_tutorial_seen()
-	_meta_progress.save()
+	_meta_progress.save(meta_progress_save_path)
 
 
 ## board_changed 단일 hook — PERSISTENT 효과들의 reactive 재평가 진입점.
@@ -411,6 +434,7 @@ func _find_board_idx(card: CardInstance) -> int:
 
 func _run_chain() -> void:
 	chain_visual.clear_links()
+	build_phase.clear_last_settlement_recap()
 
 	# 무료 리롤은 이번 라운드 한정: 체인 시작(새 라운드) 시점에 리셋.
 	# 이후 RS 카드(예: 폐품 상회)가 재충전.
@@ -434,6 +458,7 @@ func _run_chain() -> void:
 	var active_board := game_state.get_active_board()
 	if active_board.is_empty():
 		_update_run_stats_snapshot()
+		build_phase.clear_last_chain_history()
 		_enter_phase(Phase.BATTLE)
 		return
 
@@ -454,8 +479,55 @@ func _run_chain() -> void:
 	# 자동 랜덤 징집으로 전환 — military_system._outpost() 가 인라인 처리.
 
 	build_phase.visible = true
-	await get_tree().create_timer(1.0).timeout
+	_chain_feedback_summary = _format_last_chain_summary(result)
+	_chain_feedback_history = chain_visual.get_chain_history_text()
+	_chain_feedback_token += 1
+	var token := _chain_feedback_token
+	_chain_feedback_pending = true
+	var delay := _get_chain_feedback_delay(int(result.get("chain_count", 0)))
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+	_finish_chain_feedback(token)
+
+
+func _get_chain_feedback_delay(chain_count: int) -> float:
+	if chain_feedback_delay_sec <= 0.0:
+		return 0.0
+	var event_count := maxi(chain_count, 0)
+	var delay := chain_feedback_delay_sec \
+		+ maxi(event_count - 1, 0) * maxf(chain_feedback_delay_per_event_sec, 0.0)
+	if chain_feedback_max_delay_sec > 0.0:
+		delay = minf(delay, chain_feedback_max_delay_sec)
+	return delay
+
+
+func _format_last_chain_summary(result: Dictionary) -> String:
+	var parts := PackedStringArray()
+	parts.append("%d triggers" % int(result.get("chain_count", 0)))
+	var gold := int(result.get("gold_earned", 0))
+	var terazin := int(result.get("terazin_earned", 0))
+	if gold > 0:
+		parts.append("+%dg" % gold)
+	if terazin > 0:
+		parts.append("+%dt" % terazin)
+	return " | ".join(parts)
+
+
+func skip_chain_feedback() -> bool:
+	if current_phase != Phase.CHAIN:
+		return false
+	return _finish_chain_feedback(_chain_feedback_token)
+
+
+func _finish_chain_feedback(token: int) -> bool:
+	if not _chain_feedback_pending:
+		return false
+	if token != _chain_feedback_token:
+		return false
+	_chain_feedback_pending = false
+	build_phase.set_last_chain_history(_chain_feedback_summary, _chain_feedback_history)
 	_enter_phase(Phase.BATTLE)
+	return true
 
 
 func _run_battle() -> void:
@@ -485,6 +557,8 @@ func _run_battle() -> void:
 	var ally_data := _materialize_army()
 	var enemy_data: Array = EnemyDB.generate(
 		game_state.round_num, _battle_rng, _genome, game_state.difficulty)
+	var enemy_debuffs: Dictionary = chain_engine.apply_enemy_battle_debuffs(
+		game_state.get_active_board(), enemy_data)
 	_last_ally_count = ally_data.size()
 	_last_enemy_count = enemy_data.size()
 
@@ -500,12 +574,22 @@ func _run_battle() -> void:
 		for e in enemy_data:
 			e["atk"] *= (1.0 - drum_reduction)
 		print("[Talisman] 전쟁 북: 적 ATK -%.0f%%" % (drum_reduction * 100))
+	if enemy_debuffs.get("atk_pct", 0.0) > 0.0 or enemy_debuffs.get("as_pct", 0.0) > 0.0:
+		print("[Druid] Enemy debuffed: ATK -%.0f%%, AS -%.0f%%" % [
+			enemy_debuffs.get("atk_pct", 0.0) * 100.0,
+			enemy_debuffs.get("as_pct", 0.0) * 100.0,
+		])
 
 	# 🔌 구리 전선: 풀슬롯 카드 업그레이드 인접 전파
 	Talisman.apply_copper_wire(game_state)
 
-	print("[Battle] R%d: %d allies vs %d enemies" % [game_state.round_num, ally_data.size(), enemy_data.size()])
-	battle_phase.start_battle(ally_data, enemy_data)
+	print("[Battle] R%d: %d allies vs %d enemies" % [
+		game_state.round_num, ally_data.size(), enemy_data.size()])
+	battle_phase.start_battle(ally_data, enemy_data, {
+		"round": game_state.round_num,
+		"ally_start": ally_data.size(),
+		"enemy_start": enemy_data.size(),
+	})
 
 	# r12_8 전사의 영혼: 보드 부활 풀 (아군 첫 사망 N기 100% HP 부활)
 	var revive_pool: int = BossReward.get_revive_pool_size(game_state)
@@ -586,6 +670,7 @@ func _materialize_army() -> Array:
 		# 군대 돌격편대 R10 lifesteal: _apply_lifesteal이 BS에서
 		# theme_state["lifesteal_pct"]에 저장 → 여기서 mechanic으로 주입.
 		var lifesteal_pct: float = c.theme_state.get("lifesteal_pct", 0.0)
+		var kill_recover_pct: float = c.theme_state.get("kill_hp_recover_pct", 0.0)
 		# 군대 특수작전대 ★/R crit: _apply_crit_buff/_apply_crit_splash가
 		# theme_state["crit_chance"/"crit_mult"/"crit_splash_pct"]에 저장.
 		var crit_chance: float = c.theme_state.get("crit_chance", 0.0)
@@ -607,6 +692,9 @@ func _materialize_army() -> Array:
 			if lifesteal_pct > 0.0:
 				unit_mechs = unit_mechs.duplicate()
 				unit_mechs.append({"type": "lifesteal", "steal_pct": lifesteal_pct})
+			if kill_recover_pct > 0.0:
+				unit_mechs = unit_mechs.duplicate()
+				unit_mechs.append({"type": "kill_hp_recover", "heal_hp_pct": kill_recover_pct})
 			if crit_chance > 0.0:
 				unit_mechs = unit_mechs.duplicate()
 				var crit_mech: Dictionary = {"type": "critical", "crit_chance": crit_chance, "crit_mult": crit_mult}
@@ -646,6 +734,9 @@ func _materialize_army() -> Array:
 
 func _on_battle_finished(result: Dictionary) -> void:
 	var won: bool = result["player_won"]
+	var round_num: int = game_state.round_num
+	var hp_before: int = game_state.hp
+	var gold_before: int = game_state.gold
 	_last_battle_won = won
 	if won:
 		_current_win_streak += 1
@@ -653,6 +744,8 @@ func _on_battle_finished(result: Dictionary) -> void:
 			int(_run_stats.get("best_win_streak", 0)), _current_win_streak)
 		if _last_ally_count > _last_enemy_count:
 			_run_stats["unit_advantage_win"] = true
+			_run_stats["unit_advantage_wins"] = \
+				int(_run_stats.get("unit_advantage_wins", 0)) + 1
 	else:
 		_current_win_streak = 0
 	print("[Battle] %s — survived: %d ally, %d enemy" % [
@@ -665,6 +758,7 @@ func _on_battle_finished(result: Dictionary) -> void:
 
 	var gold_change := 0
 	var hp_change := 0
+	var raider_upgrade_ready := false
 	if won:
 		gold_change = 1
 		# ⚔️ 약탈자: 승리 시 추가 +2골드
@@ -673,11 +767,7 @@ func _on_battle_finished(result: Dictionary) -> void:
 		game_state.gold += gold_change
 
 		# 약탈자 승수 추적
-		if game_state.commander_type == Enums.CommanderType.RAIDER:
-			game_state.commander_state["win_count"] = game_state.commander_state.get("win_count", 0) + 1
-			if Commander.check_raider_upgrade(game_state):
-				# TODO: 커먼 업그레이드 자동 부여 UI
-				print("[Commander] 약탈자 3승 → 커먼 업그레이드 획득!")
+		raider_upgrade_ready = _record_raider_win_and_check_upgrade()
 
 		print("[Settlement] Victory bonus: +%dg" % gold_change)
 	else:
@@ -691,6 +781,10 @@ func _on_battle_finished(result: Dictionary) -> void:
 	var card_effect_gold: int = post["gold"]
 	_card_effect_gold = card_effect_gold
 	_update_run_stats_snapshot()
+	var aftermath_context := _battle_result_context(
+		result, won, round_num, hp_before, game_state.hp, gold_before,
+		game_state.gold, gold_change, hp_change, card_effect_gold,
+		raider_upgrade_ready)
 
 	# Show battle result popup → wait for fade
 	if _logger:
@@ -698,8 +792,9 @@ func _on_battle_finished(result: Dictionary) -> void:
 			result["ally_survived"], result["enemy_survived"], game_state.hp, gold_change)
 
 	battle_result_popup.show_result(won, result["ally_survived"], result["enemy_survived"],
-		gold_change, hp_change, card_effect_gold)
-	await get_tree().create_timer(2.0).timeout
+		gold_change, hp_change, card_effect_gold, aftermath_context)
+	await get_tree().create_timer(battle_result_delay_sec).timeout
+	battle_result_popup.visible = false
 
 	# HP≤0 → 게임 오버 (settlement 진입 전 조기 차단)
 	if game_state.hp <= 0:
@@ -708,9 +803,13 @@ func _on_battle_finished(result: Dictionary) -> void:
 		if _logger:
 			_logger.log_game_over(false, game_state.round_num, game_state.hp)
 			_logger.close_session()
-		_record_run_finished(false, game_state.round_num)
-		game_over_popup.show_result(false, game_state.round_num, game_state.hp)
+		var unlocks := _record_run_finished(false, game_state.round_num)
+		game_over_popup.show_result(false, game_state.round_num, game_state.hp,
+			unlocks)
 		return
+
+	if raider_upgrade_ready:
+		await _run_raider_win_streak_upgrade_flow()
 
 	# 보스 라운드 생존 시 보상 팝업 (R4/R8/R12, R15 제외).
 	# 2026-04-23: 승리 → 생존. HP≤0 게임오버는 line 408에서 이미 조기 차단됨.
@@ -723,6 +822,38 @@ func _on_battle_finished(result: Dictionary) -> void:
 		_show_boss_reward_popup(12)
 	else:
 		_enter_phase(Phase.SETTLEMENT)
+
+
+func _battle_result_context(result: Dictionary, won: bool, round_num: int,
+		hp_before: int, hp_after: int, gold_before: int, gold_after: int,
+		gold_change: int, hp_change: int, card_effect_gold: int,
+		raider_upgrade_ready: bool) -> Dictionary:
+	var next_hint := "return to BUILD after income"
+	if hp_after <= 0:
+		next_hint = "run ends"
+	elif raider_upgrade_ready:
+		next_hint = "choose Raider free upgrade"
+	elif _is_boss_reward_round():
+		next_hint = "choose boss reward before next BUILD"
+	elif round_num == 13 and won and game_state.r8_9_bonus_pending:
+		next_hint = "choose bonus R12 reward before next BUILD"
+	return {
+		"round": round_num,
+		"won": won,
+		"ally_start": _last_ally_count,
+		"enemy_start": _last_enemy_count,
+		"ally_survived": int(result.get("ally_survived", 0)),
+		"enemy_survived": int(result.get("enemy_survived", 0)),
+		"hp_before": hp_before,
+		"hp_after": hp_after,
+		"hp_change": hp_change,
+		"damage": absi(hp_change),
+		"gold_before": gold_before,
+		"gold_after": gold_after,
+		"gold_change": gold_change,
+		"card_effect_gold": card_effect_gold,
+		"next_hint": next_hint,
+	}
 
 
 ## Apply POST_COMBAT effects: delegate to chain_engine.process_post_combat().
@@ -748,6 +879,10 @@ func _calc_interest() -> int:
 
 
 func _run_settlement() -> void:
+	var settlement_round: int = game_state.round_num
+	var gold_before_settlement: int = game_state.gold
+	var terazin_before_settlement: int = game_state.terazin
+
 	# Reset round state for all cards (activations, tenure)
 	for card in game_state.get_active_board():
 		(card as CardInstance).reset_round()
@@ -789,6 +924,10 @@ func _run_settlement() -> void:
 	if _logger:
 		_logger.log_settlement(game_state.round_num, base_income, interest,
 			terazin_gain, game_state.gold, game_state.terazin, _card_effect_gold)
+	var settlement_recap := _settlement_recap_context(settlement_round,
+		gold_before_settlement, game_state.gold, base_income, interest,
+		terazin_before_settlement, game_state.terazin, terazin_gain,
+		cmd_terazin)
 
 	game_state.round_num += 1
 	game_state.apply_levelup_discount()
@@ -800,8 +939,9 @@ func _run_settlement() -> void:
 		if _logger:
 			_logger.log_game_over(false, game_state.round_num - 1, game_state.hp)
 			_logger.close_session()
-		_record_run_finished(false, game_state.round_num - 1)
-		game_over_popup.show_result(false, game_state.round_num - 1, game_state.hp)
+		var unlocks := _record_run_finished(false, game_state.round_num - 1)
+		game_over_popup.show_result(false, game_state.round_num - 1, game_state.hp,
+			unlocks)
 		return
 	if game_state.round_num > Enums.MAX_ROUNDS:
 		_game_over = true
@@ -809,12 +949,35 @@ func _run_settlement() -> void:
 		if _logger:
 			_logger.log_game_over(true, Enums.MAX_ROUNDS, game_state.hp)
 			_logger.close_session()
-		_record_run_finished(true, Enums.MAX_ROUNDS)
-		game_over_popup.show_result(true, Enums.MAX_ROUNDS, game_state.hp)
+		var unlocks := _record_run_finished(true, Enums.MAX_ROUNDS)
+		game_over_popup.show_result(true, Enums.MAX_ROUNDS, game_state.hp,
+			unlocks)
 		return
 
-	chain_visual.visible = true
+	build_phase.set_last_settlement_recap(settlement_recap)
 	_enter_phase(Phase.BUILD)
+
+
+func _settlement_recap_context(round_num: int, gold_before: int,
+		gold_after: int, base_income: int, interest: int,
+		terazin_before: int, terazin_after: int, terazin_gain: int,
+		cmd_terazin: int) -> Dictionary:
+	return {
+		"round": round_num,
+		"next_round": round_num + 1,
+		"gold_before": gold_before,
+		"gold_after": gold_after,
+		"gold_delta": gold_after - gold_before,
+		"base_income": base_income,
+		"interest": interest,
+		"interest_basis_gold": _gold_before_effects,
+		"terazin_before": terazin_before,
+		"terazin_after": terazin_after,
+		"terazin_delta": terazin_after - terazin_before,
+		"terazin_gain": terazin_gain,
+		"commander_terazin": cmd_terazin,
+		"last_battle_won": _last_battle_won,
+	}
 
 
 ## ON_SELL trigger: fire effects of cards with ON_SELL timing (e.g., sp_arsenal).
@@ -1102,12 +1265,12 @@ func _on_merge_performed(merged_card: CardInstance) -> void:
 	if result["terazin"] > 0 or result["gold"] > 0:
 		print("  ON_MERGE: +%dt +%dg" % [result["terazin"], result["gold"]])
 
-	# 🎲 도박꾼: ★합성 시 구매비용 합 50% 환급
+	# 🎲 도박꾼: ★3 합성 시 원본 구매비용 합 50% 환급
 	var merge_info := {"card": merged_card, "old_star": merged_card.star_level - 1, "new_star": merged_card.star_level}
 	var refund: int = Commander.calc_merge_refund(game_state, merge_info)
 	if refund > 0:
 		game_state.gold += refund
-		print("[Commander] 도박꾼 합성 환급: +%dg" % refund)
+		print("[Commander] 도박꾼 ★3 합성 환급: +%dg" % refund)
 
 	_update_run_stats_snapshot()
 	game_state.state_changed.emit()
@@ -1184,11 +1347,24 @@ func _is_boss_reward_round() -> bool:
 func _show_boss_reward_popup(override_tier: int = -1) -> void:
 	var boss_tier: int = override_tier if override_tier > 0 else game_state.round_num
 	var choice_count: int = Talisman.get_boss_reward_choices(game_state)
-	var choices := BossRewardDB.roll_choices(boss_tier, choice_count, _battle_rng)
+	var choices := _roll_selectable_boss_reward_choices(boss_tier, choice_count)
 	print("[BossReward] R%d 보스 보상 %d개 선택지: %s" % [boss_tier, choices.size(), choices])
 	if _logger:
 		_logger.log_boss_reward_offered(game_state.round_num, choices)
 	boss_reward_popup.show_choices(choices)
+
+
+func _roll_selectable_boss_reward_choices(boss_tier: int, choice_count: int) -> Array[String]:
+	var shuffled := BossRewardDB.roll_choices(
+		boss_tier, BossRewardDB.get_pool(boss_tier).size(), _battle_rng)
+	var choices: Array[String] = []
+	for reward_id in shuffled:
+		if not BossReward.can_select_reward(reward_id, game_state):
+			continue
+		choices.append(reward_id)
+		if choices.size() >= choice_count:
+			break
+	return choices
 
 
 func _on_boss_reward_selected(reward_id: String) -> void:
@@ -1203,24 +1379,94 @@ func _on_boss_reward_selected(reward_id: String) -> void:
 		BossReward.apply_no_target(reward_id, game_state, _battle_rng)
 		_finish_boss_reward(reward_id)
 	else:
+		if not BossReward.can_select_reward(reward_id, game_state):
+			push_warning("[BossReward] no eligible target for %s" % reward_id)
+			_finish_boss_reward(reward_id)
+			return
 		_pending_boss_reward = {
 			"reward_id": reward_id,
 			"needs_target": needs_target,
 			"targets_remaining": needs_target,
 		}
-		# 빌드 페이즈의 타겟 오버레이 재활용.
-		# Attach 보상(r8_1/r8_7/r12_7)은 can_attach_upgrade predicate로 슬롯 만석 카드 제외 →
-		# attach_upgrade silent fail UX 회귀 방지 (multi-review 2차 발견).
-		# 다른 보상(r4_1/r4_7/r12_1 등)은 슬롯 무관이라 default null.
 		build_phase.visible = true
-		var predicate: Callable = Callable()
-		if reward_id in ["r8_1", "r8_7", "r12_7"]:
-			predicate = Callable(self, "_can_attach_upgrade_predicate")
-		build_phase.target_overlay.start_selection(
-			build_phase._field_visuals, game_state.board, predicate)
+		_start_boss_reward_target_selection(reward_id, 1)
 		# 일시적으로 타겟 시그널 리다이렉트
 		if not build_phase.target_overlay.target_selected.is_connected(_on_boss_target_selected):
 			build_phase.target_overlay.target_selected.connect(_on_boss_target_selected)
+		if not build_phase.target_overlay.target_cancelled.is_connected(_on_boss_target_cancelled):
+			build_phase.target_overlay.target_cancelled.connect(_on_boss_target_cancelled)
+
+
+func _start_boss_reward_target_selection(reward_id: String, step: int) -> void:
+	build_phase.target_overlay.start_selection(
+		build_phase._field_visuals,
+		game_state.board,
+		Callable(self, "_can_target_boss_reward").bind(reward_id, step),
+		_get_boss_reward_target_context(reward_id, step))
+
+
+func _can_target_boss_reward(card, reward_id: String, step: int) -> bool:
+	return BossReward.can_target_reward(reward_id, card as CardInstance, step)
+
+
+func _get_boss_reward_target_context(reward_id: String, step: int) -> Dictionary:
+	var data: Dictionary = BossRewardDB.get_data(reward_id)
+	return {
+		"instruction": _format_boss_reward_instruction(reward_id, data, step),
+		"detail": data.get("desc", ""),
+		"note_formatter": Callable(self, "_format_boss_reward_target_note").bind(reward_id, step),
+	}
+
+
+func _format_boss_reward_instruction(reward_id: String, data: Dictionary, step: int) -> String:
+	var name: String = data.get("name", reward_id)
+	if reward_id == "r12_1":
+		return "%s step %d: choose target card" % [name, step]
+	return "%s: choose target card" % name
+
+
+func _format_boss_reward_target_note(card, eligible: bool, _field_idx: int,
+		reward_id: String, step: int) -> String:
+	if card == null:
+		return ""
+	var target: CardInstance = card
+	var slots := "%d/%d slots" % [target.upgrades.size(), target.get_max_upgrade_slots()]
+	match reward_id:
+		"r4_1":
+			return "★%d -> ★%d · +4t" % [target.star_level, mini(target.star_level + 1, 3)] \
+				if eligible else "MAX ★3"
+		"r4_7":
+			return "ATK/HP +30%"
+		"r8_1":
+			return "★%d -> ★%d · random Rare · %s" % [
+				target.star_level, mini(target.star_level + 1, 3), slots] \
+				if eligible else _format_boss_reward_ineligible_note(target, reward_id, step)
+		"r8_7":
+			return "random Epic · %s" % slots \
+				if eligible else _format_boss_reward_ineligible_note(target, reward_id, step)
+		"r12_1":
+			if eligible:
+				return "★2 -> ★3" if step == 1 else "★1 -> ★2"
+			return "needs ★2" if step == 1 else "needs ★1"
+		"r12_7":
+			return "random Epic + Rare · %s" % slots \
+				if eligible else _format_boss_reward_ineligible_note(target, reward_id, step)
+	return ""
+
+
+func _format_boss_reward_ineligible_note(card: CardInstance, reward_id: String,
+		step: int) -> String:
+	if reward_id in ["r8_1"] and card.star_level >= 3:
+		return "MAX ★3"
+	var required_slots := 1
+	if reward_id == "r12_7":
+		required_slots = 2
+	var free_slots := BossReward.get_free_upgrade_slots(card)
+	if free_slots < required_slots:
+		return "needs %d free slot%s" % [required_slots, "" if required_slots == 1 else "s"]
+	if reward_id == "r12_1":
+		return "needs ★2" if step == 1 else "needs ★1"
+	return "not eligible"
 
 
 ## Boss reward attach 보상용 predicate — can_attach_upgrade 카드만 선택 가능.
@@ -1247,34 +1493,33 @@ func _on_boss_target_selected(field_idx: int) -> void:
 	if _pending_boss_reward["targets_remaining"] > 0:
 		# r12_1: 2장 선택 — 다시 오버레이
 		# call_deferred: 현재 시그널 핸들러의 end_selection()이 완료된 후 실행
+		var next_step: int = step + 1
 		build_phase.target_overlay.start_selection.call_deferred(
-			build_phase._field_visuals, game_state.board)
+			build_phase._field_visuals,
+			game_state.board,
+			Callable(self, "_can_target_boss_reward").bind(reward_id, next_step),
+			_get_boss_reward_target_context(reward_id, next_step))
 		return
 
 	# 타겟 선택 완료 — 시그널 정리
 	if build_phase.target_overlay.target_selected.is_connected(_on_boss_target_selected):
 		build_phase.target_overlay.target_selected.disconnect(_on_boss_target_selected)
+	if build_phase.target_overlay.target_cancelled.is_connected(_on_boss_target_cancelled):
+		build_phase.target_overlay.target_cancelled.disconnect(_on_boss_target_cancelled)
 	build_phase.visible = false
 
 	_finish_boss_reward(reward_id)
 
 
+func _on_boss_target_cancelled() -> void:
+	if _pending_boss_reward.is_empty():
+		return
+	var reward_id: String = _pending_boss_reward["reward_id"]
+	var step: int = _pending_boss_reward["needs_target"] - _pending_boss_reward["targets_remaining"] + 1
+	_start_boss_reward_target_selection.call_deferred(reward_id, step)
+
+
 func _finish_boss_reward(reward_id: String) -> void:
-	var data: Dictionary = BossRewardDB.get_data(reward_id)
-	var upgrade_choice: String = data.get("needs_upgrade_choice", "")
-
-	if upgrade_choice != "":
-		# 에픽/레어 업그레이드 선택 팝업
-		var rarity: int = Enums.UpgradeRarity.EPIC if upgrade_choice == "epic" \
-			else Enums.UpgradeRarity.RARE
-		upgrade_choice_popup.show_choices(rarity)
-		var chosen_id: String = await upgrade_choice_popup.upgrade_chosen
-		# 대상 카드에 부착 (마지막 타겟)
-		if not _pending_boss_reward.is_empty():
-			# apply_with_target에서 이미 랜덤 업글 부착됨 — UI 선택은 추후 확장
-			pass
-		_pending_boss_reward = {}
-
 	_pending_boss_reward = {}
 	_apply_boss_reward_modifiers()
 	if _logger:
@@ -1291,18 +1536,19 @@ func _on_restart() -> void:
 	get_tree().reload_current_scene()
 
 
-func _record_run_finished(victory: bool, final_round: int) -> void:
+func _record_run_finished(victory: bool, final_round: int) -> Array[String]:
 	if _run_result_recorded or _meta_progress == null:
-		return
+		return []
 	_run_result_recorded = true
 	_update_run_stats_snapshot()
 	var unlocks: Array[String] = _meta_progress.record_run_finished(
 		victory, final_round, _run_stats)
 	if not unlocks.is_empty():
 		print("[MetaProgress] Unlocks: %s" % ", ".join(unlocks))
-	var err: int = _meta_progress.save()
+	var err: int = _meta_progress.save(meta_progress_save_path)
 	if err != OK:
 		push_warning("[MetaProgress] save failed: %s" % err)
+	return unlocks
 
 
 func _exit_tree() -> void:
@@ -1312,7 +1558,7 @@ func _exit_tree() -> void:
 
 func _on_build_confirmed() -> void:
 	if current_phase == Phase.BUILD:
-		if _smith_start_upgrade_pending and _has_smith_start_upgrade_target():
+		if _smith_start_upgrade_pending and _has_free_upgrade_target():
 			var applied: bool = await _run_smith_start_upgrade_flow()
 			if not applied:
 				return
@@ -1321,7 +1567,14 @@ func _on_build_confirmed() -> void:
 		_enter_phase(Phase.CHAIN)
 
 
-func _has_smith_start_upgrade_target() -> bool:
+func _record_raider_win_and_check_upgrade() -> bool:
+	if game_state.commander_type != Enums.CommanderType.RAIDER:
+		return false
+	game_state.commander_state["win_count"] = game_state.commander_state.get("win_count", 0) + 1
+	return Commander.check_raider_upgrade(game_state)
+
+
+func _has_free_upgrade_target() -> bool:
 	for card in game_state.board:
 		if card != null and (card as CardInstance).can_attach_upgrade():
 			return true
@@ -1329,15 +1582,36 @@ func _has_smith_start_upgrade_target() -> bool:
 
 
 func _run_smith_start_upgrade_flow() -> bool:
+	var applied: bool = await _run_common_free_upgrade_flow(FREE_UPGRADE_SOURCE_SMITH_START)
+	if applied:
+		_smith_start_upgrade_pending = false
+		print("[Commander] 단조사 시작 보너스 적용")
+	return applied
+
+
+func _run_raider_win_streak_upgrade_flow() -> bool:
+	var applied: bool = await _run_common_free_upgrade_flow(FREE_UPGRADE_SOURCE_RAIDER_STREAK)
+	if applied:
+		print("[Commander] 약탈자 3승 보상 적용")
+	return applied
+
+
+func _run_common_free_upgrade_flow(source: String) -> bool:
+	if not _has_free_upgrade_target():
+		print("[Commander] 무료 업그레이드 대상 없음: %s" % source)
+		return false
+
 	upgrade_choice_popup.show_choices(Enums.UpgradeRarity.COMMON, 3)
 	var chosen_id: String = await upgrade_choice_popup.upgrade_chosen
 	if chosen_id == "":
 		return false
-	build_phase.start_free_upgrade_selection(chosen_id, "smith_start")
+	var was_build_visible := build_phase.visible
+	build_phase.visible = true
+	build_phase.start_free_upgrade_selection(chosen_id, source)
 	var applied: bool = await build_phase.free_upgrade_finished
+	build_phase.visible = was_build_visible
 	if applied:
-		_smith_start_upgrade_pending = false
-		print("[Commander] 단조사 시작 보너스 적용: %s" % chosen_id)
+		print("[Commander] 무료 업그레이드 적용: %s (%s)" % [chosen_id, source])
 	return applied
 
 
@@ -1380,6 +1654,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_SPACE:
 				if current_phase == Phase.BUILD:
 					_on_build_confirmed()
+				elif current_phase == Phase.CHAIN:
+					skip_chain_feedback()
 			KEY_H:
 				if current_phase == Phase.BUILD:
 					build_phase.begin_strategist_swap()

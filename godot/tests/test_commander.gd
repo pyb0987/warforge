@@ -71,12 +71,9 @@ func test_gambler_reroll_50_percent_free() -> void:
 	assert_lt(free_count, 140, "무료 리롤 140회 미만")
 
 
-func test_gambler_merge_refund() -> void:
-	## ★합성 시 합성에 사용된 카드의 구매 비용 합계의 50% 골드 환급
+func test_gambler_star1_to_star2_merge_has_no_refund() -> void:
 	_state.commander_type = Enums.CommanderType.GAMBLER
-	_state.gold = 50
 
-	# sp_assembly는 T1, cost=2. 3장 합성 → 비용 합 = 6 → 50% = 3
 	for i in 3:
 		var card := CardInstance.create("sp_assembly")
 		if i < 2:
@@ -88,10 +85,26 @@ func test_gambler_merge_refund() -> void:
 	assert_true(steps.size() > 0, "합성 성공")
 
 	var refund: int = _cmd.calc_merge_refund(_state, steps.back())
-	_state.gold += refund
+	assert_eq(refund, 0, "도박꾼 ★1→★2 합성은 골드 환급 없음")
 
-	# cost=2 × 3장 = 6, 50% = 3
-	assert_eq(refund, 3, "합성 환급 = 구매비용합 6 × 50% = 3")
+
+func test_gambler_star2_to_star3_merge_refund() -> void:
+	## ★3 합성 시 원본 ★1 9장분 구매 비용의 50% 골드 환급
+	_state.commander_type = Enums.CommanderType.GAMBLER
+
+	for i in 3:
+		var card := CardInstance.create("sp_assembly")
+		card.star_level = 2
+		if i < 2:
+			_state.bench[i] = card
+		else:
+			_state.board[0] = card
+
+	var steps := _state.try_merge("sp_assembly")
+	assert_true(steps.size() > 0, "합성 성공")
+
+	var refund: int = _cmd.calc_merge_refund(_state, steps.back())
+	assert_eq(refund, 9, "★3 합성 환급 = T1 비용 2 × 9장 × 50% = 9")
 
 
 # ================================================================

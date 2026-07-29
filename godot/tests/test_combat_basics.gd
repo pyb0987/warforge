@@ -15,6 +15,12 @@ const MechanicsScript = preload("res://combat/mechanics_handler.gd")
 var _engine: CombatEngine = null
 
 
+func after_each() -> void:
+	if _engine != null:
+		_engine.dispose()
+	_engine = null
+
+
 func _make_unit(atk: float, hp: float, mechs: Array = []) -> Dictionary:
 	return {
 		"atk": atk, "hp": hp,
@@ -131,6 +137,30 @@ func test_lifesteal_capped_at_max_hp() -> void:
 	_run_one_attack(ally, enemy)
 	# HP full이므로 회복해도 max_hp 초과 불가
 	assert_almost_eq(_engine.hp[0], 100.0, 0.01, "풀 HP에서 초과 회복 없음")
+
+
+# =============================================================
+# kill_hp_recover: 처치 시 max HP 비례 회복
+# =============================================================
+
+func test_kill_hp_recover_heals_attacker_on_kill() -> void:
+	var ally := _make_unit(100.0, 100.0, [{"type": "kill_hp_recover", "heal_hp_pct": 0.15}])
+	var enemy := _make_unit(5.0, 50.0)
+	_engine = CombatEngineScript.new()
+	_engine.setup([ally], [enemy])
+	_engine.hp[0] = 40.0
+	_engine._do_attack(0, 1)
+	assert_almost_eq(_engine.hp[0], 55.0, 0.01, "처치 시 최대 HP 15% 회복")
+
+
+func test_kill_hp_recover_capped_at_max_hp() -> void:
+	var ally := _make_unit(100.0, 100.0, [{"type": "kill_hp_recover", "heal_hp_pct": 0.15}])
+	var enemy := _make_unit(5.0, 50.0)
+	_engine = CombatEngineScript.new()
+	_engine.setup([ally], [enemy])
+	_engine.hp[0] = 95.0
+	_engine._do_attack(0, 1)
+	assert_almost_eq(_engine.hp[0], 100.0, 0.01, "처치 회복은 max HP 초과 불가")
 
 
 # =============================================================

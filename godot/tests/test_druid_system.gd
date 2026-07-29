@@ -15,6 +15,32 @@ func before_each() -> void:
 	_rng.seed = 42
 
 
+func test_druid_theme_system_handles_all_current_yaml_actions() -> void:
+	var handled := {
+		Enums.TriggerTiming.ROUND_START: [
+			"tree_add", "tree_absorb", "tree_enhance", "prune",
+			"tree_distribute", "multiply_stats", "epic_shop_unlock",
+		],
+		Enums.TriggerTiming.BATTLE_START: [
+			"tree_add", "tree_shield", "tree_combat_bonus", "debuff_store",
+		],
+		Enums.TriggerTiming.PERSISTENT: ["tree_temp_buff"],
+		Enums.TriggerTiming.POST_COMBAT: ["tree_gold", "free_reroll"],
+		Enums.TriggerTiming.ON_EVENT: ["listen", "mirror_spawn_to_tree"],
+	}
+
+	for card_id in CardDB.get_ids_by_theme(Enums.CardTheme.DRUID):
+		for star in [1, 2, 3]:
+			for block in CardDB.get_effect_blocks(card_id, star):
+				var timing: int = block.get("trigger_timing", -1)
+				var timing_actions: Array = handled.get(timing, [])
+				for eff in block.get("actions", []):
+					var action: String = eff.get("action", "")
+					assert_true(timing_actions.has(action),
+						"%s★%d timing %d action %s has Druid runtime coverage"
+							% [card_id, star, timing, action])
+
+
 # ================================================================
 # dr_cradle (RS): 🌳+1 self, +1 right druid
 # ================================================================
@@ -161,8 +187,8 @@ func test_lifebeat_battle_adds_base_shield_005() -> void:
 	var card: CardInstance = CardInstance.create("dr_lifebeat")
 	_sys.apply_battle_start(card, 0, [card])
 	# lifebeat._lifebeat_battle: _add_trees(card, 1) → trees=1, shield = 0.05 + 1*0.03 = 0.08
-	# units=2(<=3) → ×1.5 = 0.12
-	assert_almost_eq(card.shield_hp_pct, 0.12, 0.001, "trees=1, ≤3units → shield=0.12")
+	# units=2(<=2) → ×1.5 = 0.12
+	assert_almost_eq(card.shield_hp_pct, 0.12, 0.001, "trees=1, ≤2units → shield=0.12")
 
 
 func test_lifebeat_shield_increases_with_trees() -> void:
@@ -170,7 +196,7 @@ func test_lifebeat_shield_increases_with_trees() -> void:
 	card.theme_state["trees"] = 3
 	_sys.apply_battle_start(card, 0, [card])
 	# _add_trees → trees=4, shield = 0.05 + 4*0.03 = 0.17
-	# units=2(<=3) → ×1.5 = 0.255
+	# units=2(<=2) → ×1.5 = 0.255
 	assert_almost_eq(card.shield_hp_pct, 0.255, 0.001, "trees=4 → shield=0.255")
 
 
@@ -234,6 +260,12 @@ func test_grace_trees_bonus_gold() -> void:
 	var result: Dictionary = _sys.apply_post_combat(card, 0, [card], true)
 	# trees=6, ★1: gold = 1 + 6/3 = 3
 	assert_eq(result["gold"], 3, "trees=6 → 골드=3")
+
+
+func test_grace_s3_returns_free_reroll_signal() -> void:
+	var card := _make_star("dr_grace", 3)
+	var result: Dictionary = _sys.apply_post_combat(card, 0, [card], true)
+	assert_eq(result.get("free_rerolls", 0), 1, "★3 → free reroll signal")
 
 
 # ================================================================
@@ -319,18 +351,42 @@ func test_spore_cloud_sets_enemy_as_debuff() -> void:
 	assert_almost_eq(card.theme_state.get("enemy_as_debuff", 0.0), 0.225, 0.001, "AS 디버프=0.225")
 
 
+func test_spore_cloud_s2_sets_enemy_as_and_atk_debuff() -> void:
+	## ★2: enemy debuff = min(0.20 + trees*0.02, 0.50)
+	var card := _make_star("dr_spore_cloud", 2)
+	card.theme_state["trees"] = 5
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.theme_state.get("enemy_as_debuff", 0.0), 0.3, 0.001,
+		"★2 AS 디버프=0.30")
+	assert_almost_eq(card.theme_state.get("enemy_atk_debuff", 0.0), 0.3, 0.001,
+		"★2 ATK 디버프=0.30")
+
+
+func test_spore_cloud_s3_applies_debuffs_and_self_shield() -> void:
+	var card := _make_star("dr_spore_cloud", 3)
+	card.theme_state["trees"] = 5
+	_sys.apply_battle_start(card, 0, [card])
+	assert_almost_eq(card.theme_state.get("enemy_as_debuff", 0.0), 0.425, 0.001,
+		"★3 AS 디버프=0.425")
+	assert_almost_eq(card.theme_state.get("enemy_atk_debuff", 0.0), 0.4, 0.001,
+		"★3 ATK 디버프=0.4")
+	assert_almost_eq(card.shield_hp_pct, 0.2, 0.001,
+		"★3 shield=0.10+🌳5×0.02")
+
+
 # ================================================================
-# dr_wrath (PERSISTENT): 유닛 상한 ★1=5, ★2=6, ★3=7. 상한 이내일 때 ATK 버프.
+# dr_wrath (PERSISTENT): 유닛 상한 ★1=3, ★2=8, ★3=16. 상한 이내일 때 전투 버프.
 # ================================================================
 
 func test_wrath_persistent_buffs_when_few_units() -> void:
-	## ★1: ≤5기일 때 temp_buff(null, 0.80 + trees*0.05)
+	## ★1: ≤3기일 때 temp_buff(null, 0.80 + trees*0.05)
 	var card: CardInstance = CardInstance.create("dr_wrath")
 	card.theme_state["trees"] = 4
 	var atk_before: float = card.get_total_atk()
 	_sys.apply_persistent(card)
-	# 0.80 + 4*0.05 = 1.00 → temp_buff 100%
-	assert_gt(card.get_total_atk(), atk_before, "≤5기 → ATK 버프")
+	# 0.80 + 4*0.05 = 1.00 → base ATK +100%
+	assert_almost_eq(card.get_total_atk(), atk_before * 2.0, 0.01,
+		"≤3기 → ATK +100%")
 
 
 func _make_star(base_id: String, star: int) -> CardInstance:
@@ -349,19 +405,26 @@ func test_wrath_s2_higher_buff() -> void:
 	var card := _make_star("dr_wrath", 2)
 	card.theme_state["trees"] = 5
 	var atk_before: float = card.get_total_atk()
+	var hp_before: float = card.get_total_hp()
 	_sys.apply_persistent(card)
-	# 1.20 + 5*0.08 = 1.60 → temp_buff 160%
-	assert_gt(card.get_total_atk(), atk_before, "★2 → 더 높은 ATK 버프")
+	# 1.20 + 5*0.08 = 1.60 → base ATK +160%
+	assert_almost_eq(card.get_total_atk(), atk_before * 2.6, 0.01,
+		"★2 → ATK +160%")
+	assert_almost_eq(card.get_total_hp(), hp_before * 1.6, 0.01,
+		"★2 → HP +60%")
 
 
 func test_wrath_s3_uses_mult_buff() -> void:
-	## ★3: temp_mult_buff(1.5) — 곱연산
+	## ★3: temp_mult_buff(1.5, 1.3) + kill HP recovery — 곱연산
 	var card := _make_star("dr_wrath", 3)
 	card.theme_state["trees"] = 0
 	var atk_before: float = card.get_total_atk()
+	var hp_before: float = card.get_total_hp()
 	_sys.apply_persistent(card)
-	# ★3 ATK ×1.5
 	assert_gt(card.get_total_atk(), atk_before, "★3 → ATK ×1.5")
+	assert_gt(card.get_total_hp(), hp_before, "★3 → HP ×1.3")
+	assert_almost_eq(card.theme_state.get("kill_hp_recover_pct", 0.0), 0.15, 0.001,
+		"★3 → kill HP recovery 15%")
 
 
 func test_wrath_s3_skips_if_over_unit_cap() -> void:
@@ -369,9 +432,14 @@ func test_wrath_s3_skips_if_over_unit_cap() -> void:
 	## ★3 cap=16 → 17기이면 미적용. 기존 3기 + 14기 = 17기.
 	var card := _make_star("dr_wrath", 3)
 	card.add_specific_unit("dr_boar", 14)
+	card.theme_state["kill_hp_recover_pct"] = 0.15
 	var atk_before: float = card.get_total_atk()
+	var hp_before: float = card.get_total_hp()
 	_sys.apply_persistent(card)
 	assert_eq(card.get_total_atk(), atk_before, "17기 → 미적용 (cap 16)")
+	assert_eq(card.get_total_hp(), hp_before, "17기 → HP도 미적용 (cap 16)")
+	assert_almost_eq(card.theme_state.get("kill_hp_recover_pct", 0.0), 0.0, 0.001,
+		"17기 → kill HP recovery도 미적용")
 
 
 # ================================================================

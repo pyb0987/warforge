@@ -28,6 +28,7 @@ const _BUILD_PATHS := {
 				"capstone": ["sp_warmachine"],
 			},
 			"shared_cards": ["sp_interest", "sp_barrier"],
+			"anti_penalty": 36.0,
 		},
 		{
 			"id": "steampunk_focus",
@@ -40,11 +41,13 @@ const _BUILD_PATHS := {
 				"capstone": ["sp_arsenal"],
 			},
 			"shared_cards": ["sp_interest", "sp_barrier"],
+			"anti_penalty": 36.0,
 		},
 	],
 	"soft_druid": [
 		{
 			"id": "druid_world_tree",
+			"requires_branch_card": true,
 			"branch_cards": ["dr_deep", "dr_wt_root"],
 			"anti_cards": ["dr_origin", "dr_prune"],
 			"phases": {
@@ -57,6 +60,7 @@ const _BUILD_PATHS := {
 		},
 		{
 			"id": "druid_garden",
+			"requires_branch_card": true,
 			"branch_cards": ["dr_origin", "dr_prune"],
 			"anti_cards": ["dr_deep", "dr_wt_root"],
 			"phases": {
@@ -159,12 +163,141 @@ func detect_build_path(strategy: String, board_ids: Dictionary) -> Dictionary:
 	var best_score := 0.0
 
 	for path in paths:
+		if path.get("requires_branch_card", false) and not _has_any_branch_card(path, board_ids):
+			continue
 		var score := _score_path_match(path, board_ids)
 		if score > best_score:
 			best_score = score
 			best_path = path
 
 	return best_path
+
+
+func get_path_progress(strategy: String, board_ids: Dictionary, round_num: int) -> Array:
+	var rows: Array = []
+	if not _BUILD_PATHS.has(strategy):
+		return rows
+
+	var phase := get_phase(round_num)
+	var current_key: String = _PHASE_KEYS[phase]
+	for path in _BUILD_PATHS[strategy]:
+		var phases: Dictionary = path["phases"]
+		rows.append({
+			"id": path["id"],
+			"branch_owned": _count_owned(path.get("branch_cards", []), board_ids),
+			"branch_total": path.get("branch_cards", []).size(),
+			"foundation_owned": _count_owned(phases.get("foundation", []), board_ids),
+			"foundation_total": phases.get("foundation", []).size(),
+			"engine_owned": _count_owned(phases.get("engine", []), board_ids),
+			"engine_total": phases.get("engine", []).size(),
+			"payoff_owned": _count_owned(phases.get("payoff", []), board_ids),
+			"payoff_total": phases.get("payoff", []).size(),
+			"capstone_owned": _count_owned(phases.get("capstone", []), board_ids),
+			"capstone_total": phases.get("capstone", []).size(),
+			"current_phase": current_key,
+			"current_owned": _count_owned(phases.get(current_key, []), board_ids),
+			"current_total": phases.get(current_key, []).size(),
+		})
+	return rows
+
+
+func get_representative_progress(strategy: String,
+		board_ids: Dictionary, round_num: int) -> Dictionary:
+	var rows: Array = get_path_progress(strategy, board_ids, round_num)
+	if rows.is_empty():
+		return {}
+
+	var detected_path: Dictionary = detect_build_path(strategy, board_ids)
+	var detected_id: String = detected_path.get("id", "") if not detected_path.is_empty() else ""
+	if detected_id != "":
+		for row in rows:
+			if row.get("id", "") == detected_id:
+				return row
+
+	var best_row: Dictionary = rows[0]
+	var best_score := _score_progress_row(best_row)
+	for i in range(1, rows.size()):
+		var row: Dictionary = rows[i]
+		var score := _score_progress_row(row)
+		if score > best_score:
+			best_score = score
+			best_row = row
+	return best_row
+
+
+func get_current_phase_lag(strategy: String,
+		board_ids: Dictionary, round_num: int) -> float:
+	var row: Dictionary = get_representative_progress(strategy, board_ids, round_num)
+	if row.is_empty():
+		return 0.0
+	var total: int = row.get("current_total", 0)
+	if total <= 0:
+		return 0.0
+	var owned: int = row.get("current_owned", 0)
+	return 1.0 - clampf(float(owned) / float(total), 0.0, 1.0)
+
+
+func get_phase_card_focus(strategy: String,
+		board_ids: Dictionary, round_num: int) -> Dictionary:
+	var row: Dictionary = get_representative_progress(strategy, board_ids, round_num)
+	if row.is_empty():
+		return {}
+	var path: Dictionary = _find_path_by_id(strategy, row.get("id", ""))
+	if path.is_empty():
+		return {}
+
+	var phase_idx: int = get_phase(round_num)
+	var current_key: String = _PHASE_KEYS[phase_idx]
+	var next_key: String = _PHASE_KEYS[mini(phase_idx + 1, _PHASE_KEYS.size() - 1)]
+	var phases: Dictionary = path["phases"]
+	var current_cards: Array = phases.get(current_key, [])
+	var next_cards: Array = phases.get(next_key, [])
+	var focus_cards: Array = current_cards.duplicate()
+	for cid in next_cards:
+		if cid not in focus_cards:
+			focus_cards.append(cid)
+
+	return {
+		"path_id": path.get("id", ""),
+		"current_phase": current_key,
+		"current": current_cards,
+		"next": next_cards,
+		"focus": focus_cards,
+	}
+
+
+func _score_progress_row(row: Dictionary) -> float:
+	return (
+		float(row.get("branch_owned", 0)) * 4.0 +
+		float(row.get("foundation_owned", 0)) * 3.0 +
+		float(row.get("engine_owned", 0)) * 3.0 +
+		float(row.get("payoff_owned", 0)) * 2.0 +
+		float(row.get("capstone_owned", 0)) * 2.0
+	)
+
+
+func _find_path_by_id(strategy: String, path_id: String) -> Dictionary:
+	if not _BUILD_PATHS.has(strategy):
+		return {}
+	for path in _BUILD_PATHS[strategy]:
+		if path.get("id", "") == path_id:
+			return path
+	return {}
+
+
+func _has_any_branch_card(path: Dictionary, board_ids: Dictionary) -> bool:
+	for cid in path["branch_cards"]:
+		if cid in board_ids:
+			return true
+	return false
+
+
+func _count_owned(card_ids: Array, board_ids: Dictionary) -> int:
+	var count := 0
+	for cid in card_ids:
+		if cid in board_ids:
+			count += 1
+	return count
 
 
 func _score_path_match(path: Dictionary, board_ids: Dictionary) -> float:
@@ -192,6 +325,52 @@ func _score_path_match(path: Dictionary, board_ids: Dictionary) -> float:
 # Score modifiers
 # ================================================================
 
+## Strategy-level purchase modifier.
+## If a build path is already detected, use its normal path-scoped modifier.
+## If no path is detected yet, apply only positive seed pressure from all
+## candidate paths so soft themes can find foundation/branch cards without
+## prematurely penalizing the other branch.
+func score_strategy_card_modifier(card_id: String, strategy: String,
+		board_ids: Dictionary, round_num: int) -> float:
+	var path: Dictionary = detect_build_path(strategy, board_ids)
+	if not path.is_empty():
+		return score_card_modifier(card_id, path, board_ids, round_num)
+	if not _BUILD_PATHS.has(strategy):
+		return 0.0
+
+	var best_mod := 0.0
+	for candidate in _BUILD_PATHS[strategy]:
+		best_mod = maxf(best_mod,
+			_seed_score_card_modifier(card_id, candidate, board_ids, round_num))
+	return best_mod
+
+
+func _seed_score_card_modifier(card_id: String, path: Dictionary,
+		board_ids: Dictionary, round_num: int) -> float:
+	if card_id in board_ids:
+		return 0.0
+
+	var mod := 0.0
+	var phase := get_phase(round_num)
+	var phases: Dictionary = path["phases"]
+	var cur_key: String = _PHASE_KEYS[phase]
+	var cur_cards: Array = phases.get(cur_key, [])
+
+	if card_id in path.get("branch_cards", []):
+		mod += 8.0
+	if card_id in cur_cards:
+		mod += 16.0
+	if phase < CAPSTONE:
+		var next_key: String = _PHASE_KEYS[phase + 1]
+		var next_cards: Array = phases.get(next_key, [])
+		if card_id in next_cards:
+			mod += 8.0
+	if card_id in path.get("shared_cards", []):
+		mod += 3.0
+
+	return mod
+
+
 ## Additive modifier for card purchase scoring.
 func score_card_modifier(card_id: String, path: Dictionary,
 		board_ids: Dictionary, round_num: int) -> float:
@@ -201,12 +380,14 @@ func score_card_modifier(card_id: String, path: Dictionary,
 
 	# Anti card penalty — path의 strict_anti 플래그에 따라 강도 조정.
 	# 군대는 elite/mass가 TR/CO 이벤트 체인이 달라 진짜 배타적 → strict veto(-50).
-	# 타 테마(druid/steampunk)는 분기가 부드러운 선호이지 배타 아님 → 약한 페널티(-12).
+	# 타 테마는 분기가 부드러운 선호이지 배타 아님 → 기본 약한 페널티(-12).
+	# 스팀펑크는 T1 분기 후 양쪽 core를 섞으면 설계상 공유/방어/경제 슬롯을
+	# 밀어내므로 path별 anti_penalty로 더 강한 branch-lock을 적용한다.
 	# 트레이스 증거(2026-04-18): -50 군대만 적용 시 military WR 35→50%,
 	# 타 테마 영향 최소화.
 	if card_id in path["anti_cards"]:
 		var strict: bool = path.get("strict_anti", false)
-		mod -= 50.0 if strict else 12.0
+		mod -= 50.0 if strict else float(path.get("anti_penalty", 12.0))
 		return mod
 
 	# Shared card bonus

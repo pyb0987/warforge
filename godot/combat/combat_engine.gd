@@ -84,6 +84,24 @@ func _init() -> void:
 func set_seed(s: int) -> void:
 	_rng.seed = s
 
+
+func dispose() -> void:
+	_running = false
+	if _mech != null and _mech.has_method("dispose"):
+		_mech.dispose()
+	_mech = null
+	_grid = null
+	_flow_ally = null
+	_flow_enemy = null
+	_mech_cache.clear()
+	mechanics.clear()
+	_fission_slots.clear()
+	_damage_queue.clear()
+	_alive_list.clear()
+	_interleaved_order.clear()
+	_rng = null
+
+
 # --- Mechanic pre-computed cache ---
 var _mech_cache: Array = []  # Array of Dictionary per unit: {type_str: mechanic_dict}
 var _has_any_slow_aura: bool = false

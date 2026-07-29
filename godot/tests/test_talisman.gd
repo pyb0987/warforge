@@ -99,6 +99,7 @@ func test_war_drum_reduction_reaches_combat_damage() -> void:
 
 	assert_almost_eq(engine.hp[0], 10.0, 0.01,
 		"전쟁 북 수적 우위 → 적 100 ATK가 90 피해로 적용")
+	engine.dispose()
 
 
 # ================================================================
@@ -234,6 +235,7 @@ func test_cracked_skull_undying_survives_lethal_once_in_combat() -> void:
 	engine._do_attack(1, 0)
 
 	assert_eq(int(engine.alive[0]), 0, "두 번째 치사 피해는 정상 사망")
+	engine.dispose()
 
 
 func test_cracked_skull_setup_marks_allies_only() -> void:
@@ -251,6 +253,7 @@ func test_cracked_skull_setup_marks_allies_only() -> void:
 	assert_eq(int(engine.undying[0]), 1, "아군 0 undying 부여")
 	assert_eq(int(engine.undying[1]), 1, "아군 1 undying 부여")
 	assert_eq(int(engine.undying[2]), 0, "적군은 undying 미부여")
+	engine.dispose()
 
 
 # ================================================================

@@ -42,13 +42,19 @@ func test_progress_screen_shows_recent_unlocks_and_hides_seen_tutorial() -> void
 	progress.mark_tutorial_seen()
 	progress.last_unlocks.append("커맨더: 단조사")
 	progress.last_unlocks.append("부적: 영혼 항아리")
+	progress.last_unlocks.append("부적: 전쟁 북")
+	progress.last_unlocks.append("부적: 녹슨 렌치")
 
 	_screen.show_progress(progress)
 
 	assert_false(_screen.get_node("VBox/GuideLabel").visible)
 	assert_true(_screen.get_node("VBox/RecentUnlocksLabel").visible)
-	assert_string_contains(_screen.get_node("VBox/RecentUnlocksLabel").text, "단조사")
-	assert_string_contains(_screen.get_node("VBox/RecentUnlocksLabel").text, "영혼 항아리")
+	var recent_text: String = _screen.get_node("VBox/RecentUnlocksLabel").text
+	assert_string_contains(recent_text, "단조사")
+	assert_string_contains(recent_text, "영혼 항아리")
+	assert_string_contains(recent_text, "전쟁 북")
+	assert_false(recent_text.contains("- 부적: 녹슨 렌치"))
+	assert_string_contains(recent_text, "+1 more unlocked - all available in PROGRESS")
 
 
 func test_progress_details_toggle_shows_unlock_statuses() -> void:
@@ -67,7 +73,7 @@ func test_progress_details_toggle_shows_unlock_statuses() -> void:
 	assert_string_contains(details, "단조사: 잠김")
 	assert_string_contains(details, "수은 방울: 해금")
 	assert_string_contains(details, "완료 업적")
-	assert_string_contains(details, "성장 효과 50회")
+	assert_string_contains(details, "성장 효과 120회")
 
 	_screen.get_node("VBox/ProgressDetailsButton").pressed.emit()
 	assert_false(_screen.get_node("VBox/ProgressDetailsScroll").visible)

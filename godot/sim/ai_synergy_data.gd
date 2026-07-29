@@ -55,7 +55,7 @@ const THEME_SYNERGY := {
 # Critical path cards per theme — essential infrastructure
 const THEME_CRITICAL := {
 	Enums.CardTheme.STEAMPUNK: ["sp_assembly", "sp_furnace", "sp_workshop", "sp_circulator", "sp_charger"],
-	Enums.CardTheme.DRUID: ["dr_cradle", "dr_origin", "dr_deep", "dr_wt_root"],
+	Enums.CardTheme.DRUID: ["dr_cradle", "dr_lifebeat", "dr_origin", "dr_prune", "dr_deep", "dr_wt_root"],
 	Enums.CardTheme.PREDATOR: ["pr_nest", "pr_farm", "pr_queen", "pr_molt"],
 	Enums.CardTheme.MILITARY: ["ml_barracks", "ml_outpost", "ml_academy", "ml_conscript"],
 }
@@ -102,8 +102,8 @@ const STRATEGY_CONFIG := {
 		"max_rerolls_base": 3,
 		"max_rerolls_late": 5,
 		"gold_reserve": 1,
-		"core_cards": ["dr_world", "dr_wt_root", "dr_deep"],
-		"capstone_cards": ["dr_world", "dr_wrath", "dr_grace"],
+		"core_cards": ["dr_grace", "dr_spore_cloud", "dr_wrath"],
+		"capstone_cards": ["dr_wrath", "dr_world"],
 	},
 	"soft_predator": {
 		"levelup_schedule": {3: 2, 5: 3, 7: 4, 9: 5},

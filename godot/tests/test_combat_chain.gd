@@ -131,6 +131,7 @@ func test_combat_engine_emits_unit_attacked() -> void:
 			break
 
 	assert_gt(attacks[0], 0, "unit_attacked 시그널 1회 이상 발생")
+	engine.dispose()
 
 
 # ================================================================

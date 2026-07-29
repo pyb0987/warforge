@@ -303,7 +303,7 @@ def desc_absorb(p: dict) -> str:
 
 def desc_absorb_steampunk(p: dict) -> str:
     ratio = fmt_pct(p.get("growth_ratio", 0.5))
-    text = f"판매된 스팀펑크 카드의 모든 유닛 흡수 + 성장률 {ratio}% 이식"
+    text = f"판매된 스팀펑크 카드의 모든 유닛 흡수 + 누적 개량 {ratio}% 이식"
     if p.get("transfer_upgrades"):
         text += " + 업그레이드 이전"
     return text
@@ -311,7 +311,7 @@ def desc_absorb_steampunk(p: dict) -> str:
 
 def desc_growth_multiply(p: dict) -> str:
     pct = fmt_pct(p.get("pct", 0.2))
-    return f"이 카드의 성장률 +{pct}% 개량(복리)"
+    return f"이 카드의 누적 개량 효과 +{pct}% 증폭(복리)"
 
 # ═══════════════════════════════════════════════════════════════════
 # Druid effect descriptors

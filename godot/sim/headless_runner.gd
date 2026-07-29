@@ -8,11 +8,18 @@ var _genome: Genome
 var _strategy: String
 var _seed: int
 var _difficulty: int = 1
+var _commander_type: int = Enums.CommanderType.NONE
+var _talisman_type: int = Enums.TalismanType.NONE
 var _tracer: RefCounted = null  # AITracer (optional)
 
 
 func set_tracer(tracer: RefCounted) -> void:
 	_tracer = tracer
+
+
+func set_run_identity(commander_type: int, talisman_type: int) -> void:
+	_commander_type = commander_type
+	_talisman_type = talisman_type
 
 ## Collected metrics
 var _round_data: Array = []       # Array[Dictionary] per round
@@ -48,8 +55,8 @@ func run() -> Dictionary:
 	state.terazin = _genome.get_starting_terazin()
 	state.hp = Difficulty.get_player_hp(state.hp, _difficulty)
 	state.round_num = 1
-	state.commander_type = Enums.CommanderType.NONE
-	state.talisman_type = Enums.TalismanType.NONE
+	state.commander_type = _commander_type
+	state.talisman_type = _talisman_type
 	# Override levelup cost + interest params from genome
 	state.levelup_current_cost = _genome.get_levelup_cost(2)
 	state.max_interest = int(_genome.economy.get("max_interest", Enums.MAX_INTEREST))
@@ -59,6 +66,11 @@ func run() -> Dictionary:
 	state.card_pool.init_pool(_genome.pool_sizes if _genome else {})
 	Talisman.init_run_state(state)
 
+	var field_bonus: int = Commander.get_field_size_bonus(state)
+	if field_bonus > 0:
+		state.field_slots = mini(state.field_slots + field_bonus, Enums.MAX_FIELD_SLOTS)
+	Commander.apply_start_bonus(state, rng)
+
 	var chain_engine := ChainEngine.new()
 	chain_engine.set_seed(_seed)
 	chain_engine.adjacency_range = Commander.get_adjacency_range(state)
@@ -66,14 +78,17 @@ func run() -> Dictionary:
 	chain_engine.propagate_bonus_spawn()
 	chain_engine.propagate_card_effects(_genome.card_effects)
 	chain_engine.enhance_multiplier = Talisman.get_enhance_multiplier(state)
+	chain_engine.flint_callback = Callable(Talisman, "consume_flint_bonus").bind(state)
+	chain_engine.cracked_egg_callback = Callable(Talisman, "get_extra_spawn").bind(state)
 	_connect_sim_pending_free_rerolls(state, chain_engine)
 
 	# Connect chain events for cross-activation tracking
-	chain_engine.chain_event_fired.connect(_on_chain_event)
+	var chain_event_handler := Callable(self, "_on_chain_event")
+	chain_engine.chain_event_fired.connect(chain_event_handler)
 
 	# ON_SELL triggers (e.g., sp_arsenal absorb, ne_hoarder tenure_gold,
 	# ne_masquerade transform_theme)
-	state.card_sold.connect(func(sold_card: CardInstance):
+	var card_sold_handler := func(sold_card: CardInstance):
 		var sell_result: Dictionary = chain_engine.process_sell_triggers(
 				state.get_active_board(), sold_card)
 		var gold_delta: int = sell_result.get("gold", 0)
@@ -97,7 +112,7 @@ func run() -> Dictionary:
 		var awakening: Dictionary = sell_result.get("awakening_transfer", {})
 		if not awakening.is_empty():
 			_sim_apply_awakening_transfer(awakening, rng)
-	)
+	state.card_sold.connect(card_sold_handler)
 
 	var shop := ShopLogic.new()
 	shop.setup(state, rng, _genome)
@@ -231,6 +246,8 @@ func run() -> Dictionary:
 
 		# Generate enemies using genome parameters
 		var enemy_data: Array = _generate_enemies(round_num, rng)
+		var enemy_debuffs: Dictionary = chain_engine.apply_enemy_battle_debuffs(
+			active_board, enemy_data)
 
 		# War drum
 		var drum_reduction: float = Talisman.calc_war_drum_reduction(
@@ -257,12 +274,16 @@ func run() -> Dictionary:
 			engine.board_revive_pool = BossReward.get_revive_pool_size(state)
 			while engine.tick():
 				pass
+			var ally_survived := _count_alive(engine, 1)
+			var enemy_survived := _count_alive(engine, 0)
+			var ticks := engine.get_tick()
 			combat_result = {
-				"player_won": engine.team.size() > 0 and _count_alive(engine, 1) > 0 and _count_alive(engine, 0) == 0,
-				"ally_survived": _count_alive(engine, 1),
-				"enemy_survived": _count_alive(engine, 0),
-				"ticks": engine.get_tick(),
+				"player_won": engine.team.size() > 0 and ally_survived > 0 and enemy_survived == 0,
+				"ally_survived": ally_survived,
+				"enemy_survived": enemy_survived,
+				"ticks": ticks,
 			}
+			engine.dispose()
 
 		# Clear temp buffs
 		for card in active_board:
@@ -276,7 +297,8 @@ func run() -> Dictionary:
 			_tracer.emit({"t": "battle", "round": round_num, "won": won,
 				"hp_after": state.hp,
 				"ally_survived": combat_result["ally_survived"],
-				"enemy_survived": combat_result["enemy_survived"]})
+				"enemy_survived": combat_result["enemy_survived"],
+				"enemy_debuffs": enemy_debuffs})
 		var pc_result := chain_engine.process_post_combat(active_board, won)
 		state.gold += pc_result["gold"]
 		state.terazin += pc_result["terazin"]
@@ -364,12 +386,19 @@ func run() -> Dictionary:
 			"position": state.board.find(card),
 		})
 
-	return {
+	if state.card_sold.is_connected(card_sold_handler):
+		state.card_sold.disconnect(card_sold_handler)
+	if chain_engine.chain_event_fired.is_connected(chain_event_handler):
+		chain_engine.chain_event_fired.disconnect(chain_event_handler)
+
+	var result := {
 		"rounds_played": rounds_played,
 		"won": state.hp > 0,
 		"final_hp": state.hp,
 		"strategy": _strategy,
 		"difficulty": _difficulty,
+		"commander_type": _commander_type,
+		"talisman_type": _talisman_type,
 		"round_data": _round_data,
 		"final_deck": final_deck,
 		"purchase_log": _purchase_log,
@@ -378,6 +407,18 @@ func run() -> Dictionary:
 		"boss_rewards_applied": _boss_rewards_applied,
 		"upgrades_purchased": _upgrades_purchased,
 	}
+	if _tracer != null and _tracer.enabled:
+		_tracer.emit({
+			"t": "run_end",
+			"strategy": _strategy,
+			"difficulty": _difficulty,
+			"commander_type": _commander_type,
+			"talisman_type": _talisman_type,
+			"won": result["won"],
+			"rounds_played": rounds_played,
+			"final_hp": state.hp,
+		})
+	return result
 
 
 ## Apply boss reward after defeating a boss.
@@ -402,13 +443,6 @@ func _apply_boss_reward(boss_round: int, state: GameState,
 		var target: CardInstance = decision.target_card
 		if target:
 			BossReward.apply_with_target(reward_id, state, target, rng)
-			# Handle upgrade choice for r8_1, r12_7
-			var upgrade_choice: String = data.get("needs_upgrade_choice", "")
-			if upgrade_choice == "epic" and target.can_attach_upgrade():
-				var uc: Dictionary = ai_reward.choose_upgrade(
-					Enums.UpgradeRarity.EPIC, state, _strategy)
-				if uc.upgrade_id != "":
-					target.attach_upgrade(uc.upgrade_id)
 		else:
 			BossReward.apply_no_target(reward_id, state, rng)
 	elif needs_target == 2:
@@ -449,6 +483,10 @@ func _materialize_army(state: GameState) -> Array:
 	for card in state.get_active_board():
 		var c: CardInstance = card as CardInstance
 		var card_mechanics := c.get_all_mechanics()
+		var kill_recover_pct: float = c.theme_state.get("kill_hp_recover_pct", 0.0)
+		if kill_recover_pct > 0.0:
+			card_mechanics = card_mechanics.duplicate()
+			card_mechanics.append({"type": "kill_hp_recover", "heal_hp_pct": kill_recover_pct})
 		# 증기 이자기 ★2/★3: 리롤 횟수 × ATK 버프 (최대 5회분)
 		var reroll_buff_mult := 1.0
 		if c.get_base_id() == "sp_interest" and c.star_level >= 2:

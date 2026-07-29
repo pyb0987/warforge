@@ -11,6 +11,12 @@ const CombatEngineScript = preload("res://combat/combat_engine.gd")
 var _engine: CombatEngine = null
 
 
+func after_each() -> void:
+	if _engine != null:
+		_engine.dispose()
+	_engine = null
+
+
 func _make_unit(atk: float, hp: float, mechs: Array = [], def: int = 0) -> Dictionary:
 	return {
 		"atk": atk, "hp": hp,

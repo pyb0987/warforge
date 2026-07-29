@@ -70,6 +70,53 @@ func test_generate_unit_has_required_keys() -> void:
 	assert_true(u.has("move_speed"), "move_speed 키")
 
 
+func test_pressure_profile_is_non_exact_and_has_ranges() -> void:
+	var profile: Dictionary = EnemyDBScript.pressure_profile(1)
+
+	assert_false(bool(profile.get("exact", true)), "preview is non-exact")
+	assert_eq(int(profile.get("round", 0)), 1, "round recorded")
+	assert_eq(int(profile.get("preset_count", 0)), EnemyDBScript.PRESET_NAMES.size(),
+		"all enemy presets represented")
+	assert_gt(int(profile.get("enemy_count_min", 0)), 0, "count min present")
+	assert_gte(
+		int(profile.get("enemy_count_max", 0)),
+		int(profile.get("enemy_count_min", 0)),
+		"count range ordered")
+	assert_gt(float(profile.get("total_atk_min", 0.0)), 0.0, "ATK min present")
+	assert_gt(float(profile.get("total_hp_min", 0.0)), 0.0, "HP min present")
+
+
+func test_pressure_profile_does_not_consume_rng_state() -> void:
+	_rng.seed = 42
+	var before_state := _rng.state
+
+	var profile: Dictionary = EnemyDBScript.pressure_profile(1)
+
+	assert_false(profile.is_empty(), "profile generated")
+	assert_eq(_rng.state, before_state, "preview does not touch battle RNG")
+
+
+func test_pressure_profile_bounds_generated_r1_army() -> void:
+	var profile: Dictionary = EnemyDBScript.pressure_profile(1, null, 1)
+	_rng.seed = 42
+	var units: Array = EnemyDBScript.generate(1, _rng, null, 1)
+	var total_atk := _sum_stat(units, "atk")
+	var total_hp := _sum_stat(units, "hp")
+
+	assert_gte(units.size(), int(profile.get("enemy_count_min", 0)),
+		"rolled army count is within pressure profile min")
+	assert_lte(units.size(), int(profile.get("enemy_count_max", 0)),
+		"rolled army count is within pressure profile max")
+	assert_gte(total_atk + 0.001, float(profile.get("total_atk_min", 0.0)),
+		"rolled army ATK is within pressure profile min")
+	assert_lte(total_atk - 0.001, float(profile.get("total_atk_max", 0.0)),
+		"rolled army ATK is within pressure profile max")
+	assert_gte(total_hp + 0.001, float(profile.get("total_hp_min", 0.0)),
+		"rolled army HP is within pressure profile min")
+	assert_lte(total_hp - 0.001, float(profile.get("total_hp_max", 0.0)),
+		"rolled army HP is within pressure profile max")
+
+
 func test_generate_units_grow_with_rounds() -> void:
 	var r1: Array = EnemyDBScript.generate(1, _rng)
 	_rng.seed = 42
@@ -191,3 +238,10 @@ func _avg_stat(units: Array, key: String) -> float:
 	for unit in units:
 		total += float(unit.get(key, 0.0))
 	return total / units.size()
+
+
+func _sum_stat(units: Array, key: String) -> float:
+	var total := 0.0
+	for unit in units:
+		total += float(unit.get(key, 0.0))
+	return total

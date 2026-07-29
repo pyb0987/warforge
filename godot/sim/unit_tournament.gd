@@ -72,11 +72,13 @@ func _run() -> void:
 
 				var alive1 := _count_alive(engine, 1)
 				var alive2 := _count_alive(engine, 0)
+				var ticks := engine.get_tick()
+				engine.dispose()
 				if alive1 > 0 and alive2 == 0:
 					wins1 += 1
 				elif alive1 == 0 and alive2 == 0:
 					ties += 1
-				ticks_sum += engine.get_tick()
+				ticks_sum += ticks
 
 			matrix[u1][u2] = {
 				"wr": float(wins1) / runs,

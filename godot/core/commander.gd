@@ -51,7 +51,7 @@ func _init() -> void:
 		CT.GAMBLER: {
 			"name": "도박꾼",
 			"icon": "🎲",
-			"desc": "리롤 50% 무료. ★합성 시 구매비용 50% 환급.",
+			"desc": "리롤 50% 무료. ★3 합성 시 구매비용 50% 환급.",
 		},
 		CT.BREEDER: {
 			"name": "양성가",
@@ -157,16 +157,23 @@ func is_reroll_free(state: GameState, rng: RandomNumberGenerator) -> bool:
 	return rng.randf() < GAMBLER_REROLL_FREE_CHANCE
 
 
-## ★합성 환급 골드 계산. merge_result는 GameState.try_merge() 반환값.
+## ★3 합성 환급 골드 계산. merge_result는 GameState.try_merge() 반환값.
 func calc_merge_refund(state: GameState, merge_result: Dictionary) -> int:
 	if state.commander_type != CT.GAMBLER:
 		return 0
 	if merge_result.is_empty():
 		return 0
 	var card: CardInstance = merge_result["card"]
+	var old_star := int(merge_result.get("old_star", 0))
+	var new_star := int(merge_result.get("new_star", card.star_level))
+	if old_star != 2 or new_star != 3:
+		return 0
 	var cost: int = card.template.get("cost", 0)
-	# 합성에 사용된 3장의 구매 비용 합 (동일 카드이므로 cost × 3)
-	var total_cost := cost * 3
+	var copies_per_merged_card := 1
+	for _i in range(maxi(old_star - 1, 0)):
+		copies_per_merged_card *= 3
+	# ★2 3장을 ★3으로 합성하므로 원본 ★1 9장분 투자액의 50%를 환급.
+	var total_cost := cost * copies_per_merged_card * 3
 	return int(total_cost * GAMBLER_MERGE_REFUND_RATE)
 
 

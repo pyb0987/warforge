@@ -28,6 +28,34 @@ func test_show_choices_can_filter_unlocked_commanders() -> void:
 		"해금된 커맨더만 표시")
 
 
+func test_context_text_explains_commander_role() -> void:
+	_popup.show_choices([Enums.CommanderType.GAMBLER, Enums.CommanderType.BREEDER])
+
+	assert_string_contains(_popup.get_context_text(), "커맨더")
+	assert_string_contains(_popup.get_context_text(), "런 전체")
+	var rect: Dictionary = _popup.get_context_rect()
+	assert_gt(float(rect.get("w", 0.0)), 0.0)
+	assert_gt(float(rect.get("h", 0.0)), 0.0)
+	assert_true(bool(rect.get("visible", false)))
+
+
+func test_choice_summaries_report_rendered_commander_cards() -> void:
+	_popup.show_choices([Enums.CommanderType.GAMBLER, Enums.CommanderType.BREEDER])
+
+	var summaries: Array = _popup.get_choice_summaries()
+	assert_eq(summaries.size(), 2)
+	assert_eq(summaries[0]["id"], str(Enums.CommanderType.GAMBLER))
+	assert_eq(summaries[0]["idx"], 0)
+	assert_string_contains(str(summaries[0]["name"]), "도박꾼")
+	assert_string_contains(str(summaries[0]["desc"]), "리롤")
+	assert_string_contains(str(summaries[0]["text"]), "도박꾼")
+	assert_string_contains(str(summaries[0]["text"]), "리롤")
+	var rect: Dictionary = summaries[0].get("rect", {})
+	assert_gt(float(rect.get("w", 0.0)), 0.0)
+	assert_gt(float(rect.get("h", 0.0)), 0.0)
+	assert_true(bool(rect.get("visible", false)))
+
+
 func test_select_commander_emits_type_and_closes() -> void:
 	var emitted: Array = []
 	_popup.commander_selected.connect(func(t: int): emitted.append(t))

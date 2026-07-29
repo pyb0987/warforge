@@ -33,6 +33,44 @@ func test_show_choices_can_filter_unlocked_talismans() -> void:
 		"해금된 부적만 표시")
 
 
+func test_context_text_can_carry_selected_commander() -> void:
+	_popup.show_choices([
+		Enums.TalismanType.FLINT,
+		Enums.TalismanType.TWO_FACED_COIN,
+		Enums.TalismanType.CRACKED_SKULL,
+	], Enums.CommanderType.GAMBLER)
+
+	var context_text: String = _popup.get_context_text()
+	assert_string_contains(context_text, "선택한 커맨더")
+	assert_string_contains(context_text, "도박꾼")
+	assert_string_contains(context_text, "부적")
+	var rect: Dictionary = _popup.get_context_rect()
+	assert_gt(float(rect.get("w", 0.0)), 0.0)
+	assert_gt(float(rect.get("h", 0.0)), 0.0)
+	assert_true(bool(rect.get("visible", false)))
+
+
+func test_choice_summaries_report_rendered_talisman_cards() -> void:
+	_popup.show_choices([
+		Enums.TalismanType.FLINT,
+		Enums.TalismanType.TWO_FACED_COIN,
+		Enums.TalismanType.CRACKED_SKULL,
+	])
+
+	var summaries: Array = _popup.get_choice_summaries()
+	assert_eq(summaries.size(), 3)
+	assert_eq(summaries[0]["id"], str(Enums.TalismanType.FLINT))
+	assert_eq(summaries[0]["idx"], 0)
+	assert_string_contains(str(summaries[0]["name"]), "부싯돌")
+	assert_string_contains(str(summaries[0]["desc"]), "첫 성장")
+	assert_string_contains(str(summaries[0]["text"]), "부싯돌")
+	assert_string_contains(str(summaries[0]["text"]), "첫 성장")
+	var rect: Dictionary = summaries[0].get("rect", {})
+	assert_gt(float(rect.get("w", 0.0)), 0.0)
+	assert_gt(float(rect.get("h", 0.0)), 0.0)
+	assert_true(bool(rect.get("visible", false)))
+
+
 func test_select_talisman_emits_type_and_closes() -> void:
 	var emitted: Array = []
 	_popup.talisman_selected.connect(func(t: int): emitted.append(t))

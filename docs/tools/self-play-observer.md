@@ -1,0 +1,244 @@
+# Self-Play Observer
+
+The self-play observer runs real headless games and emits observability artifacts
+without changing the protected simulator core under `godot/sim/`.
+
+## JSON Summary
+
+```bash
+godot --headless --log-file /private/tmp/warforge_selfplay.log --path godot/ \
+  -s tools/self_play_observer.gd -- \
+  --runs=3 \
+  --strategies=adaptive,soft_steampunk \
+  --difficulty=1 \
+  --commander=gambler \
+  --talisman=two_faced_coin \
+  --out=/private/tmp/warforge_selfplay.json \
+  --quiet-progress=true
+```
+
+The summary includes:
+
+- `overall`: clear rate, average rounds, final HP, purchases, merges, upgrades,
+  and boss rewards.
+- `per_strategy`: the same metrics split by AI strategy, plus top purchased
+  cards, final cards, merges, and boss rewards.
+- `per_round`: aggregate win rate, unit counts, board size, chain events, and
+  gold by round.
+- `completion`: death/final round distribution and R4/R8/R12 boss milestone
+  reach, reward eligibility after winning the boss fight, and
+  reward-application counts.
+- `completion_readiness`: a ranked completion-risk triage with sample strength,
+  top blockers, and the recommended next slice to pursue from this evidence.
+- `unlock_projection`: a partial meta progression projection from headless
+	  result fields, including clear rewards, field units, upgrade events, win
+	  streaks, growth events, star-2 counts, unit-advantage wins, and, by default,
+	  card-sale counts derived from existing AI trace sell events.
+	  `--trace-stats=false` disables the trace-derived sale count and marks
+	  card-sale unlock metrics partial.
+- `alerts`: coarse warnings for obvious observability failures such as zero
+	  clear-rate strategies, clustered death rounds, projected unlock bursts, and
+	  partial unlock-projection coverage.
+
+The projection separates raw unlock pressure from the current reveal pacing
+model. `raw_projected_unlock_count` estimates all rewards pressured by a run,
+while `projected_revealed_unlock_count` and `projected_deferred_unlock_count`
+show what the end-of-run UI highlights under the 3-unlock reveal cap. The cap
+only affects presentation; live `MetaProgress` still grants every earned unlock
+immediately.
+
+## Completion Summary
+
+Generate a human-readable completion-gap report from the JSON artifact:
+
+```bash
+python3 scripts/summarize_self_play_report.py \
+  --report=/private/tmp/warforge_selfplay.json \
+  --out=/private/tmp/warforge_selfplay_summary.md
+```
+
+The summary recomputes its claims from the JSON report and exits nonzero if
+required completion, completion-readiness, or unlock-projection fields are
+missing.
+
+`completion_readiness` is intended to keep evidence refreshes from becoming
+passive bookkeeping. It ranks concrete blockers such as weak strategy floors,
+early survival walls, boss reward application gaps, unlock-burst pressure, and
+partial observer coverage, then names the next slice implied by the top risk.
+
+## JSONL Traces
+
+Add `--trace-dir` to write one JSONL decision trace per run:
+
+```bash
+godot --headless --log-file /private/tmp/warforge_selfplay.log --path godot/ \
+  -s tools/self_play_observer.gd -- \
+  --runs=2 \
+  --strategies=adaptive \
+  --difficulty=1 \
+  --out=/private/tmp/warforge_selfplay.json \
+  --trace-dir=/private/tmp/warforge_selfplay_traces \
+  --quiet-progress=true
+```
+
+Then aggregate decision traces with the existing analyzer:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_selfplay_traces
+```
+
+The analyzer reports both outcome metrics and AI-decision diagnostics:
+
+- `final board theme mix`: average final board split between preferred-theme,
+  neutral, and off-theme cards.
+- `path detection`: how often a soft-theme run settled into a known build
+  path, plus the average first detection round.
+- `avg final current-phase progress`: how complete the active build-path phase
+  was when each run ended.
+- `avg final active current-phase progress`: the same phase check limited to
+  cards actually on the active board.
+- `enemy debuffs seen`: how often battle-start debuffs reached enemy combat
+  stats, plus average maximum ATK/AS reduction per run.
+- `level timing`: average level-ups per run and first Lv4/Lv5 timing when
+  traces include level-up events or `round_start.shop_level`.
+- `skip reasons`, `top 10 buys`, and `top 5 merges`: purchase pressure and
+  economy/action bottlenecks.
+
+For Druid-specific diagnosis, add `--druid-loss-buckets`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_selfplay_traces \
+  --strategy=soft_druid \
+  --druid-loss-buckets
+```
+
+This classifies soft-Druid losses into trace-backed buckets such as tier access
+lag, payoff acquisition lag, payoff activation lag, path-lag hold pressure, and
+combat conversion failure. It also prints a `by detected path` split for
+`druid_garden`, `druid_world_tree`, and `undetected` runs so tuning can separate
+Garden acquisition problems from World Tree conversion problems.
+
+For Druid combat probes, add `--druid-active-ledger` and compare the candidate
+against the accepted baseline with `--druid-compare-baseline`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-active-ledger \
+  --druid-compare-baseline=/private/tmp/warforge_baseline_traces
+```
+
+The comparison report anchors candidate claims to the baseline clear rate,
+average final HP, R9-R11 focus-active win rate, active-loss survivor margins,
+bottleneck deltas, and focus-combo deltas. Its screen verdict is intentionally
+conservative: a weak same-seed lift is a nomination signal only, not adoption
+evidence.
+
+When Druid probes show focus cards but still do not convert, add
+`--druid-run-phase`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-run-phase \
+  --druid-compare-baseline=/private/tmp/warforge_baseline_traces
+```
+
+This report binds payoff timing to survival state. It prints first payoff
+offer/buy/activation timing, HP at focus activation, post-activation battle
+results, R8-R12 survival curves, owned-but-inactive payoff rates, path-lag
+skips, and false-green examples where a payoff is active but the run dies
+before stabilizing. Use its `next signal` to choose whether the next Druid work
+belongs in acquisition/economy timing, board activation, combat conversion, or
+a broader pivot.
+
+When timing pressure points to Druid `path_lag_hold`, add
+`--druid-path-lag-audit`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-path-lag-audit \
+  --druid-compare-baseline=/private/tmp/warforge_baseline_traces
+```
+
+This joins path-lag hold decisions to visible offers, focus-card availability,
+HP, same-round battle outcomes, held-card categories, and per-path splits. The
+important distinction is whether the AI held while a focus card was affordable,
+or whether it held with no focus card visible and skipped otherwise useful
+stabilizers. A `GO_PROTECTED_PROBE_*` gate means the trace supports asking for a
+narrow protected AI policy probe; it does not mean gameplay behavior has already
+been fixed.
+
+For Steampunk-specific diagnosis, add `--steampunk-loss-buckets`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_selfplay_traces \
+  --strategy=soft_steampunk \
+  --steampunk-loss-buckets
+```
+
+This classifies soft-Steampunk losses into trace-backed buckets such as tier
+access lag, payoff acquisition lag, payoff activation gap, payoff engine gap,
+capstone support gap, branch mixing, current-phase lag, and
+affordability/no-space pressure. It also prints active payoff support-gap counts
+plus a path target funnel for engine/payoff/capstone pieces: offered,
+affordable, bought, sold, final-owned, final-active, affordable skip reasons,
+and missing final cards. The report also includes a `by detected path` split for
+`steampunk_focus`, `steampunk_spread`, and `undetected` runs.
+
+## Soft-Theme Tuning Workflow
+
+Use the observer loop before changing soft-theme AI or card numbers:
+
+```bash
+godot --headless --log-file /private/tmp/warforge_soft_theme.log --path godot/ \
+  -s tools/self_play_observer.gd -- \
+  --runs=5 \
+  --strategies=soft_druid,soft_predator \
+  --difficulty=1 \
+  --commander=gambler \
+  --talisman=two_faced_coin \
+  --seed=2026072604 \
+  --out=/private/tmp/warforge_soft_theme.json \
+  --trace-dir=/private/tmp/warforge_soft_theme_traces \
+  --quiet-progress=true
+
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_soft_theme_traces
+```
+
+Interpretation guide:
+
+- Low `final board theme mix` means the agent is not converting board slots
+  into the target theme; prioritize purchase thresholds, bench promotion, or
+  transition-board rules.
+- High theme mix with low `avg final current-phase progress` means the agent
+  is buying the right theme but missing path-critical cards; prioritize
+  build-path scoring or protected-card lists.
+- Good path progress with low clear rate means the cards or enemy curve are
+  likely underpowered for that route; inspect combat traces before changing
+  economy heuristics.
+- If `--druid-loss-buckets` reports high payoff acquisition lag while Lv4/Lv5
+  timing is healthy, avoid level-up schedule patches and inspect payoff offer
+  rate, affordability, and combat conversion instead.
+- If the Druid path split is uneven, tune against the failing path first. A
+  Garden-heavy payoff acquisition problem points toward path-aware AI scoring or
+  shop policy before another card-number buff.
+- If `--steampunk-loss-buckets` reports high tier access lag with high theme
+  mix, test Steampunk-local level access before changing card numbers.
+- If Steampunk payoffs are active but `payoff_engine_gap` rises, inspect
+  upstream engine preservation or positioning before adding more payoff
+  promotion.
+
+Useful knobs:
+
+- `--strategies=all` runs every known AI strategy.
+- `--runs=N` controls runs per strategy.
+- `--seed=N` controls deterministic seed generation.
+- `--difficulty=1..8` selects the difficulty preset used by `HeadlessRunner`.
+- `--commander=none|gambler|breeder|smith|strategist|collector|raider|alchemist`
+  runs self-play with that commander.
+- `--talisman=none|flint|two_faced_coin|cracked_skull|...` runs self-play
+  with that talisman. Hyphens are accepted as underscores.
+- `--include-results=true` embeds raw per-game result dictionaries in the JSON
+  summary for deeper inspection.

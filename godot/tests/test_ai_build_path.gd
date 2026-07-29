@@ -62,6 +62,12 @@ func test_detect_druid_garden() -> void:
 	assert_eq(path.get("id", ""), "druid_garden",
 		"dr_origin + dr_prune → garden path")
 
+func test_druid_foundation_only_keeps_branch_open() -> void:
+	var board := {"dr_cradle": true, "dr_lifebeat": true}
+	var path: Dictionary = bp.detect_build_path("soft_druid", board)
+	assert_true(path.is_empty(),
+		"공유 기초 카드만 있으면 드루이드 분기 미확정")
+
 func test_detect_predator_swarm() -> void:
 	var board := {"pr_nest": true, "pr_farm": true, "pr_swarm_sense": true}
 	var path: Dictionary = bp.detect_build_path("soft_predator", board)
@@ -128,6 +134,122 @@ func test_anti_card_penalty() -> void:
 	# sp_furnace is anti for spread path
 	var mod: float = bp.score_card_modifier("sp_furnace", path, board, 3)
 	assert_lt(mod, 0.0, "anti 카드 → 음수 수정자")
+
+func test_steampunk_branch_lock_anti_penalty_is_strong() -> void:
+	var spread_board := {"sp_assembly": true, "sp_workshop": true}
+	var spread_path: Dictionary = bp.detect_build_path("soft_steampunk", spread_board)
+	var focus_starter_mod: float = bp.score_card_modifier(
+		"sp_furnace", spread_path, spread_board, 3)
+	assert_lte(focus_starter_mod, -36.0,
+		"spread lock should strongly reject focus starter")
+
+	var focus_board := {"sp_furnace": true, "sp_workshop": true}
+	var focus_path: Dictionary = bp.detect_build_path("soft_steampunk", focus_board)
+	var spread_starter_mod: float = bp.score_card_modifier(
+		"sp_assembly", focus_path, focus_board, 3)
+	assert_lte(spread_starter_mod, -36.0,
+		"focus lock should strongly reject spread starter")
+
+func test_druid_anti_card_penalty_remains_soft() -> void:
+	var board := {"dr_cradle": true, "dr_deep": true}
+	var path: Dictionary = bp.detect_build_path("soft_druid", board)
+	var mod: float = bp.score_card_modifier("dr_origin", path, board, 3)
+	assert_gt(mod, -20.0,
+		"druid branch choice remains a soft preference")
+
+func test_druid_branch_card_enables_soft_anti_penalty() -> void:
+	var board := {"dr_cradle": true, "dr_deep": true}
+	var path: Dictionary = bp.detect_build_path("soft_druid", board)
+	assert_eq(path.get("id", ""), "druid_world_tree",
+		"분기 카드 보유 시 세계수형 확정")
+
+	var mod: float = bp.score_card_modifier("dr_origin", path, board, 5)
+
+	assert_lt(mod, 0.0, "확정 후 정원형 anti 카드에는 소프트 페널티")
+
+func test_strategy_modifier_seeds_druid_branch_before_detection() -> void:
+	var board := {"dr_cradle": true, "dr_lifebeat": true}
+	var path: Dictionary = bp.detect_build_path("soft_druid", board)
+	assert_true(path.is_empty(), "기초 카드만으로는 드루이드 분기 확정 안 함")
+
+	var origin_mod: float = bp.score_strategy_card_modifier(
+		"dr_origin", "soft_druid", board, 6)
+	var deep_mod: float = bp.score_strategy_card_modifier(
+		"dr_deep", "soft_druid", board, 6)
+
+	assert_gt(origin_mod, 20.0, "정원형 분기/엔진 카드를 cold-start에서 추구")
+	assert_gt(deep_mod, 20.0, "세계수형 분기/엔진 카드도 cold-start에서 추구")
+
+func test_strategy_modifier_does_not_apply_anti_before_detection() -> void:
+	var board := {"dr_cradle": true, "dr_lifebeat": true}
+
+	var origin_mod: float = bp.score_strategy_card_modifier(
+		"dr_origin", "soft_druid", board, 6)
+
+	assert_gte(origin_mod, 0.0, "분기 전에는 반대 경로 anti 페널티로 억누르지 않음")
+
+func test_path_progress_reports_phase_completion() -> void:
+	var board := {"dr_cradle": true, "dr_lifebeat": true, "dr_origin": true}
+	var progress: Array = bp.get_path_progress("soft_druid", board, 5)
+
+	assert_eq(progress.size(), 2, "드루이드 두 경로의 진행도를 보고")
+	var garden := {}
+	for row in progress:
+		if row.get("id", "") == "druid_garden":
+			garden = row
+			break
+
+	assert_false(garden.is_empty(), "정원형 진행도 존재")
+	assert_eq(garden.get("current_phase", ""), "engine")
+	assert_eq(garden.get("foundation_owned", 0), 2)
+	assert_eq(garden.get("foundation_total", 0), 2)
+	assert_eq(garden.get("engine_owned", 0), 1)
+	assert_eq(garden.get("engine_total", 0), 3)
+
+func test_current_phase_lag_reports_missing_payoff() -> void:
+	var board := {
+		"dr_cradle": true,
+		"dr_lifebeat": true,
+		"dr_origin": true,
+		"dr_prune": true,
+	}
+
+	var lag: float = bp.get_current_phase_lag("soft_druid", board, 9)
+
+	assert_almost_eq(lag, 1.0, 0.001, "R9 payoff phase에서 payoff 0/2 → lag 1.0")
+
+
+func test_current_phase_lag_improves_with_payoff_card() -> void:
+	var board := {
+		"dr_cradle": true,
+		"dr_lifebeat": true,
+		"dr_origin": true,
+		"dr_prune": true,
+		"dr_spore_cloud": true,
+	}
+
+	var lag: float = bp.get_current_phase_lag("soft_druid", board, 9)
+
+	assert_almost_eq(lag, 0.5, 0.001, "R9 payoff phase에서 payoff 1/2 → lag 0.5")
+
+
+func test_phase_card_focus_reports_current_and_next_cards() -> void:
+	var board := {
+		"dr_cradle": true,
+		"dr_lifebeat": true,
+		"dr_origin": true,
+		"dr_prune": true,
+	}
+
+	var focus: Dictionary = bp.get_phase_card_focus("soft_druid", board, 9)
+
+	assert_eq(focus.get("path_id", ""), "druid_garden")
+	assert_eq(focus.get("current_phase", ""), "payoff")
+	assert_true("dr_spore_cloud" in focus.get("current", []),
+		"R9 current phase should focus Druid payoff")
+	assert_true("dr_wrath" in focus.get("focus", []),
+		"next capstone card remains in focus")
+
 
 func test_next_phase_prep_bonus() -> void:
 	var board := {"sp_assembly": true, "sp_workshop": true}

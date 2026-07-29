@@ -15,6 +15,18 @@ const ACH_UNIT_ADVANTAGE_WIN := "unit_advantage_win"
 const ACH_UPGRADES_8 := "upgrades_8"
 const ACH_CARDS_SOLD_5 := "cards_sold_5"
 
+const FIELD_UNITS_THRESHOLD := 120
+const ATTACHED_UPGRADES_COMMANDER_THRESHOLD := 16
+const ATTACHED_UPGRADES_TALISMAN_THRESHOLD := 12
+const UNIQUE_FIELD_CARDS_THRESHOLD := 7
+const WIN_STREAK_THRESHOLD := 8
+const CARDS_SOLD_COMMANDER_THRESHOLD := 20
+const CARDS_SOLD_TALISMAN_THRESHOLD := 12
+const GROWTH_EVENTS_THRESHOLD := 120
+const STAR2_CARDS_THRESHOLD := 5
+const UNIT_ADVANTAGE_WINS_THRESHOLD := 5
+const UNLOCK_RECAP_LIMIT := 3
+
 var unlocked_commanders: Array[int] = []
 var unlocked_talismans: Array[int] = []
 var completed_achievements: Array[String] = []
@@ -107,11 +119,16 @@ func get_commander_unlock_statuses() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = [
 		{"type": Enums.CommanderType.GAMBLER, "goal": "초기 해금"},
 		{"type": Enums.CommanderType.BREEDER, "goal": "초기 해금"},
-		{"type": Enums.CommanderType.SMITH, "goal": "업그레이드 10개 장착"},
-		{"type": Enums.CommanderType.STRATEGIST, "goal": "필드 유닛 50기 보유"},
-		{"type": Enums.CommanderType.COLLECTOR, "goal": "서로 다른 카드 7종 필드"},
-		{"type": Enums.CommanderType.RAIDER, "goal": "한 런 5연승"},
-		{"type": Enums.CommanderType.ALCHEMIST, "goal": "한 런 카드 10장 판매"},
+		{"type": Enums.CommanderType.SMITH,
+			"goal": "업그레이드 %d개 장착" % ATTACHED_UPGRADES_COMMANDER_THRESHOLD},
+		{"type": Enums.CommanderType.STRATEGIST,
+			"goal": "필드 유닛 %d기 보유" % FIELD_UNITS_THRESHOLD},
+		{"type": Enums.CommanderType.COLLECTOR,
+			"goal": "서로 다른 카드 %d종 필드" % UNIQUE_FIELD_CARDS_THRESHOLD},
+		{"type": Enums.CommanderType.RAIDER,
+			"goal": "한 런 %d연승" % WIN_STREAK_THRESHOLD},
+		{"type": Enums.CommanderType.ALCHEMIST,
+			"goal": "한 런 카드 %d장 판매" % CARDS_SOLD_COMMANDER_THRESHOLD},
 	]
 	for row in rows:
 		var commander_type: int = int(row["type"])
@@ -126,15 +143,21 @@ func get_talisman_unlock_statuses() -> Array[Dictionary]:
 		{"type": Enums.TalismanType.FLINT, "goal": "초기 해금"},
 		{"type": Enums.TalismanType.TWO_FACED_COIN, "goal": "초기 해금"},
 		{"type": Enums.TalismanType.CRACKED_SKULL, "goal": "초기 해금"},
-		{"type": Enums.TalismanType.BURST_SACK, "goal": "업그레이드 8개 장착"},
+		{"type": Enums.TalismanType.BURST_SACK,
+			"goal": "업그레이드 %d개 장착" % ATTACHED_UPGRADES_TALISMAN_THRESHOLD},
 		{"type": Enums.TalismanType.WAR_DRUM,
-			"goal": "수적 우위 전투 승리 또는 난이도 7 클리어"},
-		{"type": Enums.TalismanType.MERCURY_DROP, "goal": "성장 효과 50회"},
+			"goal": "수적 우위 전투 %d승 또는 난이도 7 클리어" \
+				% UNIT_ADVANTAGE_WINS_THRESHOLD},
+		{"type": Enums.TalismanType.MERCURY_DROP,
+			"goal": "성장 효과 %d회" % GROWTH_EVENTS_THRESHOLD},
 		{"type": Enums.TalismanType.GLASS_EYE, "goal": "난이도 2 클리어"},
 		{"type": Enums.TalismanType.GOLDEN_DIE, "goal": "난이도 5 클리어"},
-		{"type": Enums.TalismanType.CRACKED_EGG, "goal": "★2+ 카드 3장 보유"},
-		{"type": Enums.TalismanType.RUSTY_WRENCH, "goal": "업그레이드 8개 장착"},
-		{"type": Enums.TalismanType.SOUL_JAR, "goal": "한 런 카드 5장 판매"},
+		{"type": Enums.TalismanType.CRACKED_EGG,
+			"goal": "★2+ 카드 %d장 보유" % STAR2_CARDS_THRESHOLD},
+		{"type": Enums.TalismanType.RUSTY_WRENCH,
+			"goal": "업그레이드 %d개 장착" % ATTACHED_UPGRADES_TALISMAN_THRESHOLD},
+		{"type": Enums.TalismanType.SOUL_JAR,
+			"goal": "한 런 카드 %d장 판매" % CARDS_SOLD_TALISMAN_THRESHOLD},
 		{"type": Enums.TalismanType.COPPER_WIRE, "goal": "난이도 3 클리어"},
 	]
 	for row in rows:
@@ -147,16 +170,26 @@ func get_talisman_unlock_statuses() -> Array[Dictionary]:
 
 func get_achievement_statuses() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = [
-		{"id": ACH_FIELD_50_UNITS, "name": "필드 유닛 50기 보유"},
-		{"id": ACH_UPGRADES_10, "name": "업그레이드 10개 장착"},
-		{"id": ACH_UNIQUE_7, "name": "서로 다른 카드 7종 필드"},
-		{"id": ACH_WIN_STREAK_5, "name": "한 런 5연승"},
-		{"id": ACH_CARDS_SOLD_10, "name": "한 런 카드 10장 판매"},
-		{"id": ACH_GROWTH_50, "name": "성장 효과 50회"},
-		{"id": ACH_STAR2_3, "name": "★2+ 카드 3장 보유"},
-		{"id": ACH_UNIT_ADVANTAGE_WIN, "name": "수적 우위 전투 승리"},
-		{"id": ACH_UPGRADES_8, "name": "업그레이드 8개 장착"},
-		{"id": ACH_CARDS_SOLD_5, "name": "한 런 카드 5장 판매"},
+		{"id": ACH_FIELD_50_UNITS,
+			"name": "필드 유닛 %d기 보유" % FIELD_UNITS_THRESHOLD},
+		{"id": ACH_UPGRADES_10,
+			"name": "업그레이드 %d개 장착" % ATTACHED_UPGRADES_COMMANDER_THRESHOLD},
+		{"id": ACH_UNIQUE_7,
+			"name": "서로 다른 카드 %d종 필드" % UNIQUE_FIELD_CARDS_THRESHOLD},
+		{"id": ACH_WIN_STREAK_5,
+			"name": "한 런 %d연승" % WIN_STREAK_THRESHOLD},
+		{"id": ACH_CARDS_SOLD_10,
+			"name": "한 런 카드 %d장 판매" % CARDS_SOLD_COMMANDER_THRESHOLD},
+		{"id": ACH_GROWTH_50,
+			"name": "성장 효과 %d회" % GROWTH_EVENTS_THRESHOLD},
+		{"id": ACH_STAR2_3,
+			"name": "★2+ 카드 %d장 보유" % STAR2_CARDS_THRESHOLD},
+		{"id": ACH_UNIT_ADVANTAGE_WIN,
+			"name": "수적 우위 전투 %d승" % UNIT_ADVANTAGE_WINS_THRESHOLD},
+		{"id": ACH_UPGRADES_8,
+			"name": "업그레이드 %d개 장착" % ATTACHED_UPGRADES_TALISMAN_THRESHOLD},
+		{"id": ACH_CARDS_SOLD_5,
+			"name": "한 런 카드 %d장 판매" % CARDS_SOLD_TALISMAN_THRESHOLD},
 	]
 	for row in rows:
 		row["completed"] = completed_achievements.has(str(row["id"]))
@@ -219,23 +252,25 @@ func get_tutorial_text() -> String:
 func get_next_goal_text(limit: int = 5) -> String:
 	var goals: Array[String] = []
 	_add_next_goal(goals, Enums.CommanderType.STRATEGIST,
-		"전략가: 필드 유닛 50기 보유")
+		"전략가: 필드 유닛 %d기 보유" % FIELD_UNITS_THRESHOLD)
 	_add_next_goal(goals, Enums.CommanderType.SMITH,
-		"단조사: 업그레이드 10개 장착")
+		"단조사: 업그레이드 %d개 장착" % ATTACHED_UPGRADES_COMMANDER_THRESHOLD)
 	_add_next_goal(goals, Enums.CommanderType.COLLECTOR,
-		"수집가: 서로 다른 카드 7종 필드")
+		"수집가: 서로 다른 카드 %d종 필드" % UNIQUE_FIELD_CARDS_THRESHOLD)
 	_add_next_goal(goals, Enums.CommanderType.RAIDER,
-		"약탈자: 한 런 5연승")
+		"약탈자: 한 런 %d연승" % WIN_STREAK_THRESHOLD)
 	_add_next_goal(goals, Enums.CommanderType.ALCHEMIST,
-		"연금술사: 한 런 카드 10장 판매")
+		"연금술사: 한 런 카드 %d장 판매" % CARDS_SOLD_COMMANDER_THRESHOLD)
 	if not is_talisman_unlocked(Enums.TalismanType.MERCURY_DROP):
-		goals.append("수은 방울: 성장 효과 50회")
+		goals.append("수은 방울: 성장 효과 %d회" % GROWTH_EVENTS_THRESHOLD)
 	if not is_talisman_unlocked(Enums.TalismanType.CRACKED_EGG):
-		goals.append("깨진 알: ★2+ 카드 3장 보유")
+		goals.append("깨진 알: ★2+ 카드 %d장 보유" % STAR2_CARDS_THRESHOLD)
 	if not is_talisman_unlocked(Enums.TalismanType.RUSTY_WRENCH):
-		goals.append("녹슨 렌치/터진 자루: 업그레이드 8개 장착")
+		goals.append("녹슨 렌치/터진 자루: 업그레이드 %d개 장착" \
+			% ATTACHED_UPGRADES_TALISMAN_THRESHOLD)
 	if not is_talisman_unlocked(Enums.TalismanType.SOUL_JAR):
-		goals.append("영혼 항아리: 한 런 카드 5장 판매")
+		goals.append("영혼 항아리: 한 런 카드 %d장 판매" \
+			% CARDS_SOLD_TALISMAN_THRESHOLD)
 	if goals.is_empty():
 		return "다음 목표\n기본 업적 해금을 모두 완료했습니다."
 	var shown: Array[String] = []
@@ -244,10 +279,25 @@ func get_next_goal_text(limit: int = 5) -> String:
 	return "다음 목표\n%s" % "\n".join(shown)
 
 
-func get_last_unlock_text() -> String:
+func get_last_unlock_text(limit: int = UNLOCK_RECAP_LIMIT) -> String:
 	if last_unlocks.is_empty():
 		return ""
-	return "최근 해금\n%s" % "\n".join(last_unlocks)
+	return format_unlock_recap_text("최근 해금", last_unlocks, limit)
+
+
+static func format_unlock_recap_text(title: String, unlocks: Array,
+		limit: int = UNLOCK_RECAP_LIMIT) -> String:
+	if unlocks.is_empty():
+		return ""
+	var shown_count := mini(maxi(0, limit), unlocks.size())
+	var lines := PackedStringArray()
+	lines.append(title)
+	for i in shown_count:
+		lines.append("- %s" % unlocks[i])
+	var overflow := unlocks.size() - shown_count
+	if overflow > 0:
+		lines.append("+%d more unlocked - all available in PROGRESS" % overflow)
+	return "\n".join(lines)
 
 
 func record_run_finished(victory: bool, final_round: int, run_stats: Dictionary = {}) -> Array[String]:
@@ -308,36 +358,38 @@ func _add_next_goal(goals: Array[String], commander_type: int, text: String) -> 
 
 
 func _apply_achievement_unlocks(run_stats: Dictionary, unlocks: Array[String]) -> void:
-	if int(run_stats.get("max_field_units", 0)) >= 50:
+	if int(run_stats.get("max_field_units", 0)) >= FIELD_UNITS_THRESHOLD:
 		_complete_achievement(ACH_FIELD_50_UNITS)
 		_unlock_commander(Enums.CommanderType.STRATEGIST, unlocks)
-	if int(run_stats.get("max_attached_upgrades", 0)) >= 10:
+	if int(run_stats.get("max_attached_upgrades", 0)) \
+			>= ATTACHED_UPGRADES_COMMANDER_THRESHOLD:
 		_complete_achievement(ACH_UPGRADES_10)
 		_unlock_commander(Enums.CommanderType.SMITH, unlocks)
-	if int(run_stats.get("max_unique_field_cards", 0)) >= 7:
+	if int(run_stats.get("max_unique_field_cards", 0)) >= UNIQUE_FIELD_CARDS_THRESHOLD:
 		_complete_achievement(ACH_UNIQUE_7)
 		_unlock_commander(Enums.CommanderType.COLLECTOR, unlocks)
-	if int(run_stats.get("best_win_streak", 0)) >= 5:
+	if int(run_stats.get("best_win_streak", 0)) >= WIN_STREAK_THRESHOLD:
 		_complete_achievement(ACH_WIN_STREAK_5)
 		_unlock_commander(Enums.CommanderType.RAIDER, unlocks)
-	if int(run_stats.get("cards_sold", 0)) >= 10:
+	if int(run_stats.get("cards_sold", 0)) >= CARDS_SOLD_COMMANDER_THRESHOLD:
 		_complete_achievement(ACH_CARDS_SOLD_10)
 		_unlock_commander(Enums.CommanderType.ALCHEMIST, unlocks)
 
-	if int(run_stats.get("growth_events", 0)) >= 50:
+	if int(run_stats.get("growth_events", 0)) >= GROWTH_EVENTS_THRESHOLD:
 		_complete_achievement(ACH_GROWTH_50)
 		_unlock_talisman(Enums.TalismanType.MERCURY_DROP, unlocks)
-	if int(run_stats.get("max_star2_cards", 0)) >= 3:
+	if int(run_stats.get("max_star2_cards", 0)) >= STAR2_CARDS_THRESHOLD:
 		_complete_achievement(ACH_STAR2_3)
 		_unlock_talisman(Enums.TalismanType.CRACKED_EGG, unlocks)
-	if bool(run_stats.get("unit_advantage_win", false)):
+	if int(run_stats.get("unit_advantage_wins", 0)) >= UNIT_ADVANTAGE_WINS_THRESHOLD:
 		_complete_achievement(ACH_UNIT_ADVANTAGE_WIN)
 		_unlock_talisman(Enums.TalismanType.WAR_DRUM, unlocks)
-	if int(run_stats.get("max_attached_upgrades", 0)) >= 8:
+	if int(run_stats.get("max_attached_upgrades", 0)) \
+			>= ATTACHED_UPGRADES_TALISMAN_THRESHOLD:
 		_complete_achievement(ACH_UPGRADES_8)
 		_unlock_talisman(Enums.TalismanType.RUSTY_WRENCH, unlocks)
 		_unlock_talisman(Enums.TalismanType.BURST_SACK, unlocks)
-	if int(run_stats.get("cards_sold", 0)) >= 5:
+	if int(run_stats.get("cards_sold", 0)) >= CARDS_SOLD_TALISMAN_THRESHOLD:
 		_complete_achievement(ACH_CARDS_SOLD_5)
 		_unlock_talisman(Enums.TalismanType.SOUL_JAR, unlocks)
 
