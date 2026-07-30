@@ -1,5 +1,43 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H78 protected probe outcome
+
+- User explicitly approved editing only:
+  - `godot/sim/ai_agent.gd`
+  - `godot/tests/test_ai_agent.gd`
+- H78 was executed as the protected soft-Druid no-focus stabilizer probe.
+  Temporary code allowed high-score Druid/Neutral stabilizer buys while
+  path-lagged only when no focus offer was visible.
+- Temporary focused verification passed before self-play:
+  - `test_ai_agent.gd`: 42/42, 97 asserts.
+- Same-seed H78 result against H94 baseline:
+  - H94 baseline: 9/60 clears, avg HP -4.23, avg rounds 11.07.
+  - H78 candidate: 8/60 clears, avg HP -4.42, avg rounds 11.03.
+  - H74 comparison verdict: `REJECT_FLAT_OR_NOISY`.
+- Diagnostic read:
+  - path-lag holds improved 255 -> 121;
+  - actionable no-focus loss runs improved 37 -> 21;
+  - affordable focus holds stayed 1 -> 1;
+  - but clears fell, active-loss enemy survivor margin did not improve
+    (13.8 -> 13.9), and `no_payoff_seen` worsened by +5.
+- Advisory multi-review:
+  - gate critic: REJECT, 9/10;
+  - gameplay critic: MIXED, 5/10;
+  - scope critic: ROLLBACK, 9/10.
+- Decision: H78 rejected and rolled back. Do not carry the temporary AI policy
+  into future baselines.
+- Rollback verification:
+  - `git restore godot/sim/ai_agent.gd godot/tests/test_ai_agent.gd`
+  - restored `test_ai_agent.gd`: 39/39, 94 asserts;
+  - protected-file diff/status for the two files produced no output.
+- Latest trace:
+  `.claude/traces/experiments/094-h78-druid-stabilizer-probe.md`.
+- Resume recommendation: start H98 by choosing a new Druid strategy-floor repair
+  from H78/H94 diagnostics. The likely next axis is board activation/promotion
+  after payoff purchase or Spore pressure conversion in active R9-R11 losses,
+  not another no-focus stabilizer-buy fallback. Fresh approval is required
+  before further protected simulator edits or gameplay-value tuning.
+
 ## 2026-07-30 Codex H97 update
 
 - H97 completed as a no-edit natural self-play readiness refresh.
