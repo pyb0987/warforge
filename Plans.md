@@ -148,6 +148,7 @@ Operating rules:
 | H94 | DONE | H78 no-edit Druid preflight | Before protected simulator edits, current soft-Druid evidence was refreshed and confirmed that H78's no-focus path-lag stabilizer probe is still the right protected gameplay-completion candidate. | PASS trace `.claude/traces/experiments/090-h78-no-edit-druid-preflight.md`; PASS `test_ai_agent.gd` 39/39; PASS existing H75/H71 analyzer gate; PASS fresh 60-run soft-Druid baseline 9/60 clears; PASS fresh path-lag audit gate `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`; PASS card-spawn guard; PASS `git diff --check`; PASS protected boundary check |
 | H95 | DONE | Completion readiness gates | The active plan now has an explicit evidence contract for the next completion-ready prototype milestone, separating current M1 gates from later balance beta, presentation polish, and release-candidate work. | PASS trace `.claude/traces/experiments/091-completion-readiness-gates.md`; PASS doc review; PASS `git diff --check`; PASS protected boundary check |
 | H96 | DONE | Synthetic unlock-overflow marker | A bounded live UI scout confirmed the player-facing matrix still passes, then the unlock-overflow fixture was marked in JSON/summary/docs so future scouts cannot misread scripted recap stress data as natural meta-progression pacing evidence. | PASS trace `.claude/traces/experiments/092-live-ui-unlock-fixture-marker.md`; PASS Python summary/matrix tests 46/46; PASS live UI report + summary marker; PASS default matrix 4/4; PASS expanded matrix 5/5; PASS live smoke 18/18; PASS card-spawn guard; PASS full GUT 1282/1282; PASS `git diff --check`; PASS protected boundary check |
+| H97 | DONE | Natural self-play readiness refresh | A no-edit all-core D1 self-play scout refreshed recomputable M1 evidence: overall flow and boss rewards remain healthy, natural unlock pressure is still a watch item, and soft-Druid is again the blocking strategy floor with the same protected path-lag approval gate. | PASS advisory multi-review convergence; PASS trace `.claude/traces/experiments/093-natural-self-play-readiness-refresh.md`; PASS self-play summary 70 runs; PASS all-strategy trace summary; PASS Druid diagnostics and H94 comparison; PASS `git diff --check`; PASS protected boundary check |
 
 ## Working Completion Gates After H94
 
@@ -171,10 +172,10 @@ M1 gates:
 | Gate | Evidence | Current Status |
 |------|----------|----------------|
 | Core live run flow | Run start -> commander/talisman -> build/shop/move/upgrade -> chain -> battle -> boss reward -> terminal is covered by live-scene smoke and the visible-control playthrough path. | Largely green through H93: live smoke 18/18, natural terminal coverage for initial commanders, and special identity coverage for Smith, Raider, and Strategist. |
-| Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; `unlock_burst_pressure` remains a watch item because the UI caps reveals but human pacing still needs playtest judgment. |
+| Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; H97 natural self-play projects burst pressure (largest 11 raw unlocks, 8 deferred by the UI reveal cap), but this remains a watch item unless manual play finds the recap overwhelming. |
 | Reward/economy integrity | Boss rewards, Raider reward, upgrade targeting, merge rewards, pricing talismans, card spawn guards, and generated descriptions have focused tests or live smoke coverage. | Green for known player-reported regressions; keep `python3 scripts/lint_card_spawn.py` and focused reward/economy tests in the verification set. |
-| Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H94 refreshed soft-Druid at 9/60 clears with `low_overall_clear_rate`, and the path-lag audit still gates on `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`. H78 is the current approval-gated blocker. |
-| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected `godot/sim/**` boundary status is explicit, and generated database files are not manually edited. | Green at last broad checkpoint through H93/H94 for the relevant scope; rerun broad verification after the next gameplay-affecting change. |
+| Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H97 all-core D1 self-play is 36/70 overall but soft-Druid is 0/10, and Druid path-lag audit still gates on `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`. H78 is the current approval-gated blocker. |
+| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected `godot/sim/**` boundary status is explicit, and generated database files are not manually edited. | Green for the H97 no-edit evidence scope; latest full GUT remains H96 1282/1282, and broad verification must rerun after the next gameplay-affecting change. |
 
 Acceptance rule: prose in this plan is only a routing aid. M1 completion must be
 based on recomputable artifacts such as self-play JSON, observer summaries,
@@ -184,9 +185,9 @@ and an explicit protected-boundary check.
 Open blockers before M1 can be called complete:
 - P0: H78 protected Druid no-focus stabilizer probe still needs explicit
   approval before editing `godot/sim/ai_agent.gd`.
-- P1: After H78 or a chosen fallback, rerun representative D1 self-play
-  readiness across all core strategies and use the observer's top risks to
-  choose the next slice.
+- P1: H97 completed the fallback representative D1 self-play refresh. Its top
+  recomputed risk is still `weak_strategy_floor`, specifically soft-Druid 0/10.
+  Use the H97/H94 trace diagnostics to choose the next slice.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
   upgraded from prototype completion to full balance beta.
 - P2: Unlock burst pacing is acceptable as a watch item for now, but should be

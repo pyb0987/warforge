@@ -1,5 +1,60 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H97 update
+
+- H97 completed as a no-edit natural self-play readiness refresh.
+- Advisory multi-review result:
+  - product-completion critic vetoed another unprotected tooling slice as the
+    primary next move and named H78 protected approval as the real M1 blocker;
+  - evidence critic supported a fallback no-edit all-core D1 self-play refresh;
+  - scope-boundary critic allowed only evidence/docs/tests outside protected or
+    tuning surfaces.
+- Fresh natural evidence:
+  - `/private/tmp/warforge_h97_selfplay70.json`
+  - `/private/tmp/warforge_h97_selfplay70_summary.md`
+  - `/private/tmp/warforge_h97_selfplay70_traces`
+  - `/private/tmp/warforge_h97_selfplay70_trace_summary.txt`
+  - `/private/tmp/warforge_h97_selfplay70_druid_diagnostics.txt`
+  - `/private/tmp/warforge_h97_selfplay70_druid_vs_h94.txt`
+- H97 sample: D1, Gambler/Flint, 10 runs each across all seven strategies, 70
+  total runs.
+- Key read:
+  - overall 36/70 clears, 51.4%, avg round 13, avg final HP 10.30;
+  - boss rewards apply reliably after eligible wins: R4/R8/R12 each 100%
+    reward/eligible;
+  - `completion_readiness.status` remains `needs_attention`;
+  - top risk is `weak_strategy_floor`: soft-Druid 0/10 clears, avg R10.4;
+  - unlock projection is complete and naturally bursty: largest 11 raw unlocks,
+    8 deferred by the UI reveal cap, so pacing remains a watch item only.
+- Druid diagnostics:
+  - loss buckets: `combat_conversion_failure` 6/10 and
+    `path_lag_hold_pressure` 6/10;
+  - active ledger says Spore is present but under-moving enemy pressure;
+  - run-phase says focus often activates in the lethal window;
+  - path-lag audit reports 41 holds, 38 no-focus holds (92.7%), 9 actionable
+    no-focus loss runs, and `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`.
+- H94 comparison:
+  - H97 soft-Druid is noisier/weaker than the 60-run H94 baseline, but confirms
+    the same approval gate;
+  - comparison next signal: protected AI policy probe is justified, but do not
+    edit `godot/sim/**` until user approval.
+- Verification:
+  - PASS self-play observer command exit 0.
+  - PASS `scripts/summarize_self_play_report.py` exit 0.
+  - PASS all-strategy trace summary.
+  - PASS Druid diagnostics and H94 comparison.
+  - PASS `git diff --check`.
+  - PASS sensitive protected/tuning boundary check produced no output.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, economy values, or progression thresholds
+  changed for H97.
+- Latest trace:
+  `.claude/traces/experiments/093-natural-self-play-readiness-refresh.md`.
+- Resume recommendation: request explicit protected approval for H78, then run
+  the narrow no-focus stabilizer probe against the H94/H97 evidence. If staying
+  unprotected, do not claim M1 progress from more UI/tooling; choose only a
+  genuinely player-facing non-sim defect if new manual play exposes one.
+
 ## 2026-07-30 Codex H96 update
 
 - H96 completed as an unprotected live-scout/tooling clarity slice.
