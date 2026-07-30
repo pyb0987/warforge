@@ -1,5 +1,127 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H93 update
+
+- H93 completed as an unprotected distinctive-commander live-control coverage
+  slice.
+- Advisory multi-review summary:
+  - player-completion and frame-challenge critics preferred H78 Druid
+    path-lag work as the higher-impact gameplay-completion target;
+  - scope/verification critic vetoed protected `godot/sim/**` edits without
+    explicit approval and recommended a narrow unprotected Strategist live
+    control slice if continuing autonomously;
+  - decision: keep H78 gated on explicit protected simulator approval, and
+    complete H93 as the best unprotected progress slice.
+- Added Strategist/War Drum visible-control terminal acceptance coverage.
+- The smoke profile explicitly unlocks Strategist and War Drum, selects both
+  through the normal run-start popups, then proves Strategist's SWAP through
+  live controls:
+  - the visible SWAP button enters pick-first mode;
+  - two visible field-card clicks select the swap targets;
+  - the two board card references exchange slots;
+  - `hero_used` becomes true;
+  - the button and identity HUD show SWAP used;
+  - the run continues through real chains, battles, boss rewards, and reaches
+    the real terminal overlay.
+- Scope note: War Drum is selected and visible in the identity HUD. The run log
+  naturally showed War Drum activations, but H93 does not claim dedicated War
+  Drum damage/debuff proof because that remains covered by `test_talisman.gd`.
+- Verification:
+  - PASS `test_game_manager_live_smoke.gd` (18/18, 1327 asserts).
+  - PASS `test_build_phase_strategist_swap.gd` (6/6, 23 asserts).
+  - PASS `test_talisman.gd` (38/38, 108 asserts).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS full GUT in isolated Godot profile (57 scripts, 1282/1282 tests,
+    9271 asserts).
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed the same macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, or economy values changed for H93.
+- Latest trace:
+  `.claude/traces/experiments/089-strategist-visible-swap-coverage.md`.
+- Resume recommendation: checkpoint H91-H93 soon. After that, ask explicit
+  approval before attempting H78 protected Druid simulator work.
+
+## 2026-07-30 Codex H92 update
+
+- H92 completed as an unprotected Raider reward-flow coverage slice.
+- Added Raider/Flint visible-control terminal acceptance coverage for the real
+  3-win reward flow after carrying Raider's local `win_count` at 2.
+- The smoke profile explicitly unlocks Raider, selects Raider through the
+  normal commander popup, selects Flint through the normal talisman popup, then
+  plays through real build and battle surfaces.
+- The playthrough proves the Raider reward is resolved through visible controls:
+  - the test carries only Raider's existing local win counter;
+  - the next real win opens the free common-upgrade flow;
+  - the test resolves the visible target overlay;
+  - the attached-upgrade count increases while pending source is
+    `raider_win_streak`;
+  - the run continues through real battles and reaches the real terminal
+    overlay.
+- Scope note: this does not prove the automated visible-control player can
+  naturally generate three Raider wins from zero. Earlier H92 attempts with
+  Raider/Flint and Raider/War Drum reached terminal states without producing
+  that full natural 3-win cadence. This slice deliberately covers the reward
+  plumbing without changing balance or forcing battle outcomes.
+- Verification:
+  - PASS `test_game_manager_live_smoke.gd` (17/17, 1219 asserts).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS full GUT in isolated Godot profile (57 scripts, 1281/1281 tests,
+    9169 asserts).
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed the same macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, or economy values changed for H92.
+- Latest trace:
+  `.claude/traces/experiments/088-raider-carried-win-count-coverage.md`.
+- Resume recommendation: pause here per user request. When work resumes, use
+  H92 as a boundary: the next slice should either improve fully natural
+  Raider-from-zero coverage, continue another distinctive commander/talisman
+  live path, or ask explicit approval before returning to protected H78
+  simulator work.
+
+## 2026-07-30 Codex H91 update
+
+- H91 completed as an unprotected special-identity natural-run coverage slice.
+- Added Smith/Flint natural visible-control terminal acceptance coverage.
+- The smoke profile explicitly unlocks Smith for the test, then selects Smith
+  through the normal commander popup and Flint through the normal talisman
+  popup.
+- The playthrough now proves Smith's start free-upgrade flow is resolved through
+  visible controls:
+  - first BUILD COMPLETE opens the common-upgrade flow;
+  - the test resolves the visible target overlay;
+  - the attached-upgrade count increases while pending source is `smith_start`;
+  - the run continues through real battles and reaches the real terminal
+    overlay.
+- Verification:
+  - PASS `test_game_manager_live_smoke.gd` (16/16, 1131 asserts).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS full GUT in isolated Godot profile (57 scripts, 1280/1280 tests,
+    9081 asserts).
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed the same macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, or economy values changed for H91.
+- Latest trace:
+  `.claude/traces/experiments/087-smith-natural-run-start-upgrade-coverage.md`.
+- Resume recommendation: this is a good small follow-up on the H90 coverage
+  path. Next unprotected candidates are natural coverage for Raider's 3-win
+  reward in a terminal playthrough, or another locked commander with distinctive
+  setup rules. H78 remains gated on explicit protected simulator approval.
+
 ## 2026-07-30 Codex H90 update
 
 - H90 completed as an unprotected natural-run coverage slice.

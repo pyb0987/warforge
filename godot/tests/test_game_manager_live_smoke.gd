@@ -622,9 +622,50 @@ func test_live_breeder_visible_control_playthrough_reaches_terminal_overlay() ->
 		Enums.TalismanType.FLINT)
 
 
+func test_live_smith_visible_control_playthrough_resolves_start_upgrade() -> void:
+	_unlock_commander_for_smoke(Enums.CommanderType.SMITH)
+
+	var result: Dictionary = await _run_visible_control_playthrough_to_terminal(
+		Enums.CommanderType.SMITH,
+		Enums.TalismanType.FLINT)
+
+	var free_upgrade_sources: Dictionary = result.get("free_upgrade_sources", {})
+	assert_gt(int(free_upgrade_sources.get("smith_start", 0)), 0,
+		"Smith natural run resolves the start upgrade through visible controls")
+
+
+func test_live_raider_visible_control_playthrough_resolves_carried_win_count_upgrade() -> void:
+	_unlock_commander_for_smoke(Enums.CommanderType.RAIDER)
+
+	var result: Dictionary = await _run_visible_control_playthrough_to_terminal(
+		Enums.CommanderType.RAIDER,
+		Enums.TalismanType.FLINT,
+		{"win_count": 2})
+
+	var free_upgrade_sources: Dictionary = result.get("free_upgrade_sources", {})
+	assert_gt(int(free_upgrade_sources.get("raider_win_streak", 0)), 0,
+		"Raider carried win counter resolves a 3-win upgrade through visible controls")
+
+
+func test_live_strategist_visible_control_playthrough_resolves_swap() -> void:
+	_unlock_commander_for_smoke(Enums.CommanderType.STRATEGIST)
+	_unlock_talisman_for_smoke(Enums.TalismanType.WAR_DRUM)
+
+	var result: Dictionary = await _run_visible_control_playthrough_to_terminal(
+		Enums.CommanderType.STRATEGIST,
+		Enums.TalismanType.WAR_DRUM,
+		{},
+		{"use_strategist_swap": true})
+
+	assert_gt(int(result.get("strategist_swaps", 0)), 0,
+		"Strategist live run resolves SWAP through visible controls")
+
+
 func _run_visible_control_playthrough_to_terminal(
 		commander_type: int,
-		talisman_type: int) -> void:
+		talisman_type: int,
+		commander_state_setup: Dictionary = {},
+		play_options: Dictionary = {}) -> Dictionary:
 	Engine.time_scale = 8.0
 	var main = await _start_main_to_build(talisman_type, commander_type)
 	main.chain_feedback_delay_sec = 0.01
@@ -634,10 +675,15 @@ func _run_visible_control_playthrough_to_terminal(
 	main.battle_phase.set_speed(80.0)
 	assert_eq(main.game_state.commander_type, commander_type)
 	assert_eq(main.game_state.talisman_type, talisman_type)
+	for key in commander_state_setup:
+		main.game_state.commander_state[key] = commander_state_setup[key]
 
 	var purchased := 0
 	var moved := 0
 	var upgrades_bought := 0
+	var commander_free_upgrades := 0
+	var free_upgrade_sources := {}
+	var strategist_swaps := 0
 	var battles_seen := 0
 	var rounds_seen: Array[int] = []
 	var safety := 0
@@ -652,8 +698,17 @@ func _run_visible_control_playthrough_to_terminal(
 			await wait_process_frames(3)
 			continue
 		if bool(ui.get("has_modal", false)):
+			var before_free_upgrades := _count_attached_upgrades(main)
+			var pending_upgrade_source := str(
+				main.build_phase._pending_upgrade.get("source", ""))
 			assert_true(await _resolve_visible_modal_by_controls(main),
 				"visible-control playthrough resolves modal %s" % [active_modals])
+			var after_free_upgrades := _count_attached_upgrades(main)
+			if pending_upgrade_source != "" \
+					and after_free_upgrades > before_free_upgrades:
+				commander_free_upgrades += 1
+				free_upgrade_sources[pending_upgrade_source] = \
+					int(free_upgrade_sources.get(pending_upgrade_source, 0)) + 1
 			await wait_process_frames(2)
 			continue
 
@@ -666,6 +721,10 @@ func _run_visible_control_playthrough_to_terminal(
 				purchased += int(build_actions.get("purchased", 0))
 				moved += int(build_actions.get("moved", 0))
 				upgrades_bought += int(build_actions.get("upgrades_bought", 0))
+				if bool(play_options.get("use_strategist_swap", false)) \
+						and strategist_swaps <= 0 \
+						and await _perform_strategist_swap_by_visible_controls(main):
+					strategist_swaps += 1
 				assert_true(_press_build_complete_by_controls(main),
 					"visible BUILD COMPLETE button advances the run")
 				await wait_process_frames(2)
@@ -710,6 +769,15 @@ func _run_visible_control_playthrough_to_terminal(
 	assert_eq(loaded.last_result, main._meta_progress.last_result)
 	assert_gt(upgrades_bought, 0,
 		"playthrough bought and targeted at least one visible upgrade")
+	return {
+		"commander_free_upgrades": commander_free_upgrades,
+		"free_upgrade_sources": free_upgrade_sources,
+		"purchased": purchased,
+		"moved": moved,
+		"upgrades_bought": upgrades_bought,
+		"battles_seen": battles_seen,
+		"strategist_swaps": strategist_swaps,
+	}
 
 
 func _start_main_to_build(
@@ -817,6 +885,35 @@ func _start_main_to_build(
 		"BUILD readiness cue does not overlap FIELD cards")
 
 	return main
+
+
+func _unlock_commander_for_smoke(commander_type: int) -> void:
+	var progress = MetaProgressScript.new()
+	progress.load_or_create(TEST_META_PATH)
+	if not progress.unlocked_commanders.has(commander_type):
+		progress.unlocked_commanders.append(commander_type)
+	assert_eq(progress.save(TEST_META_PATH), OK,
+		"smoke profile unlocks requested commander")
+
+
+func _unlock_talisman_for_smoke(talisman_type: int) -> void:
+	var progress = MetaProgressScript.new()
+	progress.load_or_create(TEST_META_PATH)
+	if not progress.unlocked_talismans.has(talisman_type):
+		progress.unlocked_talismans.append(talisman_type)
+	assert_eq(progress.save(TEST_META_PATH), OK,
+		"smoke profile unlocks requested talisman")
+
+
+func _count_attached_upgrades(main) -> int:
+	var total := 0
+	for card in main.game_state.board:
+		if card != null:
+			total += (card as CardInstance).upgrades.size()
+	for card in main.game_state.bench:
+		if card != null:
+			total += (card as CardInstance).upgrades.size()
+	return total
 
 
 func _first_no_target_reward_index(reward_ids: Array[String]) -> int:
@@ -997,6 +1094,76 @@ func _click_shop_slot_by_controls(main, slot_idx: int) -> bool:
 	if slot_idx < 0 or slot_idx >= slots.size():
 		return false
 	return _emit_left_click(slots[slot_idx])
+
+
+func _perform_strategist_swap_by_visible_controls(main) -> bool:
+	if main.game_state.commander_type != Enums.CommanderType.STRATEGIST:
+		return false
+	var button: Button = main.build_phase.strategist_swap_button
+	if button == null or not button.visible or button.disabled:
+		return false
+	var first_idx := _first_occupied_field_idx(main)
+	var second_idx := _next_occupied_field_idx(main, first_idx)
+	if first_idx < 0 or second_idx < 0:
+		return false
+	var first_before: CardInstance = main.game_state.board[first_idx]
+	var second_before: CardInstance = main.game_state.board[second_idx]
+	assert_false(bool(main.game_state.commander_state.get("hero_used", false)),
+		"Strategist SWAP starts unused in this BUILD")
+	assert_eq(button.text, "SWAP (H)")
+
+	button.pressed.emit()
+	await wait_process_frames(1)
+	assert_true(main.build_phase._strategist_swap_active,
+		"visible SWAP button starts Strategist swap mode")
+	assert_eq(button.text, "PICK FIRST")
+	assert_true(_click_field_card_by_controls(main, first_idx),
+		"visible field card selects first Strategist swap target")
+	await wait_process_frames(1)
+	assert_eq(main.build_phase._strategist_swap_first_idx, first_idx)
+	assert_eq(button.text, "PICK SECOND")
+	assert_true(_click_field_card_by_controls(main, second_idx),
+		"visible field card selects second Strategist swap target")
+	await wait_process_frames(1)
+
+	assert_false(main.build_phase._strategist_swap_active,
+		"Strategist SWAP mode closes after the second target")
+	assert_true(bool(main.game_state.commander_state.get("hero_used", false)),
+		"Strategist SWAP marks the build action as used")
+	assert_eq(main.game_state.board[first_idx], second_before,
+		"first selected field card receives the second card")
+	assert_eq(main.game_state.board[second_idx], first_before,
+		"second selected field card receives the first card")
+	assert_true(button.disabled)
+	assert_eq(button.text, "SWAP USED")
+	assert_string_contains(main.build_phase.get_identity_text(), "SWAP 사용됨")
+	return true
+
+
+func _first_occupied_field_idx(main) -> int:
+	for i in main.game_state.field_slots:
+		if main.game_state.board[i] != null:
+			return i
+	return -1
+
+
+func _next_occupied_field_idx(main, after_idx: int) -> int:
+	for i in main.game_state.field_slots:
+		if i == after_idx:
+			continue
+		if main.game_state.board[i] != null:
+			return i
+	return -1
+
+
+func _click_field_card_by_controls(main, field_idx: int) -> bool:
+	if field_idx < 0 or field_idx >= main.build_phase._field_visuals.size():
+		return false
+	var visual = main.build_phase._field_visuals[field_idx]
+	if visual == null or not visual.visible or visual.card_instance == null:
+		return false
+	visual.card_clicked.emit(visual)
+	return true
 
 
 func _move_bench_to_field_by_visible_drop(main) -> int:
