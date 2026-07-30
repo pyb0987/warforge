@@ -150,10 +150,11 @@ Operating rules:
 | H96 | DONE | Synthetic unlock-overflow marker | A bounded live UI scout confirmed the player-facing matrix still passes, then the unlock-overflow fixture was marked in JSON/summary/docs so future scouts cannot misread scripted recap stress data as natural meta-progression pacing evidence. | PASS trace `.claude/traces/experiments/092-live-ui-unlock-fixture-marker.md`; PASS Python summary/matrix tests 46/46; PASS live UI report + summary marker; PASS default matrix 4/4; PASS expanded matrix 5/5; PASS live smoke 18/18; PASS card-spawn guard; PASS full GUT 1282/1282; PASS `git diff --check`; PASS protected boundary check |
 | H97 | DONE | Natural self-play readiness refresh | A no-edit all-core D1 self-play scout refreshed recomputable M1 evidence: overall flow and boss rewards remain healthy, natural unlock pressure is still a watch item, and soft-Druid is again the blocking strategy floor with the same protected path-lag approval gate. | PASS advisory multi-review convergence; PASS trace `.claude/traces/experiments/093-natural-self-play-readiness-refresh.md`; PASS self-play summary 70 runs; PASS all-strategy trace summary; PASS Druid diagnostics and H94 comparison; PASS `git diff --check`; PASS protected boundary check |
 | H98 | DONE | Druid activation/promotion audit | Added a behavior-neutral analyzer that attributes bought-but-inactive Druid payoff gaps by bench/board status, promotion decisions, path, card, round, and outcome, then used H94/H78/H97 traces to choose the next protected candidate. | PASS trace `.claude/traces/experiments/095-druid-activation-promotion-audit.md`; PASS advisory multi-review; PASS analyzer tests 21/21 and Python analyzer/summary tests 24/24; PASS H94 activation audit; PASS H78-vs-H94 activation comparison; PASS H97 activation audit; PASS docs; PASS protected/tuning boundary check |
-| H99 | DONE | Druid activation protected-probe packet | Prepared the exact approval packet for a narrow protected AI promotion probe: allow duplicate current-focus copies to be replacement candidates for missing Druid payoffs, with strict same-seed outcome and activation gates. | READY trace `.claude/traces/experiments/096-druid-activation-probe-approval-packet.md`; awaits fresh approval to edit only `godot/sim/ai_agent.gd` and `godot/tests/test_ai_agent.gd` |
-| H100 | TODO | Protected Druid duplicate-focus activation probe | If approved, implement and test the H99 packet, then run same-seed 60-run soft-Druid self-play against H94 with H74/H76/H77/H98 analyzers before any adoption. | READY no-edit preflight `.claude/traces/experiments/097-h100-no-edit-readiness.md`; requires fresh protected-edit approval; baseline `test_ai_agent.gd` 39/39 and Python analyzer tests 24/24; rollback if clears/HP/screen/activation gates fail |
+| H99 | DONE | Druid activation protected-probe packet | Prepared the exact approval packet for a narrow protected AI promotion probe: allow duplicate current-focus copies to be replacement candidates for missing Druid payoffs, with strict same-seed outcome and activation gates. | READY trace `.claude/traces/experiments/096-druid-activation-probe-approval-packet.md`; packet was executed by H100 and superseded by H100's rejected/rolled-back result |
+| H100 | DONE | Protected Druid duplicate-focus activation probe | User-approved H99 probe was implemented and focused-tested, then rejected and rolled back because the same-seed screen was completely flat against H94. | REJECTED trace `.claude/traces/experiments/098-h100-druid-duplicate-focus-rejected.md`; PASS patched focused AI tests 41/41 before screen; REJECT same-seed screen 9/60 -> 9/60 clears, avg HP delta +0.00, `REJECT_FLAT_OR_NOISY`, inactive frames 29 -> 29, bench gaps 23 -> 23, never-active 17 -> 17, promotion skips 19 -> 19; PASS rollback focused AI tests 39/39; protected edits removed |
+| H101 | TODO | Druid combat conversion next slice | Pivot from payoff activation mechanics to the measured R9-R11 combat conversion bottleneck, or first add source-state binding to self-play evidence if needed. | H100 ledger still shows R9-R11 focus-active WR 34.6%, primary bottleneck `debuff_too_small` in 30 frames, and analyzer next signal says Spore is present but under-moving enemy pressure; request fresh approval before touching protected `godot/sim/**`, card values, difficulty, or economy tuning |
 
-## Working Completion Gates After H99
+## Working Completion Gates After H100
 
 This section is not a claim that Warforge is complete. It is the current
 evidence contract for the next playable prototype milestone, so autonomous work
@@ -177,7 +178,7 @@ M1 gates:
 | Core live run flow | Run start -> commander/talisman -> build/shop/move/upgrade -> chain -> battle -> boss reward -> terminal is covered by live-scene smoke and the visible-control playthrough path. | Largely green through H93: live smoke 18/18, natural terminal coverage for initial commanders, and special identity coverage for Smith, Raider, and Strategist. |
 | Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; H97 natural self-play projects burst pressure (largest 11 raw unlocks, 8 deferred by the UI reveal cap), but this remains a watch item unless manual play finds the recap overwhelming. |
 | Reward/economy integrity | Boss rewards, Raider reward, upgrade targeting, merge rewards, pricing talismans, card spawn guards, and generated descriptions have focused tests or live smoke coverage. | Green for known player-reported regressions; keep `python3 scripts/lint_card_spawn.py` and focused reward/economy tests in the verification set. |
-| Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H98 shows H94 has 29 inactive Druid payoff frames from 20/60 runs, mostly bench gaps, and H78 did not improve total inactive frames. H99 prepared a protected duplicate-focus activation probe packet; H100 requires fresh approval before editing protected AI policy. |
+| Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H100 tested the duplicate-focus activation probe and rejected it after a flat same-seed screen: 9/60 clears, avg HP delta +0.00, `REJECT_FLAT_OR_NOISY`, inactive frames 29 -> 29, bench gaps 23 -> 23. Next likely slice is R9-R11 combat conversion, especially Spore pressure/debuff conversion. |
 | Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected `godot/sim/**` boundary status is explicit, and generated database files are not manually edited. | Green for the H97 no-edit evidence scope; latest full GUT remains H96 1282/1282, and broad verification must rerun after the next gameplay-affecting change. |
 
 Acceptance rule: prose in this plan is only a routing aid. M1 completion must be
@@ -186,12 +187,12 @@ trace analyzers, focused/live GUT output, card-spawn guards, whitespace guards,
 and an explicit protected-boundary check.
 
 Open blockers before M1 can be called complete:
-- P0: H100 requires fresh approval before editing protected AI policy in
-  `godot/sim/ai_agent.gd` and `godot/tests/test_ai_agent.gd`. H99's packet is
-  ready; do not reuse H78's old approval.
-- P1: If H100 is not approved, the next unprotected work should stay
-  behavior-neutral or player-facing and should not claim the strategy viability
-  floor is green.
+- P0: H100 was approved, tested, rejected, and rolled back. The strategy
+  viability floor is still not green; do not retry duplicate-focus activation
+  without new evidence.
+- P1: The next likely Druid slice is R9-R11 combat conversion, especially Spore
+  pressure/debuff conversion. Request fresh approval before touching protected
+  `godot/sim/**`, card values, difficulty, or economy tuning.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
   upgraded from prototype completion to full balance beta.
 - P2: Unlock burst pacing is acceptable as a watch item for now, but should be
