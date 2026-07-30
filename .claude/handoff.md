@@ -1,5 +1,53 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H98/H99 update
+
+- H98 completed as a behavior-neutral Python analyzer/tooling slice.
+- Added `--druid-activation-audit` to `scripts/analyze_ai_trace.py`.
+  It attributes Druid payoff activation gaps by:
+  - payoff buy runs and bought copies;
+  - active-after-buy and never-active-after-buy copies;
+  - inactive R8-R12 frames by bench/board/absent status, card, round, path,
+    and run-phase bucket;
+  - promotion attempts/skips, skip reasons, blocking cards, and examples;
+  - explicit trace limitations for aggregate card-ID attribution.
+- Docs updated in `docs/tools/self-play-observer.md`.
+- Multi-review selected this slice:
+  - product/strategy: choose behavior-neutral activation diagnostic, 8/10;
+  - trace evidence: feasible from existing traces, 8/10;
+  - scope boundary: safe if Python-only, 8/10.
+- Real-trace read:
+  - H94: 42/60 payoff buy runs, 63 bought copies, 46 active after buy, 17 never
+    active after buy, 29 inactive frames from 20 runs, 23 bench gaps, 19
+    no-attempt bench gaps, 19 promotion skips.
+  - H94 path split: `druid_world_tree` has 20 inactive frames, 16 bench gaps,
+    and 16 promotion skips; `druid_garden` has 9 inactive frames and 7 bench
+    gaps.
+  - H78 vs H94: inactive frames stayed 29 -> 29, gap runs 20 -> 22, promotion
+    skips 19 -> 25. This explains why H78's shop-hold improvement did not
+    convert and remains rejected.
+  - H97 10-run sample: small/noisy but consistent with mixed activation
+    evidence; use H94/H78 as the main same-seed read.
+- Read-only protected-code inspection identified a plausible H100 probe:
+  `_find_path_focus_replacement()` skips all current focus cards before
+  checking duplicate active copies, while `_should_skip_path_focus_swap()`
+  already allows duplicate active focus copies to be replaced.
+- H99 completed as an approval packet only:
+  `.claude/traces/experiments/096-druid-activation-probe-approval-packet.md`.
+- Latest H98 trace:
+  `.claude/traces/experiments/095-druid-activation-promotion-audit.md`.
+- Verification:
+  - PASS Python compile.
+  - PASS analyzer tests 21/21.
+  - PASS analyzer + self-play summary tests 24/24.
+  - PASS real H94/H78/H97 activation-audit commands.
+  - PASS `git diff --check`.
+  - PASS protected/tuning boundary check produced no output.
+- Resume recommendation: ask for fresh approval before H100. If approved, edit
+  only `godot/sim/ai_agent.gd` and `godot/tests/test_ai_agent.gd` according to
+  the H99 packet, then run same-seed H94 comparison with H74/H76/H77/H98
+  analyzers. If not approved, do not claim M1 strategy viability progress.
+
 ## 2026-07-30 Codex H78 protected probe outcome
 
 - User explicitly approved editing only:

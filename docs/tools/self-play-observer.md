@@ -152,6 +152,26 @@ before stabilizing. Use its `next signal` to choose whether the next Druid work
 belongs in acquisition/economy timing, board activation, combat conversion, or
 a broader pivot.
 
+When the run-phase read points to bought or owned-but-inactive Druid payoffs,
+add `--druid-activation-audit`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-activation-audit \
+  --druid-compare-baseline=/private/tmp/warforge_baseline_traces
+```
+
+This report attributes post-purchase payoff gaps using existing trace snapshots:
+buy runs, active-after-buy copies, never-active copies, inactive frames by
+bench/board/round/path/card, promotion attempts/skips, skip reasons, blocking
+cards, and inactive examples linked to the next battle and conversion bucket.
+It is behavior-neutral and aggregate-only: traces do not carry stable card
+instance IDs, so duplicate payoff copies are reported by card ID rather than as
+perfect per-instance causality. A promotion-policy next signal supports asking
+for a fresh protected AI/activation probe; it is not adoption evidence by
+itself.
+
 When timing pressure points to Druid `path_lag_hold`, add
 `--druid-path-lag-audit`:
 

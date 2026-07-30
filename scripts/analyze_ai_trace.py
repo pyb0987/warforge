@@ -2021,6 +2021,671 @@ def print_druid_run_phase_comparison(strat, comparison, baseline_label):
     print()
 
 
+def summarize_druid_activation_audit(events_per_run, round_min=8, round_max=12):
+    """Attribute Druid payoff bought-but-inactive gaps from existing trace facts."""
+    rows = []
+    payoff_rows = []
+    gap_rows = []
+    promotion_rows = []
+    rows_by_path = defaultdict(list)
+
+    for idx, events in enumerate(events_per_run):
+        row = _druid_activation_run_row(events, idx, round_min, round_max)
+        rows.append(row)
+        rows_by_path[row["detected_path"]].append(row)
+        payoff_rows.extend(row["payoffs"])
+        gap_rows.extend(row["gap_frames"])
+        promotion_rows.extend(row["promotion_decisions"])
+
+    summary = _finalize_druid_activation_group(
+        rows,
+        payoff_rows,
+        gap_rows,
+        promotion_rows,
+        round_min,
+        round_max,
+    )
+    summary["by_path"] = {
+        path_id: _finalize_druid_activation_group(
+            path_rows,
+            [payoff for row in path_rows for payoff in row["payoffs"]],
+            [gap for row in path_rows for gap in row["gap_frames"]],
+            [decision for row in path_rows for decision in row["promotion_decisions"]],
+            round_min,
+            round_max,
+            include_examples=False,
+        )
+        for path_id, path_rows in sorted(rows_by_path.items())
+    }
+    summary["next_signal"] = _druid_activation_signal(summary)
+    return summary
+
+
+def _druid_activation_run_row(events, run_idx, round_min, round_max):
+    phase_row = _druid_phase_run_row(events, run_idx, round_min, round_max)
+    battles_by_round = {
+        int(ev.get("round", 0)): ev
+        for ev in events
+        if ev.get("t") == "battle"
+    }
+    round_starts_by_round = {
+        int(ev.get("round", 0)): ev
+        for ev in events
+        if ev.get("t") == "round_start"
+    }
+    round_ends_by_round = {
+        int(ev.get("round", 0)): ev
+        for ev in events
+        if ev.get("t") == "round_end"
+    }
+    buy_rounds_by_card = defaultdict(list)
+    for ev in events:
+        if ev.get("t") == "buy" and ev.get("card_id", "") in DRUID_PAYOFF_CARDS:
+            buy_rounds_by_card[str(ev.get("card_id", ""))].append(
+                int(ev.get("round", 0))
+            )
+
+    promotion_decisions = []
+    promotion_decisions_by_round_card = defaultdict(list)
+    for ev in events:
+        if ev.get("t") not in ("promote", "promote_skip"):
+            continue
+        round_num = int(ev.get("round", 0))
+        if round_num < round_min or round_num > round_max:
+            continue
+        bench_card_id = str(ev.get("bench_card_id", ""))
+        board_card_id = str(ev.get("board_card_id", ""))
+        if bench_card_id not in DRUID_PAYOFF_CARDS and board_card_id not in DRUID_PAYOFF_CARDS:
+            continue
+        card_id = bench_card_id if bench_card_id in DRUID_PAYOFF_CARDS else board_card_id
+        decision = _druid_activation_promotion_row(ev, card_id, phase_row)
+        promotion_decisions.append(decision)
+        promotion_decisions_by_round_card[(round_num, card_id)].append(decision)
+
+    payoff_rows = []
+    gap_frames = []
+    for card_id in sorted(DRUID_PAYOFF_CARDS):
+        payoff_row = _druid_activation_payoff_row(
+            card_id,
+            buy_rounds_by_card.get(card_id, []),
+            phase_row,
+            round_starts_by_round,
+            round_ends_by_round,
+            battles_by_round,
+            promotion_decisions_by_round_card,
+            round_min,
+            round_max,
+        )
+        payoff_rows.append(payoff_row)
+        gap_frames.extend(payoff_row["gap_frames"])
+
+    return {
+        "run": run_idx,
+        "run_won": phase_row["run_won"],
+        "final_hp": phase_row["final_hp"],
+        "death_round": phase_row["death_round"],
+        "detected_path": phase_row["detected_path"],
+        "conversion_bucket": phase_row["conversion_bucket"],
+        "payoffs": payoff_rows,
+        "gap_frames": gap_frames,
+        "promotion_decisions": promotion_decisions,
+    }
+
+
+def _druid_activation_promotion_row(ev, card_id, phase_row):
+    bench_value = _optional_float(ev.get("bench_value"))
+    board_value = _optional_float(ev.get("board_value"))
+    allowed_gap = _optional_float(ev.get("allowed_gap"))
+    value_delta = None
+    if bench_value is not None and board_value is not None:
+        value_delta = bench_value - board_value
+    round_num = int(ev.get("round", 0))
+    return {
+        "run": phase_row["run"],
+        "round": round_num,
+        "path": phase_row["detected_path"],
+        "run_won": phase_row["run_won"],
+        "final_hp": phase_row["final_hp"],
+        "death_round": phase_row["death_round"],
+        "conversion_bucket": phase_row["conversion_bucket"],
+        "card_id": card_id,
+        "event_type": str(ev.get("t", "")),
+        "reason": str(ev.get("reason", "")),
+        "current_phase": str(ev.get("current_phase", "")),
+        "bench_card_id": str(ev.get("bench_card_id", "")),
+        "board_card_id": str(ev.get("board_card_id", "")),
+        "board_idx": ev.get("board_idx"),
+        "bench_value": bench_value,
+        "board_value": board_value,
+        "value_delta": value_delta,
+        "allowed_gap": allowed_gap,
+    }
+
+
+def _druid_activation_payoff_row(
+        card_id,
+        buy_rounds,
+        phase_row,
+        round_starts_by_round,
+        round_ends_by_round,
+        battles_by_round,
+        promotion_decisions_by_round_card,
+        round_min,
+        round_max):
+    first_buy_round = min(buy_rounds) if buy_rounds else None
+    first_bench_round = None
+    first_board_round = None
+    first_active_round = None
+    gap_frames = []
+    status_counts = Counter()
+
+    for round_num in range(round_min, round_max + 1):
+        round_end = round_ends_by_round.get(round_num)
+        if not isinstance(round_end, dict):
+            continue
+        board = set(round_end.get("board") or [])
+        bench = set(round_end.get("bench") or [])
+        active_board = set(round_end.get("active_board") or [])
+        if card_id in bench and first_bench_round is None:
+            first_bench_round = round_num
+        if card_id in board and first_board_round is None:
+            first_board_round = round_num
+        if card_id in active_board and first_active_round is None:
+            first_active_round = round_num
+        if first_buy_round is None or round_num < first_buy_round:
+            continue
+        status = _druid_activation_status(card_id, board, bench, active_board)
+        status_counts[status] += 1
+        if status == "active":
+            continue
+        battle = battles_by_round.get(round_num, {})
+        round_start = round_starts_by_round.get(round_num, {})
+        decisions = promotion_decisions_by_round_card.get((round_num, card_id), [])
+        frame = {
+            "run": phase_row["run"],
+            "round": round_num,
+            "path": phase_row["detected_path"],
+            "run_won": phase_row["run_won"],
+            "final_hp": phase_row["final_hp"],
+            "death_round": phase_row["death_round"],
+            "conversion_bucket": phase_row["conversion_bucket"],
+            "card_id": card_id,
+            "first_buy_round": first_buy_round,
+            "first_active_round": first_active_round,
+            "status": status,
+            "hp_start": (
+                int(round_start.get("hp", 0))
+                if isinstance(round_start, dict) and "hp" in round_start
+                else None
+            ),
+            "battle_seen": isinstance(battle, dict) and bool(battle),
+            "battle_won": bool(battle.get("won", False)) if battle else False,
+            "ally_survived": int(battle.get("ally_survived", 0)) if battle else 0,
+            "enemy_survived": int(battle.get("enemy_survived", 0)) if battle else 0,
+            "promotion_attempts": len([
+                row for row in decisions if row["event_type"] == "promote"
+            ]),
+            "promotion_skips": len([
+                row for row in decisions if row["event_type"] == "promote_skip"
+            ]),
+            "first_skip_reason": _first_decision_reason(decisions, "promote_skip"),
+            "blocked_by_card": _first_blocking_card(decisions),
+            "bench_value": _first_decision_value(decisions, "bench_value"),
+            "board_value": _first_decision_value(decisions, "board_value"),
+            "allowed_gap": _first_decision_value(decisions, "allowed_gap"),
+            "trace_note": _druid_activation_trace_note(status, decisions),
+        }
+        gap_frames.append(frame)
+
+    first_owned_round = _min_present([first_bench_round, first_board_round])
+    buy_to_active_rounds = None
+    if first_buy_round is not None and first_active_round is not None:
+        buy_to_active_rounds = first_active_round - first_buy_round
+    buy_to_death_rounds = None
+    if first_buy_round is not None:
+        buy_to_death_rounds = phase_row["death_round"] - first_buy_round
+    return {
+        "run": phase_row["run"],
+        "path": phase_row["detected_path"],
+        "run_won": phase_row["run_won"],
+        "final_hp": phase_row["final_hp"],
+        "death_round": phase_row["death_round"],
+        "conversion_bucket": phase_row["conversion_bucket"],
+        "card_id": card_id,
+        "bought": first_buy_round is not None,
+        "first_buy_round": first_buy_round,
+        "first_owned_round": first_owned_round,
+        "first_bench_round": first_bench_round,
+        "first_board_round": first_board_round,
+        "first_active_round": first_active_round,
+        "buy_to_active_rounds": buy_to_active_rounds,
+        "buy_to_death_rounds": buy_to_death_rounds,
+        "status_counts": dict(status_counts),
+        "gap_frames": gap_frames,
+    }
+
+
+def _druid_activation_status(card_id, board, bench, active_board):
+    if card_id in active_board:
+        return "active"
+    if card_id in bench:
+        return "bench_not_promoted"
+    if card_id in board:
+        return "board_not_active"
+    return "absent_unobserved"
+
+
+def _druid_activation_trace_note(status, decisions):
+    if status == "absent_unobserved":
+        return "aggregate_card_id_trace_no_instance_id"
+    if decisions:
+        return "promotion_decision_observed"
+    if status == "bench_not_promoted":
+        return "bench_gap_no_same_round_promotion_decision"
+    if status == "board_not_active":
+        return "board_gap_no_same_round_promotion_decision"
+    return "observed"
+
+
+def _first_decision_reason(decisions, event_type):
+    for row in decisions:
+        if row["event_type"] == event_type and row["reason"]:
+            return row["reason"]
+    return ""
+
+
+def _first_blocking_card(decisions):
+    for row in decisions:
+        if row["board_card_id"]:
+            return row["board_card_id"]
+    return ""
+
+
+def _first_decision_value(decisions, key):
+    for row in decisions:
+        if row.get(key) is not None:
+            return row.get(key)
+    return None
+
+
+def _finalize_druid_activation_group(
+        run_rows,
+        payoff_rows,
+        gap_rows,
+        promotion_rows,
+        round_min,
+        round_max,
+        include_examples=True):
+    bought_payoff_rows = [row for row in payoff_rows if row["bought"]]
+    bought_runs = {row["run"] for row in bought_payoff_rows}
+    active_after_buy_rows = [
+        row for row in bought_payoff_rows
+        if row["first_active_round"] is not None
+    ]
+    never_active_after_buy_rows = [
+        row for row in bought_payoff_rows
+        if row["first_active_round"] is None
+    ]
+    bench_gap_rows = [
+        row for row in gap_rows if row["status"] == "bench_not_promoted"
+    ]
+    board_gap_rows = [
+        row for row in gap_rows if row["status"] == "board_not_active"
+    ]
+    result = {
+        "n_runs": len(run_rows),
+        "round_min": round_min,
+        "round_max": round_max,
+        "wins": sum(1 for row in run_rows if row["run_won"]),
+        "losses": sum(1 for row in run_rows if not row["run_won"]),
+        "payoff_buy_runs": len(bought_runs),
+        "bought_payoff_copies": len(bought_payoff_rows),
+        "active_after_buy_copies": len(active_after_buy_rows),
+        "never_active_after_buy_copies": len(never_active_after_buy_rows),
+        "avg_buy_to_active_rounds": _avg([
+            row["buy_to_active_rounds"]
+            for row in active_after_buy_rows
+            if row["buy_to_active_rounds"] is not None
+        ]),
+        "avg_buy_to_death_rounds": _avg([
+            row["buy_to_death_rounds"]
+            for row in bought_payoff_rows
+            if row["buy_to_death_rounds"] is not None
+        ]),
+        "gap_frames": len(gap_rows),
+        "gap_runs": len({row["run"] for row in gap_rows}),
+        "gap_status_counts": dict(Counter(row["status"] for row in gap_rows)),
+        "gap_by_card": dict(Counter(row["card_id"] for row in gap_rows)),
+        "gap_by_round": dict(Counter(row["round"] for row in gap_rows)),
+        "gap_by_bucket": dict(Counter(row["conversion_bucket"] for row in gap_rows)),
+        "bench_gap_frames": len(bench_gap_rows),
+        "board_gap_frames": len(board_gap_rows),
+        "no_attempt_bench_frames": len([
+            row for row in bench_gap_rows
+            if row["promotion_attempts"] == 0 and row["promotion_skips"] == 0
+        ]),
+        "promotion_attempts": len([
+            row for row in promotion_rows if row["event_type"] == "promote"
+        ]),
+        "promotion_skips": len([
+            row for row in promotion_rows if row["event_type"] == "promote_skip"
+        ]),
+        "promotion_skip_reasons": dict(Counter(
+            row["reason"] for row in promotion_rows
+            if row["event_type"] == "promote_skip"
+        )),
+        "promotion_skip_by_card": dict(Counter(
+            row["card_id"] for row in promotion_rows
+            if row["event_type"] == "promote_skip"
+        )),
+        "top_blocking_cards": Counter(
+            row["board_card_id"] for row in promotion_rows
+            if row["event_type"] == "promote_skip" and row["board_card_id"]
+        ).most_common(8),
+        "avg_skip_value_delta": _avg([
+            row["value_delta"] for row in promotion_rows
+            if row["event_type"] == "promote_skip"
+            and row["value_delta"] is not None
+        ]),
+        "trace_limitations": [
+            "card-id aggregate: duplicate payoff copies are not instance-tracked",
+            "no same-round promotion decision means not observed, not impossible",
+        ],
+    }
+    if include_examples:
+        result["examples"] = _druid_activation_examples(gap_rows, promotion_rows)
+    result["next_signal"] = _druid_activation_signal(result)
+    return result
+
+
+def _druid_activation_examples(gap_rows, promotion_rows):
+    examples = []
+    priority_rows = list(gap_rows)
+    priority_rows.sort(
+        key=lambda row: (
+            row["run_won"],
+            row["status"] != "bench_not_promoted",
+            row["hp_start"] if row["hp_start"] is not None else 999,
+            row["round"],
+        )
+    )
+    seen = set()
+    for row in priority_rows:
+        key = (row["run"], row["round"], row["card_id"], row["status"])
+        if key in seen:
+            continue
+        seen.add(key)
+        examples.append({
+            "run": row["run"],
+            "round": row["round"],
+            "path": row["path"],
+            "bucket": row["conversion_bucket"],
+            "card_id": row["card_id"],
+            "status": row["status"],
+            "first_buy_round": row["first_buy_round"],
+            "first_active_round": row["first_active_round"],
+            "hp_start": row["hp_start"],
+            "battle_won": row["battle_won"],
+            "ally_survived": row["ally_survived"],
+            "enemy_survived": row["enemy_survived"],
+            "first_skip_reason": row["first_skip_reason"],
+            "blocked_by_card": row["blocked_by_card"],
+            "bench_value": row["bench_value"],
+            "board_value": row["board_value"],
+            "allowed_gap": row["allowed_gap"],
+            "death_round": row["death_round"],
+            "final_hp": row["final_hp"],
+            "trace_note": row["trace_note"],
+        })
+        if len(examples) >= 8:
+            return examples
+
+    for row in promotion_rows:
+        if row["event_type"] != "promote_skip":
+            continue
+        examples.append({
+            "run": row["run"],
+            "round": row["round"],
+            "path": row["path"],
+            "bucket": row["conversion_bucket"],
+            "card_id": row["card_id"],
+            "status": "promotion_skip",
+            "first_buy_round": None,
+            "first_active_round": None,
+            "hp_start": None,
+            "battle_won": False,
+            "ally_survived": 0,
+            "enemy_survived": 0,
+            "first_skip_reason": row["reason"],
+            "blocked_by_card": row["board_card_id"],
+            "bench_value": row["bench_value"],
+            "board_value": row["board_value"],
+            "allowed_gap": row["allowed_gap"],
+            "death_round": row["death_round"],
+            "final_hp": row["final_hp"],
+            "trace_note": "promotion_skip_without_gap_frame",
+        })
+        if len(examples) >= 8:
+            break
+    return examples
+
+
+def _druid_activation_signal(summary):
+    if summary["bought_payoff_copies"] == 0:
+        return "No Druid payoff purchases in scope; use acquisition/path-lag diagnostics first."
+    gap_share = _safe_rate(
+        summary["never_active_after_buy_copies"] + summary["gap_runs"],
+        summary["bought_payoff_copies"] + summary["n_runs"],
+    )
+    if (
+        summary["gap_runs"] >= 5
+        and (
+            summary["bench_gap_frames"] >= 8
+            or summary["promotion_skips"] >= 8
+        )
+    ):
+        return (
+            "Bench/promotion gaps are common enough to justify an activation "
+            "or promotion-policy probe, with fresh protected approval."
+        )
+    if summary["board_gap_frames"] >= 8:
+        return (
+            "Owned payoff cards often reach the board but are not active; inspect "
+            "active-slot rules or board-state conversion before combat tuning."
+        )
+    if gap_share <= 0.10 and summary["gap_frames"] <= 4:
+        return (
+            "Activation gaps are not a dominant trace signal; pivot toward "
+            "Spore pressure conversion or late activation survival."
+        )
+    return (
+        "Activation evidence is mixed; compare against run-phase and combat "
+        "ledger before requesting protected edits."
+    )
+
+
+def summarize_druid_activation_comparison(candidate_events, baseline_events):
+    candidate = summarize_druid_activation_audit(candidate_events)
+    baseline = summarize_druid_activation_audit(baseline_events)
+    return {
+        "baseline": _druid_activation_compare_metrics(baseline),
+        "candidate": _druid_activation_compare_metrics(candidate),
+        "deltas": {
+            "payoff_buy_runs": (
+                candidate["payoff_buy_runs"] - baseline["payoff_buy_runs"]
+            ),
+            "gap_frames": candidate["gap_frames"] - baseline["gap_frames"],
+            "gap_runs": candidate["gap_runs"] - baseline["gap_runs"],
+            "bench_gap_frames": (
+                candidate["bench_gap_frames"] - baseline["bench_gap_frames"]
+            ),
+            "board_gap_frames": (
+                candidate["board_gap_frames"] - baseline["board_gap_frames"]
+            ),
+            "promotion_skips": (
+                candidate["promotion_skips"] - baseline["promotion_skips"]
+            ),
+            "no_attempt_bench_frames": (
+                candidate["no_attempt_bench_frames"]
+                - baseline["no_attempt_bench_frames"]
+            ),
+        },
+        "status_deltas": _counter_delta(
+            candidate["gap_status_counts"],
+            baseline["gap_status_counts"],
+        ),
+        "skip_reason_deltas": _counter_delta(
+            candidate["promotion_skip_reasons"],
+            baseline["promotion_skip_reasons"],
+        ),
+        "next_signal": _druid_activation_comparison_signal(candidate, baseline),
+    }
+
+
+def _druid_activation_compare_metrics(summary):
+    return {
+        "runs": summary["n_runs"],
+        "wins": summary["wins"],
+        "payoff_buy_runs": summary["payoff_buy_runs"],
+        "bought_payoff_copies": summary["bought_payoff_copies"],
+        "active_after_buy_copies": summary["active_after_buy_copies"],
+        "never_active_after_buy_copies": summary["never_active_after_buy_copies"],
+        "avg_buy_to_active_rounds": summary["avg_buy_to_active_rounds"],
+        "gap_frames": summary["gap_frames"],
+        "gap_runs": summary["gap_runs"],
+        "bench_gap_frames": summary["bench_gap_frames"],
+        "board_gap_frames": summary["board_gap_frames"],
+        "promotion_skips": summary["promotion_skips"],
+        "no_attempt_bench_frames": summary["no_attempt_bench_frames"],
+    }
+
+
+def _druid_activation_comparison_signal(candidate, baseline):
+    if candidate["gap_frames"] > baseline["gap_frames"]:
+        return "Candidate increases payoff activation gaps; do not adopt as a repair."
+    if candidate["gap_frames"] < baseline["gap_frames"]:
+        return (
+            "Candidate reduces activation gaps; treat as diagnostic movement "
+            "only and require outcome gates before adoption."
+        )
+    if (
+        candidate["gap_frames"] <= 4
+        and candidate["promotion_skips"] <= 4
+        and candidate["never_active_after_buy_copies"] <= 2
+    ):
+        return (
+            "Activation gaps are low in the candidate trace; next repair should "
+            "target combat conversion or late survival, not promotion policy."
+        )
+    return "No decisive activation delta; keep this as routing evidence only."
+
+
+def print_druid_activation_audit(strat, summary):
+    print(f"## {strat} Druid Activation/Promotion Audit")
+    print(
+        "- scope: "
+        f"R{summary['round_min']}-R{summary['round_max']}, "
+        f"{summary['n_runs']} runs"
+    )
+    print(
+        "- payoff funnel: "
+        f"buy runs {summary['payoff_buy_runs']}/{summary['n_runs']}, "
+        f"bought copies {summary['bought_payoff_copies']}, "
+        f"active after buy {summary['active_after_buy_copies']}, "
+        f"never active after buy {summary['never_active_after_buy_copies']}, "
+        f"avg buy->active {summary['avg_buy_to_active_rounds']:.1f}R"
+    )
+    print(
+        "- inactive frames: "
+        f"total {summary['gap_frames']} from {summary['gap_runs']} runs, "
+        f"bench {summary['bench_gap_frames']}, "
+        f"board {summary['board_gap_frames']}, "
+        f"no-attempt bench {summary['no_attempt_bench_frames']}"
+    )
+    print(f"- inactive status counts: {summary['gap_status_counts']}")
+    print(f"- inactive by card: {summary['gap_by_card']}")
+    print(f"- inactive by round: {summary['gap_by_round']}")
+    print(f"- inactive by conversion bucket: {summary['gap_by_bucket']}")
+    print(
+        "- promotion decisions: "
+        f"promotes {summary['promotion_attempts']}, "
+        f"skips {summary['promotion_skips']}, "
+        f"skip reasons {summary['promotion_skip_reasons']}, "
+        f"avg skip value delta {summary['avg_skip_value_delta']:.1f}"
+    )
+    print(f"- top blocking cards: {summary['top_blocking_cards']}")
+    print(f"- trace limitations: {summary['trace_limitations']}")
+    print(f"- next signal: {summary['next_signal']}")
+    by_path = summary.get("by_path", {})
+    if by_path:
+        print("- by path:")
+        for path_id, row in by_path.items():
+            print(
+                "  - {path}: buy runs {buy_runs}/{runs}, gaps {gaps}, "
+                "bench {bench}, board {board}, skips {skips}, signal {signal}".format(
+                    path=path_id,
+                    buy_runs=row["payoff_buy_runs"],
+                    runs=row["n_runs"],
+                    gaps=row["gap_frames"],
+                    bench=row["bench_gap_frames"],
+                    board=row["board_gap_frames"],
+                    skips=row["promotion_skips"],
+                    signal=row["next_signal"],
+                )
+            )
+    if summary.get("examples"):
+        print("- inactive examples:")
+        for row in summary["examples"]:
+            print(
+                "  - run {run} R{round} {path}: {card_id} {status}, "
+                "buy R{first_buy_round}, active R{first_active_round}, "
+                "skip {first_skip_reason}, blocked by {blocked_by_card}, "
+                "values {bench_value}/{board_value}/gap {allowed_gap}, "
+                "battle A/E {ally_survived}/{enemy_survived}, bucket {bucket}, "
+                "note {trace_note}".format(**row)
+            )
+    print()
+
+
+def print_druid_activation_comparison(strat, comparison, baseline_label):
+    print(f"## {strat} Druid Activation/Promotion Comparison")
+    print(f"- baseline: {baseline_label}")
+    base = comparison["baseline"]
+    cand = comparison["candidate"]
+    deltas = comparison["deltas"]
+    print(
+        "- payoff buy runs: "
+        f"{base['payoff_buy_runs']}/{base['runs']} -> "
+        f"{cand['payoff_buy_runs']}/{cand['runs']} "
+        f"(Delta {deltas['payoff_buy_runs']:+d})"
+    )
+    print(
+        "- inactive frames: "
+        f"{base['gap_frames']} -> {cand['gap_frames']} "
+        f"(Delta {deltas['gap_frames']:+d}), runs "
+        f"{base['gap_runs']} -> {cand['gap_runs']} "
+        f"(Delta {deltas['gap_runs']:+d})"
+    )
+    print(
+        "- gap shape: "
+        f"bench {base['bench_gap_frames']} -> {cand['bench_gap_frames']} "
+        f"(Delta {deltas['bench_gap_frames']:+d}), board "
+        f"{base['board_gap_frames']} -> {cand['board_gap_frames']} "
+        f"(Delta {deltas['board_gap_frames']:+d}), no-attempt bench "
+        f"{base['no_attempt_bench_frames']} -> {cand['no_attempt_bench_frames']} "
+        f"(Delta {deltas['no_attempt_bench_frames']:+d})"
+    )
+    print(
+        "- promotion skips: "
+        f"{base['promotion_skips']} -> {cand['promotion_skips']} "
+        f"(Delta {deltas['promotion_skips']:+d})"
+    )
+    print(f"- status deltas: {comparison['status_deltas']}")
+    print(f"- skip reason deltas: {comparison['skip_reason_deltas']}")
+    print(f"- next signal: {comparison['next_signal']}")
+    print()
+
+
 def summarize_druid_path_lag_audit(events_per_run, round_min=8, round_max=12):
     """Audit Druid path_lag_hold decisions against offer visibility and outcomes."""
     hold_rows = []
@@ -3202,6 +3867,11 @@ def main():
         help="Print Druid payoff timing and survival/conversion diagnostics",
     )
     ap.add_argument(
+        "--druid-activation-audit",
+        action="store_true",
+        help="Print Druid payoff activation and promotion-gap diagnostics",
+    )
+    ap.add_argument(
         "--druid-path-lag-audit",
         action="store_true",
         help="Print Druid path-lag hold decision attribution diagnostics",
@@ -3244,6 +3914,11 @@ def main():
                 strat,
                 summarize_druid_run_phase(runs[strat]),
             )
+        if args.druid_activation_audit:
+            print_druid_activation_audit(
+                strat,
+                summarize_druid_activation_audit(runs[strat]),
+            )
         if args.druid_path_lag_audit:
             print_druid_path_lag_audit(
                 strat,
@@ -3278,6 +3953,15 @@ def main():
                 print_druid_run_phase_comparison(
                     strat,
                     summarize_druid_run_phase_comparison(
+                        runs[strat],
+                        baseline_runs[strat],
+                    ),
+                    args.druid_compare_baseline,
+                )
+            if args.druid_activation_audit:
+                print_druid_activation_comparison(
+                    strat,
+                    summarize_druid_activation_comparison(
                         runs[strat],
                         baseline_runs[strat],
                     ),

@@ -750,6 +750,155 @@ class AnalyzeAITraceTest(unittest.TestCase):
         self.assertAlmostEqual(comparison["round_deltas"][10]["focus_active_rate_delta"], 1.0)
         self.assertIn("active_too_late", comparison["next_signal"])
 
+    def test_druid_activation_audit_attributes_payoff_gap_frames(self):
+        events_per_run = [
+            [
+                {"t": "round_start", "round": 9, "hp": 14, "shop_level": 4},
+                {"t": "buy", "round": 9, "card_id": "dr_spore_cloud"},
+                {
+                    "t": "promote_skip",
+                    "round": 9,
+                    "reason": "path_focus_value_gap",
+                    "current_phase": "payoff",
+                    "bench_card_id": "dr_spore_cloud",
+                    "board_card_id": "dr_cradle",
+                    "board_idx": 2,
+                    "bench_value": 42.0,
+                    "board_value": 55.0,
+                    "allowed_gap": 6.0,
+                },
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "board": ["dr_cradle", "dr_lifebeat"],
+                    "bench": ["dr_spore_cloud"],
+                    "active_board": ["dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 16,
+                },
+                {"t": "run_end", "rounds_played": 9, "final_hp": -3, "won": False},
+            ],
+            [
+                {"t": "round_start", "round": 10, "hp": 16, "shop_level": 4},
+                {"t": "buy", "round": 10, "card_id": "dr_wrath"},
+                {
+                    "t": "round_end",
+                    "round": 10,
+                    "board": ["dr_wrath", "dr_cradle", "dr_lifebeat"],
+                    "bench": [],
+                    "active_board": ["dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_world_tree",
+                },
+                {
+                    "t": "battle",
+                    "round": 10,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 12,
+                },
+                {"t": "run_end", "rounds_played": 10, "final_hp": -1, "won": False},
+            ],
+            [
+                {"t": "round_start", "round": 9, "hp": 22, "shop_level": 4},
+                {"t": "buy", "round": 9, "card_id": "dr_spore_cloud"},
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "board": ["dr_cradle"],
+                    "bench": ["dr_spore_cloud"],
+                    "active_board": ["dr_cradle"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": True,
+                    "ally_survived": 4,
+                    "enemy_survived": 0,
+                },
+                {"t": "run_end", "rounds_played": 15, "final_hp": 12, "won": True},
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_activation_audit(events_per_run)
+
+        self.assertEqual(summary["n_runs"], 3)
+        self.assertEqual(summary["payoff_buy_runs"], 3)
+        self.assertEqual(summary["bought_payoff_copies"], 3)
+        self.assertEqual(summary["active_after_buy_copies"], 0)
+        self.assertEqual(summary["gap_frames"], 3)
+        self.assertEqual(summary["bench_gap_frames"], 2)
+        self.assertEqual(summary["board_gap_frames"], 1)
+        self.assertEqual(summary["no_attempt_bench_frames"], 1)
+        self.assertEqual(summary["promotion_skips"], 1)
+        self.assertEqual(
+            summary["promotion_skip_reasons"]["path_focus_value_gap"],
+            1,
+        )
+        self.assertEqual(summary["top_blocking_cards"][0], ("dr_cradle", 1))
+        self.assertEqual(summary["gap_by_card"]["dr_spore_cloud"], 2)
+        self.assertEqual(summary["gap_by_card"]["dr_wrath"], 1)
+        self.assertIn("druid_garden", summary["by_path"])
+        self.assertEqual(summary["by_path"]["druid_garden"]["bench_gap_frames"], 2)
+        self.assertEqual(summary["examples"][0]["status"], "bench_not_promoted")
+        self.assertEqual(summary["examples"][0]["first_skip_reason"], "path_focus_value_gap")
+        self.assertEqual(summary["examples"][0]["blocked_by_card"], "dr_cradle")
+        self.assertEqual(
+            summary["examples"][0]["trace_note"],
+            "promotion_decision_observed",
+        )
+        self.assertIn("aggregate", summary["trace_limitations"][0])
+
+    def test_druid_activation_comparison_reports_gap_deltas(self):
+        baseline_events = [
+            [
+                {"t": "round_start", "round": 9, "hp": 14, "shop_level": 4},
+                {"t": "buy", "round": 9, "card_id": "dr_spore_cloud"},
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "board": ["dr_cradle"],
+                    "bench": ["dr_spore_cloud"],
+                    "active_board": ["dr_cradle"],
+                    "detected_path": "druid_garden",
+                },
+                {"t": "battle", "round": 9, "won": False},
+                {"t": "run_end", "rounds_played": 9, "final_hp": -2, "won": False},
+            ],
+        ]
+        candidate_events = [
+            [
+                {"t": "round_start", "round": 9, "hp": 20, "shop_level": 4},
+                {"t": "buy", "round": 9, "card_id": "dr_spore_cloud"},
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "board": ["dr_spore_cloud", "dr_cradle"],
+                    "bench": [],
+                    "active_board": ["dr_spore_cloud", "dr_cradle"],
+                    "detected_path": "druid_garden",
+                },
+                {"t": "battle", "round": 9, "won": True},
+                {"t": "run_end", "rounds_played": 15, "final_hp": 20, "won": True},
+            ],
+        ]
+
+        comparison = analyze_ai_trace.summarize_druid_activation_comparison(
+            candidate_events,
+            baseline_events,
+        )
+
+        self.assertEqual(comparison["deltas"]["gap_frames"], -1)
+        self.assertEqual(comparison["deltas"]["bench_gap_frames"], -1)
+        self.assertEqual(comparison["status_deltas"]["bench_not_promoted"], -1)
+        self.assertIn("reduces activation gaps", comparison["next_signal"])
+
     def test_druid_path_lag_audit_attributes_no_focus_holds(self):
         def held_loss(best_card_id, best_score, path_id="druid_garden"):
             return [
