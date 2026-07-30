@@ -2,6 +2,19 @@
 
 ## 2026-07-30 Codex H98/H99 update
 
+- Follow-up no-edit H100 readiness check:
+  - Latest readiness trace:
+    `.claude/traces/experiments/097-h100-no-edit-readiness.md`.
+  - Current code still matches the H99 packet: replacement finder skips current
+    focus cards, while the later swap guard allows duplicate active focus
+    copies.
+  - Baseline `test_ai_agent.gd` still passes 39/39.
+  - Python analyzer/summary tests still pass 24/24.
+  - H94 no-edit preflight still shows 29 inactive payoff frames from 20/60
+    runs and a world-tree-heavy bench/promotion tail.
+  - H94 path-lag audit still suggests the old no-focus stabilizer gate, but
+    H78 already tested and rejected that exact direction, so do not retry it
+    as-is.
 - H98 completed as a behavior-neutral Python analyzer/tooling slice.
 - Added `--druid-activation-audit` to `scripts/analyze_ai_trace.py`.
   It attributes Druid payoff activation gaps by:
