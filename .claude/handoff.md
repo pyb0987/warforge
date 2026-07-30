@@ -1,5 +1,52 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H95 update
+
+- H95 completed as an unprotected completion-readiness contract.
+- Purpose: pause the current autonomous run with a concrete resume target
+  rather than starting another gameplay slice.
+- Updated `Plans.md` with a working M1-M4 milestone ladder and M1 evidence
+  gates:
+  - core live run flow;
+  - replay/meta clarity;
+  - reward/economy integrity;
+  - strategy viability floor;
+  - verification hygiene.
+- Important non-claim: H95 does not mark Warforge complete. It defines the
+  evidence needed before M1 "completion-ready prototype" can be called done.
+- Advisory review note:
+  - verification/scope critic supported H95 only as a contract/readiness
+    artifact;
+  - false-green risk was medium-high if H94 were converted into "gameplay
+    fixed" or "prototype complete";
+  - frame-challenge critic warned that the next slice should not be another
+    planning artifact; the honest next step is explicit H78 protected-edit
+    approval, or a bounded unprotected live/manual scout if approval is not
+    available;
+  - product-completion critic flagged the false-green risk of marking H95 DONE
+    if the referenced trace were missing; the durable H95 trace now exists at
+    `.claude/traces/experiments/091-completion-readiness-gates.md`;
+  - the resulting plan now says prose is only a routing aid, and acceptance must
+    come from recomputable artifacts such as self-play JSON, observer summaries,
+    trace analyzers, focused/live GUT output, card-spawn guards, whitespace
+    guards, and protected-boundary checks.
+- Current M1 blocker remains H78:
+  - soft-Druid refreshed at 9/60 clears in H94;
+  - completion readiness still `needs_attention`;
+  - path-lag audit still reports `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`;
+  - editing `godot/sim/ai_agent.gd` still requires explicit approval.
+- Verification:
+  - PASS doc sanity query for H95/gates/H78 blocker language.
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, economy values, or UI code changed for H95.
+- Latest trace:
+  `.claude/traces/experiments/091-completion-readiness-gates.md`.
+- Resume recommendation: start from H95's gates. If continuing the highest
+  impact known blocker, ask explicit approval before H78 protected simulator
+  work; otherwise choose another unprotected M1 gate gap and keep it scoped.
+
 ## 2026-07-30 Codex H94 update
 
 - H94 completed as a no-edit H78 readiness/baseline refresh.

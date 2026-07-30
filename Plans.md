@@ -1,7 +1,7 @@
 # Warforge Harness Plans
 
 Status legend: TODO, DOING, DONE, SKIPPED.
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 ## Completed Plan: Playable Prototype Completion After Difficulty
 
@@ -146,6 +146,50 @@ Operating rules:
 | H92 | DONE | Raider carried win-count reward coverage | Raider can be unlocked in the smoke profile, selected through run-start UI, carry a 2-win counter into a real visible-control playthrough, resolve the actual 3-win free-upgrade reward, and still reach a terminal overlay. | PASS trace `.claude/traces/experiments/088-raider-carried-win-count-coverage.md`; PASS live smoke 17/17; PASS card-spawn guard; PASS full GUT 1281/1281; PASS `git diff --check`; PASS protected boundary check |
 | H93 | DONE | Strategist visible SWAP coverage | Strategist and War Drum can be unlocked in the smoke profile, selected through run-start UI, resolve Strategist's SWAP via the visible button and field-card clicks, and still reach a terminal overlay. | PASS advisory multi-review fallback; PASS trace `.claude/traces/experiments/089-strategist-visible-swap-coverage.md`; PASS live smoke 18/18; PASS strategist swap 6/6; PASS talisman 38/38; PASS card-spawn guard; PASS full GUT 1282/1282; PASS `git diff --check`; PASS protected boundary check |
 | H94 | DONE | H78 no-edit Druid preflight | Before protected simulator edits, current soft-Druid evidence was refreshed and confirmed that H78's no-focus path-lag stabilizer probe is still the right protected gameplay-completion candidate. | PASS trace `.claude/traces/experiments/090-h78-no-edit-druid-preflight.md`; PASS `test_ai_agent.gd` 39/39; PASS existing H75/H71 analyzer gate; PASS fresh 60-run soft-Druid baseline 9/60 clears; PASS fresh path-lag audit gate `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`; PASS card-spawn guard; PASS `git diff --check`; PASS protected boundary check |
+| H95 | DONE | Completion readiness gates | The active plan now has an explicit evidence contract for the next completion-ready prototype milestone, separating current M1 gates from later balance beta, presentation polish, and release-candidate work. | PASS trace `.claude/traces/experiments/091-completion-readiness-gates.md`; PASS doc review; PASS `git diff --check`; PASS protected boundary check |
+
+## Working Completion Gates After H94
+
+This section is not a claim that Warforge is complete. It is the current
+evidence contract for the next playable prototype milestone, so autonomous work
+can resume against concrete gates instead of a vague "make it better" target.
+
+Milestone ladder:
+- M1 completion-ready prototype: the current target. A player can start a run,
+  understand identity/reward/progression state, make real build decisions, and
+  reach a terminal result without known broken player-facing systems.
+- M2 balance beta: broaden D1-D8 economy/combat tuning after M1 is credible and
+  enough human/self-play evidence exists.
+- M3 presentation and content polish: improve art, audio, motion, packaging,
+  performance, and content variety after the loop is stable.
+- M4 release candidate: packaged build, save compatibility, crash-free playtest
+  evidence, and final regression gates.
+
+M1 gates:
+
+| Gate | Evidence | Current Status |
+|------|----------|----------------|
+| Core live run flow | Run start -> commander/talisman -> build/shop/move/upgrade -> chain -> battle -> boss reward -> terminal is covered by live-scene smoke and the visible-control playthrough path. | Largely green through H93: live smoke 18/18, natural terminal coverage for initial commanders, and special identity coverage for Smith, Raider, and Strategist. |
+| Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; `unlock_burst_pressure` remains a watch item because the UI caps reveals but human pacing still needs playtest judgment. |
+| Reward/economy integrity | Boss rewards, Raider reward, upgrade targeting, merge rewards, pricing talismans, card spawn guards, and generated descriptions have focused tests or live smoke coverage. | Green for known player-reported regressions; keep `python3 scripts/lint_card_spawn.py` and focused reward/economy tests in the verification set. |
+| Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H94 refreshed soft-Druid at 9/60 clears with `low_overall_clear_rate`, and the path-lag audit still gates on `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`. H78 is the current approval-gated blocker. |
+| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected `godot/sim/**` boundary status is explicit, and generated database files are not manually edited. | Green at last broad checkpoint through H93/H94 for the relevant scope; rerun broad verification after the next gameplay-affecting change. |
+
+Acceptance rule: prose in this plan is only a routing aid. M1 completion must be
+based on recomputable artifacts such as self-play JSON, observer summaries,
+trace analyzers, focused/live GUT output, card-spawn guards, whitespace guards,
+and an explicit protected-boundary check.
+
+Open blockers before M1 can be called complete:
+- P0: H78 protected Druid no-focus stabilizer probe still needs explicit
+  approval before editing `godot/sim/ai_agent.gd`.
+- P1: After H78 or a chosen fallback, rerun representative D1 self-play
+  readiness across all core strategies and use the observer's top risks to
+  choose the next slice.
+- P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
+  upgraded from prototype completion to full balance beta.
+- P2: Unlock burst pacing is acceptable as a watch item for now, but should be
+  revisited if manual play says the post-run recap feels overwhelming.
 
 ## Completed Plan: AI Agent Meta-Harness V2 Adapter Migration
 
