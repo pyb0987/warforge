@@ -35,6 +35,13 @@ def _validate_report(data: dict[str, Any]) -> list[str]:
         errors.append(f"schema must be {SCHEMA!r}")
     if not isinstance(data.get("metadata"), dict):
         errors.append("metadata is required")
+    else:
+        source_state = data["metadata"].get("source_state")
+        if source_state is not None:
+            if not isinstance(source_state, dict):
+                errors.append("metadata.source_state must be an object")
+            elif source_state.get("available") is True and not source_state.get("commit"):
+                errors.append("metadata.source_state.commit is required when available")
     overall = _as_dict(data.get("overall"))
     if int(overall.get("total_runs", 0)) <= 0:
         errors.append("overall.total_runs must be positive")
@@ -75,6 +82,7 @@ def _validate_report(data: dict[str, Any]) -> list[str]:
 
 def _render_summary(path: Path, data: dict[str, Any], errors: list[str]) -> str:
     metadata = _as_dict(data.get("metadata"))
+    source_state = _as_dict(metadata.get("source_state"))
     overall = _as_dict(data.get("overall"))
     completion = _as_dict(data.get("completion"))
     readiness = _as_dict(data.get("completion_readiness"))
@@ -96,6 +104,9 @@ def _render_summary(path: Path, data: dict[str, Any], errors: list[str]) -> str:
         f"- Talisman: {metadata.get('talisman_name', '?')}",
         f"- Strategies: {_join(metadata.get('strategies', []))}",
         f"- Total runs: {overall.get('total_runs', '?')}",
+        "",
+        "## Source State",
+        _source_state_line(source_state),
         "",
         "## Completion",
         (
@@ -296,6 +307,23 @@ def _as_dict(value: Any) -> dict[str, Any]:
 
 def _as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def _source_state_line(source_state: dict[str, Any]) -> str:
+    if not source_state:
+        return "- Not recorded by this report."
+    if source_state.get("available") is not True:
+        error = str(source_state.get("error", "")).strip()
+        suffix = f" ({error})" if error else ""
+        return f"- Unavailable{suffix}."
+    status_rows = _as_list(source_state.get("status_short"))
+    changed = len(status_rows)
+    dirty = "dirty" if source_state.get("dirty") else "clean"
+    changed_text = f", {changed} changed file(s)" if changed else ""
+    return (
+        f"- Git {str(source_state.get('commit', 'unknown'))[:12]} "
+        f"on {source_state.get('branch', 'unknown')}; {dirty}{changed_text}."
+    )
 
 
 def _join(value: Any) -> str:

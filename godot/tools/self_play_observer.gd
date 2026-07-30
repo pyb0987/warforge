@@ -172,11 +172,12 @@ func _run() -> void:
 		"commander_name": COMMANDER_LABELS.get(commander_type, str(commander_type)),
 		"talisman_type": talisman_type,
 		"talisman_name": TALISMAN_LABELS.get(talisman_type, str(talisman_type)),
-			"strategies": strategies,
-			"total_runs": results.size(),
-			"trace_dir": trace_dir,
-			"trace_stats": trace_stats,
-		}
+		"strategies": strategies,
+		"total_runs": results.size(),
+		"trace_dir": trace_dir,
+		"trace_stats": trace_stats,
+		"source_state": _collect_source_state(),
+	}
 	var summary: Dictionary = logic.summarize(results, metadata)
 	if include_results:
 		summary["results"] = results
@@ -225,6 +226,54 @@ func _derive_trace_stats(events: Array) -> Dictionary:
 		"sell_zones": sell_zones,
 		"source": "ai_tracer.sell events",
 	}
+
+
+func _collect_source_state() -> Dictionary:
+	var root := _git_stdout(["rev-parse", "--show-toplevel"])
+	if int(root.get("exit_code", 1)) != 0:
+		return {
+			"available": false,
+			"vcs": "git",
+			"error": str(root.get("stderr", root.get("stdout", ""))).strip_edges(),
+		}
+	var root_path: String = str(root.get("stdout", "")).strip_edges()
+	var git_root_args := ["-C", root_path]
+	var commit := _git_stdout(git_root_args + ["rev-parse", "HEAD"])
+	var branch := _git_stdout(git_root_args + ["rev-parse", "--abbrev-ref", "HEAD"])
+	var status := _git_stdout(git_root_args + ["status", "--short"])
+	var status_lines := _split_git_status_lines(str(status.get("stdout", "")))
+
+	return {
+		"available": int(commit.get("exit_code", 1)) == 0,
+		"vcs": "git",
+		"root": root_path,
+		"commit": str(commit.get("stdout", "")).strip_edges(),
+		"branch": str(branch.get("stdout", "")).strip_edges(),
+		"dirty": not status_lines.is_empty(),
+		"status_short": status_lines,
+	}
+
+
+func _git_stdout(args: Array) -> Dictionary:
+	var output: Array = []
+	var exit_code: int = OS.execute("git", PackedStringArray(args), output, true)
+	var text := "\n".join(output)
+	return {
+		"exit_code": exit_code,
+		"stdout": text if exit_code == 0 else "",
+		"stderr": text if exit_code != 0 else "",
+	}
+
+
+func _split_git_status_lines(text: String) -> Array:
+	var lines: Array = []
+	for line in text.split("\n"):
+		var trimmed := str(line).strip_edges()
+		if trimmed != "":
+			if trimmed.ends_with(".claude/settings.local.json"):
+				continue
+			lines.append(trimmed)
+	return lines
 
 
 func _parse_named_id(value: Variant, lookup: Dictionary, label: String) -> int:

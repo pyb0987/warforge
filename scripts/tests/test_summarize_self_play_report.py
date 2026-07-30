@@ -33,6 +33,14 @@ class SelfPlayReportSummaryTests(unittest.TestCase):
                 "commander_name": "Gambler",
                 "talisman_name": "Flint",
                 "strategies": ["adaptive"],
+                "source_state": {
+                    "available": True,
+                    "vcs": "git",
+                    "commit": "abcdef1234567890",
+                    "branch": "main",
+                    "dirty": True,
+                    "status_short": ["M Plans.md"],
+                },
             },
             "overall": {
                 "total_runs": 2,
@@ -177,6 +185,8 @@ class SelfPlayReportSummaryTests(unittest.TestCase):
 
         self.assertTrue(result.ok)
         self.assertIn("Verdict: PASS", result.markdown)
+        self.assertIn("Source State", result.markdown)
+        self.assertIn("Git abcdef123456 on main; dirty, 1 changed file(s)", result.markdown)
         self.assertIn("Overall: 1/2 clears", result.markdown)
         self.assertIn("Completion Readiness", result.markdown)
         self.assertIn("Status: needs_attention", result.markdown)
@@ -211,6 +221,25 @@ class SelfPlayReportSummaryTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("Verdict: INCOMPLETE", result.markdown)
         self.assertIn("completion_readiness is required", result.errors)
+
+    def test_legacy_report_without_source_state_still_summarizes(self) -> None:
+        report = self._valid_report()
+        report["metadata"].pop("source_state")
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertTrue(result.ok)
+        self.assertIn("Source State", result.markdown)
+        self.assertIn("Not recorded by this report", result.markdown)
+
+    def test_malformed_source_state_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["metadata"]["source_state"] = ["not", "a", "dict"]
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertIn("metadata.source_state must be an object", result.errors)
 
 
 if __name__ == "__main__":
