@@ -22,8 +22,12 @@ offset_bottom = 46.0
 grow_horizontal = 2
 
 [node name="RoundLabel" type="Label" parent="HUD"]
+custom_minimum_size = Vector2(440, 40)
 layout_mode = 2
-text = "Round 1/15 · R4 boss reward in 4 fights"
+text = "Round 1/15 · R4 boss reward in 4 fights
+R1 NOW | rewards R4 next, R8, R12 | R15 final"
+text_overrun_behavior = 3
+theme_override_font_sizes/font_size = 11
 
 [node name="IdentityLabel" type="Label" parent="HUD"]
 custom_minimum_size = Vector2(440, 40)

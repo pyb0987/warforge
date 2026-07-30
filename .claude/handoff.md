@@ -1,5 +1,476 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H90 update
+
+- H90 completed as an unprotected natural-run coverage slice.
+- The visible-control terminal playthrough helper is now parameterized by
+  commander/talisman identity while keeping the existing Gambler/Flint default.
+- Added Breeder/Flint as the second natural visible-control terminal acceptance
+  case. This covers both initially unlocked commanders without scripted wins,
+  forced battle outcomes, seeded run stats, or generated unlock injection.
+- Both Gambler/Flint and Breeder/Flint naturally reached defeat at R8 through
+  visible shop buys, bench-to-field moves, upgrade targeting, BUILD COMPLETE,
+  chain skip, real battles, boss reward resolution, and terminal overlay.
+- Verification:
+  - PASS `test_game_manager_live_smoke.gd` (15/15, 1043 asserts).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS full GUT in isolated Godot profile (57 scripts, 1279/1279 tests,
+    8990 asserts).
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed the same macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, or economy values changed for H90.
+- Latest trace:
+  `.claude/traces/experiments/086-initial-commander-natural-run-coverage.md`.
+- Resume recommendation: checkpoint/commit the current H79-H90 stack soon.
+  The next completion slice should either continue natural-run identity coverage
+  after explicit unlock setup or ask explicit approval for H78 protected Druid
+  simulator work.
+
+## 2026-07-30 Codex H89 update
+
+- H89 completed as an unprotected post-defeat orientation slice.
+- Multi-review decision:
+  - player-completion, scope-boundary, and verification critics favored
+    player-facing work from the current visible-control R8 defeat evidence;
+  - the review-quality critic scored the initial frame 6/10 and required the
+    decision to be tied to the actual completion blocker, not green tests;
+  - revised frame: the next slice reduces the current player learning gap after
+    natural defeat, while H78 remains protected and deferred.
+- `GameOverPopup` now adds a defeat-only `Next run:` cue after the run-bests
+  line. The cue uses final-battle survivor context when available, falling back
+  to upgrade/milestone context when not.
+- Victory terminal screens intentionally omit the next-run hint.
+- The visible-control live playthrough still naturally reaches defeat at R8,
+  and now asserts the terminal overlay contains a next-run cue.
+- Verification:
+  - PASS `test_game_over_popup.gd` (4/4, 24 asserts).
+  - PASS `test_game_manager_live_smoke.gd` (14/14, 957 asserts).
+  - PASS headless live UI report + summary:
+    `/private/tmp/warforge_h89_live_ui_report_summary.md` reports
+    `Verdict: PASS` and `Report OK: yes`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report scripts.tests.test_run_live_ui_identity_matrix -q`
+    (45 tests).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS full GUT in isolated Godot profile (57 scripts, 1278/1278 tests,
+    8904 asserts).
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed the same macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+  - The command-line live UI report still prints the known ObjectDB/resource
+    warning after writing a passing report.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, or economy values changed for H89.
+- Latest trace:
+  `.claude/traces/experiments/085-post-defeat-next-run-orientation.md`.
+- Resume recommendation: checkpoint/commit the current H79-H89 stack soon.
+  The next completion slice can either deepen natural-run coverage for more
+  identities or ask explicit approval for H78 if the user wants to tackle the
+  protected Druid strategy-floor blocker.
+
+## 2026-07-30 Codex H88 update
+
+- H88 completed as an unprotected checkpoint-readiness verification slice.
+- This did not change gameplay code, balance data, card YAML, generated card
+  DB, difficulty values, or protected simulator files.
+- Verification:
+  - PASS full GUT in an isolated Godot profile:
+    `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -glog=1 -gexit`
+    (57 scripts, 1277/1277 tests, 8898 asserts).
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `python3 -m unittest discover scripts/tests -q` (134 tests).
+  - PASS `python3 -m py_compile scripts/run_live_ui_identity_matrix.py scripts/summarize_live_ui_report.py scripts/tests/test_run_live_ui_identity_matrix.py scripts/tests/test_summarize_live_ui_report.py`.
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- Log notes:
+  - Full GUT printed one macOS certificate probe line at startup.
+  - Full GUT printed expected negative-path diagnostics for invalid card and
+    revive-scope tests.
+  - No ObjectDB/resource exit block was present in the full GUT log.
+- Latest trace:
+  `.claude/traces/experiments/084-checkpoint-readiness-verification.md`.
+- Resume recommendation: the current unprotected stack is checkpoint-ready.
+  The next completion slice should be selected from fresh play evidence rather
+  than adding more observability for its own sake. H78 remains gated on
+  explicit protected simulator approval.
+
+## 2026-07-30 Codex H87 update
+
+- H87 completed as an unprotected terminal-result clarity slice.
+- `GameOverPopup.show_result()` now accepts optional terminal context and renders:
+  - defeat final HP;
+  - final-fight ally/enemy survivors;
+  - final damage and HP transition;
+  - run bests: max field units, attached upgrades, best win streak, and boss
+    reward count.
+- `GameManager` now passes final battle context and current run stats into the
+  terminal overlay on defeat/victory paths.
+- The visible-control live playthrough now asserts that the terminal overlay
+  exposes the richer run-result summary. The current natural run still reaches
+  defeat at R8.
+- Verification:
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_over_popup.gd -glog=1 -gexit`
+    (3/3, 20 asserts).
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_live_smoke.gd -glog=1 -gexit`
+    (14/14, 955 asserts).
+  - PASS headless live UI report + summary:
+    `/private/tmp/warforge_h87_live_ui_report_summary.md` reports
+    `Verdict: PASS`, `Report OK: yes`, and run-end text containing
+    `Run bests: 120 field units, 16 upgrades, 8-win streak, 1 boss reward`.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed for H87.
+- Latest trace:
+  `.claude/traces/experiments/083-terminal-result-clarity.md`.
+- Resume recommendation: checkpoint H79-H87 soon. The next completion slice can
+  use the visible-control terminal summary as evidence to choose a player-facing
+  next-run orientation or a concrete late-run playability blocker.
+
+## 2026-07-30 Codex H86 update
+
+- H86 completed as an unprotected observability/workflow hardening slice.
+- `scripts/run_live_ui_identity_matrix.py` now supports named presets:
+  - `--preset=default` keeps the existing baseline/coin/Golden Die/locked
+    economy matrix;
+  - `--preset=expanded` runs the reusable special-commander set:
+    Breeder/Cracked Egg, Collector/Glass Eye, Strategist/War Drum,
+    Smith/Rusty Wrench, Raider/Mercury Drop.
+- The matrix metadata and Markdown summary now record the selected preset.
+  Repeated `--identity` rows still replace the preset and are labeled
+  `custom` in metadata.
+- Docs now show the expanded preset command instead of the long repeated
+  identity command.
+- Verification:
+  - PASS `python3 -m py_compile scripts/run_live_ui_identity_matrix.py scripts/tests/test_run_live_ui_identity_matrix.py`.
+  - PASS `python3 -m unittest scripts.tests.test_run_live_ui_identity_matrix -q`
+    (10 tests).
+  - PASS `python3 scripts/run_live_ui_identity_matrix.py --help` shows
+    `--preset {default,expanded}`.
+  - PASS default identity matrix:
+    `/private/tmp/warforge_h86_default_identity_matrix/matrix.md` reports
+    `Preset: default` and `Passing identities: 4/4`.
+  - PASS expanded identity matrix:
+    `/private/tmp/warforge_h86_expanded_identity_matrix/matrix.md` reports
+    `Preset: expanded` and `Passing identities: 5/5`.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed for H86.
+- Latest trace:
+  `.claude/traces/experiments/082-expanded-identity-matrix-preset.md`.
+- Resume recommendation: the H79-H86 stack is a coherent checkpoint candidate.
+  For more completion movement, either checkpoint this stack first, or proceed
+  to the next real playability gap found by visible-control/live identity
+  evidence. H78 remains gated on explicit protected simulator approval.
+
+## 2026-07-29 Codex H85 update
+
+- H85 completed as an unprotected live acceptance guard.
+- Added `test_live_visible_control_playthrough_reaches_terminal_overlay` to
+  `test_game_manager_live_smoke.gd`.
+- The test starts from a fresh profile, selects Gambler/Flint through the real
+  run-start UI, then uses visible-control paths for:
+  - shop slot clicks;
+  - bench-to-field drag/drop;
+  - optional upgrade shop click and target selection;
+  - merge reward popup selection;
+  - BUILD COMPLETE;
+  - chain skip via Space;
+  - boss reward popup selection;
+  - real battle/settlement transitions;
+  - final game-over ownership and meta-save verification.
+- It does not seed cards, rounds, HP, gold, or battle outcomes during the
+  acceptance run. In the passing run, the game naturally reached defeat at R8.
+- Verification:
+  - PASS `godot --headless --path godot/ -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_game_manager_live_smoke.gd -glog=1 -gexit`
+    (14/14, 947 asserts).
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed for H85.
+- Latest trace:
+  `.claude/traces/experiments/081-visible-control-playthrough-acceptance.md`.
+- Resume recommendation: the dirty H79-H85 stack is now a coherent
+  observability/playability checkpoint. Next best step is either checkpointing
+  this stack, then packaging the expanded identity matrix preset, or returning
+  to H78 if protected simulator edits are explicitly approved.
+
+## 2026-07-29 Codex pause after H84 multi-review
+
+- User requested stopping after the currently-running review/run and resuming
+  later with the same completion goal.
+- Multi-review was completed and all advisory agents were closed.
+- Review outcome:
+  - Player-completion critic recommends H85 as a non-scripted live playability
+    acceptance pass through normal player controls, fixing the first
+    unprotected player-facing blocker if one appears.
+  - Observability critic recommends packaging the already-useful expanded
+    identity matrix as a named runner preset.
+  - Scope-safety critic recommends no new feature slice before checkpointing or
+    explicitly triaging the current dirty H79-H84 stack.
+- Effective pause decision: do not start H85 yet. On resume, first choose
+  whether to checkpoint the H79-H84 stack, then proceed with either the
+  no-script live playability acceptance pass or the smaller identity-matrix
+  preset packaging.
+- Protected boundary remains intact at pause time: `git status --short --
+  godot/sim` was empty.
+
+## 2026-07-29 Codex H84 update
+
+- H84 completed as an unprotected live-report evidence slice.
+- Raider identity live UI reports now prove the real 3-win reward flow before
+  later terminal unlock scripting:
+  - the report seeds Raider at 2 wins on a non-boss battle;
+  - the third win opens the visible common-upgrade `upgrade_choice`;
+  - the report selects a visible upgrade and valid field target;
+  - the target gains exactly one upgrade;
+  - Raider `win_count` resets to 0;
+  - the run returns to modal-free BUILD R3.
+- `summarize_live_ui_report.py` now requires
+  `events.raider_win_streak_reward` for Raider reports and summarizes it as
+  `Raider 3-win reward proved live`.
+- Direct Raider report:
+  `/private/tmp/warforge_h84_raider_summary.md` reports `Verdict: PASS`,
+  `Report OK: yes`,
+  `Commander free upgrade flow resolved: raider_win_streak_upgrade: C4 -> field 0`,
+  and `Raider 3-win reward proved live: C4 -> field 0, upgrades 0->1, win count 0, BUILD R3`.
+- Expanded matrix after H84:
+  `/private/tmp/warforge_h84_expanded_identity_matrix/matrix.md` reports
+  `Verdict: PASS` and `Passing identities: 5/5`.
+- Verification:
+  - PASS direct Raider report:
+    `/usr/bin/env HOME=/private/tmp/warforge_h84_raider_home godot --headless --log-file /private/tmp/warforge_h84_raider_report.log --path godot/ res://tools/live_ui_smoke_report.tscn -- --out=/private/tmp/warforge_h84_raider_report.json --commander=raider --talisman=mercury_drop --unlock-selected=true`.
+  - PASS `python3 scripts/summarize_live_ui_report.py --report /private/tmp/warforge_h84_raider_report.json --out /private/tmp/warforge_h84_raider_summary.md`.
+  - PASS expanded identity matrix:
+    `python3 scripts/run_live_ui_identity_matrix.py --output-dir=/private/tmp/warforge_h84_expanded_identity_matrix --out=/private/tmp/warforge_h84_expanded_identity_matrix/matrix.json --summary-out=/private/tmp/warforge_h84_expanded_identity_matrix/matrix.md --timeout-sec=90 --identity=breeder=breeder:cracked_egg --identity=collector=collector:glass_eye --identity=strategist=strategist:war_drum --identity=smith=smith:rusty_wrench --identity=raider=raider:mercury_drop`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report scripts.tests.test_run_live_ui_identity_matrix -q`
+    (41 tests).
+  - PASS `test_game_manager_live_smoke.gd` (13/13).
+  - PASS `test_build_phase_upgrade_shop.gd` (17/17).
+  - PASS `test_commander.gd` (37/37).
+  - PASS `test_game_manager_logic.gd` (37/37).
+  - PASS `git diff --check`.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, or player-facing runtime scenes changed for H84.
+- Latest trace:
+  `.claude/traces/experiments/080-raider-real-3win-live-evidence.md`.
+- Resume recommendation: next unprotected slice can make the expanded identity
+  matrix a named preset, or move to the next player-facing completion gap.
+  H78 remains the direct Druid completion blocker, still gated by explicit
+  protected simulator edit approval.
+
+## 2026-07-29 Codex H83 update
+
+- H83 completed as an unprotected live-report/observability follow-up after
+  the H82 runner found special-commander gaps.
+- Expanded identity probe before H83:
+  - PASS `breeder=breeder:cracked_egg`
+  - PASS `collector=collector:glass_eye`
+  - PASS `strategist=strategist:war_drum`
+  - FAIL `smith=smith:rusty_wrench`: Smith opened a legitimate start
+    `upgrade_choice` modal before the generic chain step.
+  - FAIL `raider=raider:mercury_drop`: the scripted terminal victory waited on
+    Raider's 3-win free-upgrade flow.
+- `live_ui_smoke_report.gd` now resolves optional commander free-upgrade modals
+  through visible upgrade choice and field target selection, recording
+  `events.commander_free_upgrade`.
+- The scripted terminal unlock smoke resets Raider's local `win_count` just for
+  that artificial final battle and records
+  `events.commander_scripted_adjustments.raider_terminal_win_count_reset`.
+  This keeps the terminal unlock recap smoke focused while Raider reward
+  attachment remains covered by focused commander/build tests.
+- `summarize_live_ui_report.py` now validates/summarizes optional
+  `commander_free_upgrade` events when present.
+- Actual expanded matrix after H83:
+  `/private/tmp/warforge_h83_expanded_identity_matrix_final/matrix.md` reports
+  `Verdict: PASS` and `Passing identities: 5/5`.
+- Verification:
+  - PASS `python3 -m py_compile scripts/summarize_live_ui_report.py scripts/tests/test_summarize_live_ui_report.py scripts/run_live_ui_identity_matrix.py scripts/tests/test_run_live_ui_identity_matrix.py`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report scripts.tests.test_run_live_ui_identity_matrix -q`
+    (38 tests).
+  - PASS `test_game_manager_live_smoke.gd` (13/13).
+  - PASS expanded identity matrix:
+    `python3 scripts/run_live_ui_identity_matrix.py --output-dir=/private/tmp/warforge_h83_expanded_identity_matrix_final --out=/private/tmp/warforge_h83_expanded_identity_matrix_final/matrix.json --summary-out=/private/tmp/warforge_h83_expanded_identity_matrix_final/matrix.md --timeout-sec=90 --identity=breeder=breeder:cracked_egg --identity=collector=collector:glass_eye --identity=strategist=strategist:war_drum --identity=smith=smith:rusty_wrench --identity=raider=raider:mercury_drop`.
+  - PASS `git diff --check`.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, or Godot runtime/player-facing scene files changed for
+  H83.
+- Latest trace:
+  `.claude/traces/experiments/079-special-commander-identity-matrix.md`.
+- Resume recommendation: next unprotected slice can either add a named
+  expanded preset to the matrix CLI, add focused live evidence for Raider's real
+  3-win upgrade timing, or move to the next live completion gap. H78 remains
+  the direct Druid completion blocker, still gated by explicit protected
+  simulator edit approval.
+
+## 2026-07-29 Codex H82 update
+
+- H82 completed as an unprotected observability/tooling slice.
+- Added `scripts/run_live_ui_identity_matrix.py`, a small command-line matrix
+  runner that calls the existing live UI smoke report for curated
+  commander/talisman identities, then validates each generated `report.json`
+  through `summarize_live_ui_report.py`.
+- Default matrix identities:
+  - `baseline=gambler:flint`
+  - `coin=gambler:two_faced_coin`
+  - `golden_die=gambler:golden_die`
+  - `locked_economy=alchemist:soul_jar`
+- Each matrix row gets its own report, summary, Godot log, and isolated Godot
+  `HOME` profile under the output directory. The matrix fails if any row exits
+  nonzero, misses its report, or fails the summary contract.
+- Actual run:
+  `/private/tmp/warforge_h82_live_ui_identity_matrix/matrix.md` reports
+  `Verdict: PASS` and `Passing identities: 4/4`.
+- Verification:
+  - PASS `python3 -m py_compile scripts/run_live_ui_identity_matrix.py scripts/tests/test_run_live_ui_identity_matrix.py`.
+  - PASS `python3 -m unittest scripts.tests.test_run_live_ui_identity_matrix -q`
+    (6 tests).
+  - PASS curated matrix command:
+    `python3 scripts/run_live_ui_identity_matrix.py --output-dir=/private/tmp/warforge_h82_live_ui_identity_matrix --out=/private/tmp/warforge_h82_live_ui_identity_matrix/matrix.json --summary-out=/private/tmp/warforge_h82_live_ui_identity_matrix/matrix.md`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report -q`
+    (30 tests).
+  - PASS `git diff --check`.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, or Godot runtime files changed for H82.
+- Latest trace:
+  `.claude/traces/experiments/078-live-ui-identity-matrix-runner.md`.
+- Resume recommendation: the next unprotected slice can either broaden the
+  matrix with a custom identity preset if a specific commander/talisman remains
+  suspicious, or move to another live completion gap. H78 remains the direct
+  Druid completion blocker, still gated by explicit protected simulator edit
+  approval.
+
+## 2026-07-29 Codex H81 update
+
+- H81 completed as an unprotected player-facing completion/orientation slice.
+- Advisory multi-review was split:
+  - player-completion critic recommended a real BUILD HUD R1-R15 progression
+    rail over more report-only evidence;
+  - observability critic recommended an identity matrix runner as a useful
+    follow-up;
+  - scope-safety critic recommended minimizing sprawl and keeping H78 gated.
+  Adopted the player-facing rail and left the matrix as a future follow-up.
+- The BUILD HUD round label now has a compact second-line rail:
+  `R1 NOW | rewards R4 next, R8, R12 | R15 final`.
+  It updates by round using the existing boss-round constants, so after reward
+  milestones it marks them as `done`, and the next upcoming milestone as `next`.
+- `LiveUiProbe` and `live_ui_smoke_report.gd` now expose/validate
+  `progress_rail_text` under `run_milestone`.
+- `summarize_live_ui_report.py` now reports the selected identity setup
+  (`normal profile` vs `unlock-selected profile`) and the rendered progression
+  rail, and fails if the rail is missing or not bound to the rendered round
+  label.
+- `docs/tools/live-ui-smoke-report.md` now documents `--unlock-selected=true`
+  and the progression rail evidence.
+- Verification:
+  - PASS `python3 -m py_compile scripts/summarize_live_ui_report.py scripts/tests/test_summarize_live_ui_report.py`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report -q`
+    (30 tests).
+  - PASS `test_build_phase_upgrade_shop.gd` (17/17).
+  - PASS `test_game_manager_live_smoke.gd` (13/13).
+  - PASS Golden Die headless live UI report with
+    `--commander=gambler --talisman=golden_die --unlock-selected=true`.
+  - PASS Golden Die summary; summary says `Verdict: PASS`, `Report OK: yes`,
+    `Selected identity setup: unlock-selected profile (talismans 6)`,
+    `Run progression rail rendered: R1 NOW | rewards R4 next, R8, R12 | R15 final`,
+    and `Boss reward popup title: 보스 보상 선택 (1개 선택 / 6개 후보).`
+  - PASS full GUT in isolated Godot profile: 57 scripts, 1275/1275 tests,
+    8807 asserts.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed.
+- Latest trace:
+  `.claude/traces/experiments/077-run-progression-rail.md`.
+- Resume recommendation: next unprotected follow-up can be the H80/H81 live UI
+  identity matrix runner. H78 remains the direct Druid completion blocker, but
+  it still requires explicit approval to edit protected `godot/sim/**`.
+
+## 2026-07-29 Codex H80 update
+
+- H80 completed as the current observability/run slice, then work paused per
+  user request. Do not start the next feature until the user resumes the same
+  completion goal.
+- The command-line live UI report now supports an opt-in
+  `--unlock-selected=true` setup hook. In an isolated reset profile, it unlocks
+  only the requested locked commander/talisman needed for the requested run
+  identity before the normal selection UI is exercised.
+- Unlock recap validation is now dynamic: the report records the raw unlock
+  list, validates the shown top-three rows and overflow count from that raw
+  list, and keeps the later progress-screen check aligned with the same data.
+- Verified Golden Die through the command-line report without hand-preparing
+  meta progress. The report selected Golden Die, reached the R4 boss reward,
+  and the summary passed with six rendered reward choices and
+  `보스 보상 선택 (1개 선택 / 6개 후보)`.
+- Verification:
+  - PASS `python3 -m py_compile scripts/summarize_live_ui_report.py scripts/tests/test_summarize_live_ui_report.py`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report -q`
+    (29 tests).
+  - PASS `test_game_manager_live_smoke.gd` (13/13).
+  - PASS Golden Die headless live UI report with
+    `--commander=gambler --talisman=golden_die --unlock-selected=true`.
+  - PASS Golden Die summary; summary says `Verdict: PASS`, `Report OK: yes`,
+    and `Boss reward popup title: 보스 보상 선택 (1개 선택 / 6개 후보).`
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed.
+- Latest trace:
+  `.claude/traces/experiments/076-live-ui-report-selected-unlock-profile.md`.
+- Resume recommendation: H78 remains the most direct gameplay-completion
+  blocker, but it still requires explicit approval to edit protected
+  `godot/sim/**`.
+
+## 2026-07-29 Codex H79 update
+
+- H79 completed as an unprotected player-facing visibility/smoke slice while
+  H78 remains gated by explicit protected simulator approval.
+- Boss reward popup titles now include the visible candidate count:
+  `보스 보상 선택 (1개 선택 / N개 후보)`.
+- Added live smoke coverage for Golden Die: the test unlocks Golden Die in an
+  isolated profile, selects it through the real talisman popup, wins R4, and
+  verifies six visible boss reward choices, six rendered summaries, and a title
+  containing `6개 후보`.
+- The command-line live UI report now records boss reward `open_title` and
+  `open_choice_count`; the Markdown summary validates count-vs-rendered-summary
+  parity and reports the title.
+- Verification:
+  - PASS `python3 -m py_compile scripts/summarize_live_ui_report.py scripts/tests/test_summarize_live_ui_report.py`.
+  - PASS `python3 -m unittest scripts.tests.test_summarize_live_ui_report -q`
+    (28 tests).
+  - PASS `test_boss_reward_popup.gd` (3/3).
+  - PASS `test_game_manager_live_smoke.gd` (13/13).
+  - PASS headless live UI report + summary; summary says `Verdict: PASS`,
+    `Report OK: yes`, and
+    `Boss reward popup title: 보스 보상 선택 (1개 선택 / 4개 후보).`
+  - PASS full GUT in isolated Godot profile: 57 scripts, 1274/1274 tests,
+    8709 asserts.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  or difficulty values changed.
+- Latest trace:
+  `.claude/traces/experiments/075-golden-die-reward-choice-visibility.md`.
+- Resume recommendation: H78 is still the most direct gameplay-completion
+  blocker, but it still requires explicit approval to edit protected
+  `godot/sim/**`.
+
+## 2026-07-29 Codex H78 approval preflight
+
+- H78 is ready but waiting for explicit approval to edit protected
+  `godot/sim/**`.
+- No protected simulator AI files were edited in this preflight.
+- Prepared approval packet:
+  `.claude/traces/experiments/074-druid-protected-ai-probe-approval-packet.md`.
+- Exact intended protected write scope after approval:
+  - `godot/sim/ai_agent.gd`
+  - focused tests in `godot/tests/test_ai_agent.gd`
+- Exact policy seam: `_should_hold_for_path_lag_purchase(...)` and its call
+  from `_try_buy_best(...)`.
+- Narrow probe: when soft-Druid is in payoff/capstone path lag and no
+  current/next focus card is visible in offers, allow conservative high-value
+  Druid body or neutral stabilizer purchases instead of always hard-holding.
+  Preserve hard focus priority whenever focus is visible or affordable.
+- The packet defines focused tests, same-seed 60-run command, H76/H77 analyzer
+  checks, adoption gates, and rollback.
+- Next step: ask the user to approve protected `godot/sim/**` edits for H78.
+
 ## 2026-07-29 Codex H77 update
 
 - H77 completed as a behavior-neutral Druid path-lag decision audit; no

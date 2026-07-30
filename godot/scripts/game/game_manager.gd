@@ -805,7 +805,7 @@ func _on_battle_finished(result: Dictionary) -> void:
 			_logger.close_session()
 		var unlocks := _record_run_finished(false, game_state.round_num)
 		game_over_popup.show_result(false, game_state.round_num, game_state.hp,
-			unlocks)
+			unlocks, _terminal_result_context(aftermath_context))
 		return
 
 	if raider_upgrade_ready:
@@ -941,7 +941,7 @@ func _run_settlement() -> void:
 			_logger.close_session()
 		var unlocks := _record_run_finished(false, game_state.round_num - 1)
 		game_over_popup.show_result(false, game_state.round_num - 1, game_state.hp,
-			unlocks)
+			unlocks, _terminal_result_context({}, settlement_recap))
 		return
 	if game_state.round_num > Enums.MAX_ROUNDS:
 		_game_over = true
@@ -951,7 +951,7 @@ func _run_settlement() -> void:
 			_logger.close_session()
 		var unlocks := _record_run_finished(true, Enums.MAX_ROUNDS)
 		game_over_popup.show_result(true, Enums.MAX_ROUNDS, game_state.hp,
-			unlocks)
+			unlocks, _terminal_result_context({}, settlement_recap))
 		return
 
 	build_phase.set_last_settlement_recap(settlement_recap)
@@ -977,6 +977,18 @@ func _settlement_recap_context(round_num: int, gold_before: int,
 		"terazin_gain": terazin_gain,
 		"commander_terazin": cmd_terazin,
 		"last_battle_won": _last_battle_won,
+	}
+
+
+func _terminal_result_context(final_battle: Dictionary = {},
+		settlement_recap: Dictionary = {}) -> Dictionary:
+	return {
+		"final_battle": final_battle.duplicate(true),
+		"settlement": settlement_recap.duplicate(true),
+		"run_stats": _run_stats.duplicate(true),
+		"boss_rewards": game_state.boss_rewards.size() if game_state != null else 0,
+		"final_gold": game_state.gold if game_state != null else 0,
+		"final_terazin": game_state.terazin if game_state != null else 0,
 	}
 
 

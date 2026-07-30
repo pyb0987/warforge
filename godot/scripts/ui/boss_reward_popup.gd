@@ -14,7 +14,7 @@ var _choice_panels: Array = []
 func show_choices(reward_ids: Array[String]) -> void:
 	_cleanup()
 
-	title_label.text = "보스 보상 선택 (1개)"
+	title_label.text = "보스 보상 선택 (1개 선택 / %d개 후보)" % reward_ids.size()
 	_choice_ids = reward_ids.duplicate()
 
 	for i in reward_ids.size():

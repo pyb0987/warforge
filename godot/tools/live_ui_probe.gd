@@ -380,11 +380,15 @@ static func _run_milestone_details(main) -> Dictionary:
 	var details := {
 		"text": "",
 		"round_label_text": "",
+		"progress_rail_text": "",
 		"visible": round_control != null and round_control.is_visible_in_tree(),
 		"rect": _control_rect(round_control),
 	}
 	if main.build_phase.has_method("get_run_milestone_text"):
 		details["text"] = str(main.build_phase.call("get_run_milestone_text"))
+	if main.build_phase.has_method("get_run_progress_rail_text"):
+		details["progress_rail_text"] = str(
+			main.build_phase.call("get_run_progress_rail_text"))
 	if main.build_phase.has_method("get_round_label_text"):
 		details["round_label_text"] = str(main.build_phase.call("get_round_label_text"))
 	else:

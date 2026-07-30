@@ -161,10 +161,15 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                 "upgrade_offer_costs": [1, 2],
             }
 
-        def run_milestone_entry(round_label_text: str, text: str) -> dict:
+        def run_milestone_entry(
+            round_label_text: str,
+            text: str,
+            progress_rail_text: str,
+        ) -> dict:
             return {
                 "text": text,
                 "round_label_text": round_label_text,
+                "progress_rail_text": progress_rail_text,
                 "visible": True,
                 "rect": {
                     "x": 0,
@@ -174,6 +179,9 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                     "visible": True,
                 },
             }
+
+        rail_r1 = "R1 NOW | rewards R4 next, R8, R12 | R15 final"
+        rail_r2 = "R2 NOW | rewards R4 next, R8, R12 | R15 final"
 
         def enemy_preview_entry(text: str) -> dict:
             return {
@@ -234,6 +242,9 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                 "commander_name": "Gambler",
                 "talisman_type": 8,
                 "talisman_name": "Flint",
+                "unlock_selected": False,
+                "preunlocked_selected_commanders": [],
+                "preunlocked_selected_talismans": [],
                 "screenshot_status": screenshot_status,
                 "screenshot_dir": str(self.tmpdir / "shots"),
             },
@@ -269,16 +280,19 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                 },
                 "run_milestone": {
                     "build_entry": run_milestone_entry(
-                        "Round 1/15 · R4 boss reward in 4 fights",
+                        "Round 1/15 · R4 boss reward in 4 fights\n%s" % rail_r1,
                         "Goal: R4 boss reward in 4 fights",
+                        rail_r1,
                     ),
                     "after_chain_feedback": run_milestone_entry(
-                        "Round 2/15 · R4 boss reward in 3 fights",
+                        "Round 2/15 · R4 boss reward in 3 fights\n%s" % rail_r2,
                         "Goal: R4 boss reward in 3 fights",
+                        rail_r2,
                     ),
                     "post_unlock_build_entry": run_milestone_entry(
-                        "Round 1/15 · R4 boss reward in 4 fights",
+                        "Round 1/15 · R4 boss reward in 4 fights\n%s" % rail_r1,
                         "Goal: R4 boss reward in 4 fights",
+                        rail_r1,
                     ),
                 },
                 "run_selection": {
@@ -424,6 +438,8 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                 },
                 "boss_reward": {
                     "selected_reward": "r4_4",
+                    "open_title": "Boss Reward (choose 1 / 2 choices)",
+                    "open_choice_count": 2,
                     "phase_after": "BUILD",
                     "round_after": 5,
                     "open_choice_summaries": [
@@ -488,6 +504,20 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                         "- 커맨더: 수집가\n"
                         "+9 more unlocked - all available in PROGRESS"
                     ),
+                    "raw_unlocks": [
+                        "커맨더: 전략가",
+                        "커맨더: 단조사",
+                        "커맨더: 수집가",
+                        "커맨더: 약탈자",
+                        "커맨더: 연금술사",
+                        "부적: 수은 방울",
+                        "부적: 깨진 알",
+                        "부적: 전쟁 북",
+                        "부적: 녹슨 렌치",
+                        "부적: 터진 자루",
+                        "부적: 영혼 항아리",
+                        "난이도 2",
+                    ],
                     "shown_unlocks": [
                         "커맨더: 전략가",
                         "커맨더: 단조사",
@@ -821,6 +851,7 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertIn("Verdict: PASS", result.markdown)
         self.assertIn("Commander: Gambler", result.markdown)
+        self.assertIn("Selected identity setup: normal profile", result.markdown)
         self.assertIn("Run identity rendered", result.markdown)
         self.assertIn("first growth x2 used", result.markdown)
         self.assertIn("BUILD readiness cue", result.markdown)
@@ -834,6 +865,7 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         self.assertIn("Selection cards rendered before BUILD", result.markdown)
         self.assertIn("Gambler: 50% free rerolls", result.markdown)
         self.assertIn("Run milestone rendered", result.markdown)
+        self.assertIn("Run progression rail rendered", result.markdown)
         self.assertIn("R4 boss reward in 3 fights", result.markdown)
         self.assertIn("Post-unlock selection cards rendered", result.markdown)
         self.assertIn("Alchemist: Epic shop", result.markdown)
@@ -855,6 +887,98 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         self.assertIn("Run-end unlock recap showed 3/12", result.markdown)
         self.assertIn("Overflow availability was actionable", result.markdown)
         self.assertIn("Final state: BUILD R1", result.markdown)
+
+    def test_optional_commander_free_upgrade_event_is_summarized(self) -> None:
+        report = self._valid_report()
+        report["events"]["commander_free_upgrade"] = {
+            "smith_start_upgrade": {
+                "selected_upgrade": "C1",
+                "selected_field_idx": 0,
+                "instruction": "Smith bonus: attach Reinforced Alloy",
+                "phase_after": "BUILD",
+                "round_after": 1,
+            }
+        }
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertTrue(result.ok)
+        self.assertIn("Commander free upgrade flow resolved", result.markdown)
+        self.assertIn("smith_start_upgrade: C1 -> field 0", result.markdown)
+        self.assertIn("Smith bonus", result.markdown)
+
+    def test_invalid_commander_free_upgrade_event_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["events"]["commander_free_upgrade"] = {
+            "raider_terminal_upgrade": {
+                "selected_upgrade": "",
+                "selected_field_idx": -1,
+                "instruction": "",
+                "phase_after": "INIT",
+                "round_after": 0,
+            }
+        }
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(
+            any("commander_free_upgrade.raider_terminal_upgrade" in error
+                for error in result.errors)
+        )
+
+    def test_raider_reward_event_on_non_raider_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["events"]["raider_win_streak_reward"] = {
+            "selected_upgrade": "C1",
+            "selected_field_idx": 0,
+            "instruction": "Raider 3-win reward: attach Reinforced Alloy",
+            "target_upgrade_count_before": 0,
+            "target_upgrade_count_after": 1,
+            "win_count_after": 0,
+            "phase_after": "BUILD",
+            "round_after": 3,
+            "has_modal_after": False,
+        }
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(
+            any("only expected for Raider" in error for error in result.errors)
+        )
+
+    def test_raider_reward_validator_requires_event_for_raider(self) -> None:
+        errors: list[str] = []
+
+        summary._validate_raider_win_streak_reward({}, 6, "Raider", errors)
+
+        self.assertIn(
+            "events.raider_win_streak_reward is required for Raider reports",
+            errors,
+        )
+
+    def test_raider_reward_validator_accepts_live_reward_shape(self) -> None:
+        errors: list[str] = []
+
+        summary._validate_raider_win_streak_reward(
+            {
+                "selected_upgrade": "C1",
+                "selected_field_idx": 0,
+                "instruction": "Raider 3-win reward: attach Reinforced Alloy",
+                "target_upgrade_count_before": 0,
+                "target_upgrade_count_after": 1,
+                "win_count_after": 0,
+                "phase_after": "BUILD",
+                "round_after": 3,
+                "has_modal_after": False,
+            },
+            6,
+            "Raider",
+            errors,
+        )
+
+        self.assertEqual(errors, [])
 
     def test_missing_expected_step_marks_incomplete(self) -> None:
         report = self._valid_report()
@@ -893,16 +1017,29 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         report = self._valid_report()
         report["events"]["run_milestone"]["after_chain_feedback"]["text"] = ""
         report["events"]["run_milestone"]["after_chain_feedback"]["round_label_text"] = ""
+        report["events"]["run_milestone"]["after_chain_feedback"]["progress_rail_text"] = ""
         step = next(
             step for step in report["steps"] if step["label"] == "chain_feedback_last_history"
         )
         step["run_milestone"]["text"] = ""
         step["run_milestone"]["round_label_text"] = ""
+        step["run_milestone"]["progress_rail_text"] = ""
 
         result = summary.summarize_report(self._write_report(report))
 
         self.assertFalse(result.ok)
         self.assertTrue(any("run_milestone" in error for error in result.errors))
+
+    def test_missing_run_progress_rail_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["events"]["run_milestone"]["build_entry"]["progress_rail_text"] = ""
+        step = next(step for step in report["steps"] if step["label"] == "build_entry")
+        step["run_milestone"]["progress_rail_text"] = ""
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("progress_rail_text" in error for error in result.errors))
 
     def test_run_identity_shorthand_marks_incomplete(self) -> None:
         report = self._valid_report()
@@ -1101,6 +1238,15 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertTrue(any("missing rendered desc" in error for error in result.errors))
 
+    def test_boss_reward_choice_count_mismatch_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["events"]["boss_reward"]["open_choice_count"] = 6
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("open_choice_count" in error for error in result.errors))
+
     def test_targeted_boss_reward_without_target_marker_marks_incomplete(self) -> None:
         report = self._valid_report()
         report["events"]["targeted_boss_reward"]["open_choice_summaries"][0][
@@ -1124,6 +1270,15 @@ class LiveUiReportSummaryTests(unittest.TestCase):
 
         self.assertFalse(result.ok)
         self.assertTrue(any("unlock_recap" in error for error in result.errors))
+
+    def test_unlock_recap_raw_count_mismatch_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        report["events"]["unlock_recap"]["raw_unlock_count"] = 99
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("raw_unlock_count" in error for error in result.errors))
 
     def test_missing_shop_reroll_scope_marks_incomplete(self) -> None:
         report = self._valid_report()

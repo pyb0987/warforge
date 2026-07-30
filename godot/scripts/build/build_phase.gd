@@ -279,6 +279,12 @@ func get_run_milestone_text() -> String:
 	return _format_run_milestone_text(game_state.round_num)
 
 
+func get_run_progress_rail_text() -> String:
+	if game_state == null:
+		return ""
+	return _format_run_progress_rail_text(game_state.round_num)
+
+
 func get_round_label_text() -> String:
 	if round_label == null:
 		return _format_round_label()
@@ -420,11 +426,44 @@ func _format_identity_label() -> String:
 func _format_round_label() -> String:
 	if game_state == null:
 		return ""
-	return "Round %d/%d · %s" % [
+	return "Round %d/%d · %s\n%s" % [
 		game_state.round_num,
 		Enums.MAX_ROUNDS,
 		_format_run_milestone_short(game_state.round_num),
+		_format_run_progress_rail_text(game_state.round_num),
 	]
+
+
+func _format_run_progress_rail_text(round_num: int) -> String:
+	var reward_parts := PackedStringArray()
+	for boss_round in Enums.BOSS_ROUNDS:
+		var milestone := int(boss_round)
+		if milestone == Enums.MAX_ROUNDS:
+			continue
+		var status := _format_run_rail_status(round_num, milestone)
+		reward_parts.append("R%d%s" % [
+			milestone,
+			(" %s" % status) if status != "" else "",
+		])
+	var final_status := _format_run_rail_status(round_num, Enums.MAX_ROUNDS)
+	return "R%d NOW | rewards %s | R%d final%s" % [
+		clampi(round_num, 1, Enums.MAX_ROUNDS),
+		", ".join(reward_parts),
+		Enums.MAX_ROUNDS,
+		(" %s" % final_status) if final_status != "" else "",
+	]
+
+
+func _format_run_rail_status(round_num: int, milestone: int) -> String:
+	if round_num > milestone:
+		return "done"
+	if round_num == milestone:
+		return "now"
+	for boss_round in Enums.BOSS_ROUNDS:
+		var candidate := int(boss_round)
+		if round_num <= candidate:
+			return "next" if candidate == milestone else ""
+	return ""
 
 
 func _format_run_milestone_short(round_num: int) -> String:

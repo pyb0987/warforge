@@ -6,11 +6,19 @@ const MetaProgressScript = preload("res://core/meta_progress.gd")
 const LiveUiProbe = preload("res://tools/live_ui_probe.gd")
 const TEST_META_PATH := "user://meta_progress_live_smoke_test.cfg"
 
+var _previous_time_scale: float = 1.0
+
 
 func before_each() -> void:
+	_previous_time_scale = Engine.time_scale
+	seed(12345)
 	var progress = MetaProgressScript.new()
 	assert_eq(progress.save(TEST_META_PATH), OK,
 		"smoke test profile reset")
+
+
+func after_each() -> void:
+	Engine.time_scale = _previous_time_scale
 
 
 func test_live_run_start_reaches_build_phase() -> void:
@@ -92,6 +100,44 @@ func test_live_two_faced_coin_marks_discount_and_markup_shop_slots() -> void:
 	assert_string_contains(identity_text, "할증 %d" % (markup_idx + 1))
 	assert_false(identity_text.contains("C:"))
 	assert_false(identity_text.contains("T:"))
+
+
+func test_live_golden_die_boss_reward_shows_six_choices() -> void:
+	var progress = MetaProgressScript.new()
+	progress.load_or_create(TEST_META_PATH)
+	progress.unlocked_talismans.append(Enums.TalismanType.GOLDEN_DIE)
+	assert_eq(progress.save(TEST_META_PATH), OK,
+		"Golden Die smoke profile unlocks the talisman before run start")
+
+	var main = await _start_main_to_build(Enums.TalismanType.GOLDEN_DIE)
+	_clear_run_cards(main)
+	main.game_state.board[0] = CardInstance.create("sp_assembly")
+	main.game_state.round_num = 4
+	main._gold_before_effects = main.game_state.gold
+	main.current_phase = main.Phase.BATTLE
+	main.build_phase.visible = false
+
+	await main._on_battle_finished({
+		"player_won": true,
+		"ally_survived": 1,
+		"enemy_survived": 0,
+	})
+	await wait_process_frames(1)
+
+	assert_true(main.boss_reward_popup.visible,
+		"Golden Die run pauses on real boss reward popup")
+	var ui := LiveUiProbe.snapshot(main)
+	var choice_ids: Array[String] = LiveUiProbe.choice_ids(
+		main, LiveUiProbe.BOSS_REWARD)
+	var boss_details: Dictionary = ui.get("boss_reward", {})
+	var summaries: Array = boss_details.get("choice_summaries", [])
+
+	assert_eq(choice_ids.size(), 6,
+		"Golden Die exposes the promised 6 boss reward choices")
+	assert_eq(summaries.size(), 6,
+		"observer sees one rendered summary per Golden Die reward choice")
+	assert_string_contains(str(boss_details.get("title", "")), "6개 후보")
+	assert_true(_boss_reward_summaries_have_rendered_text(summaries, choice_ids))
 
 
 func test_live_merge_reward_popup_selection_attaches_upgrade() -> void:
@@ -292,6 +338,12 @@ func test_live_battle_result_settlement_and_gameover_save_meta() -> void:
 
 	assert_true(main._game_over, "fatal battle result sets game over flag")
 	assert_true(main.game_over_popup.visible, "fatal result shows game over popup")
+	var defeat_summary: String = main.game_over_popup.summary_label.text
+	assert_string_contains(defeat_summary, "Final HP: -2")
+	assert_string_contains(defeat_summary, "Last fight: 0 allies / 10 enemies survived")
+	assert_string_contains(defeat_summary, "Damage: 3 HP (1 -> -2)")
+	assert_string_contains(defeat_summary,
+		"Next run: last fight left 10 enemies; add damage or growth before the R4 boss.")
 	assert_eq(main._meta_progress.runs_finished, 1)
 	assert_eq(main._meta_progress.last_result, "defeat")
 
@@ -558,8 +610,111 @@ func test_live_final_round_victory_saves_meta() -> void:
 	assert_eq(loaded.max_difficulty_unlocked, 2)
 
 
+func test_live_visible_control_playthrough_reaches_terminal_overlay() -> void:
+	await _run_visible_control_playthrough_to_terminal(
+		Enums.CommanderType.GAMBLER,
+		Enums.TalismanType.FLINT)
+
+
+func test_live_breeder_visible_control_playthrough_reaches_terminal_overlay() -> void:
+	await _run_visible_control_playthrough_to_terminal(
+		Enums.CommanderType.BREEDER,
+		Enums.TalismanType.FLINT)
+
+
+func _run_visible_control_playthrough_to_terminal(
+		commander_type: int,
+		talisman_type: int) -> void:
+	Engine.time_scale = 8.0
+	var main = await _start_main_to_build(talisman_type, commander_type)
+	main.chain_feedback_delay_sec = 0.01
+	main.chain_feedback_delay_per_event_sec = 0.0
+	main.chain_feedback_max_delay_sec = 0.01
+	main.battle_result_delay_sec = 0.0
+	main.battle_phase.set_speed(80.0)
+	assert_eq(main.game_state.commander_type, commander_type)
+	assert_eq(main.game_state.talisman_type, talisman_type)
+
+	var purchased := 0
+	var moved := 0
+	var upgrades_bought := 0
+	var battles_seen := 0
+	var rounds_seen: Array[int] = []
+	var safety := 0
+
+	while not main._game_over and safety < 80:
+		safety += 1
+		var ui := LiveUiProbe.snapshot(main)
+		var active_modals: Array = ui.get("active_modals", [])
+		if active_modals == [LiveUiProbe.GAME_OVER]:
+			break
+		if active_modals == [LiveUiProbe.BATTLE_RESULT]:
+			await wait_process_frames(3)
+			continue
+		if bool(ui.get("has_modal", false)):
+			assert_true(await _resolve_visible_modal_by_controls(main),
+				"visible-control playthrough resolves modal %s" % [active_modals])
+			await wait_process_frames(2)
+			continue
+
+		match main.current_phase:
+			main.Phase.BUILD:
+				if not rounds_seen.has(main.game_state.round_num):
+					rounds_seen.append(main.game_state.round_num)
+				var build_actions: Dictionary = \
+					await _play_build_by_visible_controls(main)
+				purchased += int(build_actions.get("purchased", 0))
+				moved += int(build_actions.get("moved", 0))
+				upgrades_bought += int(build_actions.get("upgrades_bought", 0))
+				assert_true(_press_build_complete_by_controls(main),
+					"visible BUILD COMPLETE button advances the run")
+				await wait_process_frames(2)
+			main.Phase.CHAIN:
+				assert_true(_press_space_by_controls(main),
+					"visible-control playthrough can skip readable chain pause")
+				await wait_process_frames(2)
+			main.Phase.BATTLE:
+				battles_seen += 1
+				assert_true(await _wait_for_next_control_surface(main, 900),
+					"natural battle returned to a control surface")
+			_:
+				await wait_process_frames(2)
+
+	assert_true(main._game_over,
+		"visible-control playthrough reaches natural defeat or victory")
+	assert_true(main.game_over_popup.visible,
+		"terminal result is shown through the real game-over popup")
+	assert_gt(purchased, 0, "playthrough bought at least one visible shop card")
+	assert_gt(moved, 0, "playthrough drag/dropped at least one card onto FIELD")
+	assert_gt(battles_seen, 0, "playthrough entered at least one real battle")
+	assert_gt(rounds_seen.size(), 0, "playthrough visited at least one BUILD round")
+
+	var ui_final := LiveUiProbe.snapshot(main)
+	assert_eq(ui_final["active_modals"], [LiveUiProbe.GAME_OVER],
+		"observer reports final game-over ownership")
+	var final_summary := str(ui_final["game_over"].get("summary_text", ""))
+	assert_string_contains(final_summary, "Run bests:")
+	assert_true(["defeat", "victory"].has(main._meta_progress.last_result))
+	if main._meta_progress.last_result == "defeat":
+		assert_string_contains(final_summary, "Defeated at round")
+		assert_string_contains(final_summary, "Final HP:")
+		assert_string_contains(final_summary, "Last fight:")
+		assert_string_contains(final_summary, "Damage:")
+		assert_string_contains(final_summary, "Next run:")
+	else:
+		assert_string_contains(final_summary, "All 15 rounds cleared!")
+	assert_eq(main._meta_progress.runs_finished, 1)
+	var loaded = MetaProgressScript.new()
+	loaded.load_or_create(TEST_META_PATH)
+	assert_eq(loaded.runs_finished, 1)
+	assert_eq(loaded.last_result, main._meta_progress.last_result)
+	assert_gt(upgrades_bought, 0,
+		"playthrough bought and targeted at least one visible upgrade")
+
+
 func _start_main_to_build(
-		talisman_type: int = Enums.TalismanType.FLINT):
+		talisman_type: int = Enums.TalismanType.FLINT,
+		commander_type: int = Enums.CommanderType.GAMBLER):
 	var main = MainScene.instantiate()
 	main.meta_progress_save_path = TEST_META_PATH
 	main.battle_result_delay_sec = 0.0
@@ -579,7 +734,7 @@ func _start_main_to_build(
 	ui = LiveUiProbe.snapshot(main)
 	assert_eq(ui["active_modals"], [LiveUiProbe.COMMANDER_SELECT],
 		"commander selection owns the UI after start")
-	assert_true(str(Enums.CommanderType.GAMBLER) in ui["choices"][LiveUiProbe.COMMANDER_SELECT],
+	assert_true(str(commander_type) in ui["choices"][LiveUiProbe.COMMANDER_SELECT],
 		"requested commander is visible")
 	var commander_details: Dictionary = ui.get("commander_select", {})
 	var commander_context: String = str(commander_details.get("context_text", ""))
@@ -587,7 +742,7 @@ func _start_main_to_build(
 	assert_string_contains(commander_context, "런 전체")
 	assert_true(_rect_is_visible(commander_details.get("context_rect", {})),
 		"commander selection context is visible")
-	assert_true(LiveUiProbe.select_commander(main, Enums.CommanderType.GAMBLER),
+	assert_true(LiveUiProbe.select_commander(main, commander_type),
 		"observer selects the requested commander")
 	await wait_process_frames(2)
 
@@ -598,8 +753,9 @@ func _start_main_to_build(
 		"requested talisman is visible")
 	var talisman_details: Dictionary = ui.get("talisman_select", {})
 	var talisman_context: String = str(talisman_details.get("context_text", ""))
+	var commander_name := str(Commander.get_data(commander_type).get("name", ""))
 	assert_string_contains(talisman_context, "선택한 커맨더")
-	assert_string_contains(talisman_context, "도박꾼")
+	assert_string_contains(talisman_context, commander_name)
 	assert_string_contains(talisman_context, "부적")
 	assert_true(_rect_is_visible(talisman_details.get("context_rect", {})),
 		"talisman selection context is visible")
@@ -624,12 +780,20 @@ func _start_main_to_build(
 	var milestone: Dictionary = ui.get("run_milestone", {})
 	var milestone_text := str(milestone.get("text", ""))
 	var round_label_text := str(milestone.get("round_label_text", ""))
+	var progress_rail_text := str(milestone.get("progress_rail_text", ""))
 	assert_true(bool(milestone.get("visible", false)),
 		"run milestone is visible in the BUILD HUD")
 	assert_string_contains(milestone_text, "Goal:")
 	assert_string_contains(milestone_text, "R4 boss reward")
 	assert_string_contains(round_label_text, "Round 1/15")
 	assert_string_contains(round_label_text, "R4 boss reward")
+	assert_string_contains(progress_rail_text, "R1 NOW")
+	assert_string_contains(progress_rail_text, "rewards")
+	assert_string_contains(progress_rail_text, "R4 next")
+	assert_string_contains(progress_rail_text, "R8")
+	assert_string_contains(progress_rail_text, "R12")
+	assert_string_contains(progress_rail_text, "R15 final")
+	assert_string_contains(round_label_text, progress_rail_text)
 	assert_true(_rect_is_visible(milestone.get("rect", {})),
 		"run milestone has a visible rect")
 	var enemy_preview: Dictionary = ui.get("enemy_pressure_preview", {})
@@ -774,3 +938,188 @@ func _win_boss_round_and_select_immediate_reward(main, boss_round: int) -> Strin
 	assert_false(main.battle_result_popup.visible,
 		"R%d battle result remains cleared after settlement" % boss_round)
 	return no_target_reward
+
+
+func _play_build_by_visible_controls(main) -> Dictionary:
+	var result := {"purchased": 0, "moved": 0, "upgrades_bought": 0}
+	result["moved"] = int(result["moved"]) \
+		+ _move_bench_to_field_by_visible_drop(main)
+
+	for _i in 3:
+		if _first_empty_bench_idx(main) < 0:
+			break
+		var slot_idx := _first_affordable_shop_slot(main)
+		if slot_idx < 0:
+			break
+		if not _click_shop_slot_by_controls(main, slot_idx):
+			break
+		result["purchased"] = int(result["purchased"]) + 1
+		await wait_process_frames(2)
+		if bool(LiveUiProbe.snapshot(main).get("has_modal", false)):
+			assert_true(await _resolve_visible_modal_by_controls(main),
+				"shop action modal resolves through visible controls")
+		result["moved"] = int(result["moved"]) \
+			+ _move_bench_to_field_by_visible_drop(main)
+		await wait_process_frames(1)
+
+	if await _try_buy_upgrade_by_visible_controls(main):
+		result["upgrades_bought"] = int(result["upgrades_bought"]) + 1
+		await wait_process_frames(1)
+	return result
+
+
+func _first_affordable_shop_slot(main) -> int:
+	var shop = main.build_phase.shop
+	for i in shop._offered_ids.size():
+		if str(shop._offered_ids[i]) == "":
+			continue
+		if main.game_state.gold >= shop.get_slot_cost(i):
+			return i
+	return -1
+
+
+func _first_empty_bench_idx(main) -> int:
+	for i in main.game_state.bench.size():
+		if main.game_state.bench[i] == null:
+			return i
+	return -1
+
+
+func _first_empty_field_idx(main) -> int:
+	for i in main.game_state.field_slots:
+		if main.game_state.board[i] == null:
+			return i
+	return -1
+
+
+func _click_shop_slot_by_controls(main, slot_idx: int) -> bool:
+	var slots: Array = main.build_phase.shop._shop_slots
+	if slot_idx < 0 or slot_idx >= slots.size():
+		return false
+	return _emit_left_click(slots[slot_idx])
+
+
+func _move_bench_to_field_by_visible_drop(main) -> int:
+	var moved := 0
+	for bench_idx in main.game_state.bench.size():
+		if main.game_state.bench[bench_idx] == null:
+			continue
+		var field_idx := _first_empty_field_idx(main)
+		if field_idx < 0:
+			break
+		var bench_visual = main.build_phase._bench_visuals[bench_idx]
+		var field_visual = main.build_phase._field_visuals[field_idx]
+		field_visual._drop_data(Vector2.ZERO, {
+			"source_zone": "bench",
+			"source_idx": bench_idx,
+			"card_visual": bench_visual,
+		})
+		moved += 1
+	return moved
+
+
+func _try_buy_upgrade_by_visible_controls(main) -> bool:
+	if main.game_state.board_count() <= 0:
+		return false
+	var shop = main.build_phase.upgrade_shop
+	for i in shop._offered_ids.size():
+		if str(shop._offered_ids[i]) == "":
+			continue
+		if main.game_state.terazin < shop.get_upgrade_cost(i):
+			continue
+		if not _emit_left_click(shop._upgrade_slots[i]):
+			return false
+		await wait_process_frames(2)
+		if LiveUiProbe.snapshot(main).get("active_modals", []) \
+				== [LiveUiProbe.TARGET_SELECT]:
+			return _click_first_target_by_controls(main)
+		return true
+	return false
+
+
+func _resolve_visible_modal_by_controls(main) -> bool:
+	var ui := LiveUiProbe.snapshot(main)
+	var active_modals: Array = ui.get("active_modals", [])
+	if active_modals.is_empty():
+		return true
+	match str(active_modals[0]):
+		LiveUiProbe.UPGRADE_CHOICE:
+			return LiveUiProbe.select_choice(main, LiveUiProbe.UPGRADE_CHOICE, 0)
+		LiveUiProbe.BOSS_REWARD:
+			var choice_ids: Array[String] = LiveUiProbe.choice_ids(
+				main, LiveUiProbe.BOSS_REWARD)
+			var choice_idx := _first_no_target_reward_index(choice_ids)
+			if choice_idx < 0:
+				choice_idx = 0
+			return LiveUiProbe.select_choice(
+				main, LiveUiProbe.BOSS_REWARD, choice_idx)
+		LiveUiProbe.TARGET_SELECT:
+			return _click_first_target_by_controls(main)
+		LiveUiProbe.THEME_CHOICE:
+			return _click_first_theme_choice_by_controls(main)
+		LiveUiProbe.GAME_OVER:
+			return true
+	return false
+
+
+func _click_first_target_by_controls(main) -> bool:
+	var targets := LiveUiProbe.target_field_indices(main)
+	if targets.is_empty():
+		return false
+	var field_idx: int = targets[0]
+	var visuals: Array = main.build_phase._field_visuals
+	if field_idx < 0 or field_idx >= visuals.size():
+		return false
+	return _emit_left_click(visuals[field_idx])
+
+
+func _click_first_theme_choice_by_controls(main) -> bool:
+	if not main.theme_choice_popup.visible:
+		return false
+	var container = main.theme_choice_popup.get_node("VBox/ChoiceContainer")
+	for child in container.get_children():
+		if child is Button:
+			(child as Button).pressed.emit()
+			return true
+	return false
+
+
+func _press_build_complete_by_controls(main) -> bool:
+	if main.current_phase != main.Phase.BUILD:
+		return false
+	if main.build_phase.confirm_button.disabled:
+		return false
+	main.build_phase.confirm_button.pressed.emit()
+	return true
+
+
+func _press_space_by_controls(main) -> bool:
+	var event := InputEventKey.new()
+	event.keycode = KEY_SPACE
+	event.pressed = true
+	main._unhandled_input(event)
+	return true
+
+
+func _emit_left_click(control: Control) -> bool:
+	if control == null or not control.visible:
+		return false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	control.emit_signal("gui_input", event)
+	return true
+
+
+func _wait_for_next_control_surface(main, max_frames: int) -> bool:
+	for _i in max_frames:
+		await wait_process_frames(1)
+		var ui := LiveUiProbe.snapshot(main)
+		if main._game_over:
+			return true
+		if bool(ui.get("has_modal", false)):
+			return true
+		if main.current_phase == main.Phase.BUILD \
+				or main.current_phase == main.Phase.CHAIN:
+			return true
+	return false

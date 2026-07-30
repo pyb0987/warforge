@@ -14,7 +14,8 @@ godot --headless --log-file /private/tmp/warforge_live_ui_smoke.log \
   res://tools/live_ui_smoke_report.tscn -- \
   --out=/private/tmp/warforge_live_ui_smoke.json \
   --commander=gambler \
-  --talisman=flint
+  --talisman=flint \
+  --unlock-selected=true
 ```
 
 The console still includes normal game logs. Use `--out` for parseable JSON.
@@ -78,6 +79,55 @@ the source report is incomplete, the ordered smoke labels are missing, the final
 state is not clean BUILD, required reward/chain event fields are absent, or
 requested screenshot lint fails.
 
+## Identity Matrix
+
+Run the curated identity matrix when you want one command to prove that the
+same live UI smoke contract works across important commander/talisman profiles:
+
+```bash
+python3 scripts/run_live_ui_identity_matrix.py \
+  --output-dir=/private/tmp/warforge_live_ui_identity_matrix
+```
+
+The default matrix covers:
+
+- `baseline=gambler:flint`
+- `coin=gambler:two_faced_coin`
+- `golden_die=gambler:golden_die`
+- `locked_economy=alchemist:soul_jar`
+
+Use the expanded special-commander preset when you want the reusable H83/H84
+coverage set:
+
+```bash
+python3 scripts/run_live_ui_identity_matrix.py \
+  --preset=expanded \
+  --output-dir=/private/tmp/warforge_live_ui_identity_matrix_expanded
+```
+
+The expanded preset covers:
+
+- `breeder=breeder:cracked_egg`
+- `collector=collector:glass_eye`
+- `strategist=strategist:war_drum`
+- `smith=smith:rusty_wrench`
+- `raider=raider:mercury_drop`
+
+Each row writes its own `report.json`, `summary.md`, Godot log, and isolated
+Godot `HOME` profile under the output directory. The matrix fails when any live
+UI report exits nonzero, does not write a JSON report, or fails the
+`summarize_live_ui_report.py` contract.
+
+Replace the preset with explicit custom rows by using repeated `--identity`
+options:
+
+```bash
+python3 scripts/run_live_ui_identity_matrix.py \
+  --identity=baseline=gambler:flint \
+  --identity=reward=gambler:golden_die \
+  --output-dir=/private/tmp/warforge_live_ui_identity_matrix_custom
+```
+
 ## Covered Flow
 
 The report currently covers:
@@ -95,9 +145,17 @@ The report currently covers:
 - rendered commander/talisman identity and live effect status in the BUILD HUD,
   including Flint changing from ready at build entry, to used during the scripted
   growth chain, then back to ready on the next BUILD round;
+- a compact R1-R15 run progression rail in the BUILD HUD, showing the current
+  round plus R4/R8/R12 boss reward and R15 final boss status;
 - card-shop and upgrade-shop reroll scope evidence: R changes card offers while
   preserving upgrade offers, and T changes upgrade offers while preserving card
   offers;
+- optional commander free-upgrade ownership when a selected commander opens it
+  during the scripted path, such as Smith's start bonus, through the visible
+  upgrade-choice modal and target overlay before the smoke resumes;
+- for Raider identities, a focused real 3-win reward proof that selects the
+  visible common-upgrade choice, attaches it through the field target overlay,
+  resets Raider's win counter, and returns to BUILD;
 - a real growth-chain pause with visible trigger/event feedback;
 - a real battle-start frame with rendered round, actual starting ally/enemy
   counts, and current remaining ally/enemy counts;
@@ -126,7 +184,8 @@ Top-level fields:
 
 - `schema`: currently `warforge-live-ui-smoke/v1`;
 - `ok`: `true` only when the scripted path and assertions pass;
-- `metadata`: selected commander, talisman, and meta profile;
+- `metadata`: selected commander, talisman, meta profile, and whether the
+  selected locked identity was preunlocked for an isolated report profile;
 - `steps`: ordered UI snapshots with phase, round, active modals, choices, and
   actionability, `layout_rects` for key live controls, plus a `screenshot`
   record when screenshot capture is enabled;
@@ -139,8 +198,8 @@ Top-level fields:
   for the selected commander/talisman pair at run entry and after chain
   feedback;
 - `events.run_milestone`: rendered BUILD HUD round/milestone text, visibility,
-  and rect evidence at run entry, after the first settlement, and post-unlock
-  BUILD entry;
+  compact R1-R15 progression rail text, and rect evidence at run entry, after
+  the first settlement, and post-unlock BUILD entry;
 - `events.build_readiness`: rendered first-BUILD readiness text, visibility, and
   rect evidence for the initial and post-unlock BUILD entries;
 - `events.enemy_pressure_preview`: rendered first-BUILD enemy pressure text,
@@ -153,6 +212,16 @@ Top-level fields:
   visible card faces on the initial and post-unlock BUILD entries;
 - `events.shop_reroll_scope`: card-reroll and upgrade-reroll before/after offer
   IDs plus the visible labels that distinguish `R:cards` from `T:upgrades only`;
+- `events.commander_free_upgrade`: optional selected upgrade, target, and
+  instruction evidence when a commander free-upgrade modal appears during the
+  smoke path;
+- `events.raider_win_streak_reward`: Raider-only proof that the real 3-win
+  reward attached an upgrade through visible UI, reset the win counter, and
+  returned to modal-free BUILD;
+- `events.commander_scripted_adjustments`: explicit harness-only state
+  adjustments, currently used to prevent Raider's artificial terminal victory
+  from waiting on the 3-win reward cadence while preserving the terminal unlock
+  smoke contract;
 - `events.settlement_recap`: the post-battle BUILD recap text and raw settlement
   source fields such as base income, interest, gold totals, and Terazin totals;
 - `events.unlock_recap`: the rendered game-over title/summary, shown unlock
@@ -193,6 +262,8 @@ Key invariant examples:
 - the BUILD HUD names the next boss reward/final boss milestone, and the
   post-settlement recap carries the same next milestone so the next BUILD has a
   visible reason to continue;
+- the run progression rail includes the current round and all major run
+  milestones: R4 reward, R8 reward, R12 reward, and R15 final;
 - battle-start status is visible on the real BATTLE screen, includes the current
   round, actual generated starting ally/enemy counts, current remaining counts,
   and nonzero visible rect evidence;
@@ -232,6 +303,10 @@ Key invariant examples:
   snapshots. Requires a non-headless rendering display.
 - `--commander=gambler|breeder|smith|strategist|collector|raider|alchemist`
 - `--talisman=flint|two_faced_coin|cracked_skull|...`
+- `--unlock-selected=true`: with the default reset profile, preunlock only the
+  requested commander/talisman when they are otherwise locked, then exercise the
+  normal visible selection UI. Use this for locked identity checks such as
+  `--talisman=golden_die`.
 - `--meta-path=user://some_profile.cfg`: use an isolated meta profile.
 - `--reset-meta=false`: preserve the chosen meta profile instead of resetting.
   The default smoke now requires `reset-meta=true`; disabling reset intentionally

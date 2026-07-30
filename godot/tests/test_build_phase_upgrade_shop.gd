@@ -274,6 +274,20 @@ func test_hud_updates_flint_ready_and_used_status() -> void:
 	assert_string_contains(used_text, "첫 성장 효과 ×2 사용됨")
 
 
+func test_hud_shows_compact_run_progress_rail() -> void:
+	_state.round_num = 5
+	_bp._refresh_all()
+
+	var rail_text: String = _bp.get_run_progress_rail_text()
+	assert_string_contains(rail_text, "R5 NOW")
+	assert_string_contains(rail_text, "rewards")
+	assert_string_contains(rail_text, "R4 done")
+	assert_string_contains(rail_text, "R8 next")
+	assert_string_contains(rail_text, "R12")
+	assert_string_contains(rail_text, "R15 final")
+	assert_string_contains(_bp.get_round_label_text(), rail_text)
+
+
 func test_shop_card_visual_marks_two_faced_coin_slots() -> void:
 	_state.talisman_type = Enums.TalismanType.TWO_FACED_COIN
 	_bp.shop._offered_ids.assign(["sp_assembly", "sp_assembly", "sp_assembly"])

@@ -55,9 +55,10 @@ func _run() -> void:
 
 	var meta_path: String = str(args.get("meta-path", DEFAULT_META_PATH))
 	var reset_meta: bool = _bool_arg(args, "reset-meta", true)
+	var unlock_selected: bool = _bool_arg(args, "unlock-selected", false)
 	var screenshot_dir: String = str(args.get("screenshot-dir", ""))
 	var report: Dictionary = await _run_report(commander_type, talisman_type,
-		meta_path, reset_meta, screenshot_dir)
+		meta_path, reset_meta, screenshot_dir, unlock_selected)
 
 	var out_path: String = str(args.get("out", ""))
 	if out_path != "":
@@ -73,13 +74,17 @@ func _run() -> void:
 
 
 func _run_report(commander_type: int, talisman_type: int, meta_path: String,
-		reset_meta: bool, screenshot_dir: String = "") -> Dictionary:
+		reset_meta: bool, screenshot_dir: String = "",
+		unlock_selected: bool = false) -> Dictionary:
 	var report := {
 		"schema": "warforge-live-ui-smoke/v1",
 		"ok": false,
 		"metadata": {
 			"meta_path": meta_path,
 			"reset_meta": reset_meta,
+			"unlock_selected": unlock_selected,
+			"preunlocked_selected_commanders": [],
+			"preunlocked_selected_talismans": [],
 			"screenshot_dir": _global_path(screenshot_dir),
 			"screenshot_status": "disabled" if screenshot_dir == "" else "requested",
 			"display_server": DisplayServer.get_name(),
@@ -116,6 +121,13 @@ func _run_report(commander_type: int, talisman_type: int, meta_path: String,
 
 	if reset_meta:
 		var progress = load("res://core/meta_progress.gd").new()
+		if unlock_selected:
+			var preunlocked := _unlock_requested_identity(
+				progress, commander_type, talisman_type)
+			report["metadata"]["preunlocked_selected_commanders"] = \
+				preunlocked["commanders"]
+			report["metadata"]["preunlocked_selected_talismans"] = \
+				preunlocked["talismans"]
 		var save_err: Error = progress.save(meta_path)
 		if save_err != OK:
 			_fail(report, "failed to reset meta profile: %s" % error_string(save_err))
@@ -236,6 +248,8 @@ func _run_report(commander_type: int, talisman_type: int, meta_path: String,
 	if not await _run_chain_feedback_event(report, main):
 		return report
 	if not await _run_merge_reward_event(report, main):
+		return report
+	if not await _run_raider_win_streak_reward_event(report, main):
 		return report
 	if not await _run_boss_reward_event(report, main):
 		return report
@@ -380,6 +394,12 @@ func _run_chain_feedback_event(report: Dictionary, main) -> bool:
 
 	main.build_phase.confirm_button.pressed.emit()
 	await _wait_frames(2)
+	if _active_modals(main) == [LiveUiProbe.UPGRADE_CHOICE]:
+		if not await _resolve_commander_free_upgrade(
+				report, main, "smith_start_upgrade"):
+			return false
+		main.build_phase.confirm_button.pressed.emit()
+		await _wait_frames(2)
 	_add_step(report, "chain_feedback_open", main)
 	var chain_step := _last_snapshot(report)
 	if not _capture_run_identity(report, chain_step, "during_chain_feedback"):
@@ -570,6 +590,62 @@ func _run_merge_reward_event(report: Dictionary, main) -> bool:
 		"merge reward returned to build with stale chain feedback visible")
 
 
+func _run_raider_win_streak_reward_event(report: Dictionary, main) -> bool:
+	if main.game_state.commander_type != Enums.CommanderType.RAIDER:
+		return true
+	_clear_run_cards(main)
+	var card_instance = load("res://core/card_instance.gd")
+	var target = card_instance.create("sp_assembly")
+	main.game_state.board[0] = target  # lint:allow zone-assign
+	main.game_state.round_num = 2
+	main.game_state.hp = maxi(main.game_state.hp, 12)
+	main.game_state.gold = 10
+	main.game_state.commander_state["win_count"] = \
+		Commander.RAIDER_UPGRADE_INTERVAL - 1
+	main._gold_before_effects = main.game_state.gold
+	main._last_ally_count = 8
+	main._last_enemy_count = 4
+	main.current_phase = main.Phase.BATTLE
+	main.build_phase.visible = false
+	main.build_phase._refresh_all()
+	var upgrade_count_before: int = target.upgrades.size()
+
+	main._on_battle_finished({
+		"player_won": true,
+		"ally_survived": 1,
+		"enemy_survived": 0,
+	})
+	await _wait_frames(2)
+	if not await _resolve_commander_free_upgrade(
+			report, main, "raider_win_streak_upgrade"):
+		return false
+	await _wait_frames(2)
+	var final_step := LiveUiProbe.snapshot(main)
+	var free_events: Dictionary = report["events"].get(
+		"commander_free_upgrade", {})
+	var reward_event: Dictionary = free_events.get("raider_win_streak_upgrade", {})
+	report["events"]["raider_win_streak_reward"] = {
+		"selected_upgrade": str(reward_event.get("selected_upgrade", "")),
+		"selected_field_idx": int(reward_event.get("selected_field_idx", -1)),
+		"instruction": str(reward_event.get("instruction", "")),
+		"target_upgrade_count_before": upgrade_count_before,
+		"target_upgrade_count_after": target.upgrades.size(),
+		"win_count_after": int(main.game_state.commander_state.get("win_count", -1)),
+		"phase_after": str(final_step.get("phase", "")),
+		"round_after": int(final_step.get("round", 0)),
+		"has_modal_after": bool(final_step.get("has_modal", true)),
+	}
+	return _require(report,
+		target.upgrades.size() == upgrade_count_before + 1 \
+			and int(main.game_state.commander_state.get("win_count", -1)) == 0 \
+			and str(final_step.get("phase", "")) == "BUILD" \
+			and int(final_step.get("round", 0)) == 3 \
+			and not bool(final_step.get("has_modal", true)) \
+			and str(reward_event.get("instruction", "")).contains(
+				"Raider 3-win reward"),
+		"Raider 3-win reward did not attach and settle into clean BUILD")
+
+
 func _run_boss_reward_event(report: Dictionary, main) -> bool:
 	var card_instance = load("res://core/card_instance.gd")
 	main.game_state.board[0] = card_instance.create("sp_assembly")  # lint:allow zone-assign
@@ -578,7 +654,7 @@ func _run_boss_reward_event(report: Dictionary, main) -> bool:
 	main.current_phase = main.Phase.BATTLE
 	main.build_phase.visible = false
 
-	await main._on_battle_finished({
+	main._on_battle_finished({
 		"player_won": true,
 		"ally_survived": 1,
 		"enemy_survived": 0,
@@ -590,6 +666,7 @@ func _run_boss_reward_event(report: Dictionary, main) -> bool:
 		return false
 	var open_step := _last_snapshot(report)
 	var choices := LiveUiProbe.choice_ids(main, LiveUiProbe.BOSS_REWARD)
+	var boss_details: Dictionary = open_step.get("boss_reward", {})
 	var choice_summaries: Array = _boss_reward_choice_summaries(open_step)
 	if not _require(report, _boss_reward_summaries_are_rendered(
 			choice_summaries, choices),
@@ -615,6 +692,8 @@ func _run_boss_reward_event(report: Dictionary, main) -> bool:
 
 	report["events"]["boss_reward"] = {
 		"selected_reward": selected_reward,
+		"open_title": str(boss_details.get("title", "")),
+		"open_choice_count": choices.size(),
 		"round_after": main.game_state.round_num,
 		"phase_after": str(_last_snapshot(report).get("phase", "")),
 		"build_visible_after": bool(_last_snapshot(report).get("build_visible", false)),
@@ -732,6 +811,7 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 	main._last_enemy_count = 5
 	main._current_win_streak = 7
 	main._run_stats = _overflow_unlock_run_stats()
+	_suppress_raider_terminal_upgrade(report, main)
 	main.current_phase = main.Phase.BATTLE
 	main.build_phase.visible = false
 
@@ -741,6 +821,11 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 		"enemy_survived": 0,
 	})
 	await _wait_frames(2)
+	if _active_modals(main) == [LiveUiProbe.UPGRADE_CHOICE]:
+		if not await _resolve_commander_free_upgrade(
+				report, main, "raider_terminal_upgrade"):
+			return null
+		await _wait_frames(2)
 
 	if not _expect_modal(report, main, LiveUiProbe.GAME_OVER,
 			"unlock_game_over_open"):
@@ -750,26 +835,29 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 	var game_over_summary := str(game_over_details.get("summary_text", ""))
 	var shown_unlocks := _unlock_bullet_lines(game_over_summary)
 	var overflow_count := _unlock_overflow_count(game_over_summary)
+	var raw_unlocks := _to_string_array(main._meta_progress.last_unlocks)
+	var expected_shown_unlocks := raw_unlocks.slice(
+		0, mini(raw_unlocks.size(), MetaProgress.UNLOCK_RECAP_LIMIT))
+	var expected_overflow_count := maxi(
+		0, raw_unlocks.size() - expected_shown_unlocks.size())
 	report["events"]["unlock_recap"] = {
 		"title_text": str(game_over_details.get("title_text", "")),
 		"summary_text": game_over_summary,
+		"raw_unlocks": raw_unlocks,
 		"shown_unlocks": shown_unlocks,
 		"shown_count": shown_unlocks.size(),
 		"overflow_count": overflow_count,
-		"raw_unlock_count": shown_unlocks.size() + overflow_count,
+		"raw_unlock_count": raw_unlocks.size(),
 	}
 	if not _require(report,
 			str(game_over_details.get("title_text", "")) == "VICTORY!" \
 				and game_over_summary.contains("New unlocks available") \
-				and shown_unlocks.size() == 3 \
-				and overflow_count > 0 \
-				and game_over_summary.contains(
-					"more unlocked - all available in PROGRESS") \
-				and game_over_summary.contains("- 커맨더: 전략가") \
-				and game_over_summary.contains("- 커맨더: 단조사") \
-				and game_over_summary.contains("- 커맨더: 수집가") \
-				and not game_over_summary.contains("- 부적: 영혼 항아리"),
-			"game-over unlock recap did not show capped top-three plus overflow"):
+				and not raw_unlocks.is_empty() \
+				and _same_array(shown_unlocks, expected_shown_unlocks) \
+				and overflow_count == expected_overflow_count \
+				and _unlock_overflow_visibility_ok(
+					game_over_summary, raw_unlocks, expected_shown_unlocks),
+			"game-over unlock recap did not match capped top-three plus overflow"):
 		return null
 
 	main.queue_free()
@@ -790,11 +878,10 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 	var recent_text := str(run_start_details.get("recent_unlocks_text", ""))
 	if not _require(report,
 			recent_text.contains("최근 해금") \
-				and recent_text.contains("- 커맨더: 전략가") \
-				and recent_text.contains("- 커맨더: 단조사") \
-				and recent_text.contains("- 커맨더: 수집가") \
-				and recent_text.contains("more unlocked - all available in PROGRESS") \
-				and not recent_text.contains("- 부적: 영혼 항아리") \
+				and _same_array(_unlock_bullet_lines(recent_text),
+					expected_shown_unlocks) \
+				and _unlock_overflow_visibility_ok(
+					recent_text, raw_unlocks, expected_shown_unlocks) \
 				and str(run_start_details.get("difficulty_text", "")).contains(
 					"Difficulty 1 / 2") \
 				and str(run_start_details.get("unlocks_text", "")).contains("연금술사") \
@@ -951,6 +1038,91 @@ func _overflow_unlock_run_stats() -> Dictionary:
 		"unit_advantage_win": true,
 		"unit_advantage_wins": 5,
 	}
+
+
+func _suppress_raider_terminal_upgrade(report: Dictionary, main) -> void:
+	if main.game_state.commander_type != Enums.CommanderType.RAIDER:
+		return
+	var old_win_count: int = int(main.game_state.commander_state.get("win_count", 0))
+	main.game_state.commander_state["win_count"] = 0
+	var events: Dictionary = report["events"].get("commander_scripted_adjustments", {})
+	events["raider_terminal_win_count_reset"] = {
+		"old_win_count": old_win_count,
+		"new_win_count": 0,
+		"reason": "scripted terminal unlock smoke avoids waiting on Raider 3-win reward",
+	}
+	report["events"]["commander_scripted_adjustments"] = events
+
+
+func _resolve_commander_free_upgrade(report: Dictionary, main,
+		label: String) -> bool:
+	var choice_step := _expect_current_modal(report, main,
+		LiveUiProbe.UPGRADE_CHOICE, "%s_choice" % label)
+	if choice_step.is_empty():
+		return false
+	var choices: Array = choice_step.get("choices", {}).get(
+		LiveUiProbe.UPGRADE_CHOICE, [])
+	if not _require(report, not choices.is_empty(),
+			"%s had no visible upgrade choices" % label):
+		return false
+	var selected_upgrade := str(choices[0])
+	if not LiveUiProbe.select_choice(main, LiveUiProbe.UPGRADE_CHOICE, 0):
+		_fail(report, "%s upgrade choice selection failed" % label)
+		return false
+	await _wait_frames(2)
+
+	var target_step := _expect_current_modal(report, main,
+		LiveUiProbe.TARGET_SELECT, "%s_target_open" % label)
+	if target_step.is_empty():
+		return false
+	var target_choices: Array = target_step.get("choices", {}).get(
+		LiveUiProbe.TARGET_SELECT, [])
+	if not _require(report, not target_choices.is_empty(),
+			"%s had no visible free-upgrade target" % label):
+		return false
+	var target_idx := int(target_choices[0])
+	var target_details: Dictionary = target_step.get("target_select", {})
+	var instruction := str(target_details.get("instruction", ""))
+	if not _require(report, instruction != "",
+			"%s target overlay did not expose instruction text" % label):
+		return false
+	if not LiveUiProbe.select_target(main, target_idx):
+		_fail(report, "%s target selection failed" % label)
+		return false
+	await _wait_frames(2)
+	var closed_step := LiveUiProbe.snapshot(main)
+	if not _require(report, not bool(closed_step.get("has_modal", true)),
+			"%s did not close after target selection" % label):
+		return false
+	var events: Dictionary = report["events"].get("commander_free_upgrade", {})
+	events[label] = {
+		"selected_upgrade": selected_upgrade,
+		"selected_field_idx": target_idx,
+		"instruction": instruction,
+		"phase_after": str(closed_step.get("phase", "")),
+		"round_after": int(closed_step.get("round", 0)),
+	}
+	report["events"]["commander_free_upgrade"] = events
+	return true
+
+
+func _expect_current_modal(report: Dictionary, main, modal_id: String,
+		context: String) -> Dictionary:
+	var snapshot := LiveUiProbe.snapshot(main)
+	var active: Array = snapshot.get("active_modals", [])
+	if not _require(report, active == [modal_id],
+			"%s expected active modal %s, got %s" % [context, modal_id, active]):
+		return {}
+	var actionable: Dictionary = snapshot.get("actionable", {})
+	if not _require(report, bool(actionable.get(modal_id, false)),
+			"%s modal %s was not actionable" % [context, modal_id]):
+		return {}
+	return snapshot
+
+
+func _active_modals(main) -> Array:
+	var snapshot := LiveUiProbe.snapshot(main)
+	return snapshot.get("active_modals", [])
 
 
 func _expect_modal(report: Dictionary, main, modal_id: String,
@@ -1122,11 +1294,13 @@ func _capture_run_milestone(report: Dictionary, snapshot: Dictionary,
 	var milestone: Dictionary = snapshot.get("run_milestone", {})
 	var text := str(milestone.get("text", ""))
 	var round_label_text := str(milestone.get("round_label_text", ""))
+	var progress_rail_text := str(milestone.get("progress_rail_text", ""))
 	var rect: Dictionary = milestone.get("rect", {})
 	var event: Dictionary = report["events"].get("run_milestone", {})
 	event[label] = {
 		"text": text,
 		"round_label_text": round_label_text,
+		"progress_rail_text": progress_rail_text,
 		"visible": bool(milestone.get("visible", false)),
 		"rect": rect,
 	}
@@ -1137,11 +1311,22 @@ func _capture_run_milestone(report: Dictionary, snapshot: Dictionary,
 				and text.contains("boss") \
 				and round_label_text.contains("Round") \
 				and round_label_text.contains("boss") \
+				and _run_progress_rail_ok(progress_rail_text) \
+				and round_label_text.contains(progress_rail_text) \
 				and float(rect.get("w", 0.0)) > 0.0 \
 				and float(rect.get("h", 0.0)) > 0.0,
-			"%s run milestone HUD did not expose next boss reward/final boss" % label):
+			"%s run milestone HUD did not expose next boss reward/final boss rail" % label):
 		return false
 	return true
+
+
+func _run_progress_rail_ok(text: String) -> bool:
+	return text.contains("NOW") \
+		and text.contains("rewards") \
+		and text.contains("R4") \
+		and text.contains("R8") \
+		and text.contains("R12") \
+		and text.contains("R15 final")
 
 
 func _capture_build_readiness(report: Dictionary, snapshot: Dictionary,
@@ -1354,6 +1539,38 @@ func _same_array(left: Array, right: Array) -> bool:
 	return true
 
 
+func _unlock_requested_identity(progress, commander_type: int,
+		talisman_type: int) -> Dictionary:
+	var commanders: Array[int] = []
+	var talismans: Array[int] = []
+	if commander_type != Enums.CommanderType.NONE \
+			and not progress.unlocked_commanders.has(commander_type):
+		progress.unlocked_commanders.append(commander_type)
+		commanders.append(commander_type)
+	if talisman_type != Enums.TalismanType.NONE \
+			and not progress.unlocked_talismans.has(talisman_type):
+		progress.unlocked_talismans.append(talisman_type)
+		talismans.append(talisman_type)
+	return {
+		"commanders": commanders,
+		"talismans": talismans,
+	}
+
+
+func _unlock_overflow_visibility_ok(text: String, raw_unlocks: Array[String],
+		shown_unlocks: Array) -> bool:
+	var expected_overflow_count := maxi(0, raw_unlocks.size() - shown_unlocks.size())
+	if expected_overflow_count <= 0:
+		return not text.contains("more unlocked - all available in PROGRESS")
+	if not text.contains("more unlocked - all available in PROGRESS"):
+		return false
+	if shown_unlocks.size() < raw_unlocks.size():
+		var first_overflow := str(raw_unlocks[shown_unlocks.size()])
+		if text.contains("- %s" % first_overflow):
+			return false
+	return true
+
+
 func _require(report: Dictionary, condition: bool, message: String) -> bool:
 	if condition:
 		return true
@@ -1395,6 +1612,13 @@ func _unlock_bullet_lines(text: String) -> Array[String]:
 		var trimmed := str(line).strip_edges()
 		if trimmed.begins_with("- "):
 			result.append(trimmed.trim_prefix("- "))
+	return result
+
+
+func _to_string_array(values: Array) -> Array[String]:
+	var result: Array[String] = []
+	for value in values:
+		result.append(str(value))
 	return result
 
 

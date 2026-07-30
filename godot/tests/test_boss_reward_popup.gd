@@ -46,6 +46,7 @@ func test_choice_summaries_report_rendered_reward_text() -> void:
 	var rewards: Array[String] = ["r4_1", "r4_2"]
 	_popup.show_choices(rewards)
 
+	assert_string_contains(_popup.title_label.text, "2개 후보")
 	var summaries: Array = _popup.get_choice_summaries()
 
 	assert_eq(summaries.size(), 2)

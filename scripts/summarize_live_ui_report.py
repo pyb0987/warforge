@@ -205,6 +205,16 @@ def _validate_source_report(
                 "events.run_identity.after_chain_feedback.text must show Flint ready"
             )
 
+    _validate_commander_free_upgrade_events(
+        _as_dict(events.get("commander_free_upgrade")), errors
+    )
+    _validate_raider_win_streak_reward(
+        _as_dict(events.get("raider_win_streak_reward")),
+        _to_int(metadata.get("commander_type"), -1),
+        commander_name,
+        errors,
+    )
+
     milestone_event = _as_dict(events.get("run_milestone"))
     for label in ("build_entry", "after_chain_feedback"):
         step_label = "chain_feedback_last_history" if label == "after_chain_feedback" else label
@@ -473,6 +483,10 @@ def _validate_source_report(
     )
     if not str(boss_event.get("selected_reward", "")).strip():
         errors.append("events.boss_reward.selected_reward is required")
+    if boss_event.get("open_choice_count") != len(boss_event_summaries):
+        errors.append("events.boss_reward.open_choice_count must match rendered summaries")
+    if not str(boss_event.get("open_title", "")).strip():
+        errors.append("events.boss_reward.open_title is required")
     if boss_event.get("phase_after") != "BUILD":
         errors.append("events.boss_reward.phase_after must be BUILD")
     selected_summary = _as_dict(boss_event.get("selected_choice_summary"))
@@ -521,38 +535,71 @@ def _validate_source_report(
     unlock_step = _step_by_label(steps, "unlock_game_over_open")
     unlock_step_game_over = _as_dict(unlock_step.get("game_over"))
     unlock_summary = str(unlock_event.get("summary_text", ""))
+    raw_unlocks = [
+        str(value)
+        for value in _as_list(unlock_event.get("raw_unlocks"))
+        if str(value).strip()
+    ]
     if unlock_event.get("title_text") != "VICTORY!":
         errors.append("events.unlock_recap.title_text must be VICTORY!")
     if unlock_step.get("active_modals") != ["game_over"]:
         errors.append("unlock_game_over_open must be owned by game_over modal")
     if str(unlock_step_game_over.get("summary_text", "")) != unlock_summary:
         errors.append("unlock_game_over_open summary_text must match events.unlock_recap")
-    for expected in (
-        "New unlocks available",
-        "- 커맨더: 전략가",
-        "- 커맨더: 단조사",
-        "- 커맨더: 수집가",
-        "more unlocked - all available in PROGRESS",
-    ):
-        if expected not in unlock_summary:
-            errors.append(f"events.unlock_recap.summary_text missing {expected!r}")
-    if "- 부적: 영혼 항아리" in unlock_summary:
-        errors.append("events.unlock_recap must keep Soul Jar in overflow, not shown rows")
     shown_count = _to_int(unlock_event.get("shown_count"), -1)
     overflow_count = _to_int(unlock_event.get("overflow_count"), -1)
     raw_unlock_count = _to_int(unlock_event.get("raw_unlock_count"), -1)
-    if shown_count != 3:
-        errors.append("events.unlock_recap.shown_count must be 3")
-    if overflow_count <= 0:
-        errors.append("events.unlock_recap.overflow_count must be positive")
-    if raw_unlock_count != shown_count + overflow_count:
-        errors.append("events.unlock_recap.raw_unlock_count must equal shown + overflow")
+    if "New unlocks available" not in unlock_summary:
+        errors.append("events.unlock_recap.summary_text missing 'New unlocks available'")
+    if raw_unlocks:
+        expected_shown_unlocks = raw_unlocks[: min(3, len(raw_unlocks))]
+        expected_overflow_count = max(0, len(raw_unlocks) - len(expected_shown_unlocks))
+        if raw_unlock_count != len(raw_unlocks):
+            errors.append("events.unlock_recap.raw_unlock_count must match raw_unlocks")
+        if shown_count != len(expected_shown_unlocks):
+            errors.append("events.unlock_recap.shown_count must match capped raw_unlocks")
+        if overflow_count != expected_overflow_count:
+            errors.append("events.unlock_recap.overflow_count must match raw_unlocks")
+        shown_unlocks = [str(value) for value in _as_list(unlock_event.get("shown_unlocks"))]
+        if shown_unlocks != expected_shown_unlocks:
+            errors.append("events.unlock_recap.shown_unlocks must match capped raw_unlocks")
+        for expected in expected_shown_unlocks:
+            if f"- {expected}" not in unlock_summary:
+                errors.append(f"events.unlock_recap.summary_text missing {expected!r}")
+        if expected_overflow_count > 0:
+            if "more unlocked - all available in PROGRESS" not in unlock_summary:
+                errors.append("events.unlock_recap.summary_text missing overflow copy")
+            first_overflow = raw_unlocks[len(expected_shown_unlocks)]
+            if f"- {first_overflow}" in unlock_summary:
+                errors.append("events.unlock_recap must keep overflow rows hidden")
+    else:
+        if shown_count != 3:
+            errors.append("events.unlock_recap.shown_count must be 3")
+        if overflow_count <= 0:
+            errors.append("events.unlock_recap.overflow_count must be positive")
+        if raw_unlock_count != shown_count + overflow_count:
+            errors.append("events.unlock_recap.raw_unlock_count must equal shown + overflow")
 
     progress_event = _as_dict(events.get("post_unlock_progress"))
     recent_text = str(progress_event.get("recent_unlocks_text", ""))
     unlocks_text = str(progress_event.get("unlocks_text", ""))
     details_text = str(progress_event.get("details_text", ""))
-    if "more unlocked - all available in PROGRESS" not in recent_text:
+    if raw_unlocks:
+        for expected in raw_unlocks[: min(3, len(raw_unlocks))]:
+            if f"- {expected}" not in recent_text:
+                errors.append(
+                    f"events.post_unlock_progress.recent_unlocks_text missing {expected!r}"
+                )
+        if len(raw_unlocks) > 3:
+            if "more unlocked - all available in PROGRESS" not in recent_text:
+                errors.append(
+                    "events.post_unlock_progress.recent_unlocks_text missing overflow copy"
+                )
+            if f"- {raw_unlocks[3]}" in recent_text:
+                errors.append(
+                    "events.post_unlock_progress.recent_unlocks_text must keep overflow rows hidden"
+                )
+    elif "more unlocked - all available in PROGRESS" not in recent_text:
         errors.append("events.post_unlock_progress.recent_unlocks_text missing overflow copy")
     for expected in ("연금술사", "영혼 항아리"):
         if expected not in unlocks_text:
@@ -758,11 +805,16 @@ def _validate_run_milestone(
     step_text = str(step_details.get("text", "")).strip()
     event_text = str(event_details.get("text", "")).strip()
     round_label_text = str(step_details.get("round_label_text", "")).strip()
+    progress_rail_text = str(step_details.get("progress_rail_text", "")).strip()
     if event_text != step_text:
         errors.append(f"events.run_milestone.{label}.text must match rendered step")
     if str(event_details.get("round_label_text", "")).strip() != round_label_text:
         errors.append(
             f"events.run_milestone.{label}.round_label_text must match rendered step"
+        )
+    if str(event_details.get("progress_rail_text", "")).strip() != progress_rail_text:
+        errors.append(
+            f"events.run_milestone.{label}.progress_rail_text must match rendered step"
         )
     if step_details.get("visible") is not True:
         errors.append(f"{label} run_milestone.visible must be true")
@@ -774,6 +826,7 @@ def _validate_run_milestone(
             errors.append(
                 f"{label} run_milestone.round_label_text missing {expected!r}"
             )
+    _validate_run_progress_rail(label, progress_rail_text, round_label_text, errors)
     rect = _as_dict(step_details.get("rect"))
     if _to_float(rect.get("w"), 0.0) <= 0.0 or _to_float(
         rect.get("h"), 0.0
@@ -781,6 +834,97 @@ def _validate_run_milestone(
         errors.append(f"{label} run_milestone.rect must be nonzero")
     if rect.get("visible") is not True:
         errors.append(f"{label} run_milestone.rect.visible must be true")
+
+
+def _validate_run_progress_rail(
+    label: str,
+    progress_rail_text: str,
+    round_label_text: str,
+    errors: list[str],
+) -> None:
+    for expected in ("NOW", "rewards", "R4", "R8", "R12", "R15 final"):
+        if expected not in progress_rail_text:
+            errors.append(
+                f"{label} run_milestone.progress_rail_text missing {expected!r}"
+            )
+    if progress_rail_text and progress_rail_text not in round_label_text:
+        errors.append(
+            f"{label} run_milestone.round_label_text must include progress rail"
+        )
+
+
+def _validate_commander_free_upgrade_events(
+    event: dict[str, Any], errors: list[str]
+) -> None:
+    for label, value in sorted(event.items()):
+        row = _as_dict(value)
+        if not row:
+            errors.append(f"events.commander_free_upgrade.{label} must be an object")
+            continue
+        if not str(row.get("selected_upgrade", "")).strip():
+            errors.append(
+                f"events.commander_free_upgrade.{label}.selected_upgrade is required"
+            )
+        if _to_int(row.get("selected_field_idx"), -1) < 0:
+            errors.append(
+                f"events.commander_free_upgrade.{label}.selected_field_idx "
+                "must be nonnegative"
+            )
+        if not str(row.get("instruction", "")).strip():
+            errors.append(
+                f"events.commander_free_upgrade.{label}.instruction is required"
+            )
+        phase_after = str(row.get("phase_after", "")).strip()
+        if phase_after not in {"BUILD", "CHAIN", "BATTLE", "SETTLEMENT"}:
+            errors.append(
+                f"events.commander_free_upgrade.{label}.phase_after "
+                "must be a live run phase"
+            )
+        if _to_int(row.get("round_after"), 0) <= 0:
+            errors.append(
+                f"events.commander_free_upgrade.{label}.round_after must be positive"
+            )
+
+
+def _validate_raider_win_streak_reward(
+    event: dict[str, Any],
+    commander_type: int,
+    commander_name: str,
+    errors: list[str],
+) -> None:
+    is_raider = commander_type == 6 or "약탈자" in commander_name or "Raider" in commander_name
+    if not event:
+        if is_raider:
+            errors.append("events.raider_win_streak_reward is required for Raider reports")
+        return
+    if not is_raider:
+        errors.append("events.raider_win_streak_reward is only expected for Raider reports")
+    if not str(event.get("selected_upgrade", "")).strip():
+        errors.append("events.raider_win_streak_reward.selected_upgrade is required")
+    if _to_int(event.get("selected_field_idx"), -1) < 0:
+        errors.append(
+            "events.raider_win_streak_reward.selected_field_idx must be nonnegative"
+        )
+    instruction = str(event.get("instruction", ""))
+    if "Raider 3-win reward" not in instruction:
+        errors.append(
+            "events.raider_win_streak_reward.instruction must mention "
+            "'Raider 3-win reward'"
+        )
+    before = _to_int(event.get("target_upgrade_count_before"), -1)
+    after = _to_int(event.get("target_upgrade_count_after"), -1)
+    if after != before + 1:
+        errors.append(
+            "events.raider_win_streak_reward target upgrade count must increase by 1"
+        )
+    if _to_int(event.get("win_count_after"), -1) != 0:
+        errors.append("events.raider_win_streak_reward.win_count_after must reset to 0")
+    if str(event.get("phase_after", "")) != "BUILD":
+        errors.append("events.raider_win_streak_reward.phase_after must be BUILD")
+    if _to_int(event.get("round_after"), 0) <= 0:
+        errors.append("events.raider_win_streak_reward.round_after must be positive")
+    if event.get("has_modal_after") is not False:
+        errors.append("events.raider_win_streak_reward.has_modal_after must be false")
 
 
 def _validate_build_readiness(
@@ -1082,6 +1226,8 @@ def _render_summary(
     availability_event = _as_dict(events.get("post_unlock_availability"))
     enemy_preview_event = _as_dict(events.get("enemy_pressure_preview"))
     battle_status_event = _as_dict(events.get("battle_status"))
+    commander_free_upgrade_event = _as_dict(events.get("commander_free_upgrade"))
+    raider_reward_event = _as_dict(events.get("raider_win_streak_reward"))
 
     lines = [
         "# Warforge Live UI Playtest Summary",
@@ -1094,6 +1240,7 @@ def _render_summary(
         "## Run",
         f"- Commander: {_metadata_name(metadata, 'commander_name')}",
         f"- Talisman: {_metadata_name(metadata, 'talisman_name')}",
+        f"- Selected identity setup: {_selected_identity_setup_line(metadata)}",
         f"- Final state: {final_snapshot.get('phase', '?')} R{final_snapshot.get('round', '?')}, modal-free {_yes_no(final_snapshot.get('has_modal') is not True)}",
         f"- Screenshots: {metadata.get('screenshot_status', 'unknown')} ({len(screenshots)} records)",
         f"- Screenshot lint: {lint_status}",
@@ -1105,6 +1252,8 @@ def _render_summary(
         identity_event,
         milestone_event,
         selection_event,
+        commander_free_upgrade_event,
+        raider_reward_event,
         enemy_preview_event,
         battle_status_event,
         chain_event,
@@ -1141,6 +1290,8 @@ def _flow_lines(
     identity_event: dict[str, Any],
     milestone_event: dict[str, Any],
     selection_event: dict[str, Any],
+    commander_free_upgrade_event: dict[str, Any],
+    raider_reward_event: dict[str, Any],
     enemy_preview_event: dict[str, Any],
     battle_status_event: dict[str, Any],
     chain_event: dict[str, Any],
@@ -1184,6 +1335,9 @@ def _flow_lines(
     milestone_build = _single_line(
         _as_dict(milestone_event.get("build_entry")).get("round_label_text")
     )
+    progress_rail = _single_line(
+        _as_dict(milestone_event.get("build_entry")).get("progress_rail_text")
+    )
     milestone_after = _single_line(
         _as_dict(milestone_event.get("after_chain_feedback")).get("text")
     )
@@ -1209,13 +1363,15 @@ def _flow_lines(
         _as_dict(battle_status_event.get("battle_status_live")).get("text")
     )
     shop_role_text = _shop_role_line(build_shop.get("card_offer_roles"))
+    free_upgrade_text = _commander_free_upgrade_line(commander_free_upgrade_event)
+    raider_reward_text = _raider_win_streak_reward_line(raider_reward_event)
 
     display_chain = _single_line(chain_event.get("last_history_display_text"))
     raw_chain = _single_line(chain_event.get("event_log_text"))
     if not display_chain:
         display_chain = _single_line(last_chain.get("display_text"))
 
-    return [
+    lines = [
         f"- Run start reached BUILD R{build_entry.get('round', '?')} with no modal: {_yes_no(build_entry.get('has_modal') is not True)}.",
         f"- BUILD readiness cue: {readiness_text or 'missing'}.",
         f"- Enemy pressure preview rendered before commit: {enemy_preview_text or 'missing'}.",
@@ -1224,6 +1380,7 @@ def _flow_lines(
         f"- Selection cards rendered before BUILD: commander {selected_commander or 'missing'}; talisman {selected_talisman or 'missing'}.",
         f"- Run identity rendered: {identity_build or 'missing'}; during chain: {identity_during or 'missing'}; next BUILD: {identity_after or 'missing'}.",
         f"- Run milestone rendered: {milestone_build or 'missing'}; after first settlement: {milestone_after or 'missing'}.",
+        f"- Run progression rail rendered: {progress_rail or 'missing'}.",
         f"- Chain feedback paused in {chain_step.get('phase', '?')} with {_single_line(chain_event.get('counter_text')) or 'unknown triggers'}; visible summary: {display_chain or raw_chain or 'missing'}.",
         f"- Battle start status rendered: {battle_status_text or 'missing'}.",
 		f"- Battle aftermath popup explained: {battle_detail or 'missing'}.",
@@ -1231,6 +1388,7 @@ def _flow_lines(
         f"- Settlement recap displayed: {settlement_detail or 'missing'}.",
         f"- Shop reroll scope held: card reroll changed cards and preserved upgrades {_yes_no(card_reroll.get('upgrades_preserved') is True)}; upgrade reroll changed upgrades and preserved cards {_yes_no(upgrade_reroll.get('cards_preserved') is True)}.",
         f"- Boss reward choices rendered: {boss_choices or 'missing'}.",
+        f"- Boss reward popup title: {_single_line(boss_event.get('open_title')) or 'missing'}.",
         f"- Merge reward attached {merge_event.get('selected_upgrade', '?')} to {merge_event.get('survivor_card_id', '?')} star {merge_event.get('survivor_star', '?')}; merge history visible {_yes_no(merge_event.get('merge_history_visible') is True)} and gold {merge_event.get('gold_before_purchase', '?')} -> {merge_event.get('gold_after_merge', '?')} after -{merge_event.get('purchase_cost', '?')}g purchase, +{merge_event.get('expected_merge_refund', '?')}g merge refund.",
         f"- Boss reward selected {boss_event.get('selected_reward', '?')} and returned to {boss_event.get('phase_after', '?')} R{boss_event.get('round_after', '?')}.",
         f"- Targeted boss reward choice rendered: {targeted_choices or 'missing'}.",
@@ -1241,6 +1399,11 @@ def _flow_lines(
         f"- Post-unlock selection cards rendered: commander {post_commander or 'missing'}; talisman {post_talisman or 'missing'}.",
         f"- Overflow availability was actionable: commander {availability_event.get('selected_commander', '?')} and talisman {availability_event.get('selected_talisman', '?')} reached {availability_event.get('phase_after', '?')} modal-free {_yes_no(availability_event.get('has_modal_after') is False)}.",
     ]
+    if free_upgrade_text:
+        lines.insert(9, f"- Commander free upgrade flow resolved: {free_upgrade_text}.")
+    if raider_reward_text:
+        lines.insert(10, f"- Raider 3-win reward proved live: {raider_reward_text}.")
+    return lines
 
 
 def _key_screenshot_lines(shots_by_label: dict[str, dict[str, Any]]) -> list[str]:
@@ -1368,6 +1531,37 @@ def _shop_role_line(value: Any) -> str:
     return "; ".join(parts)
 
 
+def _commander_free_upgrade_line(event: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for label, value in sorted(event.items()):
+        row = _as_dict(value)
+        upgrade = str(row.get("selected_upgrade", "")).strip()
+        if not upgrade:
+            continue
+        field_idx = row.get("selected_field_idx", "?")
+        instruction = _single_line(row.get("instruction"))
+        text = f"{label}: {upgrade} -> field {field_idx}"
+        if instruction:
+            text += f" ({instruction})"
+        parts.append(text)
+    return "; ".join(parts)
+
+
+def _raider_win_streak_reward_line(event: dict[str, Any]) -> str:
+    if not event:
+        return ""
+    upgrade = str(event.get("selected_upgrade", "")).strip()
+    field_idx = event.get("selected_field_idx", "?")
+    before = event.get("target_upgrade_count_before", "?")
+    after = event.get("target_upgrade_count_after", "?")
+    phase = event.get("phase_after", "?")
+    round_after = event.get("round_after", "?")
+    return (
+        f"{upgrade or '?'} -> field {field_idx}, upgrades {before}->{after}, "
+        f"win count {event.get('win_count_after', '?')}, {phase} R{round_after}"
+    )
+
+
 def _steps_by_label(steps: list[Any]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for step in steps:
@@ -1394,6 +1588,26 @@ def _screenshots_by_label(screenshots: list[Any]) -> dict[str, dict[str, Any]]:
 def _metadata_name(metadata: dict[str, Any], key: str) -> str:
     value = str(metadata.get(key, "")).strip()
     return value or "unknown"
+
+
+def _selected_identity_setup_line(metadata: dict[str, Any]) -> str:
+    if metadata.get("unlock_selected") is not True:
+        return "normal profile"
+    commanders = ", ".join(
+        str(value)
+        for value in _as_list(metadata.get("preunlocked_selected_commanders"))
+    )
+    talismans = ", ".join(
+        str(value)
+        for value in _as_list(metadata.get("preunlocked_selected_talismans"))
+    )
+    parts: list[str] = []
+    if commanders:
+        parts.append(f"commanders {commanders}")
+    if talismans:
+        parts.append(f"talismans {talismans}")
+    unlocked = "; ".join(parts) if parts else "requested identity was already unlocked"
+    return f"unlock-selected profile ({unlocked})"
 
 
 def _single_line(value: Any) -> str:
