@@ -1,5 +1,48 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H94 update
+
+- H94 completed as a no-edit H78 readiness/baseline refresh.
+- Purpose: advance the highest-impact known gameplay-completion target
+  (Druid strategy-floor viability) without crossing the protected
+  `godot/sim/**` edit boundary before explicit approval.
+- Current worktree was clean at start, and H93 is pushed at `7cd9d46`.
+- Re-read H78 packet:
+  `.claude/traces/experiments/074-druid-protected-ai-probe-approval-packet.md`.
+- Confirmed the old H71/H75 comparison trace directories still exist under
+  `/private/tmp`.
+- Verification/evidence:
+  - PASS `test_ai_agent.gd` (39/39, 94 asserts).
+  - PASS H78 packet pre-probe analyzer on existing H75 vs H71 traces:
+    H75 showed `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`, 265 R8-R12
+    holds, 260 no-focus holds, and only 1 affordable-focus hold.
+  - PASS fresh no-edit current soft-Druid baseline:
+    `/private/tmp/warforge_h94_druid60.json`.
+  - PASS fresh summary:
+    `/private/tmp/warforge_h94_druid60_summary.md` reports 9/60 clears,
+    15.0% clear rate, avg final HP -4.23, avg rounds 11.07, and completion
+    readiness `needs_attention`.
+  - PASS fresh Druid analyzer on
+    `/private/tmp/warforge_h94_druid60_traces`:
+    255 R8-R12 path-lag holds, 251 no-focus holds (98.4%), 1 affordable-focus
+    hold, 37 actionable no-focus loss runs, and
+    `GO_PROTECTED_PROBE_NO_FOCUS_STABILIZER_HOLD`.
+  - The fresh baseline exactly matches H71 on the same-seed comparison screen:
+    9/60 clears, avg final HP -4.23, 81 R9-R11 focus-active frames, 34.6% WR,
+    and no path-lag deltas. The analyzer labels this `REJECT_FLAT_OR_NOISY`
+    only because the current no-edit baseline is intentionally unchanged.
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, economy values, or UI code changed for H94.
+- Latest trace:
+  `.claude/traces/experiments/090-h78-no-edit-druid-preflight.md`.
+- Resume recommendation: H78 remains the strongest next gameplay-completion
+  candidate. Ask explicit approval to edit protected `godot/sim/ai_agent.gd`
+  and focused `godot/tests/test_ai_agent.gd` before implementing the narrow
+  no-focus stabilizer policy probe.
+
 ## 2026-07-30 Codex H93 update
 
 - H93 completed as an unprotected distinctive-commander live-control coverage
