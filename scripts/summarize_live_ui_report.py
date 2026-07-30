@@ -549,8 +549,13 @@ def _validate_source_report(
     shown_count = _to_int(unlock_event.get("shown_count"), -1)
     overflow_count = _to_int(unlock_event.get("overflow_count"), -1)
     raw_unlock_count = _to_int(unlock_event.get("raw_unlock_count"), -1)
+    unlock_stats_source = str(unlock_event.get("run_stats_source", "")).strip()
     if "New unlocks available" not in unlock_summary:
         errors.append("events.unlock_recap.summary_text missing 'New unlocks available'")
+    if unlock_stats_source != "synthetic_overflow_fixture":
+        errors.append(
+            "events.unlock_recap.run_stats_source must be synthetic_overflow_fixture"
+        )
     if raw_unlocks:
         expected_shown_unlocks = raw_unlocks[: min(3, len(raw_unlocks))]
         expected_overflow_count = max(0, len(raw_unlocks) - len(expected_shown_unlocks))
@@ -1394,7 +1399,7 @@ def _flow_lines(
         f"- Targeted boss reward choice rendered: {targeted_choices or 'missing'}.",
         f"- Targeted boss reward selected {targeted_event.get('selected_reward', '?')} on field index {targeted_event.get('selected_field_idx', '?')}: star {targeted_event.get('target_star_before', '?')} -> {targeted_event.get('target_star_after', '?')}, Terazin delta {targeted_event.get('terazin_delta_after_settlement', '?')}.",
         f"- Target overlay instruction was visible: {_yes_no(bool(str(target_select.get('instruction', '')).strip()))}.",
-        f"- Run-end unlock recap showed {shown_count}/{raw_unlock_count} unlocks and overflowed {overflow_count}: {_single_line(unlock_event.get('summary_text')) or 'missing'}.",
+        f"- Run-end unlock recap used {unlock_event.get('run_stats_source', 'unknown')} stats; showed {shown_count}/{raw_unlock_count} unlocks and overflowed {overflow_count}: {_single_line(unlock_event.get('summary_text')) or 'missing'}.",
         f"- Next run-start recent unlocks matched the recap: {progress_recent or 'missing'}.",
         f"- Post-unlock selection cards rendered: commander {post_commander or 'missing'}; talisman {post_talisman or 'missing'}.",
         f"- Overflow availability was actionable: commander {availability_event.get('selected_commander', '?')} and talisman {availability_event.get('selected_talisman', '?')} reached {availability_event.get('phase_after', '?')} modal-free {_yes_no(availability_event.get('has_modal_after') is False)}.",

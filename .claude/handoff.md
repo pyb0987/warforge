@@ -1,5 +1,55 @@
 # Handoff — 재착수 상태 (2026-05-30)
 
+## 2026-07-30 Codex H96 update
+
+- H96 completed as an unprotected live-scout/tooling clarity slice.
+- Purpose: resume from H95 with a bounded manual/live playability scout without
+  touching protected simulator files.
+- Initial scout:
+  - PASS default live UI identity matrix 4/4 at
+    `/private/tmp/warforge_h96_live_matrix_default`.
+  - PASS expanded live UI identity matrix 5/5 at
+    `/private/tmp/warforge_h96_live_matrix_expanded`.
+- Scout read:
+  - identity, Two-Faced Coin pricing, merge economy/history, card-reroll vs
+    upgrade-reroll scope, boss rewards, target overlays, and post-unlock
+    availability all remained green in the summaries.
+  - unlock recap overflow looked large (10-12 raw unlocks, 3 shown), but code
+    inspection proved this is the live report's synthetic
+    `_overflow_unlock_run_stats()` fixture, not natural progression evidence.
+- Change:
+  - `godot/tools/live_ui_smoke_report.gd` now records
+    `events.unlock_recap.run_stats_source =
+    "synthetic_overflow_fixture"` plus a note and stats payload.
+  - `scripts/summarize_live_ui_report.py` now requires that marker and prints it
+    in the summary line.
+  - `scripts/tests/test_summarize_live_ui_report.py` covers the rendered marker
+    and missing-marker failure.
+  - `docs/tools/live-ui-smoke-report.md` warns not to use the overflow fixture
+    for natural meta-progression pacing conclusions.
+- Verification:
+  - PASS Python summary/matrix tests 46/46.
+  - PASS fresh live UI report and summary marker:
+    `/private/tmp/warforge_h96_marker_live_summary.md`.
+  - PASS fresh default matrix 4/4:
+    `/private/tmp/warforge_h96_marker_matrix_default`.
+  - PASS fresh expanded matrix 5/5:
+    `/private/tmp/warforge_h96_marker_matrix_expanded`.
+  - PASS `test_game_manager_live_smoke.gd` 18/18, 1324 asserts.
+  - PASS full GUT 1282/1282, 9274 asserts.
+  - PASS `python3 scripts/lint_card_spawn.py`.
+  - PASS `git diff --check`.
+  - PASS `git status --short -- godot/sim` produced no output.
+- No protected `godot/sim/**`, gameplay balance, card YAML, generated card DB,
+  difficulty values, combat logic, economy values, or progression thresholds
+  changed for H96.
+- Latest trace:
+  `.claude/traces/experiments/092-live-ui-unlock-fixture-marker.md`.
+- Resume recommendation: H78 remains the direct M1 strategy-viability blocker
+  and still needs explicit protected simulator approval. If staying unprotected,
+  use natural run/self-play artifacts for unlock pacing, not the live report's
+  synthetic overflow fixture.
+
 ## 2026-07-30 Codex H95 update
 
 - H95 completed as an unprotected completion-readiness contract.

@@ -810,7 +810,8 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 	main._last_ally_count = 10
 	main._last_enemy_count = 5
 	main._current_win_streak = 7
-	main._run_stats = _overflow_unlock_run_stats()
+	var overflow_stats := _overflow_unlock_run_stats()
+	main._run_stats = overflow_stats.duplicate(true)
 	_suppress_raider_terminal_upgrade(report, main)
 	main.current_phase = main.Phase.BATTLE
 	main.build_phase.visible = false
@@ -848,6 +849,10 @@ func _run_unlock_recap_event(report: Dictionary, main, meta_path: String):
 		"shown_count": shown_unlocks.size(),
 		"overflow_count": overflow_count,
 		"raw_unlock_count": raw_unlocks.size(),
+		"run_stats_source": "synthetic_overflow_fixture",
+		"run_stats_note": \
+			"Scripted full-clear stats used only to verify capped unlock recap and overflow availability.",
+		"run_stats": overflow_stats.duplicate(true),
 	}
 	if not _require(report,
 			str(game_over_details.get("title_text", "")) == "VICTORY!" \

@@ -79,6 +79,13 @@ the source report is incomplete, the ordered smoke labels are missing, the final
 state is not clean BUILD, required reward/chain event fields are absent, or
 requested screenshot lint fails.
 
+The unlock-overflow segment is a scripted fixture, not natural progression
+evidence. The reporter marks it with
+`events.unlock_recap.run_stats_source: "synthetic_overflow_fixture"`, and the
+summary validator fails if that marker is missing. Use natural run/self-play
+artifacts, not this overflow fixture, when judging whether meta unlock
+thresholds are too generous.
+
 ## Identity Matrix
 
 Run the curated identity matrix when you want one command to prove that the

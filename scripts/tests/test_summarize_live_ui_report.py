@@ -526,6 +526,22 @@ class LiveUiReportSummaryTests(unittest.TestCase):
                     "shown_count": 3,
                     "overflow_count": 9,
                     "raw_unlock_count": 12,
+                    "run_stats_source": "synthetic_overflow_fixture",
+                    "run_stats_note": (
+                        "Scripted full-clear stats used only to verify capped "
+                        "unlock recap and overflow availability."
+                    ),
+                    "run_stats": {
+                        "max_field_units": 120,
+                        "max_attached_upgrades": 16,
+                        "max_unique_field_cards": 7,
+                        "best_win_streak": 8,
+                        "cards_sold": 20,
+                        "growth_events": 120,
+                        "max_star2_cards": 5,
+                        "unit_advantage_win": True,
+                        "unit_advantage_wins": 5,
+                    },
                 },
                 "post_unlock_progress": {
                     "recent_unlocks_text": (
@@ -884,7 +900,11 @@ class LiveUiReportSummaryTests(unittest.TestCase):
         self.assertIn("Triggers: 2", result.markdown)
         self.assertIn("sp_assembly", result.markdown)
         self.assertIn("r4_1", result.markdown)
-        self.assertIn("Run-end unlock recap showed 3/12", result.markdown)
+        self.assertIn(
+            "Run-end unlock recap used synthetic_overflow_fixture stats; "
+            "showed 3/12",
+            result.markdown,
+        )
         self.assertIn("Overflow availability was actionable", result.markdown)
         self.assertIn("Final state: BUILD R1", result.markdown)
 
@@ -1279,6 +1299,15 @@ class LiveUiReportSummaryTests(unittest.TestCase):
 
         self.assertFalse(result.ok)
         self.assertTrue(any("raw_unlock_count" in error for error in result.errors))
+
+    def test_unlock_recap_without_stats_source_marks_incomplete(self) -> None:
+        report = self._valid_report()
+        del report["events"]["unlock_recap"]["run_stats_source"]
+
+        result = summary.summarize_report(self._write_report(report))
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("run_stats_source" in error for error in result.errors))
 
     def test_missing_shop_reroll_scope_marks_incomplete(self) -> None:
         report = self._valid_report()
