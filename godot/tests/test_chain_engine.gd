@@ -188,6 +188,26 @@ func test_druid_spore_star2_debuff_applies_to_enemy_atk_and_as() -> void:
 		"AS 감소 → 적 공격 간격 증가")
 
 
+func test_druid_combat_snapshot_debuff_matches_chain_engine() -> void:
+	var card: CardInstance = CardInstance.create("dr_spore_cloud")
+	card.evolve_star()
+	card.theme_state["trees"] = 5
+	var board: Array = [card]
+	_engine.process_battle_start(board)
+	var snapshot: Dictionary = DruidSystem.new().build_combat_snapshot(board)
+	var enemies: Array = [{
+		"atk": 20.0, "hp": 100.0, "attack_speed": 2.0,
+		"range": 1, "move_speed": 1, "def": 0, "mechanics": [],
+	}]
+
+	var debuffs: Dictionary = _engine.apply_enemy_battle_debuffs(board, enemies)
+
+	assert_almost_eq(snapshot["enemy_debuffs"]["atk_pct"], debuffs["atk_pct"], 0.001,
+		"snapshot ATK debuff matches ChainEngine application")
+	assert_almost_eq(snapshot["enemy_debuffs"]["as_pct"], debuffs["as_pct"], 0.001,
+		"snapshot AS debuff matches ChainEngine application")
+
+
 func test_druid_grace_star3_post_combat_grants_pending_free_reroll() -> void:
 	var grace: CardInstance = CardInstance.create("dr_grace")
 	grace.evolve_star()

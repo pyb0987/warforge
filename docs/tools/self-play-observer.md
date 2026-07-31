@@ -227,6 +227,13 @@ owned but inactive, active too late, or active Spore+Wrath/World still
 under-damaging. Use it before turning an offense-access signal into gameplay
 edits, because pair counts alone are not adoption evidence.
 
+H126 adds a Godot-side Druid combat snapshot contract at
+`DruidSystem.build_combat_snapshot(board)`. The helper is read-only and reports
+per-card and per-stack Druid combat state with explicit attack-interval
+semantics, but it is not emitted by self-play traces yet. Use it as the schema
+source for the next headless trace wiring step; do not treat H126 alone as
+runtime trace evidence.
+
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
 

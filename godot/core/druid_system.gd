@@ -60,6 +60,41 @@ func collect_enemy_battle_debuffs(board: Array) -> Dictionary:
 	}
 
 
+## Read-only card/stack contribution snapshot for Druid combat observability.
+## Call after persistent + battle-start hooks when the desired question is
+## "what state will Druid cards contribute to combat from here?"
+func build_combat_snapshot(board: Array) -> Dictionary:
+	var card_rows: Array = []
+	var forest_depth := 0
+	var druid_units := 0
+	var druid_total_atk := 0.0
+	var druid_total_hp := 0.0
+	var druid_total_dps := 0.0
+
+	for i in board.size():
+		var card: CardInstance = board[i] as CardInstance
+		if card == null or not _is_druid_card(card):
+			continue
+		var row := _build_card_snapshot(card, i)
+		card_rows.append(row)
+		forest_depth += int(row["trees"])
+		druid_units += int(row["units"])
+		druid_total_atk += float(row["total_atk"])
+		druid_total_hp += float(row["total_hp"])
+		druid_total_dps += float(row["total_dps"])
+
+	return {
+		"forest_depth": forest_depth,
+		"druid_count": card_rows.size(),
+		"druid_units": druid_units,
+		"druid_total_atk": druid_total_atk,
+		"druid_total_hp": druid_total_hp,
+		"druid_total_dps": druid_total_dps,
+		"enemy_debuffs": collect_enemy_battle_debuffs(board),
+		"cards": card_rows,
+	}
+
+
 func _merge_result(base: Dictionary, extra: Dictionary) -> Dictionary:
 	base["events"].append_array(extra.get("events", []))
 	base["gold"] += extra.get("gold", 0)
@@ -208,6 +243,92 @@ func _druid_unit_count(board: Array) -> int:
 	for entry in _druid_entries(board):
 		count += (entry["card"] as CardInstance).get_total_units()
 	return count
+
+
+func _is_druid_card(card: CardInstance) -> bool:
+	var base_tmpl := CardDB.get_template(card.get_base_id())
+	var theme: int = base_tmpl.get("theme", card.template.get("theme", -1))
+	return theme == Enums.CardTheme.DRUID
+
+
+func _build_card_snapshot(card: CardInstance, idx: int) -> Dictionary:
+	var stack_rows: Array = []
+	var total_atk := 0.0
+	var total_hp := 0.0
+	var total_dps := 0.0
+
+	for stack in card.stacks:
+		var row := _build_stack_snapshot(card, stack)
+		stack_rows.append(row)
+		total_atk += float(row["total_atk"])
+		total_hp += float(row["total_hp"])
+		total_dps += float(row["total_dps"])
+
+	return {
+		"idx": idx,
+		"id": card.get_base_id(),
+		"star": card.star_level,
+		"trees": _trees(card),
+		"units": card.get_total_units(),
+		"total_atk": total_atk,
+		"total_hp": total_hp,
+		"total_dps": total_dps,
+		"growth_atk_pct": card.growth_atk_pct,
+		"growth_hp_pct": card.growth_hp_pct,
+		"unique_buff_pct": card.unique_buff_pct,
+		"upgrade_as_mult": card.upgrade_as_mult,
+		"unique_as_mult": card.unique_as_mult,
+		"temp_as_mult": card.temp_as_mult,
+		"shield_hp_pct": card.shield_hp_pct,
+		"enemy_atk_debuff": float(card.theme_state.get("enemy_atk_debuff", 0.0)),
+		"enemy_as_debuff": float(card.theme_state.get("enemy_as_debuff", 0.0)),
+		"kill_hp_recover_pct": float(card.theme_state.get("kill_hp_recover_pct", 0.0)),
+		"mechanics": _card_mechanics_snapshot(card),
+		"stacks": stack_rows,
+	}
+
+
+func _build_stack_snapshot(card: CardInstance, stack: Dictionary) -> Dictionary:
+	var ut: Dictionary = stack["unit_type"]
+	var count := int(stack.get("count", 0))
+	var eff_atk := card.eff_atk_for(stack)
+	var eff_hp := card.eff_hp_for(stack)
+	var base_interval := float(ut.get("attack_speed", 1.0))
+	var final_interval := base_interval \
+		* card.upgrade_as_mult \
+		* card.unique_as_mult \
+		* card.temp_as_mult
+	var total_atk := float(count) * eff_atk
+	var total_hp := float(count) * eff_hp
+	var total_dps := total_atk / maxf(final_interval, 0.01)
+	return {
+		"unit_id": ut.get("id", ""),
+		"count": count,
+		"eff_atk": eff_atk,
+		"eff_hp": eff_hp,
+		"base_attack_interval": base_interval,
+		"upgrade_as_mult": card.upgrade_as_mult,
+		"unique_as_mult": card.unique_as_mult,
+		"temp_as_mult": card.temp_as_mult,
+		"final_attack_interval": final_interval,
+		"total_atk": total_atk,
+		"total_hp": total_hp,
+		"total_dps": total_dps,
+		"range": int(ut.get("range", 0)) + card.upgrade_range \
+			+ int(card.theme_state.get("range_bonus", 0)),
+		"move_speed": int(ut.get("move_speed", 0)) + card.upgrade_move_speed,
+		"def": card.upgrade_def,
+	}
+
+
+func _card_mechanics_snapshot(card: CardInstance) -> Array:
+	var rows: Array = []
+	for mech in card.get_all_mechanics():
+		rows.append(mech.duplicate(true))
+	var recover_pct := float(card.theme_state.get("kill_hp_recover_pct", 0.0))
+	if recover_pct > 0.0:
+		rows.append({"type": "kill_hp_recover", "heal_hp_pct": recover_pct})
+	return rows
 
 
 func _adj_druid_indices(idx: int, board: Array, both: bool) -> Array[int]:

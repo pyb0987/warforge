@@ -243,6 +243,107 @@ func test_lifebeat_common_bonus_counts_battle_tree() -> void:
 		"lifebeat BS 🌳+1 이후 공통 보너스 +5%")
 
 
+func test_combat_snapshot_excludes_non_druid_and_reports_spore_debuffs() -> void:
+	var spore := _make_star("dr_spore_cloud", 2)
+	spore.theme_state["trees"] = 5
+	var non_druid: CardInstance = CardInstance.create("sp_assembly")
+	var board: Array = [spore, non_druid]
+	_sys.apply_battle_start(spore, 0, board)
+
+	var snapshot: Dictionary = _sys.build_combat_snapshot(board)
+	var cards: Array = snapshot["cards"]
+
+	assert_eq(snapshot["druid_count"], 1, "only Druid cards included")
+	assert_eq(cards[0]["id"], "dr_spore_cloud", "Spore row included")
+	assert_eq(snapshot["forest_depth"], 5, "forest depth uses Druid tree counters")
+	assert_almost_eq(snapshot["enemy_debuffs"]["atk_pct"], 0.3, 0.001,
+		"snapshot aggregates Spore ATK debuff")
+	assert_almost_eq(snapshot["enemy_debuffs"]["as_pct"], 0.3, 0.001,
+		"snapshot aggregates Spore AS debuff")
+
+
+func test_combat_snapshot_uses_base_druid_identity_after_theme_transform() -> void:
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.template["theme"] = Enums.CardTheme.STEAMPUNK
+	card.theme_state["trees"] = 2
+	var snapshot: Dictionary = _sys.build_combat_snapshot([card])
+
+	assert_eq(snapshot["druid_count"], 1,
+		"base Druid cards remain Druid-owned for contribution reads")
+	assert_eq(snapshot["cards"][0]["id"], "dr_cradle", "base id preserved")
+	assert_eq(snapshot["forest_depth"], 2, "transformed base Druid trees counted")
+
+
+func test_combat_snapshot_uses_materialized_stack_stat_formula() -> void:
+	var world: CardInstance = CardInstance.create("dr_world")
+	world.theme_state["trees"] = 28
+	_sys.process_rs_card(world, 0, [world], _rng)
+	world.upgrade_as_mult = 0.8
+	world.temp_as_mult = 0.75
+	_sys.apply_battle_start(world, 0, [world])
+
+	var snapshot: Dictionary = _sys.build_combat_snapshot([world])
+	var card_row: Dictionary = snapshot["cards"][0]
+	var stack_rows: Array = card_row["stacks"]
+	var expected_total_atk := 0.0
+	var expected_total_hp := 0.0
+	var expected_total_dps := 0.0
+	for i in world.stacks.size():
+		var stack: Dictionary = world.stacks[i]
+		var row: Dictionary = stack_rows[i]
+		var ut: Dictionary = stack["unit_type"]
+		var count := int(stack["count"])
+		var expected_interval: float = float(ut["attack_speed"]) \
+			* world.upgrade_as_mult * world.unique_as_mult * world.temp_as_mult
+		var expected_atk := world.eff_atk_for(stack)
+		var expected_hp := world.eff_hp_for(stack)
+		expected_total_atk += count * expected_atk
+		expected_total_hp += count * expected_hp
+		expected_total_dps += count * expected_atk / maxf(expected_interval, 0.01)
+
+		assert_eq(row["unit_id"], ut["id"], "stack unit id matches materialized source")
+		assert_almost_eq(row["eff_atk"], expected_atk, 0.001,
+			"stack ATK uses CardInstance.eff_atk_for")
+		assert_almost_eq(row["eff_hp"], expected_hp, 0.001,
+			"stack HP uses CardInstance.eff_hp_for")
+		assert_almost_eq(row["final_attack_interval"], expected_interval, 0.001,
+			"attack interval uses upgrade × unique × temp AS multipliers")
+		assert_almost_eq(row["total_dps"],
+			count * expected_atk / maxf(expected_interval, 0.01), 0.001,
+			"stack DPS derives from attack interval semantics")
+
+	assert_almost_eq(card_row["total_atk"], expected_total_atk, 0.001,
+		"card total ATK sums stack rows")
+	assert_almost_eq(card_row["total_hp"], expected_total_hp, 0.001,
+		"card total HP sums stack rows")
+	assert_almost_eq(card_row["total_dps"], expected_total_dps, 0.001,
+		"card total DPS sums stack rows")
+	assert_almost_eq(snapshot["druid_total_atk"], expected_total_atk, 0.001,
+		"snapshot total ATK sums Druid cards")
+
+
+func test_combat_snapshot_is_read_only() -> void:
+	var lifebeat: CardInstance = CardInstance.create("dr_lifebeat")
+	var wrath := _make_star("dr_wrath", 3)
+	wrath.theme_state["trees"] = 4
+	var board: Array = [lifebeat, wrath]
+	_sys.apply_persistent(wrath)
+	_sys.apply_battle_start(lifebeat, 0, board)
+	_sys.apply_battle_start(wrath, 1, board)
+
+	var before: Array = _card_state_signature(board)
+	var snapshot_1: Dictionary = _sys.build_combat_snapshot(board)
+	var snapshot_2: Dictionary = _sys.build_combat_snapshot(board)
+	var after: Array = _card_state_signature(board)
+
+	assert_eq(after, before, "snapshot does not mutate board/card state")
+	assert_eq(snapshot_2, snapshot_1, "repeated snapshot is stable")
+	var wrath_row: Dictionary = snapshot_1["cards"][1]
+	var mechanics: Array = wrath_row["mechanics"]
+	assert_eq(mechanics.size(), 1, "kill recovery materialization mechanic visible")
+	assert_eq(mechanics[0]["type"], "kill_hp_recover", "kill recovery mechanic named")
+
+
 # ================================================================
 # apply_post_combat: dr_grace
 # ================================================================
@@ -394,6 +495,43 @@ func _make_star(base_id: String, star: int) -> CardInstance:
 	for _i in star - 1:
 		card.evolve_star()
 	return card
+
+
+func _card_state_signature(board: Array) -> Array:
+	var rows: Array = []
+	for card in board:
+		var c: CardInstance = card
+		var stack_rows: Array = []
+		for stack in c.stacks:
+			stack_rows.append({
+				"unit_id": stack["unit_type"].get("id", ""),
+				"count": int(stack.get("count", 0)),
+				"temp_atk": float(stack.get("temp_atk", 0.0)),
+				"temp_atk_mult": float(stack.get("temp_atk_mult", 1.0)),
+				"temp_hp_mult": float(stack.get("temp_hp_mult", 1.0)),
+				"unique_atk_mult": float(stack.get("unique_atk_mult", 1.0)),
+				"unique_hp_mult": float(stack.get("unique_hp_mult", 1.0)),
+				"upgrade_atk_mult": float(stack.get("upgrade_atk_mult", 1.0)),
+				"upgrade_hp_mult": float(stack.get("upgrade_hp_mult", 1.0)),
+			})
+		rows.append({
+			"id": c.get_base_id(),
+			"star": c.star_level,
+			"trees": int(c.theme_state.get("trees", 0)),
+			"units": c.get_total_units(),
+			"growth_atk_pct": c.growth_atk_pct,
+			"growth_hp_pct": c.growth_hp_pct,
+			"upgrade_as_mult": c.upgrade_as_mult,
+			"unique_as_mult": c.unique_as_mult,
+			"temp_as_mult": c.temp_as_mult,
+			"unique_buff_pct": c.unique_buff_pct,
+			"shield_hp_pct": c.shield_hp_pct,
+			"enemy_atk_debuff": float(c.theme_state.get("enemy_atk_debuff", 0.0)),
+			"enemy_as_debuff": float(c.theme_state.get("enemy_as_debuff", 0.0)),
+			"kill_hp_recover_pct": float(c.theme_state.get("kill_hp_recover_pct", 0.0)),
+			"stacks": stack_rows,
+		})
+	return rows
 
 
 # ================================================================
