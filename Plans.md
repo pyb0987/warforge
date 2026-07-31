@@ -160,6 +160,7 @@ Operating rules:
 | H106 | DONE | Druid Spore forest-depth preflight | Verified the H105 packet's pre-probe guard set from clean `main` without touching gameplay files, so an approved implementation can start from known-good Druid/Chain tests. | PASS trace `.claude/traces/experiments/103-druid-spore-forest-depth-preflight.md`; PASS codegen card DB check; PASS card-spawn guard; PASS focused Druid runtime 54/54; PASS focused ChainEngine 21/21; protected runtime/test files untouched |
 | H107 | DONE | H105 Spore forest-depth gate evaluator | Added an executable evaluator for the H105 same-seed adoption gates so a protected Spore forest-depth probe cannot be adopted from local debuff optics alone. | PASS trace `.claude/traces/experiments/104-h105-spore-forest-gate-evaluator.md`; PASS evaluator tests 3/3 covering nomination, local-only rejection, and cap-heavy rejection; CLI `scripts/evaluate_h105_spore_forest_probe.py` compares candidate traces against H104 baseline and returns nonzero unless disjoint-seed nomination gates pass; no gameplay files edited |
 | H108 | DONE | H105 Spore forest-depth boundary guard | Added an executable changed-file allowlist for the H105 runtime-only probe so post-probe verification fails if YAML, generated DB/schema, AI simulator, or other out-of-packet files are touched. | PASS trace `.claude/traces/experiments/105-h105-spore-forest-boundary-guard.md`; PASS boundary tests 6/6; CLI `scripts/check_h105_spore_forest_boundary.py --allow-records` allows only `godot/core/druid_system.gd`, focused Druid/Chain tests, `Plans.md`, and trace records; no gameplay files edited |
+| H109 | DONE | H105 Spore forest-depth workflow runner | Added a dry-run-first runner that prints or executes the H105 preflight, same-seed self-play, analyzer, gate evaluator, boundary guard, and diff checks in the intended order. | PASS trace `.claude/traces/experiments/106-h105-spore-forest-workflow-runner.md`; PASS workflow runner tests 4/4; CLI `scripts/run_h105_spore_forest_workflow.py` is safe by default and requires `--execute` to run long commands; no gameplay files edited |
 
 ## Working Completion Gates After H106
 
@@ -200,10 +201,10 @@ Open blockers before M1 can be called complete:
 - P1: H105 is ready for fresh approval before implementation. The next likely
   Druid slice is a runtime-only Spore forest-depth routing probe touching
   `godot/core/druid_system.gd`, `godot/tests/test_druid_system.gd`, and
-  `godot/tests/test_chain_engine.gd`; use H107's evaluator on the same-seed
-  traces and H108's changed-file boundary guard before any disjoint-seed
-  confirmation; do not touch YAML/generated DB/schema, AI, difficulty, economy,
-  or UI for that probe.
+  `godot/tests/test_chain_engine.gd`; after implementation, use H109's workflow
+  runner, H107's evaluator, and H108's changed-file boundary guard before any
+  disjoint-seed confirmation; do not touch YAML/generated DB/schema, AI,
+  difficulty, economy, or UI for that probe.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is

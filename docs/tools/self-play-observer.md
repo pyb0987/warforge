@@ -163,6 +163,15 @@ For the H105 Spore forest-depth protected probe, evaluate the same-seed result
 against the predeclared adoption gates with:
 
 ```bash
+python3 scripts/run_h105_spore_forest_workflow.py
+```
+
+The workflow runner prints the full command sequence by default. Add `--execute`
+only after the protected runtime probe has been implemented and you want to run
+the preflight tests, same-seed self-play, analyzer, H105 evaluator, boundary
+guard, and whitespace check in order.
+
+```bash
 python3 scripts/evaluate_h105_spore_forest_probe.py \
   /private/tmp/warforge_h105_spore_forest60_traces \
   --baseline-trace-dir=/private/tmp/warforge_h104_clean_druid60_traces
