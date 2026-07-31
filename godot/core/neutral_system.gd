@@ -427,10 +427,9 @@ static func compute_masquerade_new_theme(target: CardInstance) -> int:
 ## ★1: 5개 중 무작위 3개 offering, ★2: 5개 전체, ★3: omni-theme.
 ## game_manager 가 결과 dict의 "transform_theme" 필드를 처리.
 ##
-## ⚠ UI 미구현 (TODO): 본 핸들러는 sim 결정성 fallback 만 구현 — target = 첫
-## 비-self 카드, theme = STEAMPUNK 우선. 실제 게임 UI 에서 플레이어가 카드/테마를
-## 선택하도록 popup 이 필요 (failures/011 참조). 별도 task 로 분리 — 본 함수는
-## 그때까지 sim/headless 경로에서만 사용.
+## Live UI는 needs_target_select 이후 target overlay + theme_choice_popup에서
+## 사용자 선택을 적용한다. 여기의 target/theme 값은 sim/headless 결정성 fallback
+## 및 UI 기본 메타데이터로 유지한다.
 ##
 ## CardInstance 참조를 직접 반환 (active_board↔board sparse-compact 인덱스 불일치 방지).
 func _masquerade_sell(card: CardInstance, board: Array) -> Dictionary:

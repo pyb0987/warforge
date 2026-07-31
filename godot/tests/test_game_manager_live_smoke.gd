@@ -553,6 +553,71 @@ func test_live_targeted_boss_reward_uses_target_overlay_and_applies_effect() -> 
 		"target overlay closes after target selection")
 
 
+func test_live_masquerade_sell_uses_target_and_theme_popups() -> void:
+	var main = await _start_main_to_build()
+	_clear_run_cards(main)
+	var target: CardInstance = CardInstance.create("dr_cradle")
+	var masquerade: CardInstance = CardInstance.create("ne_masquerade")
+	masquerade.tenure = 1
+	main.game_state.board[0] = target
+	main.game_state.board[1] = masquerade
+	main.build_phase._refresh_all()
+	await wait_process_frames(1)
+
+	var original_theme: int = target.template.get("theme", -1)
+	assert_eq(original_theme, Enums.CardTheme.DRUID)
+	assert_true(_emit_right_click(main.build_phase._field_visuals[1]),
+		"right-clicking Masquerade sells through the visible card control")
+	await wait_process_frames(2)
+
+	var ui := LiveUiProbe.snapshot(main)
+	assert_eq(ui["active_modals"], [LiveUiProbe.TARGET_SELECT],
+		"Masquerade SELL opens target selection before theme choice")
+	assert_eq(LiveUiProbe.target_field_indices(main), [0],
+		"sold Masquerade is gone, leaving only the target card selectable")
+	assert_null(main.game_state.board[1],
+		"Masquerade is removed by the atomic sell action")
+	assert_eq(main.game_state.board[0], target,
+		"target card remains on the field while choosing the effect")
+
+	assert_true(LiveUiProbe.select_target(main, 0),
+		"public target overlay selection accepts the target card")
+	await wait_process_frames(2)
+
+	ui = LiveUiProbe.snapshot(main)
+	assert_eq(ui["active_modals"], [LiveUiProbe.THEME_CHOICE],
+		"target selection opens the Masquerade theme-choice popup")
+	var theme_choices: Array = ui["choices"].get(LiveUiProbe.THEME_CHOICE, [])
+	assert_eq(theme_choices.size(), 3,
+		"★1 Masquerade offers exactly three theme choices")
+	var chosen_theme := -1
+	var chosen_label := ""
+	for choice in theme_choices:
+		var theme: int = _theme_choice_label_to_enum(str(choice))
+		if theme >= 0 and theme != original_theme:
+			chosen_theme = theme
+			chosen_label = str(choice)
+			break
+	assert_gte(chosen_theme, 0,
+		"theme choices include a non-current transform option")
+
+	assert_true(_click_theme_choice_by_text(main, chosen_label),
+		"theme choice is selected through the visible popup button")
+	await wait_process_frames(2)
+
+	ui = LiveUiProbe.snapshot(main)
+	assert_false(ui["has_modal"],
+		"Masquerade target/theme flow returns modal ownership to BUILD")
+	assert_eq(main.current_phase, main.Phase.BUILD)
+	assert_true(main.build_phase.visible)
+	assert_false(main.build_phase.target_overlay.visible)
+	assert_false(main.theme_choice_popup.visible)
+	assert_eq(target.template.get("theme", -1), chosen_theme,
+		"selected theme is applied to the target card")
+	assert_false(target.is_omni_theme,
+		"★1 Masquerade applies a theme transform, not omni-theme")
+
+
 func test_live_boss_reward_continuity_r4_r8_r12() -> void:
 	var main = await _start_main_to_build()
 	main.game_state.board[0] = CardInstance.create("sp_assembly")
@@ -1251,6 +1316,32 @@ func _click_first_theme_choice_by_controls(main) -> bool:
 	return false
 
 
+func _click_theme_choice_by_text(main, label: String) -> bool:
+	if not main.theme_choice_popup.visible:
+		return false
+	var container = main.theme_choice_popup.get_node("VBox/ChoiceContainer")
+	for child in container.get_children():
+		if child is Button and (child as Button).text == label:
+			(child as Button).pressed.emit()
+			return true
+	return false
+
+
+func _theme_choice_label_to_enum(label: String) -> int:
+	match label:
+		"중립":
+			return Enums.CardTheme.NEUTRAL
+		"스팀펑크":
+			return Enums.CardTheme.STEAMPUNK
+		"드루이드":
+			return Enums.CardTheme.DRUID
+		"포식종":
+			return Enums.CardTheme.PREDATOR
+		"군대":
+			return Enums.CardTheme.MILITARY
+	return -1
+
+
 func _press_build_complete_by_controls(main) -> bool:
 	if main.current_phase != main.Phase.BUILD:
 		return false
@@ -1275,6 +1366,16 @@ func _emit_left_click(control: Control) -> bool:
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.pressed = true
 	control.emit_signal("gui_input", event)
+	return true
+
+
+func _emit_right_click(control: Control) -> bool:
+	if control == null or not control.visible:
+		return false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_RIGHT
+	event.pressed = true
+	control._gui_input(event)
 	return true
 
 
