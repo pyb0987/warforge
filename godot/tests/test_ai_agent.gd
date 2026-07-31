@@ -577,6 +577,23 @@ func test_druid_path_focus_promotes_current_payoff_from_bench() -> void:
 	assert_false(_has_board_card("pr_farm"), "off-theme filler is preferred replacement")
 
 
+func test_druid_path_focus_ignores_cards_outside_field_slots() -> void:
+	var agent = AIAgentScript.new("soft_druid", _rng)
+	_state.round_num = 9
+	_state.field_slots = 4
+	_state.board[0] = CardInstance.create("dr_cradle")
+	_state.board[1] = CardInstance.create("dr_lifebeat")
+	_state.board[2] = CardInstance.create("dr_origin")
+	_state.board[3] = CardInstance.create("pr_farm")
+	_state.board[4] = CardInstance.create("dr_spore_cloud")
+	_state.bench[0] = CardInstance.create("dr_spore_cloud")
+
+	agent._promote_path_focus_bench(_state)
+
+	assert_null(_state.bench[0], "bench payoff should be promoted when only inactive copy exists")
+	assert_true(_has_active_board_card("dr_spore_cloud"), "payoff should be inside usable field slots")
+
+
 func test_druid_path_focus_promotes_payoff_over_engine_body() -> void:
 	var agent = AIAgentScript.new("soft_druid", _rng)
 	_state.round_num = 9
@@ -656,6 +673,16 @@ func test_trace_theme_metrics_counts_commitment() -> void:
 
 func _has_board_card(card_id: String) -> bool:
 	for card in _state.board:
+		if card != null and (card as CardInstance).get_base_id() == card_id:
+			return true
+	return false
+
+
+func _has_active_board_card(card_id: String) -> bool:
+	for i in _state.field_slots:
+		if i >= _state.board.size():
+			break
+		var card = _state.board[i]
 		if card != null and (card as CardInstance).get_base_id() == card_id:
 			return true
 	return false

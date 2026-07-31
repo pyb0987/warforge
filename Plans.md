@@ -154,8 +154,9 @@ Operating rules:
 | H100 | DONE | Protected Druid duplicate-focus activation probe | User-approved H99 probe was implemented and focused-tested, then rejected and rolled back because the same-seed screen was completely flat against H94. | REJECTED trace `.claude/traces/experiments/098-h100-druid-duplicate-focus-rejected.md`; PASS patched focused AI tests 41/41 before screen; REJECT same-seed screen 9/60 -> 9/60 clears, avg HP delta +0.00, `REJECT_FLAT_OR_NOISY`, inactive frames 29 -> 29, bench gaps 23 -> 23, never-active 17 -> 17, promotion skips 19 -> 19; PASS rollback focused AI tests 39/39; protected edits removed |
 | H101 | DONE | Source-bound self-play evidence | Added run-time Git source-state binding to self-play JSON and rendered it in completion summaries, so future flat or surprising screens can be tied to the exact commit and dirty files that produced them. | PASS trace `.claude/traces/experiments/099-source-bound-self-play-evidence.md`; PASS Python summary tests 5/5; PASS `test_self_play_observer.gd` 9/9; PASS tiny observer smoke with `metadata.source_state`; PASS summary Source State render; PASS card-spawn guard; PASS `git diff --check`; protected/tuning boundary clean |
 | H102 | TODO | Druid combat conversion next slice | Pivot from payoff activation mechanics to the measured R9-R11 combat conversion bottleneck, especially Spore pressure/debuff conversion. | H100 ledger still shows R9-R11 focus-active WR 34.6%, primary bottleneck `debuff_too_small` in 30 frames, and analyzer next signal says Spore is present but under-moving enemy pressure; request fresh approval before touching protected `godot/sim/**`, card values, difficulty, or economy tuning |
+| H103 | DONE | AI active-slot focus semantics | User-approved AI files now treat active focus coverage as cards inside usable field slots, so an off-field Druid payoff copy no longer blocks promoting a bench payoff into the active field. This is kept as correctness cleanup, not Druid balance progress. | PASS trace `.claude/traces/experiments/100-ai-active-slot-focus-semantics.md`; FAIL-before/PASS-after focused AI regression (`test_ai_agent.gd` 39/40 -> 40/40); same-seed 60-run Druid screen flat vs H94 (`REJECT_FLAT_OR_NOISY`, 9/60 clears, avg HP -4.23, R9-R11 focus WR 34.6%); advisory multi-review KEEP-as-correctness; PASS card-spawn guard; PASS full GUT 1283/1283; PASS `git diff --check`; gameplay edits limited to the two user-approved AI files |
 
-## Working Completion Gates After H101
+## Working Completion Gates After H103
 
 This section is not a claim that Warforge is complete. It is the current
 evidence contract for the next playable prototype milestone, so autonomous work
@@ -194,6 +195,8 @@ Open blockers before M1 can be called complete:
 - P1: The next likely Druid slice is R9-R11 combat conversion, especially Spore
   pressure/debuff conversion. Request fresh approval before touching protected
   `godot/sim/**`, card values, difficulty, or economy tuning.
+- P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
+  outcome movement. Do not count it as a Druid-power fix.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
   upgraded from prototype completion to full balance beta.
 - P2: Unlock burst pacing is acceptable as a watch item for now, but should be

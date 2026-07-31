@@ -1338,7 +1338,10 @@ func _promote_committed_theme_bench(state: GameState) -> void:
 
 func _active_board_ids(state: GameState) -> Dictionary:
 	var ids := {}
-	for card in state.board:
+	for i in state.field_slots:
+		if i >= state.board.size():
+			break
+		var card = state.board[i]
 		if card != null:
 			ids[(card as CardInstance).get_base_id()] = true
 	return ids
