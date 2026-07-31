@@ -159,6 +159,20 @@ Druid tree contribution. It is behavior-neutral: traces aggregate by card ID, so
 duplicate copies can collapse, and buy events do not include per-card tree
 counters.
 
+For the H105 Spore forest-depth protected probe, evaluate the same-seed result
+against the predeclared adoption gates with:
+
+```bash
+python3 scripts/evaluate_h105_spore_forest_probe.py \
+  /private/tmp/warforge_h105_spore_forest60_traces \
+  --baseline-trace-dir=/private/tmp/warforge_h104_clean_druid60_traces
+```
+
+This wrapper applies the H105 gate packet to the existing Druid trace summaries.
+It rejects local-only movement when clears, HP, focus win rate, survivor
+margins, and cap pressure do not move together. A nomination from this tool is
+only permission to run a disjoint-seed confirmation, not final adoption.
+
 When Druid probes show focus cards but still do not convert, add
 `--druid-run-phase`:
 
