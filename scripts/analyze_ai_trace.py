@@ -20,6 +20,12 @@ from collections import Counter, defaultdict
 DRUID_PAYOFF_CARDS = {"dr_spore_cloud", "dr_wrath"}
 DRUID_CAPSTONE_CARDS = {"dr_world"}
 DRUID_FOCUS_CARDS = DRUID_PAYOFF_CARDS | DRUID_CAPSTONE_CARDS
+DRUID_SPORE_CARD = "dr_spore_cloud"
+DRUID_SPORE_FOREST_DEPTH_PROBE_SCALE = 0.0025
+DRUID_SPORE_LOW_DEBUFF_THRESHOLD = 0.20
+DRUID_SPORE_LOW_OWN_TREE_MAX = 2
+DRUID_SPORE_HIGH_FOREST_MIN = 18
+DRUID_SPORE_DEBUFF_CAP = 0.50
 
 STEAMPUNK_BRANCH_CARDS = {"sp_assembly", "sp_furnace"}
 STEAMPUNK_PAYOFF_CARDS = {"sp_warmachine", "sp_charger"}
@@ -833,9 +839,7 @@ def print_druid_battle_conversion(strat, summary):
     print()
 
 
-def summarize_druid_active_ledger(events_per_run, round_min=9, round_max=11):
-    """Classify R9-R11 Druid focus-active combat margins."""
-    n_runs = len(events_per_run)
+def _collect_druid_active_ledger_frames(events_per_run, round_min, round_max):
     frames = []
     missing_round_end = 0
     detail_frames = 0
@@ -920,6 +924,29 @@ def summarize_druid_active_ledger(events_per_run, round_min=9, round_max=11):
             if not won_battle:
                 row["primary_bottleneck"] = _classify_druid_active_loss(row)
             frames.append(row)
+
+    return {
+        "frames": frames,
+        "missing_round_end": missing_round_end,
+        "detail_frames": detail_frames,
+        "star_detail_frames": star_detail_frames,
+        "tree_detail_frames": tree_detail_frames,
+    }
+
+
+def summarize_druid_active_ledger(events_per_run, round_min=9, round_max=11):
+    """Classify R9-R11 Druid focus-active combat margins."""
+    n_runs = len(events_per_run)
+    collected = _collect_druid_active_ledger_frames(
+        events_per_run,
+        round_min,
+        round_max,
+    )
+    frames = collected["frames"]
+    missing_round_end = collected["missing_round_end"]
+    detail_frames = collected["detail_frames"]
+    star_detail_frames = collected["star_detail_frames"]
+    tree_detail_frames = collected["tree_detail_frames"]
 
     loss_frames = [row for row in frames if not row["won"]]
     primary_counts = Counter(row["primary_bottleneck"] for row in loss_frames)
@@ -1125,6 +1152,323 @@ def print_druid_active_ledger(strat, summary):
                     detail=detail,
                     **row,
                 )
+            )
+    print()
+
+
+def summarize_druid_spore_tree_gap(events_per_run, round_min=9, round_max=11):
+    """Audit whether Spore's own trees lag the active Druid forest depth."""
+    n_runs = len(events_per_run)
+    collected = _collect_druid_active_ledger_frames(
+        events_per_run,
+        round_min,
+        round_max,
+    )
+    frames = collected["frames"]
+    focus_losses = [row for row in frames if not row["won"]]
+    spore_rows = [
+        _druid_spore_tree_gap_row(row)
+        for row in frames
+        if DRUID_SPORE_CARD in row["focus"]
+    ]
+    spore_losses = [row for row in spore_rows if not row["won"]]
+    spore_wins = [row for row in spore_rows if row["won"]]
+    low_debuff_losses = [
+        row for row in spore_losses
+        if row["debuff"] < DRUID_SPORE_LOW_DEBUFF_THRESHOLD
+    ]
+    low_debuff_loss_crossings = [
+        row for row in low_debuff_losses
+        if row["probe_crosses_threshold"]
+    ]
+    winning_low_debuff_crossings = [
+        row for row in spore_wins
+        if row["probe_crosses_threshold"]
+    ]
+
+    focus_loss_bottlenecks = Counter(
+        row["primary_bottleneck"] for row in focus_losses
+    )
+    bottlenecks_by_forest_band = defaultdict(Counter)
+    for row in focus_losses:
+        band = _druid_forest_depth_band(row["active_tree_counters"])
+        bottlenecks_by_forest_band[band][row["primary_bottleneck"]] += 1
+
+    spore_loss_by_forest_band = defaultdict(list)
+    for row in spore_losses:
+        spore_loss_by_forest_band[row["forest_band"]].append(row)
+
+    summary = {
+        "n_runs": n_runs,
+        "round_min": round_min,
+        "round_max": round_max,
+        "focus_frames": len(frames),
+        "focus_losses": len(focus_losses),
+        "spore_frames": len(spore_rows),
+        "spore_wins": len(spore_wins),
+        "spore_losses": len(spore_losses),
+        "tree_coverage": (
+            collected["tree_detail_frames"] / len(frames) if frames else 0.0
+        ),
+        "probe_scale": DRUID_SPORE_FOREST_DEPTH_PROBE_SCALE,
+        "probe_cap": DRUID_SPORE_DEBUFF_CAP,
+        "low_debuff_threshold": DRUID_SPORE_LOW_DEBUFF_THRESHOLD,
+        "low_own_tree_max": DRUID_SPORE_LOW_OWN_TREE_MAX,
+        "high_forest_min": DRUID_SPORE_HIGH_FOREST_MIN,
+        "avg_spore_own_trees": _avg([row["spore_own_trees"] for row in spore_rows]),
+        "avg_active_tree_counters": _avg(
+            [row["active_tree_counters"] for row in spore_rows]
+        ),
+        "avg_other_druid_trees": _avg([row["other_druid_trees"] for row in spore_rows]),
+        "avg_own_total_ratio": _avg([row["own_total_ratio"] for row in spore_rows]),
+        "loss_avg_spore_own_trees": _avg(
+            [row["spore_own_trees"] for row in spore_losses]
+        ),
+        "loss_avg_active_tree_counters": _avg(
+            [row["active_tree_counters"] for row in spore_losses]
+        ),
+        "loss_avg_other_druid_trees": _avg(
+            [row["other_druid_trees"] for row in spore_losses]
+        ),
+        "loss_avg_current_debuff": _avg([row["debuff"] for row in spore_losses]),
+        "loss_avg_probe_debuff": _avg([row["probe_debuff"] for row in spore_losses]),
+        "zero_own_high_forest_loss_frames": sum(
+            1 for row in spore_losses if row["zero_own_high_forest"]
+        ),
+        "low_own_high_forest_loss_frames": sum(
+            1 for row in spore_losses if row["low_own_high_forest"]
+        ),
+        "low_debuff_losses": len(low_debuff_losses),
+        "low_debuff_loss_crossings": len(low_debuff_loss_crossings),
+        "winning_low_debuff_crossings": len(winning_low_debuff_crossings),
+        "focus_loss_bottlenecks": dict(focus_loss_bottlenecks),
+        "bottlenecks_by_forest_band": {
+            band: dict(counts)
+            for band, counts in sorted(
+                bottlenecks_by_forest_band.items(),
+                key=lambda item: _druid_forest_depth_band_order(item[0]),
+            )
+        },
+        "spore_loss_by_forest_band": {
+            band: _finalize_druid_spore_tree_gap_group(group)
+            for band, group in sorted(
+                spore_loss_by_forest_band.items(),
+                key=lambda item: _druid_forest_depth_band_order(item[0]),
+            )
+        },
+        "examples": spore_losses[:8],
+        "trace_caveat": (
+            "card-id aggregate only; duplicate copies can collapse in trace states, "
+            "and buy events do not include per-card tree counters"
+        ),
+    }
+    summary["next_signal"] = _druid_spore_tree_gap_signal(summary)
+    return summary
+
+
+def _druid_spore_tree_gap_row(row):
+    spore_detail = next(
+        item for item in row["focus_details"]
+        if item["card_id"] == DRUID_SPORE_CARD
+    )
+    spore_own_trees = int(spore_detail.get("trees", 0))
+    active_tree_counters = int(row.get("active_tree_counters", 0))
+    other_druid_trees = max(0, active_tree_counters - spore_own_trees)
+    debuff = float(row.get("debuff", 0.0))
+    probe_debuff = min(
+        DRUID_SPORE_DEBUFF_CAP,
+        debuff + other_druid_trees * DRUID_SPORE_FOREST_DEPTH_PROBE_SCALE,
+    )
+    result = dict(row)
+    result.update({
+        "spore_star": int(spore_detail.get("star", 1)),
+        "spore_own_trees": spore_own_trees,
+        "other_druid_trees": other_druid_trees,
+        "own_total_ratio": (
+            spore_own_trees / active_tree_counters
+            if active_tree_counters else 0.0
+        ),
+        "forest_band": _druid_forest_depth_band(active_tree_counters),
+        "probe_debuff": probe_debuff,
+        "probe_debuff_lift": probe_debuff - debuff,
+        "probe_crosses_threshold": (
+            debuff < DRUID_SPORE_LOW_DEBUFF_THRESHOLD
+            and probe_debuff >= DRUID_SPORE_LOW_DEBUFF_THRESHOLD
+        ),
+        "zero_own_high_forest": (
+            spore_own_trees == 0
+            and active_tree_counters >= DRUID_SPORE_HIGH_FOREST_MIN
+        ),
+        "low_own_high_forest": (
+            spore_own_trees <= DRUID_SPORE_LOW_OWN_TREE_MAX
+            and active_tree_counters >= DRUID_SPORE_HIGH_FOREST_MIN
+        ),
+    })
+    return result
+
+
+def _druid_forest_depth_band(tree_counters):
+    tree_counters = int(tree_counters)
+    if tree_counters <= 8:
+        return "0-8"
+    if tree_counters <= 17:
+        return "9-17"
+    if tree_counters <= 26:
+        return "18-26"
+    return "27+"
+
+
+def _druid_forest_depth_band_order(band):
+    return {"0-8": 0, "9-17": 1, "18-26": 2, "27+": 3}.get(band, 99)
+
+
+def _finalize_druid_spore_tree_gap_group(group):
+    return {
+        "frames": len(group),
+        "low_debuff": sum(
+            1 for row in group
+            if row["debuff"] < DRUID_SPORE_LOW_DEBUFF_THRESHOLD
+        ),
+        "crosses_threshold": sum(
+            1 for row in group if row["probe_crosses_threshold"]
+        ),
+        "avg_spore_own_trees": _avg([row["spore_own_trees"] for row in group]),
+        "avg_active_tree_counters": _avg(
+            [row["active_tree_counters"] for row in group]
+        ),
+        "avg_other_druid_trees": _avg([row["other_druid_trees"] for row in group]),
+        "avg_current_debuff": _avg([row["debuff"] for row in group]),
+        "avg_probe_debuff": _avg([row["probe_debuff"] for row in group]),
+    }
+
+
+def _druid_spore_tree_gap_signal(summary):
+    spore_losses = int(summary["spore_losses"])
+    if not spore_losses:
+        return "No R9-R11 Spore-active losses in scope."
+
+    focus_losses = int(summary["focus_losses"])
+    debuff_missing = int(summary["focus_loss_bottlenecks"].get("debuff_missing", 0))
+    if focus_losses and debuff_missing / focus_losses >= 0.45:
+        return (
+            "DEFER_FOREST_DEPTH_PACKET_DEBUFF_MISSING_DOMINATES: Spore scaling "
+            "cannot address most focus-active losses."
+        )
+
+    low_own_high = int(summary["low_own_high_forest_loss_frames"])
+    low_debuff_losses = int(summary["low_debuff_losses"])
+    low_debuff_crossings = int(summary["low_debuff_loss_crossings"])
+    winning_crossings = int(summary["winning_low_debuff_crossings"])
+    gap_share = low_own_high / spore_losses if spore_losses else 0.0
+    crossing_share = (
+        low_debuff_crossings / low_debuff_losses
+        if low_debuff_losses else 0.0
+    )
+    if (
+        gap_share >= 0.45
+        and low_debuff_losses
+        and crossing_share >= 0.45
+        and low_debuff_crossings > winning_crossings
+    ):
+        return (
+            "PACKET_CANDIDATE_FOREST_DEPTH_SPORE_SCALING: active Spore losses "
+            "show low own trees, high board forest depth, and threshold-crossing "
+            "diagnostic lift."
+        )
+    if low_debuff_losses and not low_debuff_crossings:
+        return (
+            "NO_PACKET_YET_COUNTERFACTUAL_TOO_WEAK: low-debuff Spore losses do "
+            "not cross the diagnostic threshold."
+        )
+    if gap_share < 0.35:
+        return (
+            "NO_PACKET_YET_SPORE_OWN_TREE_GAP_WEAK: Spore own counters are not "
+            "systematically lagging high forest depth."
+        )
+    return "INSPECT_MORE: tree-gap signal is mixed; require same-seed outcome movement."
+
+
+def print_druid_spore_tree_gap(strat, summary):
+    print(f"## {strat} Druid Spore Tree-Gap Audit")
+    print(
+        "- scope: "
+        f"R{summary['round_min']}-R{summary['round_max']} focus-active battles, "
+        f"{summary['focus_frames']} frames/{summary['focus_losses']} losses "
+        f"from {summary['n_runs']} runs"
+    )
+    print(f"- trace caveat: {summary['trace_caveat']}")
+    print(
+        "- Spore active: "
+        f"{summary['spore_frames']} frames, "
+        f"{summary['spore_wins']} won/{summary['spore_losses']} lost, "
+        f"tree coverage {summary['tree_coverage']:.1%}"
+    )
+    print(
+        "- tree gap: "
+        f"avg Spore own {summary['avg_spore_own_trees']:.1f}, "
+        f"avg active Druid trees {summary['avg_active_tree_counters']:.1f}, "
+        f"avg other-Druid trees {summary['avg_other_druid_trees']:.1f}, "
+        f"own/total ratio {summary['avg_own_total_ratio']:.1%}"
+    )
+    if summary["spore_losses"]:
+        print(
+            "- Spore losses: "
+            f"avg own {summary['loss_avg_spore_own_trees']:.1f}, "
+            f"avg total {summary['loss_avg_active_tree_counters']:.1f}, "
+            f"avg other {summary['loss_avg_other_druid_trees']:.1f}, "
+            f"current debuff {summary['loss_avg_current_debuff']:.1%}, "
+            f"diagnostic probe debuff {summary['loss_avg_probe_debuff']:.1%}"
+        )
+        print(
+            "- low-own/high-forest losses: "
+            f"zero-own {summary['zero_own_high_forest_loss_frames']}, "
+            f"own<= {summary['low_own_tree_max']} and total>= "
+            f"{summary['high_forest_min']}: "
+            f"{summary['low_own_high_forest_loss_frames']}"
+        )
+    print(
+        "- diagnostic counterfactual: "
+        f"adds other-Druid trees * {summary['probe_scale']:.4f}, "
+        f"cap {summary['probe_cap']:.0%}, threshold "
+        f"{summary['low_debuff_threshold']:.0%}; "
+        f"low-debuff loss crossings "
+        f"{summary['low_debuff_loss_crossings']}/{summary['low_debuff_losses']}, "
+        f"winning crossings {summary['winning_low_debuff_crossings']}"
+    )
+    print(f"- focus-loss bottlenecks: {summary['focus_loss_bottlenecks']}")
+    if summary["bottlenecks_by_forest_band"]:
+        print("- focus-loss bottlenecks by active forest depth:")
+        for band, counts in summary["bottlenecks_by_forest_band"].items():
+            print(f"  - {band}: {counts}")
+    if summary["spore_loss_by_forest_band"]:
+        print("- Spore losses by active forest depth:")
+        for band, row in summary["spore_loss_by_forest_band"].items():
+            print(
+                "  - {band}: frames {frames}, low-debuff {low_debuff}, "
+                "crosses {crosses_threshold}, own {own:.1f}, total {total:.1f}, "
+                "other {other:.1f}, debuff {current:.1%}->{probe:.1%}".format(
+                    band=band,
+                    frames=row["frames"],
+                    low_debuff=row["low_debuff"],
+                    crosses_threshold=row["crosses_threshold"],
+                    own=row["avg_spore_own_trees"],
+                    total=row["avg_active_tree_counters"],
+                    other=row["avg_other_druid_trees"],
+                    current=row["avg_current_debuff"],
+                    probe=row["avg_probe_debuff"],
+                )
+            )
+    print(f"- next signal: {summary['next_signal']}")
+    if summary["examples"]:
+        print("- Spore loss examples:")
+        for row in summary["examples"]:
+            print(
+                "  - run {run} R{round} {path}: Spore ★{spore_star}/T"
+                "{spore_own_trees}, active trees {active_tree_counters} "
+                "(other {other_druid_trees}, band {forest_band}), debuff "
+                "{debuff:.1%}->{probe_debuff:.1%}, survivors "
+                "A{ally_survived}/E{enemy_survived}, bucket "
+                "{primary_bottleneck}, final HP {final_hp}".format(**row)
             )
     print()
 
@@ -3862,6 +4206,11 @@ def main():
         help="Print R9-R11 Druid focus-active combat margin ledger",
     )
     ap.add_argument(
+        "--druid-spore-tree-gap",
+        action="store_true",
+        help="Print Spore own-tree vs active-forest-depth diagnostics",
+    )
+    ap.add_argument(
         "--druid-run-phase",
         action="store_true",
         help="Print Druid payoff timing and survival/conversion diagnostics",
@@ -3908,6 +4257,11 @@ def main():
             print_druid_active_ledger(
                 strat,
                 summarize_druid_active_ledger(runs[strat]),
+            )
+        if args.druid_spore_tree_gap:
+            print_druid_spore_tree_gap(
+                strat,
+                summarize_druid_spore_tree_gap(runs[strat]),
             )
         if args.druid_run_phase:
             print_druid_run_phase(

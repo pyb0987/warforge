@@ -142,6 +142,23 @@ bottleneck deltas, and focus-combo deltas. Its screen verdict is intentionally
 conservative: a weak same-seed lift is a nomination signal only, not adoption
 evidence.
 
+When Spore is active but the active ledger says its debuff is too small, add
+`--druid-spore-tree-gap`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-active-ledger \
+  --druid-spore-tree-gap
+```
+
+This audits Spore's own tree counters against the total active Druid forest
+depth in R9-R11 focus-active combats, cross-tabs active-loss bottlenecks by
+forest-depth band, and prints a diagnostic-only counterfactual for non-Spore
+Druid tree contribution. It is behavior-neutral: traces aggregate by card ID, so
+duplicate copies can collapse, and buy events do not include per-card tree
+counters.
+
 When Druid probes show focus cards but still do not convert, add
 `--druid-run-phase`:
 
