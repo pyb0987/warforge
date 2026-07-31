@@ -480,6 +480,41 @@ func test_druid_path_lag_holds_non_priority_purchase() -> void:
 		"non-priority Druid cards should not distract from missing payoff")
 
 
+func test_druid_path_lag_hold_does_not_sell_bench_for_space() -> void:
+	var agent = AIAgentScript.new("soft_druid", _rng)
+	var tracer = AITracerScript.new()
+	tracer.enabled = true
+	agent.set_tracer(tracer)
+	_state.round_num = 9
+	_state.shop_level = 4
+	_state.gold = 20
+	_state.board[0] = CardInstance.create("dr_cradle")
+	_state.board[1] = CardInstance.create("dr_lifebeat")
+	_state.board[2] = CardInstance.create("dr_origin")
+	_state.board[3] = CardInstance.create("dr_prune")
+	for i in _state.bench.size():
+		_state.bench[i] = CardInstance.create("sp_assembly")
+	var bench_before := _bench_count()
+	var gold_before: int = _state.gold
+	_shop.offered_ids.assign(["dr_grace", "", "", "", "", ""])
+	var held_score: float = agent._score_card(
+		"dr_grace", CardDB.get_template("dr_grace"), Enums.CardTheme.DRUID, _state)
+	assert_gte(held_score, 15.0,
+		"fixture must be attractive enough that old ordering would sell for space")
+
+	var bought: bool = agent._try_buy_best(_state, _shop, Enums.CardTheme.DRUID)
+
+	assert_false(bought, "path-lag hold skips the purchase")
+	assert_eq(_bench_count(), bench_before,
+		"held purchase must not sell bench material to make space")
+	assert_eq(_state.gold, gold_before, "held purchase keeps gold unchanged")
+	assert_eq(_shop.offered_ids[0], "dr_grace",
+		"held shop offer remains available")
+	assert_eq(tracer.events.size(), 1, "only the hold decision is traced")
+	assert_eq(tracer.events[0]["t"], "buy_skip")
+	assert_eq(tracer.events[0]["reason"], "path_lag_hold")
+
+
 func test_druid_path_lag_allows_priority_purchase() -> void:
 	var agent = AIAgentScript.new("soft_druid", _rng)
 	_state.round_num = 9
@@ -725,3 +760,11 @@ func _has_active_board_card(card_id: String) -> bool:
 		if card != null and (card as CardInstance).get_base_id() == card_id:
 			return true
 	return false
+
+
+func _bench_count() -> int:
+	var count := 0
+	for card in _state.bench:
+		if card != null:
+			count += 1
+	return count

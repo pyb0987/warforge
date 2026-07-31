@@ -730,20 +730,6 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 				"reason": "below_threshold", "best_score": best_score, "offers": evals})
 		return false
 
-	if not _H.has_bench_space(state):
-		if best_score >= 15.0:
-			var sold := _sell_weakest_for_upgrade(state, best_score)
-			if not sold:
-				if trace_on:
-					_tracer.emit({"t": "buy_skip", "round": state.round_num,
-						"reason": "no_space_no_sell", "offers": evals})
-				return false
-		else:
-			if trace_on:
-				_tracer.emit({"t": "buy_skip", "round": state.round_num,
-					"reason": "no_space", "best_score": best_score, "offers": evals})
-			return false
-
 	var chosen_id: String = shop.offered_ids[best_slot]
 	var chosen_tmpl: Dictionary = CardDB.get_template(chosen_id)
 	if _should_hold_for_path_lag_purchase(state, chosen_id, chosen_tmpl, _H.get_board_ids(state)):
@@ -757,6 +743,20 @@ func _try_buy_best(state: GameState, shop: RefCounted, preferred_theme: int) -> 
 				"focus": focus.get("focus", []) if not focus.is_empty() else [],
 				"offers": evals})
 		return false
+
+	if not _H.has_bench_space(state):
+		if best_score >= 15.0:
+			var sold := _sell_weakest_for_upgrade(state, best_score)
+			if not sold:
+				if trace_on:
+					_tracer.emit({"t": "buy_skip", "round": state.round_num,
+						"reason": "no_space_no_sell", "offers": evals})
+				return false
+		else:
+			if trace_on:
+				_tracer.emit({"t": "buy_skip", "round": state.round_num,
+					"reason": "no_space", "best_score": best_score, "offers": evals})
+			return false
 
 	var result: bool = shop.try_purchase(best_slot)
 	if trace_on:
