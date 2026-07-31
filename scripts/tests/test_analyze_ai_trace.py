@@ -541,6 +541,186 @@ class AnalyzeAITraceTest(unittest.TestCase):
         )
         self.assertTrue(summary["next_signal"].startswith("Debuff-missing"))
 
+    def test_druid_offense_ledger_splits_shortfall_by_wrath_world_presence(self):
+        events_per_run = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_garden",
+                    "states": {
+                        "dr_spore_cloud": {"star": 1, "trees": 0},
+                        "dr_cradle": {"star": 2, "trees": 12},
+                        "dr_lifebeat": {"star": 1, "trees": 4},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 14,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.24},
+                },
+                {"t": "run_end", "rounds_played": 9, "final_hp": -3, "won": False},
+            ],
+            [
+                {
+                    "t": "round_end",
+                    "round": 10,
+                    "active_board": [
+                        "dr_spore_cloud",
+                        "dr_wrath",
+                        "dr_cradle",
+                        "dr_lifebeat",
+                    ],
+                    "detected_path": "druid_garden",
+                    "states": {
+                        "dr_spore_cloud": {"star": 1, "trees": 1},
+                        "dr_wrath": {"star": 2, "trees": 3},
+                        "dr_cradle": {"star": 2, "trees": 10},
+                        "dr_lifebeat": {"star": 1, "trees": 4},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 10,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 13,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.22},
+                },
+                {"t": "run_end", "rounds_played": 10, "final_hp": -2, "won": False},
+            ],
+            [
+                {
+                    "t": "round_end",
+                    "round": 11,
+                    "active_board": ["dr_wrath", "dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_world_tree",
+                    "states": {
+                        "dr_wrath": {"star": 1, "trees": 2},
+                        "dr_cradle": {"star": 2, "trees": 10},
+                        "dr_lifebeat": {"star": 1, "trees": 4},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 11,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 16,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.0},
+                },
+                {"t": "run_end", "rounds_played": 11, "final_hp": -1, "won": False},
+            ],
+            [
+                {
+                    "t": "round_end",
+                    "round": 11,
+                    "active_board": ["dr_world", "dr_wrath", "dr_cradle"],
+                    "detected_path": "druid_world_tree",
+                    "states": {
+                        "dr_world": {"star": 1, "trees": 5},
+                        "dr_wrath": {"star": 1, "trees": 2},
+                        "dr_cradle": {"star": 3, "trees": 24},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 11,
+                    "won": True,
+                    "ally_survived": 9,
+                    "enemy_survived": 0,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.0},
+                },
+                {"t": "run_end", "rounds_played": 15, "final_hp": 18, "won": True},
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_offense_ledger(events_per_run)
+
+        self.assertEqual(summary["frames"], 4)
+        self.assertEqual(summary["wins"], 1)
+        self.assertEqual(summary["losses"], 3)
+        self.assertEqual(summary["offense_active_frames"], 3)
+        self.assertEqual(summary["offense_active_losses"], 2)
+        self.assertEqual(summary["no_offense_losses"], 1)
+        self.assertEqual(summary["damage_shortfall_losses"], 2)
+        self.assertEqual(summary["damage_shortfall_with_offense"], 1)
+        self.assertEqual(summary["damage_shortfall_without_offense"], 1)
+        self.assertEqual(summary["debuff_gap_losses"], 1)
+        self.assertEqual(summary["by_offense_combo"]["none"]["damage_shortfall_losses"], 1)
+        self.assertEqual(
+            summary["by_spore_pairing"]["spore+dr_wrath"]["damage_shortfall_losses"],
+            1,
+        )
+        self.assertAlmostEqual(
+            summary["by_offense_combo"]["dr_wrath"]["avg_offense_star_sum"],
+            1.5,
+        )
+        self.assertIn("OFFENSE_ACCESS", summary["next_signal"])
+
+    def test_druid_offense_comparison_flags_debuff_repair_exposed_shortfall(self):
+        baseline_events = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_garden",
+                    "states": {
+                        "dr_spore_cloud": {"star": 1, "trees": 0},
+                        "dr_cradle": {"star": 2, "trees": 12},
+                        "dr_lifebeat": {"star": 1, "trees": 4},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 14,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.10},
+                },
+                {"t": "run_end", "rounds_played": 9, "final_hp": -3, "won": False},
+            ],
+        ]
+        candidate_events = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_cradle", "dr_lifebeat"],
+                    "detected_path": "druid_garden",
+                    "states": {
+                        "dr_spore_cloud": {"star": 1, "trees": 0},
+                        "dr_cradle": {"star": 2, "trees": 12},
+                        "dr_lifebeat": {"star": 1, "trees": 4},
+                    },
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 14,
+                    "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.24},
+                },
+                {"t": "run_end", "rounds_played": 9, "final_hp": -3, "won": False},
+            ],
+        ]
+
+        comparison = analyze_ai_trace.summarize_druid_offense_comparison(
+            candidate_events,
+            baseline_events,
+        )
+
+        self.assertEqual(comparison["deltas"]["damage_shortfall_losses"], 1)
+        self.assertEqual(comparison["deltas"]["debuff_gap_losses"], -1)
+        self.assertIn("DEBUFF_REPAIR_EXPOSED", comparison["next_signal"])
+
     def test_druid_spore_tree_gap_audits_own_vs_active_forest_depth(self):
         events_per_run = [
             [

@@ -20,6 +20,7 @@ from collections import Counter, defaultdict
 DRUID_PAYOFF_CARDS = {"dr_spore_cloud", "dr_wrath"}
 DRUID_CAPSTONE_CARDS = {"dr_world"}
 DRUID_FOCUS_CARDS = DRUID_PAYOFF_CARDS | DRUID_CAPSTONE_CARDS
+DRUID_OFFENSE_CARDS = {"dr_wrath", "dr_world"}
 DRUID_SPORE_CARD = "dr_spore_cloud"
 DRUID_SPORE_FOREST_DEPTH_PROBE_SCALE = 0.0025
 DRUID_SPORE_LOW_DEBUFF_THRESHOLD = 0.20
@@ -1150,6 +1151,469 @@ def print_druid_active_ledger(strat, summary):
                 "survivors A{ally_survived}/E{enemy_survived}, "
                 "bucket {primary_bottleneck}, final HP {final_hp}".format(
                     detail=detail,
+                    **row,
+                )
+            )
+    print()
+
+
+def summarize_druid_offense_ledger(events_per_run, round_min=9, round_max=11):
+    """Separate Druid late focus losses by Wrath/World offense presence."""
+    collected = _collect_druid_active_ledger_frames(
+        events_per_run,
+        round_min,
+        round_max,
+    )
+    rows = [_druid_offense_row(row) for row in collected["frames"]]
+    losses = [row for row in rows if not row["won"]]
+    offense_losses = [row for row in losses if row["offense_present"]]
+    no_offense_losses = [row for row in losses if not row["offense_present"]]
+    shortfall_losses = [
+        row for row in losses
+        if row["primary_bottleneck"] == "damage_shortfall"
+    ]
+    debuff_gap_losses = [
+        row for row in losses
+        if row["primary_bottleneck"] in {"debuff_missing", "debuff_too_small"}
+    ]
+
+    summary = {
+        "n_runs": len(events_per_run),
+        "round_min": round_min,
+        "round_max": round_max,
+        "frames": len(rows),
+        "wins": sum(1 for row in rows if row["won"]),
+        "losses": len(losses),
+        "missing_round_end": collected["missing_round_end"],
+        "detail_coverage": (
+            collected["detail_frames"] / len(rows) if rows else 0.0
+        ),
+        "offense_active_frames": sum(1 for row in rows if row["offense_present"]),
+        "offense_active_losses": len(offense_losses),
+        "no_offense_losses": len(no_offense_losses),
+        "spore_active_frames": sum(1 for row in rows if row["spore_active"]),
+        "spore_offense_frames": sum(
+            1 for row in rows if row["spore_active"] and row["offense_present"]
+        ),
+        "damage_shortfall_losses": len(shortfall_losses),
+        "damage_shortfall_with_offense": sum(
+            1 for row in shortfall_losses if row["offense_present"]
+        ),
+        "damage_shortfall_without_offense": sum(
+            1 for row in shortfall_losses if not row["offense_present"]
+        ),
+        "debuff_gap_losses": len(debuff_gap_losses),
+        "zero_ally_offense_loss_frames": sum(
+            1 for row in offense_losses if row["ally_survived"] <= 0
+        ),
+        "avg_loss_ally_survived": _avg([row["ally_survived"] for row in losses]),
+        "avg_loss_enemy_survived": _avg([row["enemy_survived"] for row in losses]),
+        "avg_offense_loss_enemy_survived": _avg(
+            [row["enemy_survived"] for row in offense_losses]
+        ),
+        "avg_no_offense_loss_enemy_survived": _avg(
+            [row["enemy_survived"] for row in no_offense_losses]
+        ),
+        "avg_damage_shortfall_enemy_survived": _avg(
+            [row["enemy_survived"] for row in shortfall_losses]
+        ),
+        "primary_bottlenecks": dict(
+            Counter(row["primary_bottleneck"] for row in losses)
+        ),
+        "by_offense_combo": _summarize_druid_offense_groups(
+            rows,
+            lambda row: row["offense_combo"],
+        ),
+        "by_spore_pairing": _summarize_druid_offense_groups(
+            rows,
+            lambda row: row["spore_pairing"],
+        ),
+        "by_path": _summarize_druid_offense_groups(
+            rows,
+            lambda row: row["path"],
+        ),
+        "examples": losses[:8],
+        "trace_caveat": (
+            "battle traces expose survivors and aggregate card-id states, not "
+            "per-unit attack contribution"
+        ),
+    }
+    summary["next_signal"] = _druid_offense_signal(summary)
+    return summary
+
+
+def _druid_offense_row(row):
+    offense_cards = sorted(set(row.get("focus", [])) & DRUID_OFFENSE_CARDS)
+    offense_details = [
+        item for item in row.get("focus_details", [])
+        if item.get("card_id") in DRUID_OFFENSE_CARDS
+    ]
+    offense_combo = "+".join(offense_cards) if offense_cards else "none"
+    spore_active = DRUID_SPORE_CARD in set(row.get("focus", []))
+    result = dict(row)
+    result.update({
+        "offense_cards": offense_cards,
+        "offense_combo": offense_combo,
+        "offense_present": bool(offense_cards),
+        "spore_active": spore_active,
+        "spore_pairing": (
+            ("spore+" if spore_active else "no_spore+") + offense_combo
+        ),
+        "offense_star_sum": sum(
+            int(item.get("star", 1)) for item in offense_details
+        ),
+        "offense_tree_counters": sum(
+            int(item.get("trees", 0)) for item in offense_details
+        ),
+    })
+    return result
+
+
+def _summarize_druid_offense_groups(frames, key_fn):
+    grouped = defaultdict(list)
+    for row in frames:
+        grouped[key_fn(row)].append(row)
+    return {
+        key: _finalize_druid_offense_group(group)
+        for key, group in sorted(grouped.items())
+    }
+
+
+def _finalize_druid_offense_group(group):
+    losses = [row for row in group if not row["won"]]
+    shortfall_losses = [
+        row for row in losses
+        if row["primary_bottleneck"] == "damage_shortfall"
+    ]
+    buckets = Counter(row["primary_bottleneck"] for row in losses)
+    return {
+        "frames": len(group),
+        "wins": sum(1 for row in group if row["won"]),
+        "losses": len(losses),
+        "win_rate": _safe_rate(sum(1 for row in group if row["won"]), len(group)),
+        "avg_debuff": _avg([row["debuff"] for row in group]),
+        "avg_active_tree_counters": _avg(
+            [row["active_tree_counters"] for row in group]
+        ),
+        "avg_offense_star_sum": _avg(
+            [row["offense_star_sum"] for row in group]
+        ),
+        "avg_offense_tree_counters": _avg(
+            [row["offense_tree_counters"] for row in group]
+        ),
+        "avg_loss_ally_survived": _avg([row["ally_survived"] for row in losses]),
+        "avg_loss_enemy_survived": _avg([row["enemy_survived"] for row in losses]),
+        "damage_shortfall_losses": len(shortfall_losses),
+        "damage_shortfall_share": _safe_rate(len(shortfall_losses), len(losses)),
+        "avg_damage_shortfall_enemy_survived": _avg(
+            [row["enemy_survived"] for row in shortfall_losses]
+        ),
+        "zero_ally_loss_frames": sum(
+            1 for row in losses if row["ally_survived"] <= 0
+        ),
+        "primary_bottlenecks": dict(buckets),
+    }
+
+
+def _druid_offense_signal(summary):
+    losses = int(summary["losses"])
+    if not losses:
+        return "No R9-R11 Druid focus-active losses in scope."
+
+    shortfalls = int(summary["damage_shortfall_losses"])
+    shortfall_share = shortfalls / losses if losses else 0.0
+    with_offense = int(summary["damage_shortfall_with_offense"])
+    without_offense = int(summary["damage_shortfall_without_offense"])
+    with_offense_share = with_offense / shortfalls if shortfalls else 0.0
+    without_offense_share = without_offense / shortfalls if shortfalls else 0.0
+
+    if shortfall_share >= 0.30 and without_offense_share >= 0.50:
+        return (
+            "OFFENSE_ACCESS_OR_ACTIVATION_CANDIDATE: damage shortfall is common, "
+            "but most shortfall losses have Spore without Wrath/World online; "
+            "inspect acquisition/promotion before buffing offensive math."
+        )
+    if shortfall_share >= 0.30 and with_offense_share >= 0.50:
+        return (
+            "OFFENSE_CONVERSION_MATH_CANDIDATE: Wrath/World are present in most "
+            "damage-shortfall losses, so inspect their battle math before "
+            "another Spore change."
+        )
+
+    offense_losses = int(summary["offense_active_losses"])
+    zero_ally = int(summary["zero_ally_offense_loss_frames"])
+    if offense_losses and zero_ally / offense_losses >= 0.75:
+        return (
+            "SURVIVAL_BEFORE_DAMAGE_CANDIDATE: offense is often online but allied "
+            "survivors are still zero; inspect shields/HP alongside damage."
+        )
+
+    if int(summary["debuff_gap_losses"]) > shortfalls:
+        return (
+            "DEBUFF_GAP_STILL_DOMINATES: Spore/debuff access remains the larger "
+            "late-focus loss bucket."
+        )
+    return "MIXED_OFFENSE_SIGNAL: no single offense/access bucket dominates."
+
+
+def summarize_druid_offense_comparison(candidate_events, baseline_events):
+    candidate = summarize_druid_offense_ledger(candidate_events)
+    baseline = summarize_druid_offense_ledger(baseline_events)
+    comparison = {
+        "baseline": _druid_offense_compare_metrics(baseline),
+        "candidate": _druid_offense_compare_metrics(candidate),
+        "combo_deltas": _druid_offense_combo_deltas(
+            candidate["by_offense_combo"],
+            baseline["by_offense_combo"],
+        ),
+    }
+    comparison["deltas"] = {
+        key: comparison["candidate"][key] - comparison["baseline"][key]
+        for key in (
+            "frames",
+            "wins",
+            "losses",
+            "win_rate",
+            "damage_shortfall_losses",
+            "damage_shortfall_share",
+            "damage_shortfall_with_offense",
+            "damage_shortfall_without_offense",
+            "debuff_gap_losses",
+            "avg_loss_enemy_survived",
+            "avg_offense_loss_enemy_survived",
+            "avg_no_offense_loss_enemy_survived",
+        )
+    }
+    comparison["next_signal"] = _druid_offense_comparison_signal(
+        candidate,
+        baseline,
+    )
+    return comparison
+
+
+def _druid_offense_compare_metrics(summary):
+    return {
+        "frames": int(summary["frames"]),
+        "wins": int(summary["wins"]),
+        "losses": int(summary["losses"]),
+        "win_rate": _safe_rate(summary["wins"], summary["frames"]),
+        "offense_active_frames": int(summary["offense_active_frames"]),
+        "offense_active_losses": int(summary["offense_active_losses"]),
+        "no_offense_losses": int(summary["no_offense_losses"]),
+        "damage_shortfall_losses": int(summary["damage_shortfall_losses"]),
+        "damage_shortfall_share": _safe_rate(
+            summary["damage_shortfall_losses"],
+            summary["losses"],
+        ),
+        "damage_shortfall_with_offense": int(
+            summary["damage_shortfall_with_offense"]
+        ),
+        "damage_shortfall_without_offense": int(
+            summary["damage_shortfall_without_offense"]
+        ),
+        "debuff_gap_losses": int(summary["debuff_gap_losses"]),
+        "avg_loss_enemy_survived": float(summary["avg_loss_enemy_survived"]),
+        "avg_offense_loss_enemy_survived": float(
+            summary["avg_offense_loss_enemy_survived"]
+        ),
+        "avg_no_offense_loss_enemy_survived": float(
+            summary["avg_no_offense_loss_enemy_survived"]
+        ),
+    }
+
+
+def _druid_offense_combo_deltas(candidate_combos, baseline_combos):
+    result = {}
+    for combo in sorted(set(candidate_combos) | set(baseline_combos)):
+        candidate = candidate_combos.get(combo, {})
+        baseline = baseline_combos.get(combo, {})
+        result[combo] = {
+            "frames_delta": int(candidate.get("frames", 0))
+            - int(baseline.get("frames", 0)),
+            "wins_delta": int(candidate.get("wins", 0))
+            - int(baseline.get("wins", 0)),
+            "losses_delta": int(candidate.get("losses", 0))
+            - int(baseline.get("losses", 0)),
+            "win_rate_delta": float(candidate.get("win_rate", 0.0))
+            - float(baseline.get("win_rate", 0.0)),
+            "damage_shortfall_delta": int(
+                candidate.get("damage_shortfall_losses", 0)
+            ) - int(baseline.get("damage_shortfall_losses", 0)),
+            "avg_loss_enemy_survived_delta": float(
+                candidate.get("avg_loss_enemy_survived", 0.0)
+            ) - float(baseline.get("avg_loss_enemy_survived", 0.0)),
+        }
+    return result
+
+
+def _druid_offense_comparison_signal(candidate, baseline):
+    cand_shortfalls = int(candidate["damage_shortfall_losses"])
+    base_shortfalls = int(baseline["damage_shortfall_losses"])
+    cand_debuff_gaps = int(candidate["debuff_gap_losses"])
+    base_debuff_gaps = int(baseline["debuff_gap_losses"])
+    if cand_shortfalls > base_shortfalls and cand_debuff_gaps < base_debuff_gaps:
+        return (
+            "DEBUFF_REPAIR_EXPOSED_OFFENSE_ACCESS: the rejected probe reduced "
+            "debuff gaps but converted many losses into damage shortfall; route "
+            "next work through offense access/activation evidence."
+        )
+    if (
+        cand_shortfalls > base_shortfalls
+        and int(candidate["damage_shortfall_with_offense"])
+        >= int(candidate["damage_shortfall_without_offense"])
+    ):
+        return (
+            "OFFENSE_MATH_COMPARISON_CANDIDATE: candidate shortfall growth is "
+            "mostly with Wrath/World online; inspect offensive battle formulas."
+        )
+    if int(candidate["offense_active_losses"]) < int(baseline["offense_active_losses"]):
+        return (
+            "OFFENSE_ACTIVATION_MOVED_BUT_NOT_ENOUGH: offense-active losses fell; "
+            "require clear-rate and survivor-margin gates before adoption."
+        )
+    return "NO_DECISIVE_OFFENSE_COMPARISON_DELTA: keep as routing evidence only."
+
+
+def print_druid_offense_ledger(strat, summary):
+    print(f"## {strat} Druid Offense Ledger")
+    print(
+        "- scope: "
+        f"R{summary['round_min']}-R{summary['round_max']} focus-active battles, "
+        f"{summary['frames']} frames from {summary['n_runs']} runs"
+    )
+    print(f"- trace caveat: {summary['trace_caveat']}")
+    print(
+        "- results: "
+        f"{summary['wins']} won/{summary['losses']} lost, "
+        f"WR {_safe_rate(summary['wins'], summary['frames']):.1%}, "
+        f"missing round_end {summary['missing_round_end']}"
+    )
+    print(
+        "- offense presence: "
+        f"offense frames {summary['offense_active_frames']}, "
+        f"offense losses {summary['offense_active_losses']}, "
+        f"no-offense losses {summary['no_offense_losses']}, "
+        f"Spore+offense frames {summary['spore_offense_frames']}"
+    )
+    print(
+        "- damage shortfall: "
+        f"{summary['damage_shortfall_losses']}/{summary['losses']} losses "
+        f"({_safe_rate(summary['damage_shortfall_losses'], summary['losses']):.1%}), "
+        f"with offense {summary['damage_shortfall_with_offense']}, "
+        f"without offense {summary['damage_shortfall_without_offense']}, "
+        f"avg shortfall enemy survived "
+        f"{summary['avg_damage_shortfall_enemy_survived']:.1f}"
+    )
+    print(
+        "- loss survivor margin: "
+        f"all A/E {summary['avg_loss_ally_survived']:.1f}/"
+        f"{summary['avg_loss_enemy_survived']:.1f}, "
+        f"offense enemy {summary['avg_offense_loss_enemy_survived']:.1f}, "
+        f"no-offense enemy {summary['avg_no_offense_loss_enemy_survived']:.1f}"
+    )
+    print(f"- primary bottlenecks: {summary['primary_bottlenecks']}")
+    print(f"- next signal: {summary['next_signal']}")
+    if summary["by_offense_combo"]:
+        print("- by offense combo:")
+        for combo, row in summary["by_offense_combo"].items():
+            print(
+                "  - {combo}: frames {frames}, wins {wins}, losses {losses}, "
+                "WR {win_rate:.1%}, shortfall {shortfall} ({share:.1%}), "
+                "loss A/E {ally:.1f}/{enemy:.1f}, stars {stars:.1f}, "
+                "trees {trees:.1f}, buckets {buckets}".format(
+                    combo=combo,
+                    frames=row["frames"],
+                    wins=row["wins"],
+                    losses=row["losses"],
+                    win_rate=row["win_rate"],
+                    shortfall=row["damage_shortfall_losses"],
+                    share=row["damage_shortfall_share"],
+                    ally=row["avg_loss_ally_survived"],
+                    enemy=row["avg_loss_enemy_survived"],
+                    stars=row["avg_offense_star_sum"],
+                    trees=row["avg_offense_tree_counters"],
+                    buckets=row["primary_bottlenecks"],
+                )
+            )
+    if summary["by_spore_pairing"]:
+        print("- by Spore/offense pairing:")
+        for pairing, row in summary["by_spore_pairing"].items():
+            print(
+                "  - {pairing}: frames {frames}, wins {wins}, losses {losses}, "
+                "WR {win_rate:.1%}, shortfall {shortfall}, loss enemy {enemy:.1f}".format(
+                    pairing=pairing,
+                    frames=row["frames"],
+                    wins=row["wins"],
+                    losses=row["losses"],
+                    win_rate=row["win_rate"],
+                    shortfall=row["damage_shortfall_losses"],
+                    enemy=row["avg_loss_enemy_survived"],
+                )
+            )
+    if summary["examples"]:
+        print("- loss examples:")
+        for row in summary["examples"]:
+            print(
+                "  - run {run} R{round} {path}: focus {focus}, offense "
+                "{offense_combo}, Spore {spore_active}, stars {stars}, "
+                "offense trees {trees}, debuff {debuff:.1%}, survivors "
+                "A{ally_survived}/E{enemy_survived}, bucket {primary_bottleneck}, "
+                "final HP {final_hp}".format(
+                    stars=row["offense_star_sum"],
+                    trees=row["offense_tree_counters"],
+                    **row,
+                )
+            )
+    print()
+
+
+def print_druid_offense_comparison(strat, comparison, baseline_label):
+    print(f"## {strat} Druid Offense Ledger Comparison")
+    print(f"- baseline: {baseline_label}")
+    base = comparison["baseline"]
+    cand = comparison["candidate"]
+    deltas = comparison["deltas"]
+    print(
+        "- R9-R11 focus frames: "
+        f"{base['frames']} -> {cand['frames']} "
+        f"(Delta {deltas['frames']:+d}), WR {base['win_rate']:.1%} -> "
+        f"{cand['win_rate']:.1%} (Delta {deltas['win_rate']:+.1%})"
+    )
+    print(
+        "- damage shortfall: "
+        f"{base['damage_shortfall_losses']} -> "
+        f"{cand['damage_shortfall_losses']} "
+        f"(Delta {deltas['damage_shortfall_losses']:+d}), share "
+        f"{base['damage_shortfall_share']:.1%} -> "
+        f"{cand['damage_shortfall_share']:.1%}"
+    )
+    print(
+        "- shortfall split: "
+        f"with offense {base['damage_shortfall_with_offense']} -> "
+        f"{cand['damage_shortfall_with_offense']} "
+        f"(Delta {deltas['damage_shortfall_with_offense']:+d}), "
+        f"without offense {base['damage_shortfall_without_offense']} -> "
+        f"{cand['damage_shortfall_without_offense']} "
+        f"(Delta {deltas['damage_shortfall_without_offense']:+d})"
+    )
+    print(
+        "- debuff gaps and survivor margin: "
+        f"debuff gaps {base['debuff_gap_losses']} -> "
+        f"{cand['debuff_gap_losses']} "
+        f"(Delta {deltas['debuff_gap_losses']:+d}), "
+        f"loss enemy {base['avg_loss_enemy_survived']:.1f} -> "
+        f"{cand['avg_loss_enemy_survived']:.1f}"
+    )
+    print(f"- next signal: {comparison['next_signal']}")
+    if comparison["combo_deltas"]:
+        print("- offense combo deltas:")
+        for combo, row in comparison["combo_deltas"].items():
+            print(
+                "  - {combo}: frames {frames_delta:+d}, wins {wins_delta:+d}, "
+                "losses {losses_delta:+d}, WR Delta {win_rate_delta:+.1%}, "
+                "shortfall {damage_shortfall_delta:+d}, loss enemy Delta "
+                "{avg_loss_enemy_survived_delta:+.1f}".format(
+                    combo=combo,
                     **row,
                 )
             )
@@ -4206,6 +4670,11 @@ def main():
         help="Print R9-R11 Druid focus-active combat margin ledger",
     )
     ap.add_argument(
+        "--druid-offense-ledger",
+        action="store_true",
+        help="Print R9-R11 Druid Wrath/World offense conversion diagnostics",
+    )
+    ap.add_argument(
         "--druid-spore-tree-gap",
         action="store_true",
         help="Print Spore own-tree vs active-forest-depth diagnostics",
@@ -4257,6 +4726,11 @@ def main():
             print_druid_active_ledger(
                 strat,
                 summarize_druid_active_ledger(runs[strat]),
+            )
+        if args.druid_offense_ledger:
+            print_druid_offense_ledger(
+                strat,
+                summarize_druid_offense_ledger(runs[strat]),
             )
         if args.druid_spore_tree_gap:
             print_druid_spore_tree_gap(
@@ -4316,6 +4790,15 @@ def main():
                 print_druid_activation_comparison(
                     strat,
                     summarize_druid_activation_comparison(
+                        runs[strat],
+                        baseline_runs[strat],
+                    ),
+                    args.druid_compare_baseline,
+                )
+            if args.druid_offense_ledger:
+                print_druid_offense_comparison(
+                    strat,
+                    summarize_druid_offense_comparison(
                         runs[strat],
                         baseline_runs[strat],
                     ),

@@ -175,7 +175,8 @@ Operating rules:
 | H121 | DONE | H105 approval-boundary multi-review | Used three independent critics to decide whether to spend the latest AI-file approval or request H105 approval. All converged that another AI/UI/progression slice would be false progress against M1, and that the next honest move is explicit approval for the protected H105 runtime/test files. | PASS trace `.claude/traces/experiments/118-h105-approval-boundary-multireview.md`; PASS multi-review convergence; no code/gameplay/protected files edited |
 | H122 | DONE | H105 implementation seam map | Mapped the exact Druid runtime collection seam and focused test additions for H105 without editing protected files, so an approved run can implement directly from line-level anchors. | PASS trace `.claude/traces/experiments/119-h105-implementation-seam-map.md`; PASS H105 boundary guard; PASS `git diff --check`; no code/gameplay/protected files edited |
 | H123 | DONE | Protected Spore forest-depth probe rejection | User-approved H105 runtime-only patch was test-first implemented, measured, then rejected and rolled back because the evaluator returned `WEAK_LOCAL_SIGNAL_DO_NOT_ADOPT`: 11/60 clears missed the >=14 gate, active-loss enemy survivors worsened, and allied survivors stayed flat. | PASS trace `.claude/traces/experiments/120-h123-spore-forest-depth-rejected.md`; FAIL-before/PASS-after focused tests; PASS H105 workflow; REJECT evaluator; PASS rollback focused tests; no gameplay changes kept |
-| H124 | TODO | Post-H123 Druid offensive conversion analysis | Analyze H123 and baseline traces before another protected gameplay packet, focusing on Wrath/World damage conversion, lethal-window activation timing, and survivor-margin causality. | READY trace `.claude/traces/experiments/121-h124-post-h123-next-slice-review.md`; next artifact should isolate one causal bottleneck and define gates before implementation |
+| H124 | DONE | Post-H123 Druid offensive conversion analysis | Added a behavior-neutral offense ledger and analyzed H123 against H104, showing the rejected Spore debuff repair exposed damage shortfall mostly without Wrath/World active rather than proving a raw offense-stat buff. | PASS trace `.claude/traces/experiments/122-h124-druid-offense-conversion-analysis.md`; PASS analyzer tests 24/24; H123 vs H104 shortfall 1->16, debuff gaps 45->14, shortfall without offense 0->9, with offense 1->7; next signal `DEBUFF_REPAIR_EXPOSED_OFFENSE_ACCESS` |
+| H125 | TODO | Druid offense access/activation packet | Prepare the next narrow protected Druid packet from H124 evidence, targeting earlier active Spore+Wrath/World combat presence without retrying H123's debuff-only forest-depth shape. | Use multi-review before implementation; define touched files, fail-before tests, same-seed gates, disjoint confirmation rule, and rollback rule |
 
 ## Working Completion Gates After H124
 
@@ -214,12 +215,12 @@ Open blockers before M1 can be called complete:
   viability floor is still not green; do not retry duplicate-focus activation
   without new evidence.
 - P1: H123 rejected and rolled back the exact H105 Spore forest-depth
-  debuff-only routing probe. The next Druid strategy-floor slice should inspect
-  the post-H123 analyzer signals before another protected gameplay packet:
-  damage shortfall dominates after the debuff lift, focus activation still
-  often happens in the lethal window, and bench/promotion gaps remain visible.
-  H124 should run this analysis before implementation. Do not retry the same
-  forest-depth routing shape without new evidence.
+  debuff-only routing probe. H124 then showed that the rejected probe reduced
+  debuff gaps but exposed damage shortfall mostly without Wrath/World active:
+  shortfall 1->16, debuff gaps 45->14, shortfall without offense 0->9, with
+  offense 1->7. The next Druid strategy-floor slice should prepare a bounded
+  offense access/activation packet with explicit gates. Do not retry the same
+  forest-depth routing shape or a raw offense-stat buff without new evidence.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P1: H118 fixed an AI path-lag hold side-effect bug in the user-approved AI
