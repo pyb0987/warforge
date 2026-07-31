@@ -271,6 +271,45 @@ func test_ai_uses_effective_coin_price_for_affordability() -> void:
 	assert_eq(_state.gold, 0, "실제 가격 2골드 차감")
 
 
+func test_unique_effect_first_copy_has_no_duplicate_penalty() -> void:
+	var agent = AIAgentScript.new("adaptive", _rng)
+	var tmpl: Dictionary = CardDB.get_template("ne_merchant").duplicate(true)
+	tmpl["unique_effect"] = true
+
+	assert_almost_eq(agent._unique_effect_duplicate_penalty(
+		tmpl, _state, "ne_merchant", 0), 0.0, 0.001,
+		"첫 고유효과 카드는 중복 페널티 없음")
+
+
+func test_unique_effect_second_copy_is_deprioritized() -> void:
+	var agent = AIAgentScript.new("adaptive", _rng)
+	_state.board[0] = CardInstance.create("ne_merchant")
+	var normal_tmpl: Dictionary = CardDB.get_template("ne_merchant").duplicate(true)
+	var unique_tmpl: Dictionary = normal_tmpl.duplicate(true)
+	unique_tmpl["unique_effect"] = true
+
+	var normal_score: float = agent._score_card("ne_merchant", normal_tmpl, -1, _state)
+	var unique_score: float = agent._score_card("ne_merchant", unique_tmpl, -1, _state)
+
+	assert_almost_eq(normal_score - 18.0, unique_score, 0.001,
+		"고유효과 2장째는 일반 중복 구매보다 낮게 평가")
+
+
+func test_unique_effect_merge_completion_keeps_smaller_penalty() -> void:
+	var agent = AIAgentScript.new("adaptive", _rng)
+	_state.board[0] = CardInstance.create("ne_merchant")
+	_state.bench[0] = CardInstance.create("ne_merchant")
+	var normal_tmpl: Dictionary = CardDB.get_template("ne_merchant").duplicate(true)
+	var unique_tmpl: Dictionary = normal_tmpl.duplicate(true)
+	unique_tmpl["unique_effect"] = true
+
+	var normal_score: float = agent._score_card("ne_merchant", normal_tmpl, -1, _state)
+	var unique_score: float = agent._score_card("ne_merchant", unique_tmpl, -1, _state)
+
+	assert_almost_eq(normal_score - 8.0, unique_score, 0.001,
+		"3장째 고유효과 구매는 ★2 합성 가치 때문에 작은 페널티만 적용")
+
+
 func test_transition_board_protects_druid_critical_infrastructure() -> void:
 	var agent = AIAgentScript.new("soft_druid", _rng)
 	_state.round_num = 8

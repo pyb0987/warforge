@@ -38,6 +38,8 @@ var _position_solver = _AIPositionScript.new()
 const MAX_ACTIONS := 30
 const _DRUID_IDENTITY_SETUP_CARDS := ["dr_cradle", "dr_lifebeat"]
 const _DRUID_STRONG_GENERIC_SWAP_DELTA := 24.0
+const _UNIQUE_EFFECT_DUPLICATE_PENALTY := 18.0
+const _UNIQUE_EFFECT_MERGE_COMPLETION_PENALTY := 8.0
 
 # Synergy data extracted to ai_synergy_data.gd for file size management.
 const _Syn = preload("res://sim/ai_synergy_data.gd")
@@ -897,6 +899,11 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 		score -= 10.0
 		if trace_on: bk["dup_penalty"] = -10.0
 
+	var unique_delta := _unique_effect_duplicate_penalty(tmpl, state, card_id, star1_copies)
+	score += unique_delta
+	if trace_on and unique_delta != 0.0:
+		bk["unique_dup"] = unique_delta
+
 	# --- Genome: activation cap penalty ---
 	if _genome:
 		var cap: int = _genome.get_activation_cap(card_id)
@@ -922,6 +929,18 @@ func _score_card(card_id: String, tmpl: Dictionary, preferred_theme: int, state:
 	if trace_on:
 		_last_breakdown = bk
 	return score
+
+
+func _unique_effect_duplicate_penalty(tmpl: Dictionary, state: GameState,
+		card_id: String, star1_copies: int) -> float:
+	if not tmpl.get("unique_effect", false):
+		return 0.0
+	var total_copies := _H.count_copies(state, card_id)
+	if total_copies <= 0:
+		return 0.0
+	if star1_copies >= 2:
+		return -_UNIQUE_EFFECT_MERGE_COMPLETION_PENALTY
+	return -(_UNIQUE_EFFECT_DUPLICATE_PENALTY + maxf(float(total_copies - 1) * 4.0, 0.0))
 
 
 func _should_hold_for_path_lag_purchase(state: GameState, card_id: String,
