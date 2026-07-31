@@ -618,6 +618,100 @@ func test_live_masquerade_sell_uses_target_and_theme_popups() -> void:
 		"★1 Masquerade applies a theme transform, not omni-theme")
 
 
+func test_live_hoarder_sell_uses_target_overlay_and_applies_transfer() -> void:
+	var main = await _start_main_to_build()
+	_clear_run_cards(main)
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	var hoarder: CardInstance = CardInstance.create("ne_hoarder")
+	hoarder.tenure = 3
+	var target_units_before: int = target.get_total_units()
+	var source_units: int = hoarder.get_total_units()
+	main.game_state.board[0] = target
+	main.game_state.board[1] = hoarder
+	main.build_phase._refresh_all()
+	await wait_process_frames(1)
+
+	assert_true(_emit_right_click(main.build_phase._field_visuals[1]),
+		"right-clicking Hoarder sells through the visible card control")
+	await wait_process_frames(2)
+
+	var ui := LiveUiProbe.snapshot(main)
+	assert_eq(ui["active_modals"], [LiveUiProbe.TARGET_SELECT],
+		"Hoarder SELL opens target selection")
+	assert_eq(LiveUiProbe.target_field_indices(main), [0],
+		"sold Hoarder is gone, leaving the target card selectable")
+	assert_null(main.game_state.board[1],
+		"Hoarder is removed by the atomic sell action")
+	assert_eq(main.game_state.board[0], target,
+		"target card remains on the field during Hoarder selection")
+
+	assert_true(LiveUiProbe.select_target(main, 0),
+		"public target overlay selection accepts the Hoarder target")
+	await wait_process_frames(2)
+
+	ui = LiveUiProbe.snapshot(main)
+	assert_false(ui["has_modal"],
+		"Hoarder target flow returns modal ownership to BUILD")
+	assert_eq(main.current_phase, main.Phase.BUILD)
+	assert_true(main.build_phase.visible)
+	assert_false(main.build_phase.target_overlay.visible)
+	assert_eq(target.get_total_units(), target_units_before + source_units,
+		"Hoarder transfers its unit stacks to the selected target")
+	assert_almost_eq(target.growth_atk_pct, 0.06, 0.001,
+		"★1 Hoarder grants ATK growth based on tenure")
+	assert_almost_eq(target.growth_hp_pct, 0.0, 0.001,
+		"★1 Hoarder does not grant HP growth")
+
+
+func test_live_awakening_sell_uses_target_overlay_and_applies_upgrade_stats() -> void:
+	var main = await _start_main_to_build()
+	_clear_run_cards(main)
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	var awakening: CardInstance = CardInstance.create("ne_awakening")
+	assert_true(awakening.attach_upgrade("C1"),
+		"Awakening carries a common upgrade that can be transferred")
+	var target_units_before: int = target.get_total_units()
+	var target_atk_before: float = target.get_total_atk()
+	main.game_state.board[0] = target
+	main.game_state.board[1] = awakening
+	main.build_phase._refresh_all()
+	await wait_process_frames(1)
+
+	assert_true(_emit_right_click(main.build_phase._field_visuals[1]),
+		"right-clicking Awakening sells through the visible card control")
+	await wait_process_frames(2)
+
+	var ui := LiveUiProbe.snapshot(main)
+	assert_eq(ui["active_modals"], [LiveUiProbe.TARGET_SELECT],
+		"Awakening SELL opens target selection")
+	assert_eq(LiveUiProbe.target_field_indices(main), [0],
+		"sold Awakening is gone, leaving the target card selectable")
+	assert_null(main.game_state.board[1],
+		"Awakening is removed by the atomic sell action")
+	assert_eq(main.game_state.board[0], target,
+		"target card remains on the field during Awakening selection")
+	assert_eq(target.upgrades.size(), 0,
+		"Awakening transfer waits for target choice before attaching")
+
+	assert_true(LiveUiProbe.select_target(main, 0),
+		"public target overlay selection accepts the Awakening target")
+	await wait_process_frames(2)
+
+	ui = LiveUiProbe.snapshot(main)
+	assert_false(ui["has_modal"],
+		"Awakening target flow returns modal ownership to BUILD")
+	assert_eq(main.current_phase, main.Phase.BUILD)
+	assert_true(main.build_phase.visible)
+	assert_false(main.build_phase.target_overlay.visible)
+	assert_true(_card_has_upgrade_id(target, "C1"),
+		"selected target receives Awakening's matching upgrade")
+	assert_eq(target.get_total_units(), target_units_before,
+		"★1 Awakening transfers only the upgrade, not units")
+	assert_almost_eq(target.get_total_atk(), target_atk_before * 1.15,
+		target_atk_before * 0.01,
+		"transferred upgrade applies its stat modifier to the target")
+
+
 func test_live_boss_reward_continuity_r4_r8_r12() -> void:
 	var main = await _start_main_to_build()
 	main.game_state.board[0] = CardInstance.create("sp_assembly")

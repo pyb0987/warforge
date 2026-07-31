@@ -618,6 +618,30 @@ func test_apply_awakening_transfer_target_slot_full_silent_fail() -> void:
 	assert_eq(target.upgrades.size(), 5, "만석 silent fail — 업글 5개 유지")
 
 
+func test_apply_awakening_transfer_applies_upgrade_stat_mods() -> void:
+	var source: CardInstance = CardInstance.create("ne_awakening")
+	var target: CardInstance = CardInstance.create("sp_assembly")
+	_attach_upgrade_helper(source, "C1")
+	var target_atk_before: float = target.get_total_atk()
+	var awakening: Dictionary = {
+		"source_card": source,
+		"target_card": target,
+		"rarity": "common",
+		"transfer_units": false,
+	}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var runner_script = load("res://sim/headless_runner.gd")
+	var runner = runner_script.new(Genome.create_default(), "auto", 42)
+	runner._sim_apply_awakening_transfer(awakening, rng)
+
+	assert_eq(target.upgrades.size(), 1,
+		"Awakening attaches one matching upgrade to the target")
+	assert_almost_eq(target.get_total_atk(), target_atk_before * 1.15,
+		target_atk_before * 0.01,
+		"transferred common upgrade applies its ATK stat modifier")
+
+
 func test_apply_awakening_transfer_units_cap_60() -> void:
 	## ★2 transfer_units=true, target 50기 + ne_awakening 30기 → cap 60 적용 → 10기만 이전
 	var source: CardInstance = CardInstance.create("ne_awakening")

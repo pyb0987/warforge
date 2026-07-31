@@ -46,6 +46,17 @@ func test_atk_pct_applied_via_multiply_stats() -> void:
 		"ATK +15%% 적용: %f → %f" % [base_atk, new_atk])
 
 
+func test_attach_upgrade_template_applies_stat_mods() -> void:
+	var base_atk: float = _card.get_total_atk()
+	var tmpl := UpgradeDB.get_upgrade("C1")
+	assert_true(_card.attach_upgrade_template(tmpl),
+		"resolved upgrade template can be attached by transfer effects")
+	assert_eq(_card.upgrades.size(), 1)
+	assert_almost_eq(_card.get_total_atk(), base_atk * 1.15,
+		base_atk * 0.01,
+		"template attachment applies the same stat mods as ID attachment")
+
+
 func test_hp_pct_applied_via_multiply_stats() -> void:
 	var base_hp: float = _card.get_total_hp()
 	_card.attach_upgrade("C2")  # HP +15%

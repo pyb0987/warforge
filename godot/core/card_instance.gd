@@ -586,8 +586,16 @@ func attach_upgrade(upgrade_id: String) -> bool:
 	var tmpl := UpgradeDB.get_upgrade(upgrade_id)
 	if tmpl.is_empty():
 		return false
-	upgrades.append(tmpl)
-	_apply_stat_mods(tmpl.get("stat_mods", {}))
+	return attach_upgrade_template(tmpl)
+
+
+## Attach an already resolved upgrade template. Used by transfer effects.
+## Returns true on success, false if slots full or template is empty.
+func attach_upgrade_template(upgrade: Dictionary) -> bool:
+	if not can_attach_upgrade() or upgrade.is_empty():
+		return false
+	upgrades.append(upgrade.duplicate(true))
+	_apply_stat_mods(upgrade.get("stat_mods", {}))
 	stats_changed.emit()
 	return true
 

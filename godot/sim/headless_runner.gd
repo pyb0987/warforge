@@ -582,8 +582,7 @@ func _sim_apply_awakening_transfer(awakening: Dictionary,
 			matching.append(upg)
 	if not matching.is_empty():
 		var picked: Dictionary = matching[rng.randi_range(0, matching.size() - 1)]
-		if target.upgrades.size() < target.get_max_upgrade_slots():
-			target.upgrades.append(picked)
+		target.attach_upgrade_template(picked)
 	# 2) ★2/★3: 유닛 stack 이전 (cap 60 적용)
 	if transfer_units:
 		for s in source.stacks:

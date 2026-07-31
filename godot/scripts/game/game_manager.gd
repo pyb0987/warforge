@@ -1054,8 +1054,7 @@ func _apply_upgrade_transfer(transfer: Dictionary) -> void:
 		if c == null:
 			continue
 		var target: CardInstance = c
-		if target.upgrades.size() < target.get_max_upgrade_slots():
-			target.upgrades.append(upg)
+		if target.attach_upgrade_template(upg):
 			print("[ne_clone_seed] 업그레이드 '%s' → '%s'" % [
 					upg.get("name", "?"), target.get_name()])
 			break
@@ -1185,8 +1184,7 @@ func _apply_awakening_transfer(awakening: Dictionary) -> void:
 			matching.append(upg)
 	if not matching.is_empty():
 		var picked: Dictionary = matching[_battle_rng.randi_range(0, matching.size() - 1)]
-		if target.upgrades.size() < target.get_max_upgrade_slots():
-			target.upgrades.append(picked)
+		if target.attach_upgrade_template(picked):
 			print("[ne_awakening] 업그레이드 '%s' (%s) → '%s'" % [
 				picked.get("name", "?"), rarity_str, target.get_name()])
 	# 2) ★2/★3: 유닛 stack 이전 (cap 60 적용)
@@ -1202,7 +1200,8 @@ func _apply_awakening_transfer(awakening: Dictionary) -> void:
 			new_stack["count"] = take
 			target.stacks.append(new_stack)
 			print("[ne_awakening] 유닛 %d기 → '%s'" % [take, target.get_name()])
-	target.stats_changed.emit() if target.has_signal("stats_changed") else null
+	if target.has_signal("stats_changed"):
+		target.stats_changed.emit()
 
 
 ## ne_hoarder SELL: source 의 모든 stack 을 target 에 이전 (cap 적용) +
