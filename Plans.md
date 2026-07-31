@@ -173,8 +173,9 @@ Operating rules:
 | H119 | DONE | H105 post-H118 current-head preflight | Re-ran the H105 workflow in preflight-only mode on `01d5f98` after H118, proving the protected Spore forest-depth packet still has a clean current base. This is readiness evidence only, not H105 implementation. | PASS trace `.claude/traces/experiments/116-h105-post-h118-current-head-preflight.md`; PASS codegen parity; PASS card-spawn guard; PASS focused Druid runtime 54/54; PASS focused ChainEngine 21/21; PASS H105 boundary guard with 0 changed files; PASS `git diff --check`; no gameplay/protected files edited |
 | H120 | DONE | Current-head self-play strategy-floor refresh | Re-ran a no-edit 70-run all-core D1 scout on `932bb8b` after H118/H119. Overall flow remains usable, but completion readiness still needs attention because soft-Druid cleared 0/10 and the Druid analyzer again nominates H105's Spore forest-depth scaling packet. | PASS trace `.claude/traces/experiments/117-current-head-self-play-strategy-floor-refresh.md`; PASS 70-run self-play with clean source state, 40/70 overall clears, no hard-error log findings; PASS summary; PASS Druid analyzer; PASS H105 boundary guard; PASS `git diff --check`; no gameplay/protected files edited |
 | H121 | DONE | H105 approval-boundary multi-review | Used three independent critics to decide whether to spend the latest AI-file approval or request H105 approval. All converged that another AI/UI/progression slice would be false progress against M1, and that the next honest move is explicit approval for the protected H105 runtime/test files. | PASS trace `.claude/traces/experiments/118-h105-approval-boundary-multireview.md`; PASS multi-review convergence; no code/gameplay/protected files edited |
+| H122 | DONE | H105 implementation seam map | Mapped the exact Druid runtime collection seam and focused test additions for H105 without editing protected files, so an approved run can implement directly from line-level anchors. | PASS trace `.claude/traces/experiments/119-h105-implementation-seam-map.md`; PASS H105 boundary guard; PASS `git diff --check`; no code/gameplay/protected files edited |
 
-## Working Completion Gates After H121
+## Working Completion Gates After H122
 
 This section is not a claim that Warforge is complete. It is the current
 evidence contract for the next playable prototype milestone, so autonomous work
@@ -221,6 +222,8 @@ Open blockers before M1 can be called complete:
   sufficient for H105. H120 confirms this remains the current M1
   strategy-floor blocker on clean current-head evidence. H121 multi-review
   confirms there is no high-value non-protected implementation substitute.
+  H122 maps the exact implementation seam for the next approved run without
+  changing protected files.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P1: H118 fixed an AI path-lag hold side-effect bug in the user-approved AI
