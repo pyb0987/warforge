@@ -173,6 +173,16 @@ It rejects local-only movement when clears, HP, focus win rate, survivor
 margins, and cap pressure do not move together. A nomination from this tool is
 only permission to run a disjoint-seed confirmation, not final adoption.
 
+Also check the H105 changed-file boundary before keeping or recording the probe:
+
+```bash
+python3 scripts/check_h105_spore_forest_boundary.py --allow-records
+```
+
+The boundary guard allows only the runtime/test probe files plus plan/trace
+records. It fails if the probe touched Druid YAML, generated card data, schema,
+AI simulator files, or other surfaces outside the runtime-only packet.
+
 When Druid probes show focus cards but still do not convert, add
 `--druid-run-phase`:
 
