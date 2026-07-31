@@ -162,8 +162,9 @@ Operating rules:
 | H108 | DONE | H105 Spore forest-depth boundary guard | Added an executable changed-file allowlist for the H105 runtime-only probe so post-probe verification fails if YAML, generated DB/schema, AI simulator, or other out-of-packet files are touched. | PASS trace `.claude/traces/experiments/105-h105-spore-forest-boundary-guard.md`; PASS boundary tests 6/6; CLI `scripts/check_h105_spore_forest_boundary.py --allow-records` allows only `godot/core/druid_system.gd`, focused Druid/Chain tests, `Plans.md`, and trace records; no gameplay files edited |
 | H109 | DONE | H105 Spore forest-depth workflow runner | Added a dry-run-first runner that prints or executes the H105 preflight, same-seed self-play, analyzer, gate evaluator, boundary guard, and diff checks in the intended order. | PASS trace `.claude/traces/experiments/106-h105-spore-forest-workflow-runner.md`; PASS workflow runner tests 4/4; CLI `scripts/run_h105_spore_forest_workflow.py` is safe by default and requires `--execute` to run long commands; no gameplay files edited |
 | H110 | DONE | H105 workflow preflight execution | Executed the H109 runner in `--execute --skip-self-play` mode on current clean `main`, proving the scripted preflight path works before any protected H105 runtime edit. | PASS trace `.claude/traces/experiments/107-h105-workflow-preflight-execution.md`; PASS codegen parity; PASS card-spawn guard; PASS focused Druid runtime 54/54; PASS focused ChainEngine 21/21; PASS H105 boundary guard with 0 changed files; PASS `git diff --check`; no gameplay files edited |
+| H111 | DONE | Current readiness broad verification | Refreshed the broad verification state on clean `main` and resolved the newly approved AI-file scope: the approval is real for AI-agent maintenance, but it is not H105 approval and another AI-only gameplay probe would likely retread flat/rejected Druid evidence. | PASS trace `.claude/traces/experiments/108-current-readiness-broad-verification.md`; PASS advisory multi-review 3/3; PASS Python discovery 153/153; PASS card-spawn guard; PASS full GUT 1283/1283; PASS `git diff --check`; no gameplay files edited; H105 still requires explicit approval for `godot/core/druid_system.gd`, `godot/tests/test_druid_system.gd`, and `godot/tests/test_chain_engine.gd` |
 
-## Working Completion Gates After H106
+## Working Completion Gates After H111
 
 This section is not a claim that Warforge is complete. It is the current
 evidence contract for the next playable prototype milestone, so autonomous work
@@ -188,7 +189,7 @@ M1 gates:
 | Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; H97 natural self-play projects burst pressure (largest 11 raw unlocks, 8 deferred by the UI reveal cap), but this remains a watch item unless manual play finds the recap overwhelming. |
 | Reward/economy integrity | Boss rewards, Raider reward, upgrade targeting, merge rewards, pricing talismans, card spawn guards, and generated descriptions have focused tests or live smoke coverage. | Green for known player-reported regressions; keep `python3 scripts/lint_card_spawn.py` and focused reward/economy tests in the verification set. |
 | Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H104 shows a stronger Spore-specific next packet candidate: in current 60-run traces Spore active frames average 0.2 own trees against 26.6 total active Druid trees, and 21/32 low-debuff Spore losses cross the diagnostic forest-depth threshold. Next likely slice is a protected Druid Spore forest-depth routing packet, not another base-buff probe. |
-| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected runtime/card boundary status is explicit, and generated database files are not manually edited. | Green for the H106 preflight scope; latest full GUT is H103 1283/1283, and broad verification must rerun after the next gameplay-affecting change. |
+| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected runtime/card boundary status is explicit, and generated database files are not manually edited. | Green for the H111 checkpoint scope: latest full GUT is 1283/1283, Python discovery is 153/153, card-spawn guard and `git diff --check` are green, no gameplay files were edited, and H105 protected runtime approval is still outstanding. |
 
 Acceptance rule: prose in this plan is only a routing aid. M1 completion must be
 based on recomputable artifacts such as self-play JSON, observer summaries,
@@ -205,7 +206,9 @@ Open blockers before M1 can be called complete:
   `godot/tests/test_chain_engine.gd`; after implementation, use H109's workflow
   runner, H107's evaluator, and H108's changed-file boundary guard before any
   disjoint-seed confirmation; do not touch YAML/generated DB/schema, AI,
-  difficulty, economy, or UI for that probe.
+  difficulty, economy, or UI for that probe. The latest user approval covers
+  only `godot/sim/ai_agent.gd` and `godot/tests/test_ai_agent.gd`, so it is not
+  sufficient for H105.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
