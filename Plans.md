@@ -163,8 +163,9 @@ Operating rules:
 | H109 | DONE | H105 Spore forest-depth workflow runner | Added a dry-run-first runner that prints or executes the H105 preflight, same-seed self-play, analyzer, gate evaluator, boundary guard, and diff checks in the intended order. | PASS trace `.claude/traces/experiments/106-h105-spore-forest-workflow-runner.md`; PASS workflow runner tests 4/4; CLI `scripts/run_h105_spore_forest_workflow.py` is safe by default and requires `--execute` to run long commands; no gameplay files edited |
 | H110 | DONE | H105 workflow preflight execution | Executed the H109 runner in `--execute --skip-self-play` mode on current clean `main`, proving the scripted preflight path works before any protected H105 runtime edit. | PASS trace `.claude/traces/experiments/107-h105-workflow-preflight-execution.md`; PASS codegen parity; PASS card-spawn guard; PASS focused Druid runtime 54/54; PASS focused ChainEngine 21/21; PASS H105 boundary guard with 0 changed files; PASS `git diff --check`; no gameplay files edited |
 | H111 | DONE | Current readiness broad verification | Refreshed the broad verification state on clean `main` and resolved the newly approved AI-file scope: the approval is real for AI-agent maintenance, but it is not H105 approval and another AI-only gameplay probe would likely retread flat/rejected Druid evidence. | PASS trace `.claude/traces/experiments/108-current-readiness-broad-verification.md`; PASS advisory multi-review 3/3; PASS Python discovery 153/153; PASS card-spawn guard; PASS full GUT 1283/1283; PASS `git diff --check`; no gameplay files edited; H105 still requires explicit approval for `godot/core/druid_system.gd`, `godot/tests/test_druid_system.gd`, and `godot/tests/test_chain_engine.gd` |
+| H112 | DONE | Natural unlock burst audit | Refreshed the unlock-pacing watch item with complete current projection evidence: burst pressure still exists, but multi-review recommends preserving the UI-only reveal cap and not changing thresholds or adding an unlock queue without manual/live playtest overwhelm evidence. | PASS trace `.claude/traces/experiments/109-natural-unlock-burst-audit.md`; PASS 35-run D1 all-strategy self-play with clean source state; PASS summary generation; PASS JSON parse; PASS log guard; complete projection largest raw 11 unlocks, reveal cap 3, largest deferred 8, 24/35 runs deferred; advisory multi-review 3/3 no-go for code changes; no gameplay/progression files edited |
 
-## Working Completion Gates After H111
+## Working Completion Gates After H112
 
 This section is not a claim that Warforge is complete. It is the current
 evidence contract for the next playable prototype milestone, so autonomous work
@@ -186,10 +187,10 @@ M1 gates:
 | Gate | Evidence | Current Status |
 |------|----------|----------------|
 | Core live run flow | Run start -> commander/talisman -> build/shop/move/upgrade -> chain -> battle -> boss reward -> terminal is covered by live-scene smoke and the visible-control playthrough path. | Largely green through H93: live smoke 18/18, natural terminal coverage for initial commanders, and special identity coverage for Smith, Raider, and Strategist. |
-| Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness; H97 natural self-play projects burst pressure (largest 11 raw unlocks, 8 deferred by the UI reveal cap), but this remains a watch item unless manual play finds the recap overwhelming. |
+| Replay/meta clarity | Commander/talisman identities, unlock goals/progress, difficulty selection, terminal result, and next-run cues are visible and covered by meta/run-start/live-report tests. | Green for prototype readiness with an explicit watch item. H112 complete projection still shows burst pressure (largest 11 raw unlocks, 8 deferred by the UI reveal cap), but multi-review recommends no threshold or queue change unless manual/live play says the recap remains overwhelming. |
 | Reward/economy integrity | Boss rewards, Raider reward, upgrade targeting, merge rewards, pricing talismans, card spawn guards, and generated descriptions have focused tests or live smoke coverage. | Green for known player-reported regressions; keep `python3 scripts/lint_card_spawn.py` and focused reward/economy tests in the verification set. |
 | Strategy viability floor | D1 self-play completion readiness must avoid high-risk observer findings such as `low_overall_clear_rate`, `weak_strategy_floor`, zero-clear sampled strategies, or early-death strategy buckets on an adequate all-core-strategy sample. | Not yet green. H104 shows a stronger Spore-specific next packet candidate: in current 60-run traces Spore active frames average 0.2 own trees against 26.6 total active Druid trees, and 21/32 low-debuff Spore losses cross the diagnostic forest-depth threshold. Next likely slice is a protected Druid Spore forest-depth routing packet, not another base-buff probe. |
-| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected runtime/card boundary status is explicit, and generated database files are not manually edited. | Green for the H111 checkpoint scope: latest full GUT is 1283/1283, Python discovery is 153/153, card-spawn guard and `git diff --check` are green, no gameplay files were edited, and H105 protected runtime approval is still outstanding. |
+| Verification hygiene | Before calling M1 complete: full GUT is green, card-spawn guard is green, `git diff --check` is green, protected runtime/card boundary status is explicit, and generated database files are not manually edited. | Green for the H112 no-code scope; latest broad code checkpoint remains H111 with full GUT 1283/1283, Python discovery 153/153, card-spawn guard and `git diff --check` green, no gameplay files edited, and H105 protected runtime approval still outstanding. |
 
 Acceptance rule: prose in this plan is only a routing aid. M1 completion must be
 based on recomputable artifacts such as self-play JSON, observer summaries,
@@ -214,7 +215,10 @@ Open blockers before M1 can be called complete:
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
   upgraded from prototype completion to full balance beta.
 - P2: Unlock burst pacing is acceptable as a watch item for now, but should be
-  revisited if manual play says the post-run recap feels overwhelming.
+  revisited if manual play says the post-run recap feels overwhelming. H112's
+  complete current projection gives the threshold-tuning evidence to use if that
+  playtest signal appears, but it is not enough by itself to change the earned
+  content contract.
 
 ## Completed Plan: AI Agent Meta-Harness V2 Adapter Migration
 
