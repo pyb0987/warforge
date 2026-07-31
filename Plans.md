@@ -156,6 +156,7 @@ Operating rules:
 | H102 | TODO | Druid combat conversion next slice | Pivot from payoff activation mechanics to the measured R9-R11 combat conversion bottleneck, especially Spore pressure/debuff conversion. | H104 converted the broad Spore pressure signal into a narrower forest-depth packet candidate; request fresh approval before touching protected Druid runtime/card behavior, card values, difficulty, or economy tuning |
 | H103 | DONE | AI active-slot focus semantics | User-approved AI files now treat active focus coverage as cards inside usable field slots, so an off-field Druid payoff copy no longer blocks promoting a bench payoff into the active field. This is kept as correctness cleanup, not Druid balance progress. | PASS trace `.claude/traces/experiments/100-ai-active-slot-focus-semantics.md`; FAIL-before/PASS-after focused AI regression (`test_ai_agent.gd` 39/40 -> 40/40); same-seed 60-run Druid screen flat vs H94 (`REJECT_FLAT_OR_NOISY`, 9/60 clears, avg HP -4.23, R9-R11 focus WR 34.6%); advisory multi-review KEEP-as-correctness; PASS card-spawn guard; PASS full GUT 1283/1283; PASS `git diff --check`; gameplay edits limited to the two user-approved AI files |
 | H104 | DONE | Druid Spore tree-gap audit | Added a behavior-neutral analyzer that measures Spore own tree counters against total active Druid forest depth, proving the next Spore packet should be about forest-depth routing rather than another base debuff buff. | PASS multi-review `ANALYZER_FIRST`; PASS trace `.claude/traces/experiments/101-druid-spore-tree-gap-audit.md`; PASS analyzer tests 22/22; PASS current 60-run Druid audit: Spore active 50 frames, 17W/33L, avg own trees 0.2 vs active Druid trees 26.6, Spore-loss debuff 15.7% -> diagnostic 21.8%, low-debuff loss crossings 21/32; next signal `PACKET_CANDIDATE_FOREST_DEPTH_SPORE_SCALING`; note H72/H75 base-buff and H78 no-focus stabilizer shapes remain rejected |
+| H105 | READY | Druid Spore forest-depth protected packet | Prepared the exact approval packet for a runtime-only Spore forest-depth routing probe: keep bases/own scaling/caps/YAML/AI unchanged, recompute/lift Spore debuffs at collect time using non-Spore active Druid tree depth, and reject any local-only or cap-masked improvement. | READY trace `.claude/traces/experiments/102-druid-spore-forest-depth-approval-packet.md`; PASS advisory multi-review convergence with guardrails; approval required for `godot/core/druid_system.gd`, `godot/tests/test_druid_system.gd`, `godot/tests/test_chain_engine.gd`; explicit no-go for YAML/generated DB/schema/AI/difficulty/economy/UI edits; adoption gate requires same-seed >=14/60 clears, avg HP >= -3.25, R9-R11 focus WR >=42.6%, active-loss enemy <=12.5, allied survivors >=0.2, then disjoint-seed confirmation |
 
 ## Working Completion Gates After H104
 
@@ -193,9 +194,11 @@ Open blockers before M1 can be called complete:
 - P0: H100 was approved, tested, rejected, and rolled back. The strategy
   viability floor is still not green; do not retry duplicate-focus activation
   without new evidence.
-- P1: The next likely Druid slice is R9-R11 combat conversion, especially Spore
-  pressure/debuff conversion. Request fresh approval before touching protected
-  `godot/sim/**`, card values, difficulty, or economy tuning.
+- P1: H105 is ready for fresh approval before implementation. The next likely
+  Druid slice is a runtime-only Spore forest-depth routing probe touching
+  `godot/core/druid_system.gd`, `godot/tests/test_druid_system.gd`, and
+  `godot/tests/test_chain_engine.gd`; do not touch YAML/generated DB/schema,
+  AI, difficulty, economy, or UI for that probe.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P2: D7-D8 high-difficulty tuning remains outside M1 unless the goal is
