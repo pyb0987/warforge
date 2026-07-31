@@ -851,6 +851,32 @@ def _collect_druid_active_ledger_frames(events_per_run, round_min, round_max):
         run_end = next((ev for ev in reversed(events) if ev.get("t") == "run_end"), {})
         run_won = bool(run_end.get("won", False))
         final_hp = int(run_end.get("final_hp", 0))
+        round_start_by_round = {
+            int(ev.get("round", 0)): ev
+            for ev in events
+            if ev.get("t") == "round_start"
+        }
+        buys_by_round = defaultdict(set)
+        offers_by_round = defaultdict(set)
+        affordable_by_round = defaultdict(set)
+        for ev in events:
+            round_num = int(ev.get("round", 0))
+            if ev.get("t") == "buy":
+                buys_by_round[round_num].add(str(ev.get("card_id", "")))
+            if ev.get("t") not in {"buy", "buy_skip"}:
+                continue
+            offers = ev.get("offers")
+            if not isinstance(offers, list):
+                continue
+            for offer in offers:
+                if not isinstance(offer, dict):
+                    continue
+                offer_id = str(offer.get("id", ""))
+                if not offer_id:
+                    continue
+                offers_by_round[round_num].add(offer_id)
+                if bool(offer.get("affordable", False)):
+                    affordable_by_round[round_num].add(offer_id)
         round_end_by_round = {
             int(ev.get("round", 0)): ev
             for ev in events
@@ -866,6 +892,8 @@ def _collect_druid_active_ledger_frames(events_per_run, round_min, round_max):
                 continue
 
             active_board = set(round_end.get("active_board") or [])
+            owned_board = set(round_end.get("board") or [])
+            bench = set(round_end.get("bench") or [])
             active_focus = sorted(active_board & DRUID_FOCUS_CARDS)
             if not active_focus:
                 continue
@@ -902,6 +930,19 @@ def _collect_druid_active_ledger_frames(events_per_run, round_min, round_max):
             ally_survived = int(battle.get("ally_survived", 0))
             enemy_survived = int(battle.get("enemy_survived", 0))
             active_tree_counters = _sum_active_trees(active_board, states)
+            round_start = round_start_by_round.get(round_num, {})
+            bought_before_or_at = set()
+            offered_before_or_at = set()
+            affordable_before_or_at = set()
+            for buy_round, card_ids in buys_by_round.items():
+                if buy_round <= round_num:
+                    bought_before_or_at.update(card_ids)
+            for offer_round, card_ids in offers_by_round.items():
+                if offer_round <= round_num:
+                    offered_before_or_at.update(card_ids)
+            for offer_round, card_ids in affordable_by_round.items():
+                if offer_round <= round_num:
+                    affordable_before_or_at.update(card_ids)
             row = {
                 "run": idx,
                 "round": round_num,
@@ -911,9 +952,16 @@ def _collect_druid_active_ledger_frames(events_per_run, round_min, round_max):
                 "won": won_battle,
                 "run_won": run_won,
                 "final_hp": final_hp,
+                "hp_start": int(round_start.get("hp", 0)) if round_start else None,
                 "ally_survived": ally_survived,
                 "enemy_survived": enemy_survived,
                 "debuff": debuff,
+                "active_board": sorted(active_board),
+                "owned_board": sorted(owned_board | active_board),
+                "bench": sorted(bench),
+                "bought_before_or_at": sorted(bought_before_or_at),
+                "offered_before_or_at": sorted(offered_before_or_at),
+                "affordable_before_or_at": sorted(affordable_before_or_at),
                 "active_druid_cards": sum(
                     1 for card_id in active_board if str(card_id).startswith("dr_")
                 ),
@@ -1617,6 +1665,447 @@ def print_druid_offense_comparison(strat, comparison, baseline_label):
                     **row,
                 )
             )
+    print()
+
+
+def summarize_druid_offense_causal_split(events_per_run, round_min=9, round_max=11):
+    """Classify why late Druid focus losses lack or fail Spore+offense pairing."""
+    collected = _collect_druid_active_ledger_frames(
+        events_per_run,
+        round_min,
+        round_max,
+    )
+    rows = [_druid_offense_causal_row(row) for row in collected["frames"]]
+    losses = [row for row in rows if not row["won"]]
+    summary = {
+        "n_runs": len(events_per_run),
+        "round_min": round_min,
+        "round_max": round_max,
+        "frames": len(rows),
+        "wins": sum(1 for row in rows if row["won"]),
+        "losses": len(losses),
+        "missing_round_end": collected["missing_round_end"],
+        "detail_coverage": (
+            collected["detail_frames"] / len(rows) if rows else 0.0
+        ),
+        "primary_causal_buckets": dict(
+            Counter(row["primary_causal_bucket"] for row in losses)
+        ),
+        "access_buckets": dict(Counter(row["access_bucket"] for row in losses)),
+        "timing_buckets": dict(Counter(row["timing_bucket"] for row in losses)),
+        "missing_targets": dict(Counter(row["missing_target"] for row in losses)),
+        "spore_offense_frames": sum(1 for row in rows if row["has_pair"]),
+        "spore_offense_losses": sum(1 for row in losses if row["has_pair"]),
+        "active_pair_under_damage_losses": sum(
+            1 for row in losses
+            if row["primary_causal_bucket"] == "active_pair_under_damaging"
+        ),
+        "owned_inactive_losses": sum(
+            1 for row in losses if row["access_bucket"] == "owned_inactive"
+        ),
+        "offered_not_bought_losses": sum(
+            1 for row in losses if row["access_bucket"] == "offered_not_bought"
+        ),
+        "not_seen_or_unavailable_losses": sum(
+            1 for row in losses
+            if row["access_bucket"] == "not_seen_or_unavailable"
+        ),
+        "active_too_late_losses": sum(
+            1 for row in losses
+            if row["primary_causal_bucket"] == "active_too_late"
+        ),
+        "damage_shortfall_without_pair_losses": sum(
+            1 for row in losses
+            if row["primary_bottleneck"] == "damage_shortfall"
+            and not row["has_pair"]
+        ),
+        "damage_shortfall_with_pair_losses": sum(
+            1 for row in losses
+            if row["primary_bottleneck"] == "damage_shortfall"
+            and row["has_pair"]
+        ),
+        "avg_loss_hp_start": _avg(
+            [row["hp_start"] for row in losses if row["hp_start"] is not None]
+        ),
+        "avg_loss_enemy_survived": _avg([row["enemy_survived"] for row in losses]),
+        "by_primary_causal_bucket": _summarize_druid_causal_groups(
+            losses,
+            lambda row: row["primary_causal_bucket"],
+        ),
+        "by_access_bucket": _summarize_druid_causal_groups(
+            losses,
+            lambda row: row["access_bucket"],
+        ),
+        "by_path": _summarize_druid_causal_groups(
+            losses,
+            lambda row: row["path"],
+        ),
+        "examples": losses[:10],
+        "trace_caveat": (
+            "card-id aggregate only; offer/buy/bench facts locate access stage "
+            "but not exact duplicate instances or per-unit damage contribution"
+        ),
+    }
+    summary["next_signal"] = _druid_offense_causal_signal(summary)
+    return summary
+
+
+def _druid_offense_causal_row(row):
+    result = _druid_offense_row(row)
+    active_focus = set(result.get("focus", []))
+    owned_cards = set(result.get("owned_board", [])) | set(result.get("bench", []))
+    bench_cards = set(result.get("bench", []))
+    bought_cards = set(result.get("bought_before_or_at", []))
+    offered_cards = set(result.get("offered_before_or_at", []))
+    affordable_cards = set(result.get("affordable_before_or_at", []))
+
+    spore_active = DRUID_SPORE_CARD in active_focus
+    offense_active = bool(active_focus & DRUID_OFFENSE_CARDS)
+    has_pair = spore_active and offense_active
+
+    missing_targets = []
+    if spore_active and not offense_active:
+        missing_targets = sorted(DRUID_OFFENSE_CARDS)
+    elif offense_active and not spore_active:
+        missing_targets = [DRUID_SPORE_CARD]
+
+    access_bucket = "active_pair"
+    missing_target = "none"
+    if missing_targets:
+        missing_target = "offense" if missing_targets != [DRUID_SPORE_CARD] else "spore"
+        access_bucket = _druid_missing_access_bucket(
+            missing_targets,
+            owned_cards,
+            bench_cards,
+            bought_cards,
+            offered_cards,
+            affordable_cards,
+        )
+
+    timing_bucket = _druid_timing_bucket(result.get("hp_start"))
+    primary_causal_bucket = _druid_primary_causal_bucket(
+        result,
+        has_pair,
+        access_bucket,
+        timing_bucket,
+    )
+    result.update({
+        "has_pair": has_pair,
+        "missing_target": missing_target,
+        "missing_target_cards": missing_targets,
+        "access_bucket": access_bucket,
+        "timing_bucket": timing_bucket,
+        "primary_causal_bucket": primary_causal_bucket,
+    })
+    return result
+
+
+def _druid_missing_access_bucket(
+        targets,
+        owned_cards,
+        bench_cards,
+        bought_cards,
+        offered_cards,
+        affordable_cards):
+    if any(card_id in bench_cards for card_id in targets):
+        return "owned_inactive"
+    if any(card_id in owned_cards for card_id in targets):
+        return "owned_inactive"
+    if any(card_id in bought_cards for card_id in targets):
+        return "bought_not_owned"
+    if any(card_id in affordable_cards for card_id in targets):
+        return "offered_not_bought"
+    if any(card_id in offered_cards for card_id in targets):
+        return "offered_unaffordable"
+    return "not_seen_or_unavailable"
+
+
+def _druid_timing_bucket(hp_start):
+    if hp_start is None:
+        return "unknown"
+    hp_start = int(hp_start)
+    if hp_start <= 5:
+        return "lethal_window"
+    if hp_start <= 10:
+        return "danger_window"
+    return "stable_window"
+
+
+def _druid_primary_causal_bucket(row, has_pair, access_bucket, timing_bucket):
+    if timing_bucket == "lethal_window":
+        return "active_too_late"
+    primary = row.get("primary_bottleneck", "")
+    if has_pair:
+        if primary in {"damage_shortfall", "enemy_pressure_spike"}:
+            return "active_pair_under_damaging"
+        return "active_pair_mixed"
+    if access_bucket == "owned_inactive":
+        return "owned_inactive"
+    if access_bucket == "bought_not_owned":
+        return "bought_not_owned"
+    if access_bucket in {"offered_not_bought", "offered_unaffordable"}:
+        return access_bucket
+    if access_bucket == "not_seen_or_unavailable":
+        return "not_seen_or_unavailable"
+    return "mixed_or_unknown"
+
+
+def _summarize_druid_causal_groups(rows, key_fn):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[key_fn(row)].append(row)
+    return {
+        key: _finalize_druid_causal_group(group)
+        for key, group in sorted(grouped.items())
+    }
+
+
+def _finalize_druid_causal_group(group):
+    return {
+        "frames": len(group),
+        "avg_hp_start": _avg(
+            [row["hp_start"] for row in group if row["hp_start"] is not None]
+        ),
+        "avg_enemy_survived": _avg([row["enemy_survived"] for row in group]),
+        "avg_ally_survived": _avg([row["ally_survived"] for row in group]),
+        "damage_shortfall": sum(
+            1 for row in group if row["primary_bottleneck"] == "damage_shortfall"
+        ),
+        "debuff_gap": sum(
+            1 for row in group
+            if row["primary_bottleneck"] in {"debuff_missing", "debuff_too_small"}
+        ),
+        "missing_targets": dict(Counter(row["missing_target"] for row in group)),
+        "timing_buckets": dict(Counter(row["timing_bucket"] for row in group)),
+        "primary_bottlenecks": dict(
+            Counter(row["primary_bottleneck"] for row in group)
+        ),
+    }
+
+
+def _druid_offense_causal_signal(summary):
+    losses = int(summary["losses"])
+    if not losses:
+        return "No R9-R11 Druid focus-active losses in scope."
+    primary = Counter(summary["primary_causal_buckets"])
+    if not primary:
+        return "No causal bucket identified."
+    bucket, count = primary.most_common(1)[0]
+    share = count / losses
+    if bucket == "owned_inactive" and share >= 0.25:
+        return (
+            f"ACTIVATION_PACKET_CANDIDATE: owned-inactive missing pair pieces "
+            f"are the largest causal bucket ({share:.0%}); prepare a narrow "
+            "promotion/access packet with strict outcome gates."
+        )
+    if bucket in {"offered_not_bought", "not_seen_or_unavailable"} and share >= 0.25:
+        return (
+            f"ACQUISITION_PACKET_CANDIDATE: {bucket} is the largest causal "
+            f"bucket ({share:.0%}); inspect scoring, path-lag holds, and tier "
+            "access before promotion logic."
+        )
+    if bucket == "active_pair_under_damaging" and share >= 0.25:
+        return (
+            f"RUNTIME_MATH_PACKET_CANDIDATE: active Spore+offense pairs still "
+            f"under-damage in {share:.0%} of losses; inspect combat contribution "
+            "before more access tuning."
+        )
+    if bucket == "active_too_late" and share >= 0.25:
+        return (
+            f"TIMING_PACKET_CANDIDATE: focus appears in the lethal window in "
+            f"{share:.0%} of losses; inspect earlier acquisition/economy timing."
+        )
+    return (
+        f"MIXED_CAUSAL_SPLIT: largest bucket {bucket} is {share:.0%}; require "
+        "more targeted evidence before gameplay edits."
+    )
+
+
+def summarize_druid_offense_causal_comparison(candidate_events, baseline_events):
+    candidate = summarize_druid_offense_causal_split(candidate_events)
+    baseline = summarize_druid_offense_causal_split(baseline_events)
+    comparison = {
+        "baseline": _druid_offense_causal_compare_metrics(baseline),
+        "candidate": _druid_offense_causal_compare_metrics(candidate),
+        "primary_bucket_deltas": _counter_delta(
+            candidate["primary_causal_buckets"],
+            baseline["primary_causal_buckets"],
+        ),
+        "access_bucket_deltas": _counter_delta(
+            candidate["access_buckets"],
+            baseline["access_buckets"],
+        ),
+        "timing_bucket_deltas": _counter_delta(
+            candidate["timing_buckets"],
+            baseline["timing_buckets"],
+        ),
+    }
+    comparison["deltas"] = {
+        key: comparison["candidate"][key] - comparison["baseline"][key]
+        for key in (
+            "losses",
+            "spore_offense_frames",
+            "spore_offense_losses",
+            "owned_inactive_losses",
+            "offered_not_bought_losses",
+            "not_seen_or_unavailable_losses",
+            "active_pair_under_damage_losses",
+            "active_too_late_losses",
+            "damage_shortfall_without_pair_losses",
+            "damage_shortfall_with_pair_losses",
+            "avg_loss_enemy_survived",
+        )
+    }
+    comparison["next_signal"] = _druid_offense_causal_comparison_signal(
+        candidate,
+        baseline,
+    )
+    return comparison
+
+
+def _druid_offense_causal_compare_metrics(summary):
+    return {
+        "losses": int(summary["losses"]),
+        "spore_offense_frames": int(summary["spore_offense_frames"]),
+        "spore_offense_losses": int(summary["spore_offense_losses"]),
+        "owned_inactive_losses": int(summary["owned_inactive_losses"]),
+        "offered_not_bought_losses": int(summary["offered_not_bought_losses"]),
+        "not_seen_or_unavailable_losses": int(
+            summary["not_seen_or_unavailable_losses"]
+        ),
+        "active_pair_under_damage_losses": int(
+            summary["active_pair_under_damage_losses"]
+        ),
+        "active_too_late_losses": int(summary["active_too_late_losses"]),
+        "damage_shortfall_without_pair_losses": int(
+            summary["damage_shortfall_without_pair_losses"]
+        ),
+        "damage_shortfall_with_pair_losses": int(
+            summary["damage_shortfall_with_pair_losses"]
+        ),
+        "avg_loss_enemy_survived": float(summary["avg_loss_enemy_survived"]),
+    }
+
+
+def _druid_offense_causal_comparison_signal(candidate, baseline):
+    cand_owned_inactive = int(candidate["owned_inactive_losses"])
+    base_owned_inactive = int(baseline["owned_inactive_losses"])
+    cand_active_pair_under = int(candidate["active_pair_under_damage_losses"])
+    base_active_pair_under = int(baseline["active_pair_under_damage_losses"])
+    cand_no_seen = int(candidate["not_seen_or_unavailable_losses"])
+    base_no_seen = int(baseline["not_seen_or_unavailable_losses"])
+    if cand_owned_inactive > base_owned_inactive and cand_owned_inactive >= 6:
+        return (
+            "PAIR_ACTIVATION_CANDIDATE: owned-inactive missing pair pieces grew "
+            "enough to justify a narrow promotion packet, but outcome gates are "
+            "still required."
+        )
+    if cand_no_seen > base_no_seen and cand_no_seen >= cand_owned_inactive:
+        return (
+            "ACQUISITION_OR_TIER_ACCESS_CANDIDATE: missing pair pieces are more "
+            "often absent/unseen than benched; inspect scoring and shop access."
+        )
+    if cand_active_pair_under > base_active_pair_under and cand_active_pair_under >= 6:
+        return (
+            "PAIR_RUNTIME_MATH_CANDIDATE: active pairs increasingly fail combat; "
+            "inspect Wrath/World contribution before promotion changes."
+        )
+    return "NO_DECISIVE_CAUSAL_DELTA: do not implement gameplay from this split alone."
+
+
+def print_druid_offense_causal_split(strat, summary):
+    print(f"## {strat} Druid Offense Causal Split")
+    print(
+        "- scope: "
+        f"R{summary['round_min']}-R{summary['round_max']} focus-active battles, "
+        f"{summary['frames']} frames/{summary['losses']} losses from "
+        f"{summary['n_runs']} runs"
+    )
+    print(f"- trace caveat: {summary['trace_caveat']}")
+    print(
+        "- pair/conversion: "
+        f"Spore+offense frames {summary['spore_offense_frames']}, losses "
+        f"{summary['spore_offense_losses']}, active-pair under-damage "
+        f"{summary['active_pair_under_damage_losses']}, shortfall no-pair "
+        f"{summary['damage_shortfall_without_pair_losses']}, shortfall with-pair "
+        f"{summary['damage_shortfall_with_pair_losses']}"
+    )
+    print(
+        "- access/timing counts: "
+        f"owned-inactive {summary['owned_inactive_losses']}, "
+        f"offered-not-bought {summary['offered_not_bought_losses']}, "
+        f"not-seen/unavailable {summary['not_seen_or_unavailable_losses']}, "
+        f"active-too-late {summary['active_too_late_losses']}"
+    )
+    print(f"- primary causal buckets: {summary['primary_causal_buckets']}")
+    print(f"- access buckets: {summary['access_buckets']}")
+    print(f"- timing buckets: {summary['timing_buckets']}")
+    print(f"- missing targets: {summary['missing_targets']}")
+    print(f"- next signal: {summary['next_signal']}")
+    if summary["by_primary_causal_bucket"]:
+        print("- by primary causal bucket:")
+        for bucket, row in summary["by_primary_causal_bucket"].items():
+            print(
+                "  - {bucket}: frames {frames}, HP {hp:.1f}, A/E "
+                "{ally:.1f}/{enemy:.1f}, shortfall {shortfall}, debuff_gap "
+                "{debuff_gap}, timing {timing}, missing {missing}".format(
+                    bucket=bucket,
+                    frames=row["frames"],
+                    hp=row["avg_hp_start"],
+                    ally=row["avg_ally_survived"],
+                    enemy=row["avg_enemy_survived"],
+                    shortfall=row["damage_shortfall"],
+                    debuff_gap=row["debuff_gap"],
+                    timing=row["timing_buckets"],
+                    missing=row["missing_targets"],
+                )
+            )
+    if summary["examples"]:
+        print("- examples:")
+        for row in summary["examples"]:
+            print(
+                "  - run {run} R{round} {path}: primary {primary_causal_bucket}, "
+                "access {access_bucket}, timing {timing_bucket}, missing "
+                "{missing_target}:{missing_target_cards}, HP {hp_start}, "
+                "focus {focus}, bench {bench}, A/E {ally_survived}/"
+                "{enemy_survived}, bottleneck {primary_bottleneck}".format(**row)
+            )
+    print()
+
+
+def print_druid_offense_causal_comparison(strat, comparison, baseline_label):
+    print(f"## {strat} Druid Offense Causal Comparison")
+    print(f"- baseline: {baseline_label}")
+    base = comparison["baseline"]
+    cand = comparison["candidate"]
+    deltas = comparison["deltas"]
+    print(
+        "- pair frames/losses: "
+        f"{base['spore_offense_frames']} -> {cand['spore_offense_frames']} "
+        f"(Delta {deltas['spore_offense_frames']:+d}), losses "
+        f"{base['spore_offense_losses']} -> {cand['spore_offense_losses']} "
+        f"(Delta {deltas['spore_offense_losses']:+d})"
+    )
+    print(
+        "- causal deltas: "
+        f"owned-inactive {deltas['owned_inactive_losses']:+d}, "
+        f"offered-not-bought {deltas['offered_not_bought_losses']:+d}, "
+        f"not-seen/unavailable {deltas['not_seen_or_unavailable_losses']:+d}, "
+        f"active-pair under-damage "
+        f"{deltas['active_pair_under_damage_losses']:+d}, "
+        f"active-too-late {deltas['active_too_late_losses']:+d}"
+    )
+    print(
+        "- shortfall deltas: "
+        f"without-pair {deltas['damage_shortfall_without_pair_losses']:+d}, "
+        f"with-pair {deltas['damage_shortfall_with_pair_losses']:+d}, "
+        f"loss enemy {base['avg_loss_enemy_survived']:.1f} -> "
+        f"{cand['avg_loss_enemy_survived']:.1f}"
+    )
+    print(f"- primary bucket deltas: {comparison['primary_bucket_deltas']}")
+    print(f"- access bucket deltas: {comparison['access_bucket_deltas']}")
+    print(f"- timing bucket deltas: {comparison['timing_bucket_deltas']}")
+    print(f"- next signal: {comparison['next_signal']}")
     print()
 
 
@@ -4675,6 +5164,11 @@ def main():
         help="Print R9-R11 Druid Wrath/World offense conversion diagnostics",
     )
     ap.add_argument(
+        "--druid-offense-causal-split",
+        action="store_true",
+        help="Print Druid late-offense acquisition/activation/conversion split",
+    )
+    ap.add_argument(
         "--druid-spore-tree-gap",
         action="store_true",
         help="Print Spore own-tree vs active-forest-depth diagnostics",
@@ -4731,6 +5225,11 @@ def main():
             print_druid_offense_ledger(
                 strat,
                 summarize_druid_offense_ledger(runs[strat]),
+            )
+        if args.druid_offense_causal_split:
+            print_druid_offense_causal_split(
+                strat,
+                summarize_druid_offense_causal_split(runs[strat]),
             )
         if args.druid_spore_tree_gap:
             print_druid_spore_tree_gap(
@@ -4799,6 +5298,15 @@ def main():
                 print_druid_offense_comparison(
                     strat,
                     summarize_druid_offense_comparison(
+                        runs[strat],
+                        baseline_runs[strat],
+                    ),
+                    args.druid_compare_baseline,
+                )
+            if args.druid_offense_causal_split:
+                print_druid_offense_causal_comparison(
+                    strat,
+                    summarize_druid_offense_causal_comparison(
                         runs[strat],
                         baseline_runs[strat],
                     ),

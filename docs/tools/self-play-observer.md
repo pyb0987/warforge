@@ -210,6 +210,23 @@ before stabilizing. Use its `next signal` to choose whether the next Druid work
 belongs in acquisition/economy timing, board activation, combat conversion, or
 a broader pivot.
 
+When a Druid candidate appears to trade one late-combat bottleneck for another,
+add `--druid-offense-causal-split`:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-offense-ledger \
+  --druid-offense-causal-split \
+  --druid-compare-baseline=/private/tmp/warforge_baseline_traces
+```
+
+This classifies R9-R11 Druid focus-active losses by the missing
+Spore/offense-pair stage: not seen or unavailable, offered but not bought,
+owned but inactive, active too late, or active Spore+Wrath/World still
+under-damaging. Use it before turning an offense-access signal into gameplay
+edits, because pair counts alone are not adoption evidence.
+
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
 
