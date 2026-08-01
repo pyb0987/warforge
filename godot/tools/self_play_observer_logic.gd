@@ -6,6 +6,10 @@ const TOP_LIMIT := 10
 const SCHEMA := "warforge-self-play-observer/v1"
 const BOSS_MILESTONE_ROUNDS := [4, 8, 12]
 const PROJECTED_UNLOCK_REVEAL_CAP := 3
+const COMPLETION_MIN_STRATEGY_SAMPLE := 3
+const WEAK_STRATEGY_LOW_CLEAR_MIN_RUNS := 10
+const WEAK_STRATEGY_LOW_CLEAR_RATE := 0.2
+const WEAK_STRATEGY_EARLY_AVG_ROUNDS := 8.0
 # Mirrors MetaProgress/replay unlock thresholds without preloading MetaProgress.
 # MetaProgress depends on run-start UI data helpers that are noisy in -s tools.
 const FIELD_UNITS_THRESHOLD := 120
@@ -386,11 +390,15 @@ func _weak_strategy_rows(per_strategy: Dictionary) -> Array:
 	for strategy in per_strategy.keys():
 		var stats: Dictionary = per_strategy[strategy]
 		var runs := int(stats.get("total_runs", 0))
-		if runs < 3:
+		if runs < COMPLETION_MIN_STRATEGY_SAMPLE:
 			continue
 		var clear_rate := float(stats.get("clear_rate", 0.0))
 		var avg_rounds := float(stats.get("avg_rounds_played", 0.0))
-		if clear_rate == 0.0 or avg_rounds < 8.0:
+		var zero_clear := clear_rate == 0.0
+		var low_clear := runs >= WEAK_STRATEGY_LOW_CLEAR_MIN_RUNS \
+			and clear_rate < WEAK_STRATEGY_LOW_CLEAR_RATE
+		var early_death := avg_rounds < WEAK_STRATEGY_EARLY_AVG_ROUNDS
+		if zero_clear or low_clear or early_death:
 			rows.append({
 				"strategy": str(strategy),
 				"runs": runs,
@@ -411,10 +419,11 @@ func _weak_strategy_rows(per_strategy: Dictionary) -> Array:
 func _join_strategy_evidence(rows: Array) -> String:
 	var parts: Array[String] = []
 	for row in rows:
-		parts.append("%s %d/%d clears, avg R%.1f" % [
+		parts.append("%s %d/%d clears (%.1f%%), avg R%.1f" % [
 			str(row.get("strategy", "?")),
 			int(row.get("wins", 0)),
 			int(row.get("runs", 0)),
+			float(row.get("clear_rate", 0.0)) * 100.0,
 			float(row.get("avg_rounds_played", 0.0)),
 		])
 	return "; ".join(parts)

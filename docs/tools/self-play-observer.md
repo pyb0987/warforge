@@ -73,6 +73,10 @@ screens can be compared against the exact code state that generated them.
 passive bookkeeping. It ranks concrete blockers such as weak strategy floors,
 early survival walls, boss reward application gaps, unlock-burst pressure, and
 partial observer coverage, then names the next slice implied by the top risk.
+Strategy floors are high-risk when a sampled lane has zero clears, repeated
+early deaths, or fewer than 20% clears across at least 10 runs; thinner but
+non-catastrophic lanes should be investigated through trace buckets instead of
+being treated as the same blocker.
 
 ## JSONL Traces
 

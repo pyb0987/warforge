@@ -314,6 +314,51 @@ func test_completion_readiness_ranks_weak_strategy_floor() -> void:
 	assert_string_contains(readiness["recommended_next_slice"], "worst strategy lane")
 
 
+func test_completion_readiness_flags_low_nonzero_strategy_floor() -> void:
+	var results := []
+	for i in 3:
+		results.append(_readiness_result("soft_druid", true, 15, 4))
+	for i in 17:
+		results.append(_readiness_result("soft_druid", false, 11, -6))
+	for i in 20:
+		results.append(_readiness_result("adaptive", true, 15, 12))
+
+	var readiness: Dictionary = _logic.summarize(results, {
+		"difficulty": 1,
+		"strategies": ["soft_druid", "adaptive"],
+	})["completion_readiness"]
+	var top_risk: Dictionary = readiness["top_risks"][0]
+
+	assert_eq(readiness["status"], "needs_attention")
+	assert_eq(readiness["sample"]["total_runs"], 40)
+	assert_eq(readiness["sample"]["min_runs_per_strategy"], 20)
+	assert_eq(top_risk["code"], "weak_strategy_floor")
+	assert_eq(top_risk["severity"], "high")
+	assert_string_contains(top_risk["evidence"], "soft_druid 3/20 clears")
+	assert_string_contains(top_risk["evidence"], "15.0%")
+
+
+func test_completion_readiness_does_not_high_flag_strategy_at_low_floor_boundary() -> void:
+	var results := []
+	for i in 4:
+		results.append(_readiness_result("soft_druid", true, 15, 4))
+	for i in 16:
+		results.append(_readiness_result("soft_druid", false, 11, -6))
+	for i in 20:
+		results.append(_readiness_result("adaptive", true, 15, 12))
+
+	var readiness: Dictionary = _logic.summarize(results, {
+		"difficulty": 1,
+		"strategies": ["soft_druid", "adaptive"],
+	})["completion_readiness"]
+	var risk_codes: Array[String] = []
+	for risk in readiness["top_risks"]:
+		risk_codes.append(str(risk.get("code", "")))
+
+	assert_eq(readiness["status"], "watch")
+	assert_false(risk_codes.has("weak_strategy_floor"))
+
+
 func test_unlock_projection_thresholds_match_meta_progress_design() -> void:
 	var projection: Dictionary = _logic.summarize([_minimal_result()],
 		{"difficulty": 1})["unlock_projection"]
@@ -361,6 +406,30 @@ func _dummy_rows(count: int) -> Array:
 	for i in count:
 		rows.append({"idx": i})
 	return rows
+
+
+func _readiness_result(strategy: String, won: bool, rounds_played: int,
+		final_hp: int) -> Dictionary:
+	var rewards := []
+	if rounds_played >= 4:
+		rewards.append({"round": 4, "reward_id": "r4_2"})
+	if rounds_played >= 8:
+		rewards.append({"round": 8, "reward_id": "r8_2"})
+	if rounds_played >= 12:
+		rewards.append({"round": 12, "reward_id": "r12_2"})
+	return {
+		"strategy": strategy,
+		"won": won,
+		"rounds_played": rounds_played,
+		"final_hp": final_hp,
+		"purchase_log": [],
+		"merge_events": [],
+		"merge_upgrades": [],
+		"upgrades_purchased": [],
+		"boss_rewards_applied": rewards,
+		"final_deck": [],
+		"round_data": _rounds(rounds_played, 12, 10),
+	}
 
 
 func _minimal_result() -> Dictionary:
