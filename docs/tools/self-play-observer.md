@@ -262,6 +262,24 @@ This guard allows only `godot/sim/headless_runner.gd`,
 It rejects analyzer masking, AI policy, Druid runtime behavior, card data,
 generated DB, evaluator, combat, economy, and difficulty edits.
 
+The full H127B verification workflow is available as a dry-run first:
+
+```bash
+python3 scripts/run_h127b_emitter_workflow.py
+```
+
+After explicit approval and implementation, run it with execution enabled:
+
+```bash
+python3 scripts/run_h127b_emitter_workflow.py --execute
+```
+
+Use `--full-gut` before closing H127B. The workflow runs the boundary guard,
+focused runner/Druid/analyzer tests, fresh soft-Druid traces, contribution
+ledger output, the readiness gate, and diff whitespace checking. The readiness
+gate is expected to fail on old no-snapshot traces and must pass on fresh H127B
+traces before treating the contribution ledger as runtime evidence.
+
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
 

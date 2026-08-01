@@ -133,12 +133,31 @@ python3 scripts/analyze_ai_trace.py /private/tmp/warforge_h127b_traces \
 git diff --check
 ```
 
+The same verification can be run through the H127B workflow script:
+
+```bash
+python3 scripts/run_h127b_emitter_workflow.py --execute
+```
+
+Use `--full-gut` before closing H127B. The workflow runs the boundary guard,
+focused HeadlessRunner tests, focused Druid snapshot tests, analyzer tests,
+fresh soft-Druid self-play traces, contribution ledger output, readiness gate,
+and diff whitespace check.
+
 Expected trace result after fresh H127B self-play traces:
 
 - nonzero valid snapshot coverage.
 - zero invalid focus snapshots.
 - `--druid-contribution-ledger` no longer reports
   `SNAPSHOT_EMISSION_REQUIRED` for Druid focus battles.
+
+Readiness gate:
+
+```bash
+python3 scripts/check_druid_contribution_ledger_ready.py \
+  /private/tmp/warforge_h127b_druid_emitter60_traces \
+  --strategy=soft_druid
+```
 
 Full GUT is recommended before calling the slice complete because the edit is
 inside the headless simulator path.
