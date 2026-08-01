@@ -322,6 +322,60 @@ func test_combat_snapshot_uses_materialized_stack_stat_formula() -> void:
 		"snapshot total ATK sums Druid cards")
 
 
+func test_combat_snapshot_exposes_common_tree_bonus_and_temp_layers() -> void:
+	var card: CardInstance = CardInstance.create("dr_cradle")
+	card.theme_state["trees"] = 15
+	_sys.apply_battle_start(card, 0, [card])
+
+	var snapshot: Dictionary = _sys.build_combat_snapshot([card])
+	var card_row: Dictionary = snapshot["cards"][0]
+	var stack_row: Dictionary = card_row["stacks"][0]
+
+	assert_almost_eq(card_row["tree_combat_bonus_pct"], 0.6, 0.001,
+		"15 trees reaches common combat bonus cap")
+	assert_almost_eq(card_row["temp_atk_mult_min"], 1.6, 0.001,
+		"card row exposes applied ATK temp multiplier")
+	assert_almost_eq(card_row["temp_atk_mult_max"], 1.6, 0.001,
+		"card row exposes applied ATK temp multiplier range")
+	assert_almost_eq(card_row["temp_hp_mult_min"], 1.6, 0.001,
+		"card row exposes applied HP temp multiplier")
+	assert_almost_eq(card_row["temp_hp_mult_max"], 1.6, 0.001,
+		"card row exposes applied HP temp multiplier range")
+	assert_almost_eq(stack_row["temp_atk_mult"], 1.6, 0.001,
+		"stack row exposes applied ATK temp multiplier")
+	assert_almost_eq(stack_row["temp_hp_mult"], 1.6, 0.001,
+		"stack row exposes applied HP temp multiplier")
+	assert_almost_eq(stack_row["temp_atk"], 0.0, 0.001,
+		"common tree bonus is multiplicative, not flat ATK")
+
+
+func test_combat_snapshot_separates_wrath_flat_atk_and_tree_mult_layers() -> void:
+	var wrath: CardInstance = CardInstance.create("dr_wrath")
+	wrath.theme_state["trees"] = 4
+	_sys.apply_persistent(wrath)
+	_sys.apply_battle_start(wrath, 0, [wrath])
+
+	var snapshot: Dictionary = _sys.build_combat_snapshot([wrath])
+	var card_row: Dictionary = snapshot["cards"][0]
+	var stack_row: Dictionary = card_row["stacks"][0]
+	var unit_type: Dictionary = wrath.stacks[0]["unit_type"]
+	var expected_flat_total := 0.0
+	for stack in wrath.stacks:
+		expected_flat_total += float(stack["unit_type"]["atk"]) * int(stack["count"])
+
+	assert_almost_eq(card_row["tree_combat_bonus_pct"], 0.2, 0.001,
+		"4 trees exposes +20% common combat bonus")
+	assert_almost_eq(card_row["temp_atk_flat_total"], expected_flat_total, 0.001,
+		"card row exposes Wrath flat ATK layer total")
+	assert_almost_eq(stack_row["temp_atk"], float(unit_type["atk"]), 0.001,
+		"Wrath ★1 adds base ATK ×100% as flat temp ATK")
+	assert_almost_eq(stack_row["temp_atk_mult"], 1.2, 0.001,
+		"common tree bonus remains visible as ATK temp multiplier")
+	assert_almost_eq(stack_row["temp_hp_mult"], 1.2, 0.001,
+		"common tree bonus remains visible as HP temp multiplier")
+	assert_gt(card_row["total_dps"], 0.0, "Wrath contribution remains materialized")
+
+
 func test_combat_snapshot_is_read_only() -> void:
 	var lifebeat: CardInstance = CardInstance.create("dr_lifebeat")
 	var wrath := _make_star("dr_wrath", 3)

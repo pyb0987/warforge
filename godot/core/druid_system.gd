@@ -256,6 +256,7 @@ func _build_card_snapshot(card: CardInstance, idx: int) -> Dictionary:
 	var total_atk := 0.0
 	var total_hp := 0.0
 	var total_dps := 0.0
+	var temp_layers := _card_temp_layer_snapshot(card)
 
 	for stack in card.stacks:
 		var row := _build_stack_snapshot(card, stack)
@@ -268,19 +269,25 @@ func _build_card_snapshot(card: CardInstance, idx: int) -> Dictionary:
 		"idx": idx,
 		"id": card.get_base_id(),
 		"star": card.star_level,
-		"trees": _trees(card),
-		"units": card.get_total_units(),
-		"total_atk": total_atk,
-		"total_hp": total_hp,
-		"total_dps": total_dps,
-		"growth_atk_pct": card.growth_atk_pct,
-		"growth_hp_pct": card.growth_hp_pct,
-		"unique_buff_pct": card.unique_buff_pct,
-		"upgrade_as_mult": card.upgrade_as_mult,
-		"unique_as_mult": card.unique_as_mult,
-		"temp_as_mult": card.temp_as_mult,
-		"shield_hp_pct": card.shield_hp_pct,
-		"enemy_atk_debuff": float(card.theme_state.get("enemy_atk_debuff", 0.0)),
+			"trees": _trees(card),
+			"units": card.get_total_units(),
+			"total_atk": total_atk,
+			"total_hp": total_hp,
+			"total_dps": total_dps,
+			"growth_atk_pct": card.growth_atk_pct,
+			"growth_hp_pct": card.growth_hp_pct,
+			"tree_combat_bonus_pct": _tree_combat_bonus_pct(card),
+			"unique_buff_pct": card.unique_buff_pct,
+			"temp_atk_flat_total": temp_layers["atk_flat_total"],
+			"temp_atk_mult_min": temp_layers["atk_mult_min"],
+			"temp_atk_mult_max": temp_layers["atk_mult_max"],
+			"temp_hp_mult_min": temp_layers["hp_mult_min"],
+			"temp_hp_mult_max": temp_layers["hp_mult_max"],
+			"upgrade_as_mult": card.upgrade_as_mult,
+			"unique_as_mult": card.unique_as_mult,
+			"temp_as_mult": card.temp_as_mult,
+			"shield_hp_pct": card.shield_hp_pct,
+			"enemy_atk_debuff": float(card.theme_state.get("enemy_atk_debuff", 0.0)),
 		"enemy_as_debuff": float(card.theme_state.get("enemy_as_debuff", 0.0)),
 		"kill_hp_recover_pct": float(card.theme_state.get("kill_hp_recover_pct", 0.0)),
 		"mechanics": _card_mechanics_snapshot(card),
@@ -306,6 +313,13 @@ func _build_stack_snapshot(card: CardInstance, stack: Dictionary) -> Dictionary:
 		"count": count,
 		"eff_atk": eff_atk,
 		"eff_hp": eff_hp,
+		"upgrade_atk_mult": float(stack.get("upgrade_atk_mult", 1.0)),
+		"upgrade_hp_mult": float(stack.get("upgrade_hp_mult", 1.0)),
+		"unique_atk_mult": float(stack.get("unique_atk_mult", 1.0)),
+		"unique_hp_mult": float(stack.get("unique_hp_mult", 1.0)),
+		"temp_atk": float(stack.get("temp_atk", 0.0)),
+		"temp_atk_mult": float(stack.get("temp_atk_mult", 1.0)),
+		"temp_hp_mult": float(stack.get("temp_hp_mult", 1.0)),
 		"base_attack_interval": base_interval,
 		"upgrade_as_mult": card.upgrade_as_mult,
 		"unique_as_mult": card.unique_as_mult,
@@ -319,6 +333,45 @@ func _build_stack_snapshot(card: CardInstance, stack: Dictionary) -> Dictionary:
 		"move_speed": int(ut.get("move_speed", 0)) + card.upgrade_move_speed,
 		"def": card.upgrade_def,
 	}
+
+
+func _card_temp_layer_snapshot(card: CardInstance) -> Dictionary:
+	var result := {
+		"atk_flat_total": 0.0,
+		"atk_mult_min": 1.0,
+		"atk_mult_max": 1.0,
+		"hp_mult_min": 1.0,
+		"hp_mult_max": 1.0,
+	}
+	var first := true
+	for stack in card.stacks:
+		var count := int(stack.get("count", 0))
+		var temp_atk := float(stack.get("temp_atk", 0.0))
+		var atk_mult := float(stack.get("temp_atk_mult", 1.0))
+		var hp_mult := float(stack.get("temp_hp_mult", 1.0))
+		result["atk_flat_total"] += float(maxi(count, 0)) * temp_atk
+		if first:
+			result["atk_mult_min"] = atk_mult
+			result["atk_mult_max"] = atk_mult
+			result["hp_mult_min"] = hp_mult
+			result["hp_mult_max"] = hp_mult
+			first = false
+		else:
+			result["atk_mult_min"] = minf(float(result["atk_mult_min"]), atk_mult)
+			result["atk_mult_max"] = maxf(float(result["atk_mult_max"]), atk_mult)
+			result["hp_mult_min"] = minf(float(result["hp_mult_min"]), hp_mult)
+			result["hp_mult_max"] = maxf(float(result["hp_mult_max"]), hp_mult)
+	return result
+
+
+func _tree_combat_bonus_pct(card: CardInstance) -> float:
+	var effs := CardDB.get_theme_effects(card.get_base_id(), card.star_level)
+	var eff := _find_eff(effs, "tree_combat_bonus", "self")
+	if eff.is_empty():
+		return 0.0
+	var per_tree: float = eff.get("per_tree_pct", 0.02)
+	var cap: float = eff.get("cap_pct", 0.2)
+	return minf(float(_trees(card)) * per_tree, cap)
 
 
 func _card_mechanics_snapshot(card: CardInstance) -> Array:
