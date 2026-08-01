@@ -12,6 +12,7 @@ Output: Markdown tables + insights.
 import argparse
 import glob
 import json
+import math
 import os
 import sys
 from collections import Counter, defaultdict
@@ -2231,33 +2232,34 @@ def _battle_druid_combat_snapshot(battle):
 
 
 def _is_valid_druid_combat_snapshot(snapshot):
-    required_top = {
-        "forest_depth",
-        "druid_count",
-        "druid_units",
+    required_top_int = {"forest_depth", "druid_count", "druid_units"}
+    required_top_number = {
         "druid_total_atk",
         "druid_total_hp",
         "druid_total_dps",
-        "enemy_debuffs",
-        "cards",
     }
-    if not required_top.issubset(snapshot.keys()):
+    if not _has_required_typed_fields(
+        snapshot,
+        int_fields=required_top_int,
+        number_fields=required_top_number,
+    ):
         return False
     enemy_debuffs = snapshot.get("enemy_debuffs")
     if not isinstance(enemy_debuffs, dict):
         return False
-    if not {"atk_pct", "as_pct"}.issubset(enemy_debuffs.keys()):
+    if not _has_required_typed_fields(
+        enemy_debuffs,
+        number_fields={"atk_pct", "as_pct"},
+    ):
         return False
     cards = snapshot.get("cards")
     if not isinstance(cards, list):
         return False
 
-    required_card = {
-        "idx",
-        "id",
-        "star",
-        "trees",
-        "units",
+    required_card_int = {
+        "idx", "star", "trees", "units",
+    }
+    required_card_number = {
         "total_atk",
         "total_hp",
         "total_dps",
@@ -2271,12 +2273,11 @@ def _is_valid_druid_combat_snapshot(snapshot):
         "enemy_atk_debuff",
         "enemy_as_debuff",
         "kill_hp_recover_pct",
-        "mechanics",
-        "stacks",
     }
-    required_stack = {
-        "unit_id",
-        "count",
+    required_stack_int = {
+        "count", "range", "move_speed", "def",
+    }
+    required_stack_number = {
         "eff_atk",
         "eff_hp",
         "base_attack_interval",
@@ -2287,14 +2288,16 @@ def _is_valid_druid_combat_snapshot(snapshot):
         "total_atk",
         "total_hp",
         "total_dps",
-        "range",
-        "move_speed",
-        "def",
     }
     for card in cards:
         if not isinstance(card, dict):
             return False
-        if not required_card.issubset(card.keys()):
+        if not _has_required_typed_fields(
+            card,
+            int_fields=required_card_int,
+            number_fields=required_card_number,
+            string_fields={"id"},
+        ):
             return False
         if not isinstance(card.get("mechanics"), list):
             return False
@@ -2304,9 +2307,54 @@ def _is_valid_druid_combat_snapshot(snapshot):
         for stack in stacks:
             if not isinstance(stack, dict):
                 return False
-            if not required_stack.issubset(stack.keys()):
+            if not _has_required_typed_fields(
+                stack,
+                int_fields=required_stack_int,
+                number_fields=required_stack_number,
+                string_fields={"unit_id"},
+            ):
                 return False
     return True
+
+
+def _has_required_typed_fields(
+    row,
+    int_fields=None,
+    number_fields=None,
+    string_fields=None,
+):
+    int_fields = int_fields or set()
+    number_fields = number_fields or set()
+    string_fields = string_fields or set()
+    required = int_fields | number_fields | string_fields
+    if not required.issubset(row.keys()):
+        return False
+    for key in int_fields:
+        if not _is_int_like(row.get(key)):
+            return False
+    for key in number_fields:
+        if not _is_finite_number(row.get(key)):
+            return False
+    for key in string_fields:
+        if not isinstance(row.get(key), str):
+            return False
+    return True
+
+
+def _is_finite_number(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(float(value))
+
+
+def _is_int_like(value):
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value) and value.is_integer()
+    return False
 
 
 def _snapshot_focus_cards(snapshot):

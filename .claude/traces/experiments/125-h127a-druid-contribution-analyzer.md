@@ -75,6 +75,8 @@ Python analyzer tests cover:
   snapshot.
 - protection against reading base attack interval instead of
   `final_attack_interval`.
+- scalar-type rejection for H126 fields: non-string IDs, non-integer counters,
+  booleans, non-finite numbers, and stringified numeric combat fields.
 
 ## Verification
 
@@ -82,7 +84,7 @@ PASS analyzer tests:
 
 ```text
 python3 -m unittest scripts.tests.test_analyze_ai_trace
-Ran 30 tests
+Ran 31 tests
 OK
 ```
 
@@ -126,6 +128,8 @@ Fixes applied:
 - classify present-but-malformed snapshots as `SNAPSHOT_SCHEMA_INVALID`.
 - keep no-snapshot current traces on `SNAPSHOT_EMISSION_REQUIRED`.
 - test malformed snapshots with and without a `cards` field.
+- test wrong scalar values such as string counters, non-finite totals, boolean
+  debuffs, numeric card IDs, fractional stack counts, and string intervals.
 - make base and final attack intervals differ in the positive fixture.
 
 Rerun verdicts:

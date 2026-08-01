@@ -16,6 +16,10 @@ invalid snapshots: 0
 next signal: SNAPSHOT_EMISSION_REQUIRED
 ```
 
+Post-packet analyzer hardening also rejects wrong scalar types: non-string IDs,
+non-finite numbers, booleans in numeric fields, non-integer counters, and
+stringified numeric combat fields no longer count as valid H126 evidence.
+
 H127B is the next wiring step: emit real H126 snapshots from headless battle
 trace events so Druid Spore + Wrath/World losses can be attributed from
 self-play evidence before any further gameplay packet.

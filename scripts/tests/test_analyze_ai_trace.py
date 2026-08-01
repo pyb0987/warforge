@@ -1349,6 +1349,88 @@ class AnalyzeAITraceTest(unittest.TestCase):
         self.assertEqual(summary["invalid_focus_snapshot"], 1)
         self.assertIn("SNAPSHOT_SCHEMA_INVALID", summary["next_signal"])
 
+    def test_druid_contribution_ledger_rejects_wrong_scalar_types(self):
+        def valid_snapshot():
+            spore = self._h126_card(
+                0,
+                "dr_spore_cloud",
+                2,
+                4,
+                3,
+                35.0,
+                180.0,
+                25.0,
+                stacks=[
+                    self._h126_stack("dr_spore", 2, 1.5),
+                    self._h126_stack("dr_toad", 1, 1.0),
+                ],
+            )
+            wrath = self._h126_card(
+                1,
+                "dr_wrath",
+                1,
+                3,
+                3,
+                80.0,
+                140.0,
+                100.0,
+                stacks=[
+                    self._h126_stack("dr_spore", 1, 1.5),
+                    self._h126_stack("dr_boar", 1, 1.0),
+                ],
+            )
+            return self._h126_snapshot(
+                [spore, wrath],
+                enemy_debuffs={"atk_pct": 0.28, "as_pct": 0.28},
+            )
+
+        cases = {
+            "top_level_int_string": lambda snap: snap.update({"forest_depth": "7"}),
+            "top_level_non_finite_number": lambda snap: snap.update(
+                {"druid_total_dps": float("nan")}
+            ),
+            "debuff_bool": lambda snap: snap["enemy_debuffs"].update({"atk_pct": True}),
+            "card_id_number": lambda snap: snap["cards"][0].update({"id": 123}),
+            "stack_count_fraction": lambda snap: snap["cards"][1]["stacks"][0].update(
+                {"count": 1.5}
+            ),
+            "stack_interval_string": lambda snap: snap["cards"][1]["stacks"][0].update(
+                {"final_attack_interval": "1.5"}
+            ),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                snapshot = valid_snapshot()
+                mutate(snapshot)
+                events_per_run = [
+                    [
+                        {
+                            "t": "round_end",
+                            "round": 9,
+                            "active_board": ["dr_spore_cloud", "dr_wrath"],
+                            "detected_path": "druid_garden",
+                        },
+                        {
+                            "t": "battle",
+                            "round": 9,
+                            "won": False,
+                            "ally_survived": 0,
+                            "enemy_survived": 12,
+                            "druid_combat_snapshot": snapshot,
+                        },
+                    ],
+                ]
+
+                summary = analyze_ai_trace.summarize_druid_contribution_ledger(
+                    events_per_run
+                )
+
+                self.assertEqual(summary["snapshot_battles"], 0)
+                self.assertEqual(summary["focus_frames"], 0)
+                self.assertEqual(summary["invalid_snapshot_battles"], 1)
+                self.assertEqual(summary["invalid_focus_snapshot"], 1)
+                self.assertIn("SNAPSHOT_SCHEMA_INVALID", summary["next_signal"])
+
     def test_druid_run_phase_binds_timing_to_survival_window(self):
         events_per_run = [
             [

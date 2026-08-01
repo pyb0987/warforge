@@ -246,7 +246,9 @@ Until the protected headless trace emitter is wired, the ledger should report
 `SNAPSHOT_EMISSION_REQUIRED` with nonzero missing focus snapshots on current
 Druid traces. If snapshots are present but do not match the H126 schema, the
 ledger reports `SNAPSHOT_SCHEMA_INVALID` instead of treating malformed data as
-combat evidence. Treat either result as a readiness gap, not a gameplay signal.
+combat evidence. Schema validation includes required fields, container types,
+string IDs, integer-like counters, and finite numeric combat fields. Treat
+either result as a readiness gap, not a gameplay signal.
 
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
