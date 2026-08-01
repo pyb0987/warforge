@@ -250,6 +250,18 @@ combat evidence. Schema validation includes required fields, container types,
 string IDs, integer-like counters, and finite numeric combat fields. Treat
 either result as a readiness gap, not a gameplay signal.
 
+For H127B Druid snapshot emitter work, verify that the changed-file surface
+stays inside the approved trace-only boundary:
+
+```bash
+python3 scripts/check_h127b_emitter_boundary.py --allow-records
+```
+
+This guard allows only `godot/sim/headless_runner.gd`,
+`godot/tests/test_headless_runner.gd`, and record-only plan/trace/doc updates.
+It rejects analyzer masking, AI policy, Druid runtime behavior, card data,
+generated DB, evaluator, combat, economy, and difficulty edits.
+
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
 

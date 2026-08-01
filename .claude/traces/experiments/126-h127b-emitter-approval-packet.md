@@ -143,6 +143,14 @@ Expected trace result after fresh H127B self-play traces:
 Full GUT is recommended before calling the slice complete because the edit is
 inside the headless simulator path.
 
+Boundary guard:
+
+```bash
+python3 scripts/check_h127b_emitter_boundary.py --allow-records
+```
+
+This guard was added after packet creation and must pass before H127B is closed.
+
 ## Multi-Review Summary
 
 Critic A - Completion Routing:
