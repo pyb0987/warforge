@@ -183,7 +183,7 @@ Operating rules:
 | H127B1 | DONE | H127B verification workflow | Added a dry-run/execute workflow and readiness gate so post-approval H127B can verify the boundary guard, focused runner/Druid/analyzer tests, fresh soft-Druid traces, contribution ledger output, readiness gate, and diff hygiene before closure. | PASS trace `.claude/traces/experiments/128-h127b-verification-workflow.md`; PASS workflow/readiness/guard/analyzer tests 46/46; PASS Python compile; PASS workflow dry-runs; EXPECTED FAIL readiness on old H104 traces with 0/129 snapshot coverage and 81 missing focus snapshots |
 | H127B2 | DONE | Druid snapshot combat-layer hardening | Strengthened the approved Druid snapshot contract to expose common tree-combat bonus, per-card temp ATK/HP layer ranges, card flat-temp ATK totals, and per-stack ATK/HP temp/upgrade/unique layers for later trace attribution. This is behavior-neutral observability, not a balance or strategy-floor patch. | PASS trace `.claude/traces/experiments/129-h127b2-druid-snapshot-layer-hardening.md`; FAIL-before Druid snapshot fields missing; PASS focused Druid 60/60; PASS focused ChainEngine 22/22; PASS full GUT 1299/1299; PASS card-spawn guard; PASS `git diff --check`; no simulator/YAML/generated DB/AI/economy/difficulty edits; H127B still requires runner-file approval |
 | H128 | DONE | Completion readiness low-floor classifier | Fixed the self-play observer false-green where an adequately sampled nonzero but very weak strategy lane could be omitted from `weak_strategy_floor`, causing readiness to point at unlock burst instead of the M1 strategy blocker. | PASS trace `.claude/traces/experiments/130-completion-readiness-low-floor-classifier.md`; PASS advisory multi-review 2/2; latest scout evidence soft-Druid 6/70 (8.6%) should be a high-risk floor; PASS observer focused 11/11; PASS card-spawn guard; PASS Python summary compatibility; PASS full GUT 1301/1301; no gameplay/simulator/YAML/generated DB/economy/difficulty/unlock-threshold edits |
-| H127B | TODO | Wire Druid contribution snapshots into self-play traces | Emit the H126 snapshot from the headless battle trace after combat-start buffs/debuffs and before cleanup so Spore+Wrath/World losses can be attributed from real self-play trace files. | READY packet `.claude/traces/experiments/126-h127b-emitter-approval-packet.md`; requires explicit approval for `godot/sim/headless_runner.gd` and `godot/tests/test_headless_runner.gd`; keep gameplay values unchanged |
+| H127B | DONE | Wire Druid contribution snapshots into self-play traces | Emits the H126/H127B2 Druid snapshot from headless battle trace events after combat-start buffs/debuffs and before cleanup, only for enabled traces with Druid cards present. This is trace-only observability and does not change gameplay metrics. | PASS trace `.claude/traces/experiments/131-h127b-druid-snapshot-emitter.md`; PASS H127B workflow; PASS readiness coverage 111/111 in-scope battles, focus coverage 100%, valid 73, missing 0, invalid 0; PASS focused HeadlessRunner 18/18; PASS focused Druid 60/60; PASS analyzer tests 31/31; PASS full GUT 1304/1304; PASS card-spawn guard + guard tests 10/10; PASS boundary/diff checks |
 
 ## Working Completion Gates After H124
 
@@ -233,9 +233,10 @@ Open blockers before M1 can be called complete:
   the same forest-depth routing shape or a raw offense-stat buff without new
   evidence.
 - P1: H128 confirmed the latest 490-run scout was a readiness-classifier
-  false green, not a strategy-floor success: soft-Druid is 6/70 and contribution
-  snapshot coverage remains missing until H127B emits H126 snapshots from
-  self-play traces.
+  false green, not a strategy-floor success. H127B now provides contribution
+  snapshots in self-play traces; the latest 60-run soft-Druid trace still shows
+  4/60 clears (6.7%) and routes the next gameplay slice to contribution-ledger
+  buckets, especially missing Spore/offense and active pair no-survival losses.
 - P1: H103 fixed an AI active-slot semantics bug but produced no same-seed
   outcome movement. Do not count it as a Druid-power fix.
 - P1: H118 fixed an AI path-lag hold side-effect bug in the user-approved AI

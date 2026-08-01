@@ -236,11 +236,12 @@ H126 adds a Godot-side Druid combat snapshot contract at
 per-card and per-stack Druid combat state with explicit attack-interval
 semantics. H127B2 hardens the contract with explicit common tree-combat bonus,
 temp ATK/HP layer ranges, flat temp ATK totals, and per-stack ATK/HP
-upgrade/unique/temp layers. It is still not emitted by self-play traces yet.
-Use it as the schema source for the next headless trace wiring step; do not
-treat H126/H127B2 alone as runtime trace evidence.
+upgrade/unique/temp layers. H127B emits that snapshot into headless `battle`
+trace events as `druid_combat_snapshot` after combat-start buffs/debuffs and
+before temporary combat cleanup, only when tracing is enabled and at least one
+Druid card is active.
 
-H127A adds analyzer-side support for those future snapshots:
+H127A adds analyzer-side support for those snapshots:
 
 ```bash
 python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
@@ -248,13 +249,14 @@ python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
   --druid-contribution-ledger
 ```
 
-Until the protected headless trace emitter is wired, the ledger should report
-`SNAPSHOT_EMISSION_REQUIRED` with nonzero missing focus snapshots on current
-Druid traces. If snapshots are present but do not match the H126 schema, the
-ledger reports `SNAPSHOT_SCHEMA_INVALID` instead of treating malformed data as
-combat evidence. Schema validation includes required fields, container types,
+On current post-H127B traces, the ledger should have nonzero valid snapshot
+coverage and no missing/invalid focus snapshots before using it for gameplay
+decisions. If snapshots are missing, the ledger reports
+`SNAPSHOT_EMISSION_REQUIRED`; if snapshots are present but do not match the H126
+schema, it reports `SNAPSHOT_SCHEMA_INVALID` instead of treating malformed data
+as combat evidence. Schema validation includes required fields, container types,
 string IDs, integer-like counters, and finite numeric combat fields. Treat
-either result as a readiness gap, not a gameplay signal.
+either readiness result as an observability regression, not a gameplay signal.
 
 For H127B Druid snapshot emitter work, verify that the changed-file surface
 stays inside the approved trace-only boundary:

@@ -248,6 +248,7 @@ func run() -> Dictionary:
 		var enemy_data: Array = _generate_enemies(round_num, rng)
 		var enemy_debuffs: Dictionary = chain_engine.apply_enemy_battle_debuffs(
 			active_board, enemy_data)
+		var druid_combat_snapshot: Dictionary = _build_druid_trace_snapshot(active_board)
 
 		# War drum
 		var drum_reduction: float = Talisman.calc_war_drum_reduction(
@@ -293,12 +294,8 @@ func run() -> Dictionary:
 		# Post-combat
 		var won: bool = combat_result["player_won"]
 		ai.record_battle_result(won)
-		if _tracer != null and _tracer.enabled:
-			_tracer.emit({"t": "battle", "round": round_num, "won": won,
-				"hp_after": state.hp,
-				"ally_survived": combat_result["ally_survived"],
-				"enemy_survived": combat_result["enemy_survived"],
-				"enemy_debuffs": enemy_debuffs})
+		_emit_battle_trace(round_num, won, state.hp, combat_result,
+			enemy_debuffs, druid_combat_snapshot)
 		var pc_result := chain_engine.process_post_combat(active_board, won)
 		state.gold += pc_result["gold"]
 		state.terazin += pc_result["terazin"]
@@ -518,6 +515,34 @@ func _count_alive(engine: CombatEngine, team_id: int) -> int:
 		if engine.alive[i] == 1 and engine.team[i] == team_id:
 			count += 1
 	return count
+
+
+func _build_druid_trace_snapshot(active_board: Array) -> Dictionary:
+	if _tracer == null or not _tracer.enabled:
+		return {}
+	var snapshot: Dictionary = DruidSystem.new().build_combat_snapshot(active_board)
+	if int(snapshot.get("druid_count", 0)) <= 0:
+		return {}
+	return snapshot
+
+
+func _emit_battle_trace(round_num: int, won: bool, hp_after: int,
+		combat_result: Dictionary, enemy_debuffs: Dictionary,
+		druid_combat_snapshot: Dictionary) -> void:
+	if _tracer == null or not _tracer.enabled:
+		return
+	var event := {
+		"t": "battle",
+		"round": round_num,
+		"won": won,
+		"hp_after": hp_after,
+		"ally_survived": combat_result["ally_survived"],
+		"enemy_survived": combat_result["enemy_survived"],
+		"enemy_debuffs": enemy_debuffs,
+	}
+	if not druid_combat_snapshot.is_empty():
+		event["druid_combat_snapshot"] = druid_combat_snapshot
+	_tracer.emit(event)
 
 
 ## Generate enemies using genome parameters (composition, stats, boss scaling, CP curve).
