@@ -1058,6 +1058,297 @@ class AnalyzeAITraceTest(unittest.TestCase):
             )
         )
 
+    def _h126_stack(
+        self,
+        unit_id,
+        count,
+        final_attack_interval,
+        base_attack_interval=None,
+    ):
+        base_interval = (
+            final_attack_interval
+            if base_attack_interval is None
+            else base_attack_interval
+        )
+        return {
+            "unit_id": unit_id,
+            "count": count,
+            "eff_atk": 10.0,
+            "eff_hp": 50.0,
+            "base_attack_interval": base_interval,
+            "upgrade_as_mult": 1.0,
+            "unique_as_mult": 1.0,
+            "temp_as_mult": 1.0,
+            "final_attack_interval": final_attack_interval,
+            "total_atk": 10.0 * count,
+            "total_hp": 50.0 * count,
+            "total_dps": (10.0 * count) / max(final_attack_interval, 0.01),
+            "range": 1,
+            "move_speed": 1,
+            "def": 0,
+        }
+
+    def _h126_card(
+        self,
+        idx,
+        card_id,
+        star,
+        trees,
+        units,
+        total_atk,
+        total_hp,
+        total_dps,
+        stacks=None,
+        enemy_atk_debuff=0.0,
+        enemy_as_debuff=0.0,
+    ):
+        return {
+            "idx": idx,
+            "id": card_id,
+            "star": star,
+            "trees": trees,
+            "units": units,
+            "total_atk": total_atk,
+            "total_hp": total_hp,
+            "total_dps": total_dps,
+            "growth_atk_pct": 0.0,
+            "growth_hp_pct": 0.0,
+            "unique_buff_pct": 0.0,
+            "upgrade_as_mult": 1.0,
+            "unique_as_mult": 1.0,
+            "temp_as_mult": 1.0,
+            "shield_hp_pct": 0.0,
+            "enemy_atk_debuff": enemy_atk_debuff,
+            "enemy_as_debuff": enemy_as_debuff,
+            "kill_hp_recover_pct": 0.0,
+            "mechanics": [],
+            "stacks": stacks or [],
+        }
+
+    def _h126_snapshot(self, cards, enemy_debuffs=None):
+        return {
+            "forest_depth": sum(int(card["trees"]) for card in cards),
+            "druid_count": len(cards),
+            "druid_units": sum(int(card["units"]) for card in cards),
+            "druid_total_atk": sum(float(card["total_atk"]) for card in cards),
+            "druid_total_hp": sum(float(card["total_hp"]) for card in cards),
+            "druid_total_dps": sum(float(card["total_dps"]) for card in cards),
+            "enemy_debuffs": enemy_debuffs or {"atk_pct": 0.0, "as_pct": 0.0},
+            "cards": cards,
+        }
+
+    def test_druid_contribution_ledger_reads_h126_snapshot_pairs(self):
+        spore = self._h126_card(
+            0,
+            "dr_spore_cloud",
+            2,
+            4,
+            3,
+            35.0,
+            180.0,
+            25.0,
+            stacks=[
+                self._h126_stack("dr_spore", 2, 1.5),
+                self._h126_stack("dr_toad", 1, 1.0),
+            ],
+            enemy_atk_debuff=0.05,
+            enemy_as_debuff=0.05,
+        )
+        wrath = self._h126_card(
+            1,
+            "dr_wrath",
+            1,
+            3,
+            3,
+            80.0,
+            140.0,
+            100.0,
+            stacks=[
+                self._h126_stack("dr_spore", 1, 1.5, base_attack_interval=3.0),
+                self._h126_stack("dr_boar", 1, 1.0, base_attack_interval=2.5),
+                self._h126_stack("dr_wolf", 1, 0.5, base_attack_interval=2.0),
+            ],
+        )
+        cradle = self._h126_card(
+            2,
+            "dr_cradle",
+            1,
+            11,
+            2,
+            25.0,
+            100.0,
+            20.0,
+        )
+        events_per_run = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_wrath", "dr_cradle"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "hp_after": -2,
+                    "ally_survived": 0,
+                    "enemy_survived": 12,
+                    "druid_combat_snapshot": self._h126_snapshot(
+                        [spore, wrath, cradle],
+                        enemy_debuffs={"atk_pct": 0.28, "as_pct": 0.28},
+                    ),
+                },
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_contribution_ledger(events_per_run)
+
+        self.assertEqual(summary["in_scope_battles"], 1)
+        self.assertEqual(summary["snapshot_battles"], 1)
+        self.assertEqual(summary["focus_frames"], 1)
+        self.assertEqual(summary["losses"], 1)
+        self.assertAlmostEqual(summary["focus_snapshot_coverage"], 1.0)
+        self.assertEqual(summary["spore_offense_frames"], 1)
+        self.assertEqual(summary["spore_offense_losses"], 1)
+        self.assertEqual(summary["runtime_buckets"]["pair_no_ally_survival"], 1)
+        self.assertAlmostEqual(summary["avg_pair_loss_spore_atk_debuff"], 0.28)
+        self.assertAlmostEqual(summary["avg_pair_loss_spore_as_debuff"], 0.28)
+        self.assertAlmostEqual(summary["avg_pair_loss_offense_units"], 3.0)
+        self.assertAlmostEqual(summary["avg_pair_loss_offense_dps"], 100.0)
+        self.assertAlmostEqual(summary["avg_pair_loss_offense_attack_interval"], 1.0)
+        self.assertEqual(
+            summary["by_pairing"]["spore+dr_wrath"]["runtime_buckets"],
+            {"pair_no_ally_survival": 1},
+        )
+        self.assertIn("PAIR_CONTRIBUTION_TRACE_READY", summary["next_signal"])
+
+    def test_druid_contribution_ledger_reports_missing_focus_snapshots(self):
+        events_per_run = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_cradle"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 14,
+                },
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_contribution_ledger(events_per_run)
+
+        self.assertEqual(summary["in_scope_battles"], 1)
+        self.assertEqual(summary["snapshot_battles"], 0)
+        self.assertEqual(summary["focus_frames"], 0)
+        self.assertEqual(summary["missing_focus_snapshot"], 1)
+        self.assertAlmostEqual(summary["focus_snapshot_coverage"], 0.0)
+        self.assertIn("SNAPSHOT_EMISSION_REQUIRED", summary["next_signal"])
+
+    def test_druid_contribution_ledger_rejects_malformed_snapshot(self):
+        spore = self._h126_card(
+            0,
+            "dr_spore_cloud",
+            2,
+            4,
+            3,
+            35.0,
+            180.0,
+            25.0,
+            stacks=[
+                self._h126_stack("dr_spore", 2, 1.5),
+                self._h126_stack("dr_toad", 1, 1.0),
+            ],
+        )
+        wrath = self._h126_card(
+            1,
+            "dr_wrath",
+            1,
+            3,
+            3,
+            80.0,
+            140.0,
+            100.0,
+            stacks=[
+                self._h126_stack("dr_spore", 1, 1.5),
+                self._h126_stack("dr_boar", 1, 1.0),
+                self._h126_stack("dr_wolf", 1, 0.5),
+            ],
+        )
+        snapshot = self._h126_snapshot(
+            [spore, wrath],
+            enemy_debuffs={"atk_pct": 0.28, "as_pct": 0.28},
+        )
+        del snapshot["enemy_debuffs"]
+        del snapshot["cards"][1]["stacks"][0]["final_attack_interval"]
+        events_per_run = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud", "dr_wrath"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 12,
+                    "druid_combat_snapshot": snapshot,
+                },
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_contribution_ledger(events_per_run)
+
+        self.assertEqual(summary["in_scope_battles"], 1)
+        self.assertEqual(summary["snapshot_battles"], 0)
+        self.assertEqual(summary["focus_frames"], 0)
+        self.assertEqual(summary["invalid_snapshot_battles"], 1)
+        self.assertEqual(summary["invalid_focus_snapshot"], 1)
+        self.assertAlmostEqual(summary["focus_snapshot_coverage"], 0.0)
+        self.assertIn("SNAPSHOT_SCHEMA_INVALID", summary["next_signal"])
+
+    def test_druid_contribution_ledger_marks_snapshot_without_cards_invalid(self):
+        events_per_run = [
+            [
+                {
+                    "t": "round_end",
+                    "round": 9,
+                    "active_board": ["dr_spore_cloud"],
+                    "detected_path": "druid_garden",
+                },
+                {
+                    "t": "battle",
+                    "round": 9,
+                    "won": False,
+                    "ally_survived": 0,
+                    "enemy_survived": 12,
+                    "druid_combat_snapshot": {
+                        "forest_depth": 4,
+                        "enemy_debuffs": {"atk_pct": 0.0, "as_pct": 0.2},
+                    },
+                },
+            ],
+        ]
+
+        summary = analyze_ai_trace.summarize_druid_contribution_ledger(events_per_run)
+
+        self.assertEqual(summary["in_scope_battles"], 1)
+        self.assertEqual(summary["snapshot_battles"], 0)
+        self.assertEqual(summary["focus_frames"], 0)
+        self.assertEqual(summary["missing_focus_snapshot"], 0)
+        self.assertEqual(summary["invalid_snapshot_battles"], 1)
+        self.assertEqual(summary["invalid_focus_snapshot"], 1)
+        self.assertIn("SNAPSHOT_SCHEMA_INVALID", summary["next_signal"])
+
     def test_druid_run_phase_binds_timing_to_survival_window(self):
         events_per_run = [
             [

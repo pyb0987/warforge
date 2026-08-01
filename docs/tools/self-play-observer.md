@@ -234,6 +234,20 @@ semantics, but it is not emitted by self-play traces yet. Use it as the schema
 source for the next headless trace wiring step; do not treat H126 alone as
 runtime trace evidence.
 
+H127A adds analyzer-side support for those future snapshots:
+
+```bash
+python3 scripts/analyze_ai_trace.py /private/tmp/warforge_candidate_traces \
+  --strategy=soft_druid \
+  --druid-contribution-ledger
+```
+
+Until the protected headless trace emitter is wired, the ledger should report
+`SNAPSHOT_EMISSION_REQUIRED` with nonzero missing focus snapshots on current
+Druid traces. If snapshots are present but do not match the H126 schema, the
+ledger reports `SNAPSHOT_SCHEMA_INVALID` instead of treating malformed data as
+combat evidence. Treat either result as a readiness gap, not a gameplay signal.
+
 When the run-phase read points to bought or owned-but-inactive Druid payoffs,
 add `--druid-activation-audit`:
 

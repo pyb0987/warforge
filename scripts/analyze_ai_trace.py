@@ -2109,6 +2109,484 @@ def print_druid_offense_causal_comparison(strat, comparison, baseline_label):
     print()
 
 
+def summarize_druid_contribution_ledger(events_per_run, round_min=9, round_max=11):
+    """Summarize H126 Druid combat snapshots when emitted by battle traces."""
+    rows = []
+    in_scope_battles = 0
+    snapshot_battles = 0
+    missing_focus_snapshot = 0
+    invalid_snapshot_battles = 0
+    invalid_focus_snapshot = 0
+
+    for run_idx, events in enumerate(events_per_run):
+        round_end_by_round = {
+            int(ev.get("round", 0)): ev
+            for ev in events
+            if ev.get("t") == "round_end"
+        }
+        for battle in [ev for ev in events if ev.get("t") == "battle"]:
+            round_num = int(battle.get("round", 0))
+            if round_num < round_min or round_num > round_max:
+                continue
+            in_scope_battles += 1
+            snapshot = _battle_druid_combat_snapshot(battle)
+            if snapshot is None:
+                active_board = set(
+                    round_end_by_round.get(round_num, {}).get("active_board") or []
+                )
+                if active_board & DRUID_FOCUS_CARDS:
+                    missing_focus_snapshot += 1
+                continue
+            if not _is_valid_druid_combat_snapshot(snapshot):
+                invalid_snapshot_battles += 1
+                active_board = set(
+                    round_end_by_round.get(round_num, {}).get("active_board") or []
+                )
+                if active_board & DRUID_FOCUS_CARDS or _snapshot_focus_cards(snapshot):
+                    invalid_focus_snapshot += 1
+                continue
+            snapshot_battles += 1
+            row = _druid_contribution_row(run_idx, battle, snapshot, round_end_by_round)
+            if row["focus"]:
+                rows.append(row)
+
+    losses = [row for row in rows if not row["won"]]
+    pair_rows = [row for row in rows if row["has_pair"]]
+    pair_losses = [row for row in losses if row["has_pair"]]
+    primary_counts = Counter(row["runtime_bucket"] for row in losses)
+    summary = {
+        "n_runs": len(events_per_run),
+        "round_min": round_min,
+        "round_max": round_max,
+        "in_scope_battles": in_scope_battles,
+        "snapshot_battles": snapshot_battles,
+        "focus_frames": len(rows),
+        "wins": sum(1 for row in rows if row["won"]),
+        "losses": len(losses),
+        "missing_focus_snapshot": missing_focus_snapshot,
+        "invalid_snapshot_battles": invalid_snapshot_battles,
+        "invalid_focus_snapshot": invalid_focus_snapshot,
+        "snapshot_coverage": _safe_rate(snapshot_battles, in_scope_battles),
+        "focus_snapshot_coverage": _safe_rate(
+            len(rows),
+            len(rows) + missing_focus_snapshot + invalid_focus_snapshot,
+        ),
+        "spore_offense_frames": len(pair_rows),
+        "spore_offense_losses": len(pair_losses),
+        "runtime_buckets": dict(primary_counts),
+        "avg_pair_loss_enemy_survived": _avg(
+            [row["enemy_survived"] for row in pair_losses]
+        ),
+        "avg_pair_loss_ally_survived": _avg(
+            [row["ally_survived"] for row in pair_losses]
+        ),
+        "avg_pair_loss_spore_as_debuff": _avg(
+            [row["spore_as_debuff"] for row in pair_losses]
+        ),
+        "avg_pair_loss_spore_atk_debuff": _avg(
+            [row["spore_atk_debuff"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_units": _avg(
+            [row["offense_units"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_atk": _avg(
+            [row["offense_total_atk"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_hp": _avg(
+            [row["offense_total_hp"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_dps": _avg(
+            [row["offense_total_dps"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_attack_interval": _avg(
+            [
+                row["offense_avg_attack_interval"]
+                for row in pair_losses
+                if row["offense_avg_attack_interval"] is not None
+            ]
+        ),
+        "by_focus_combo": _summarize_druid_contribution_groups(
+            rows,
+            lambda row: "+".join(row["focus"]),
+        ),
+        "by_pairing": _summarize_druid_contribution_groups(
+            rows,
+            lambda row: row["pairing"],
+        ),
+        "by_path": _summarize_druid_contribution_groups(
+            rows,
+            lambda row: row["path"],
+        ),
+        "examples": losses[:8],
+    }
+    summary["next_signal"] = _druid_contribution_signal(summary)
+    return summary
+
+
+def _battle_druid_combat_snapshot(battle):
+    for key in ("druid_combat_snapshot", "druid_snapshot"):
+        if key in battle and isinstance(battle.get(key), dict):
+            return battle.get(key)
+    return None
+
+
+def _is_valid_druid_combat_snapshot(snapshot):
+    required_top = {
+        "forest_depth",
+        "druid_count",
+        "druid_units",
+        "druid_total_atk",
+        "druid_total_hp",
+        "druid_total_dps",
+        "enemy_debuffs",
+        "cards",
+    }
+    if not required_top.issubset(snapshot.keys()):
+        return False
+    enemy_debuffs = snapshot.get("enemy_debuffs")
+    if not isinstance(enemy_debuffs, dict):
+        return False
+    if not {"atk_pct", "as_pct"}.issubset(enemy_debuffs.keys()):
+        return False
+    cards = snapshot.get("cards")
+    if not isinstance(cards, list):
+        return False
+
+    required_card = {
+        "idx",
+        "id",
+        "star",
+        "trees",
+        "units",
+        "total_atk",
+        "total_hp",
+        "total_dps",
+        "growth_atk_pct",
+        "growth_hp_pct",
+        "unique_buff_pct",
+        "upgrade_as_mult",
+        "unique_as_mult",
+        "temp_as_mult",
+        "shield_hp_pct",
+        "enemy_atk_debuff",
+        "enemy_as_debuff",
+        "kill_hp_recover_pct",
+        "mechanics",
+        "stacks",
+    }
+    required_stack = {
+        "unit_id",
+        "count",
+        "eff_atk",
+        "eff_hp",
+        "base_attack_interval",
+        "upgrade_as_mult",
+        "unique_as_mult",
+        "temp_as_mult",
+        "final_attack_interval",
+        "total_atk",
+        "total_hp",
+        "total_dps",
+        "range",
+        "move_speed",
+        "def",
+    }
+    for card in cards:
+        if not isinstance(card, dict):
+            return False
+        if not required_card.issubset(card.keys()):
+            return False
+        if not isinstance(card.get("mechanics"), list):
+            return False
+        stacks = card.get("stacks")
+        if not isinstance(stacks, list):
+            return False
+        for stack in stacks:
+            if not isinstance(stack, dict):
+                return False
+            if not required_stack.issubset(stack.keys()):
+                return False
+    return True
+
+
+def _snapshot_focus_cards(snapshot):
+    cards = snapshot.get("cards")
+    if not isinstance(cards, list):
+        return set()
+    return {
+        str(card.get("id", ""))
+        for card in cards
+        if isinstance(card, dict) and str(card.get("id", "")) in DRUID_FOCUS_CARDS
+    }
+
+
+def _druid_contribution_row(run_idx, battle, snapshot, round_end_by_round):
+    round_num = int(battle.get("round", 0))
+    round_end = round_end_by_round.get(round_num, {})
+    enemy_debuffs = snapshot.get("enemy_debuffs", {})
+    card_rows = [
+        card for card in snapshot.get("cards", [])
+        if isinstance(card, dict)
+    ]
+    focus = sorted({
+        str(card.get("id", ""))
+        for card in card_rows
+        if str(card.get("id", "")) in DRUID_FOCUS_CARDS
+    })
+    spore_rows = [
+        card for card in card_rows
+        if str(card.get("id", "")) == DRUID_SPORE_CARD
+    ]
+    offense_rows = [
+        card for card in card_rows
+        if str(card.get("id", "")) in DRUID_OFFENSE_CARDS
+    ]
+    spore_active = bool(spore_rows)
+    offense_active = bool(offense_rows)
+    has_pair = spore_active and offense_active
+    offense_cards = sorted({
+        str(card.get("id", ""))
+        for card in offense_rows
+    })
+    result = {
+        "run": run_idx,
+        "round": round_num,
+        "path": str(round_end.get("detected_path", "")) or "undetected",
+        "focus": focus,
+        "won": bool(battle.get("won", False)),
+        "ally_survived": int(battle.get("ally_survived", 0)),
+        "enemy_survived": int(battle.get("enemy_survived", 0)),
+        "hp_after": int(battle.get("hp_after", 0)),
+        "forest_depth": int(snapshot.get("forest_depth", 0)),
+        "druid_units": int(snapshot.get("druid_units", 0)),
+        "druid_total_atk": float(snapshot.get("druid_total_atk", 0.0)),
+        "druid_total_hp": float(snapshot.get("druid_total_hp", 0.0)),
+        "druid_total_dps": float(snapshot.get("druid_total_dps", 0.0)),
+        "spore_active": spore_active,
+        "offense_cards": offense_cards,
+        "offense_present": offense_active,
+        "has_pair": has_pair,
+        "pairing": _druid_contribution_pairing(spore_active, offense_cards),
+        "spore_as_debuff": (
+            float(enemy_debuffs.get("as_pct", 0.0)) if spore_active else 0.0
+        ),
+        "spore_atk_debuff": (
+            float(enemy_debuffs.get("atk_pct", 0.0)) if spore_active else 0.0
+        ),
+        "offense_units": _sum_card_int(offense_rows, "units"),
+        "offense_total_atk": _sum_card_float(offense_rows, "total_atk"),
+        "offense_total_hp": _sum_card_float(offense_rows, "total_hp"),
+        "offense_total_dps": _sum_card_float(offense_rows, "total_dps"),
+        "offense_avg_attack_interval": _weighted_card_attack_interval(offense_rows),
+        "spore_units": _sum_card_int(spore_rows, "units"),
+        "spore_total_hp": _sum_card_float(spore_rows, "total_hp"),
+        "spore_total_dps": _sum_card_float(spore_rows, "total_dps"),
+    }
+    result["runtime_bucket"] = _classify_druid_contribution_loss(result)
+    return result
+
+
+def _druid_contribution_pairing(spore_active, offense_cards):
+    offense_combo = "+".join(offense_cards) if offense_cards else "none"
+    if spore_active and offense_cards:
+        return "spore+" + offense_combo
+    if spore_active:
+        return "spore_only"
+    if offense_cards:
+        return "offense_only:" + offense_combo
+    return "no_focus"
+
+
+def _sum_card_float(cards, key):
+    return sum(float(card.get(key, 0.0)) for card in cards)
+
+
+def _sum_card_int(cards, key):
+    return sum(int(card.get(key, 0)) for card in cards)
+
+
+def _weighted_card_attack_interval(cards):
+    total_weight = 0
+    total_interval = 0.0
+    for card in cards:
+        for stack in card.get("stacks", []):
+            if not isinstance(stack, dict):
+                continue
+            count = int(stack.get("count", 0))
+            if count <= 0:
+                continue
+            total_weight += count
+            total_interval += count * float(stack.get("final_attack_interval", 0.0))
+    if total_weight <= 0:
+        return None
+    return total_interval / total_weight
+
+
+def _classify_druid_contribution_loss(row):
+    if row["won"]:
+        return "converted"
+    if not row["spore_active"]:
+        return "missing_spore"
+    if not row["offense_present"]:
+        return "missing_offense"
+    if row["ally_survived"] <= 0 and row["enemy_survived"] > 0:
+        return "pair_no_ally_survival"
+    if row["offense_total_dps"] <= 0.0 and row["enemy_survived"] > 0:
+        return "pair_no_offense_dps"
+    if row["enemy_survived"] > 0:
+        return "pair_unconverted_enemy_margin"
+    return "pair_unknown_loss"
+
+
+def _summarize_druid_contribution_groups(rows, key_fn):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[key_fn(row)].append(row)
+    return {
+        key: _finalize_druid_contribution_group(group)
+        for key, group in sorted(grouped.items())
+    }
+
+
+def _finalize_druid_contribution_group(group):
+    losses = [row for row in group if not row["won"]]
+    pair_losses = [row for row in losses if row["has_pair"]]
+    return {
+        "frames": len(group),
+        "wins": sum(1 for row in group if row["won"]),
+        "losses": len(losses),
+        "win_rate": _safe_rate(sum(1 for row in group if row["won"]), len(group)),
+        "runtime_buckets": dict(Counter(row["runtime_bucket"] for row in losses)),
+        "avg_forest_depth": _avg([row["forest_depth"] for row in group]),
+        "avg_druid_units": _avg([row["druid_units"] for row in group]),
+        "avg_druid_total_dps": _avg([row["druid_total_dps"] for row in group]),
+        "avg_loss_enemy_survived": _avg([row["enemy_survived"] for row in losses]),
+        "avg_pair_loss_offense_units": _avg(
+            [row["offense_units"] for row in pair_losses]
+        ),
+        "avg_pair_loss_offense_dps": _avg(
+            [row["offense_total_dps"] for row in pair_losses]
+        ),
+        "avg_pair_loss_spore_as_debuff": _avg(
+            [row["spore_as_debuff"] for row in pair_losses]
+        ),
+    }
+
+
+def _druid_contribution_signal(summary):
+    if int(summary["focus_frames"]) <= 0:
+        if int(summary["invalid_focus_snapshot"]) > 0:
+            return (
+                "SNAPSHOT_SCHEMA_INVALID: R9-R11 Druid focus battles emit "
+                "snapshots, but they do not match the H126 contribution schema."
+            )
+        if int(summary["missing_focus_snapshot"]) > 0:
+            return (
+                "SNAPSHOT_EMISSION_REQUIRED: R9-R11 Druid focus battles exist, "
+                "but battle traces do not emit H126 contribution snapshots yet."
+            )
+        return "No R9-R11 Druid focus snapshot frames in scope."
+    if int(summary["invalid_focus_snapshot"]) > 0:
+        return (
+            "PARTIAL_SNAPSHOT_SCHEMA_INVALID: contribution evidence exists, "
+            "but some Druid focus snapshots do not match the H126 schema."
+        )
+    if float(summary["focus_snapshot_coverage"]) < 1.0:
+        return (
+            "PARTIAL_SNAPSHOT_COVERAGE: contribution evidence exists but some "
+            "Druid focus battles still lack H126 snapshots."
+        )
+    if int(summary["spore_offense_losses"]) > 0:
+        return (
+            "PAIR_CONTRIBUTION_TRACE_READY: Spore+Wrath/World losses now have "
+            "per-card/per-stack contribution facts; use this before gameplay."
+        )
+    return (
+        "CONTRIBUTION_TRACE_READY_NO_PAIR_LOSSES: snapshots are available, but "
+        "Spore+Wrath/World loss cases are not present in this sample."
+    )
+
+
+def print_druid_contribution_ledger(strat, summary):
+    print(f"## {strat} Druid Contribution Ledger")
+    print(
+        "- scope: "
+        f"R{summary['round_min']}-R{summary['round_max']} battles, "
+        f"{summary['focus_frames']} Druid focus snapshot frames from "
+        f"{summary['n_runs']} runs"
+    )
+    print(
+        "- snapshot coverage: "
+        f"{summary['snapshot_battles']}/{summary['in_scope_battles']} "
+        f"in-scope battles ({summary['snapshot_coverage']:.1%}); "
+        f"focus coverage {summary['focus_snapshot_coverage']:.1%}; "
+        f"missing focus snapshots {summary['missing_focus_snapshot']}; "
+        f"invalid snapshots {summary['invalid_snapshot_battles']}; "
+        f"invalid focus snapshots {summary['invalid_focus_snapshot']}"
+    )
+    print(
+        "- results: "
+        f"{summary['wins']} won/{summary['losses']} lost, "
+        f"WR {_safe_rate(summary['wins'], summary['focus_frames']):.1%}, "
+        f"Spore+offense frames {summary['spore_offense_frames']}, "
+        f"losses {summary['spore_offense_losses']}"
+    )
+    print(
+        "- pair loss contribution averages: "
+        f"Spore debuff ATK/AS "
+        f"{summary['avg_pair_loss_spore_atk_debuff']:.1%}/"
+        f"{summary['avg_pair_loss_spore_as_debuff']:.1%}, "
+        f"offense units {summary['avg_pair_loss_offense_units']:.1f}, "
+        f"ATK {summary['avg_pair_loss_offense_atk']:.1f}, "
+        f"HP {summary['avg_pair_loss_offense_hp']:.1f}, "
+        f"DPS {summary['avg_pair_loss_offense_dps']:.1f}, "
+        f"interval {summary['avg_pair_loss_offense_attack_interval']:.2f}, "
+        f"survivors A/E {summary['avg_pair_loss_ally_survived']:.1f}/"
+        f"{summary['avg_pair_loss_enemy_survived']:.1f}"
+    )
+    print(f"- runtime buckets: {summary['runtime_buckets']}")
+    print(f"- next signal: {summary['next_signal']}")
+    if summary["by_pairing"]:
+        print("- by pairing:")
+        for pairing, row in summary["by_pairing"].items():
+            print(
+                "  - {pairing}: frames {frames}, wins {wins}, losses {losses}, "
+                "WR {win_rate:.1%}, forest {forest:.1f}, Druid units {units:.1f}, "
+                "DPS {dps:.1f}, pair loss offense units {off_units:.1f}, "
+                "offense DPS {off_dps:.1f}, Spore AS {spore_as:.1%}, "
+                "loss enemy {enemy:.1f}, buckets {buckets}".format(
+                    pairing=pairing,
+                    frames=row["frames"],
+                    wins=row["wins"],
+                    losses=row["losses"],
+                    win_rate=row["win_rate"],
+                    forest=row["avg_forest_depth"],
+                    units=row["avg_druid_units"],
+                    dps=row["avg_druid_total_dps"],
+                    off_units=row["avg_pair_loss_offense_units"],
+                    off_dps=row["avg_pair_loss_offense_dps"],
+                    spore_as=row["avg_pair_loss_spore_as_debuff"],
+                    enemy=row["avg_loss_enemy_survived"],
+                    buckets=row["runtime_buckets"],
+                )
+            )
+    if summary["examples"]:
+        print("- loss examples:")
+        for row in summary["examples"]:
+            print(
+                "  - run {run} R{round} {path}: focus {focus}, pairing {pairing}, "
+                "forest {forest_depth}, Spore debuff ATK/AS "
+                "{spore_atk_debuff:.1%}/{spore_as_debuff:.1%}, offense "
+                "{offense_cards} units {offense_units}, ATK {offense_total_atk:.1f}, "
+                "HP {offense_total_hp:.1f}, DPS {offense_total_dps:.1f}, "
+                "interval {offense_avg_attack_interval}, survivors "
+                "A{ally_survived}/E{enemy_survived}, bucket {runtime_bucket}".format(
+                    **row,
+                )
+            )
+    print()
+
+
 def summarize_druid_spore_tree_gap(events_per_run, round_min=9, round_max=11):
     """Audit whether Spore's own trees lag the active Druid forest depth."""
     n_runs = len(events_per_run)
@@ -5169,6 +5647,11 @@ def main():
         help="Print Druid late-offense acquisition/activation/conversion split",
     )
     ap.add_argument(
+        "--druid-contribution-ledger",
+        action="store_true",
+        help="Print H126 Druid combat snapshot contribution diagnostics",
+    )
+    ap.add_argument(
         "--druid-spore-tree-gap",
         action="store_true",
         help="Print Spore own-tree vs active-forest-depth diagnostics",
@@ -5230,6 +5713,11 @@ def main():
             print_druid_offense_causal_split(
                 strat,
                 summarize_druid_offense_causal_split(runs[strat]),
+            )
+        if args.druid_contribution_ledger:
+            print_druid_contribution_ledger(
+                strat,
+                summarize_druid_contribution_ledger(runs[strat]),
             )
         if args.druid_spore_tree_gap:
             print_druid_spore_tree_gap(
